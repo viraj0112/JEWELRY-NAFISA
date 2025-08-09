@@ -46,3 +46,6 @@ app.*.map.json
 
 # Local Netlify folder
 .netlify
+
+# Ignore build artifacts
+build/
