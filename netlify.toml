@@ -1,21 +1,15 @@
-# example netlify.toml
+# Corrected netlify.toml for Flutter Web
+
 [build]
-  command = "flutter build web --release"
+  # This new command installs Flutter first, then builds the app.
+  command = "git clone https://github.com/flutter/flutter.git && ./flutter/bin/flutter config --enable-web && ./flutter/bin/flutter build web --release"
+  
   functions = "netlify/functions"
   publish = "build/web"
 
-  ## Uncomment to use this redirect for Single Page Applications like create-react-app.
-  ## Not needed for static site generators.
-  #[[redirects]]
-  #  from = "/*"
-  #  to = "/index.html"
-  #  status = 200
-
-  ## (optional) Settings for Netlify Dev
-  ## https://github.com/netlify/cli/blob/main/docs/netlify-dev.md#project-detection
-  #[dev]
-  #  command = "yarn start" # Command to start your dev server
-  #  port = 3000 # Port that the dev server will be listening on
-  #  publish = "dist" # Folder with the static content for _redirect file
-
-  ## more info on configuring this file: https://ntl.fyi/file-based-build-config
+## RECOMMENDED: This redirect is essential for Single Page Applications like Flutter.
+## It makes sure that refreshing a page or going directly to a link like "your-site.com/about" works.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
