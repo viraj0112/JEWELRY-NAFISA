@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "498124910842",
+    "project_id": "jewellery-nafisa",
+    "storage_bucket": "jewellery-nafisa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:498124910842:android:41d2e6870adb1dd941d943",
+        "android_client_info": {
+          "package_name": "com.example.jewelry_nafisa"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "498124910842-677a2arq1ah2veu0n9comp82cisc5qc4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCycwT96bAxii5poriygbQA79L6ZSJKKCE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "498124910842-677a2arq1ah2veu0n9comp82cisc5qc4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
