@@ -1,14 +1,17 @@
 [build]
   command = """
+    # 1. Clean up previous Flutter SDK directory
     rm -rf flutter && \
+    # 2. Clone the Flutter SDK
     git clone https://github.com/flutter/flutter.git && \
+    # 3. Enable web support
     ./flutter/bin/flutter config --enable-web && \
-    ./flutter/bin/flutter build web --release \
-      --dart-define=SUPABASE_URL=$SUPABASE_URL \
-      --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
-      --dart-define=GOOGLE_SIGN_IN_WEB_CLIENT_ID=$GOOGLE_SIGN_IN_WEB_CLIENT_ID \
-      --dart-define=APP_ID=$APP_ID \
-      --dart-define=FIREBASE_API_KEY=$FIREBASE_API_KEY
+    # 4. Create the .env file from Netlify's variables
+    echo "SUPABASE_URL=${SUPABASE_URL}" >> .env && \
+    echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .env && \
+    echo "GOOGLE_SIGN_IN_WEB_CLIENT_ID=${GOOGLE_SIGN_IN_WEB_CLIENT_ID}" >> .env && \
+    # 5. Run the actual build
+    ./flutter/bin/flutter build web --release
   """
   publish = "build/web"
 
