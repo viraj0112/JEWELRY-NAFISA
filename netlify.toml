@@ -1,14 +1,21 @@
-# Corrected netlify.toml for Flutter Web
-
 [build]
-  # This new command installs Flutter first, then builds the app.
-  command = "git clone https://github.com/flutter/flutter.git && ./flutter/bin/flutter config --enable-web && ./flutter/bin/flutter build web --release"
-  
-  functions = "netlify/functions"
+  # This command runs when you deploy
+  command = """
+    # 1. Clone Flutter SDK
+    git clone https://github.com/flutter/flutter.git && \
+    # 2. Enable web support
+    ./flutter/bin/flutter config --enable-web && \
+    # 3. Create the .env file from Netlify's variables
+    echo "SUPABASE_URL=${SUPABASE_URL}" >> .env && \
+    echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .env && \
+    echo "GOOGLE_SIGN_IN_WEB_CLIENT_ID=${GOOGLE_SIGN_IN_WEB_CLIENT_ID}" >> .env && \
+    # 4. Run the actual build
+    ./flutter/bin/flutter build web --release
+  """
+  # The directory that contains your built site
   publish = "build/web"
 
-## RECOMMENDED: This redirect is essential for Single Page Applications like Flutter.
-## It makes sure that refreshing a page or going directly to a link like "your-site.com/about" works.
+# This rule makes sure your Flutter app's routing works correctly
 [[redirects]]
   from = "/*"
   to = "/index.html"
