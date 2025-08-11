@@ -1,6 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sp;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -55,11 +58,14 @@ class FirebaseAuthService {
   }
 
   // GOOGLE SIGN IN
+  // GOOGLE SIGN IN
   Future<User?> signInWithGoogle() async {
     try {
+      final googleSignIn = GoogleSignIn(
+        clientId: kIsWeb ? dotenv.env['GOOGLE_SIGN_IN_WEB_CLIENT_ID'] : null,
+      );
       // Trigger the authentication flow.
-      // We call it directly here instead of holding an instance variable.
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
         // The user canceled the sign-in
@@ -92,6 +98,7 @@ class FirebaseAuthService {
       return null;
     }
   }
+
 
   // SIGN OUT
   Future<void> signOut() async {
