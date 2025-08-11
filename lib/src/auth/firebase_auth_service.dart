@@ -13,7 +13,7 @@ class FirebaseAuthService {
     final supabase = sp.Supabase.instance.client;
     try {
       // Use upsert to either insert a new user or update an existing one.
-      await supabase.from('users').upsert({
+      await supabase.from('Users').upsert({
         'id': user.uid, // Firebase UID as primary key
         'email': user.email,
         'username': username ?? user.displayName,
