@@ -2,30 +2,30 @@ import "package:flutter/material.dart";
 import "package:firebase_core/firebase_core.dart";
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import "package:supabase_flutter/supabase_flutter.dart";
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from the .env file
-  await dotenv.load(fileName: ".env");
-
   // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize Supabase with variables from .env
+  // Get variables from the compile-time environment
+  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
+  // Initialize Supabase with the variables
   await Supabase.initialize(
-    url: dotenv.get('SUPABASE_URL'),
-    anonKey: dotenv.get('SUPABASE_ANON_KEY'),
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
   );
 
   runApp(const MyApp());
 }
-// 
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override

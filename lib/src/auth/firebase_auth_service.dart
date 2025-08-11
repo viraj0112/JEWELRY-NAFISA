@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sp;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+// import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 
@@ -61,8 +61,9 @@ class FirebaseAuthService {
   // GOOGLE SIGN IN
   Future<User?> signInWithGoogle() async {
     try {
+      const googleSignInWebClientId = String.fromEnvironment('GOOGLE_SIGN_IN_WEB_CLIENT_ID');
       final googleSignIn = GoogleSignIn(
-        clientId: kIsWeb ? dotenv.env['GOOGLE_SIGN_IN_WEB_CLIENT_ID'] : null,
+        clientId: kIsWeb ? googleSignInWebClientId : null,
       );
       // Trigger the authentication flow.
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();

@@ -6,12 +6,11 @@
     git clone https://github.com/flutter/flutter.git && \
     # 3. Enable web support
     ./flutter/bin/flutter config --enable-web && \
-    # 4. Create the .env file from Netlify's variables
-    echo "SUPABASE_URL=${SUPABASE_URL}" >> .env && \
-    echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> .env && \
-    echo "GOOGLE_SIGN_IN_WEB_CLIENT_ID=${GOOGLE_SIGN_IN_WEB_CLIENT_ID}" >> .env && \
-    # 5. Run the actual build
-    ./flutter/bin/flutter build web --release
+    # 4. Run the actual build with compile-time variables
+    ./flutter/bin/flutter build web --release \
+      --dart-define=SUPABASE_URL=${SUPABASE_URL} \
+      --dart-define=SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY} \
+      --dart-define=GOOGLE_SIGN_IN_WEB_CLIENT_ID=${GOOGLE_SIGN_IN_WEB_CLIENT_ID}
   """
   publish = "build/web"
 
