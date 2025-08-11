@@ -1,15 +1,5 @@
   [build]
-  command = """
-    rm -rf flutter && \
-    git clone https://github.com/flutter/flutter.git && \
-    ./flutter/bin/flutter config --enable-web && \
-    ./flutter/bin/flutter build web --release \
-      --dart-define=SUPABASE_URL=$SUPABASE_URL \
-      --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
-      --dart-define=GOOGLE_SIGN_IN_WEB_CLIENT_ID=$GOOGLE_SIGN_IN_WEB_CLIENT_ID \
-      --dart-define=APP_ID=$APP_ID \
-      --dart-define=FIREBASE_API_KEY=$FIREBASE_API_KEY
-  """
+  command = "flutter build web --release"
   publish = "build/web"
 
 [[redirects]]
