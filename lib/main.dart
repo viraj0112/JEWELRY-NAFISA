@@ -19,13 +19,13 @@ void main() async {
 
   // Initialize Supabase with variables from .env
   await Supabase.initialize(
-    url: 'https://wkwygcnvpzxzzlxjaqff.supabase.co',
+    url: dotenv.get('SUPABASE_URL'),
     anonKey: dotenv.get('SUPABASE_ANON_KEY'),
   );
 
   runApp(const MyApp());
 }
-// url: dotenv.get('SUPABASE_URL'),
+// 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
