@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart' as sp;
 // import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -25,7 +24,11 @@ class FirebaseAuthService {
   }
 
   // EMAIL & PASSWORD SIGN UP
-  Future<User?> signUpWithEmailPassword(String email, String password, String username) async {
+  Future<User?> signUpWithEmailPassword(
+    String email,
+    String password,
+    String username,
+  ) async {
     try {
       UserCredential credential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -61,7 +64,9 @@ class FirebaseAuthService {
   // GOOGLE SIGN IN
   Future<User?> signInWithGoogle() async {
     try {
-      const googleSignInWebClientId = String.fromEnvironment('GOOGLE_SIGN_IN_WEB_CLIENT_ID');
+      const googleSignInWebClientId = String.fromEnvironment(
+        'GOOGLE_SIGN_IN_WEB_CLIENT_ID',
+      );
       final googleSignIn = GoogleSignIn(
         clientId: kIsWeb ? googleSignInWebClientId : null,
       );
@@ -75,7 +80,8 @@ class FirebaseAuthService {
       }
 
       // Obtain the auth details from the request.
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // Create a new credential for Firebase.
       final AuthCredential credential = GoogleAuthProvider.credential(
@@ -84,7 +90,9 @@ class FirebaseAuthService {
       );
 
       // Sign in to Firebase with the credential.
-      UserCredential userCredential = await _auth.signInWithCredential(credential);
+      UserCredential userCredential = await _auth.signInWithCredential(
+        credential,
+      );
 
       // Save user data to Supabase.
       if (userCredential.user != null) {
@@ -99,7 +107,6 @@ class FirebaseAuthService {
       return null;
     }
   }
-
 
   // SIGN OUT
   Future<void> signOut() async {

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/auth/firebase_auth_service.dart';
@@ -27,9 +29,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showErrorSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _signIn() async {
@@ -49,7 +51,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _signInWithGoogle() async {
+
+ Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
     final user = await _authService.signInWithGoogle();
     setState(() => _isLoading = false);
@@ -79,19 +82,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildWideLayout() {
-    return Row(
-      children: [
-        _buildImageSide(),
-        _buildFormSide(),
-      ],
-    );
+    return Row(children: [_buildImageSide(), _buildFormSide()]);
   }
 
   Widget _buildNarrowLayout() {
     return SingleChildScrollView(
       child: Column(
         children: [
-          SizedBox(height: 200, child: _buildImageSide(isNarrow: true)),
+          // isNarrow: true
+          SizedBox(height: 500, child: _buildImageSide(isNarrow: true)),
           _buildFormSide(),
         ],
       ),
@@ -102,117 +101,262 @@ class _LoginScreenState extends State<LoginScreen> {
     return Expanded(
       flex: isNarrow ? 0 : 2,
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           image: DecorationImage(
-            image: NetworkImage('#'), // Example image
+            image: NetworkImage(
+              'https://static.vecteezy.com/system/resources/previews/035/081/140/non_2x/women-s-jewelry-gold-chain-trendy-jewelry-on-a-silk-background-photo.JPG',
+            ),
             fit: BoxFit.cover,
+            onError: (exception, stackTrace) {
+              print('Error loading Image $exception');
+            },
           ),
         ),
-        child: Center(
-          child: Text(
-            'Login to Explore Designs by AKD',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.ptSerifCaption(
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-              color: Colors.amber.shade600,
-              shadows: const [
-                Shadow(blurRadius: 12.0, color: Color.fromARGB(137, 39, 33, 33), offset: Offset(2.0, 2.0)),
-              ],
-            ),
+        child: Padding(
+          padding: EdgeInsets.all(60),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Log In to Explore',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.ptSerif(
+                  fontSize: 52,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  shadows: const [
+                    Shadow(
+                      blurRadius: 15.0,
+                      color: Color.fromARGB(137, 39, 33, 33),
+                      offset: Offset(2.0, 2.0),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                'Designs by AKD',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.ptSerif(
+                  fontSize: 52,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  shadows: const [
+                    Shadow(
+                      blurRadius: 12.0,
+                      color: Color.fromARGB(137, 39, 33, 33),
+                      offset: Offset(2.0, 2.0),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
+  //Right side form
+
   Widget _buildFormSide() {
     return Expanded(
       flex: 1,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 20.0),
-        color: Colors.white,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Welcome to AKD',
-                style: GoogleFonts.ptSerifCaption(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.amber.shade600,
-                  shadows: const [
-                    Shadow(blurRadius: 12.0, color: Color.fromARGB(137, 39, 33, 33), offset: Offset(2.0, 2.0)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-                validator: (value) => (value == null || !value.contains('@')) ? 'Enter a valid email' : null,
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: !_isPasswordVisible,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                  suffixIcon: IconButton(
-                    icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off),
-                    onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                  ),
-                ),
-                validator: (value) => (value == null || value.length < 6) ? 'Password must be at least 6 characters' : null,
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(onPressed: () {}, child: const Text('Forgot your password?')),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _signIn,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orangeAccent,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        'Log In',
-                        style: GoogleFonts.gideonRoman(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-              ),
-              const SizedBox(height: 20),
-              const Row(
+        width: 700,
+        margin: EdgeInsets.all(40),
+        child: Card(
+          elevation: 20,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            padding: EdgeInsets.all(40),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(child: Divider()),
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 8.0), child: Text('OR')),
-                  Expanded(child: Divider()),
+                  Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.diamond_rounded,
+                      color: Colors.amber,
+                      size: 42,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+
+                  ///
+                  Text(
+                    'Welcome to AKD',
+                    style: GoogleFonts.ptSerif(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  SizedBox(height: 32),
+                  //Email field
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Email',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          hintText: 'Email',
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(color: Colors.red, width: 2),
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                        ),
+                        validator: (value) =>
+                            (value == null || !value.contains('@'))
+                            ? 'Enter a valid email'
+                            : null,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20), /////
+                  //Password field
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Password',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: !_isPasswordVisible,
+                        decoration: InputDecoration(
+                          hintText: 'Password',
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(color: Colors.red, width: 2),
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isPasswordVisible
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                            ),
+                            onPressed: () => setState(
+                              () => _isPasswordVisible = !_isPasswordVisible,
+                            ),
+                          ),
+                        ),
+                        validator: (value) => (value == null || value.length < 6)
+                    ? 'Password must be at least 6 characters'
+                    : null,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  //Login button
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {},
+                      child: const Text('Forgot your password?'),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _signIn,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orangeAccent,
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(
+                            color: Color.fromARGB(255, 90, 87, 87),
+                          )
+                        : Text(
+                            'Log In',
+                            style: GoogleFonts.gideonRoman(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                  ),
+                  SizedBox(height: 10),
+                  const Row(
+                    children: [
+                      Expanded(child: Divider()),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text('OR'),
+                      ),
+                      Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SocialAuthButton(
+                    text: 'Continue with Google',
+                    backgroundColor: Colors.white,
+                    textColor: Colors.black,
+                    icon: Icons.g_mobiledata_rounded,
+                    onPressed: _isLoading ? () {} : _signInWithGoogle,
+                  ),
+
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SignUpScreen(),
+                      ),
+                    ),
+                    child: const Text("Not on the app yet? Sign up"),
+                  ),
                 ],
               ),
-              const SizedBox(height: 20),
-              SocialAuthButton(
-                text: 'Continue with Google',
-                backgroundColor: Colors.white,
-                textColor: Colors.black,
-                icon: Icons.g_mobiledata_rounded,
-                onPressed: _isLoading ? () {} : _signInWithGoogle,
-              ),
-              const SizedBox(height: 15),
-              TextButton(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpScreen())),
-                child: const Text("Not on the app yet? Sign up"),
-              ),
-            ],
+            ),
           ),
         ),
       ),
