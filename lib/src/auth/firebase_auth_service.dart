@@ -18,7 +18,7 @@ class FirebaseAuthService {
       await supabase.from('Users').upsert({
         'id': user.uid, // Firebase UID as the text primary key
         'email': user.email,
-        'username': username ?? user.displayName,
+        'username': username ?? user.displayName ?? user.email?.split('@').first,
         // Only include birthdate if it's not null or empty
         if (birthdate != null && birthdate.isNotEmpty) 'birthdate': birthdate,
         'created_at': DateTime.now().toIso8601String(),

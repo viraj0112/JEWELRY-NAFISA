@@ -4,6 +4,7 @@ import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
 import "package:supabase_flutter/supabase_flutter.dart";
 import 'firebase_options.dart';
+// import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
