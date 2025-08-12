@@ -45,28 +45,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
         _emailController.text.trim(),
         _passwordController.text.trim(),
         _usernameController.text.trim(),
+        _birthdateController.text.trim(), // Pass the birthdate text
       );
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
 
-      if (user != null) {
-        // Navigate to home or back to login
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false,
-        );
-      } else {
-        _showErrorSnackbar('Sign up failed. The email might already be in use.');
+      if (user == null) {
+        _showErrorSnackbar(
+            'Sign up failed. The email might already be in use.');
       }
     }
   }
 
-  Future<void> _signUpWithGoogle() async {
+Future<void> _signUpWithGoogle() async {
     setState(() => _isLoading = true);
     final user = await _authService.signInWithGoogle();
-    setState(() => _isLoading = false);
-    if (user != null) {
-      // Navigate to Home Screen
-    } else {
+     if (mounted) {
+        setState(() => _isLoading = false);
+     }
+    if (user == null) {
       _showErrorSnackbar('Google sign-in was cancelled or failed.');
     }
   }
