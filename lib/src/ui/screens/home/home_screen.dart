@@ -3,6 +3,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'dart:math';
 
 import 'package:jewelry_nafisa/src/auth/firebase_auth_service.dart';
+import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart'; // Import the new profile screen
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -93,7 +94,16 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          // Logout Button
+          // Profile Button
+          IconButton(
+            icon: const Icon(Icons.person, color: Colors.black54),
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => const ProfileScreen(),
+              ));
+            },
+          ),
+          // Logout Button (You can keep this here or just have it in the profile screen)
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.black54),
             onPressed: () async {
