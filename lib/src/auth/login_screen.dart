@@ -90,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         children: [
           // isNarrow: true
-          SizedBox(height: 500, child: _buildImageSide(isNarrow: true)),
+          SizedBox(height: 700, child: _buildImageSide(isNarrow: true)),
           _buildFormSide(),
         ],
       ),
@@ -166,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
         width: 700,
         margin: EdgeInsets.all(40),
         child: Card(
-          elevation: 20,
+          elevation: 40,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
