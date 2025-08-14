@@ -6,6 +6,13 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // Create a single, configured instance of GoogleSignIn
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: kIsWeb
+        ? const String.fromEnvironment('GOOGLE_SIGN_IN_WEB_CLIENT_ID')
+        : null,
+  );
+
   // Helper to save user data to Supabase
   Future<void> _saveUserToSupabase(
     User user, {
@@ -18,15 +25,14 @@ class FirebaseAuthService {
       await supabase.from('Users').upsert({
         'id': user.uid, // Firebase UID as the text primary key
         'email': user.email,
-        'username': username ?? user.displayName ?? user.email?.split('@').first,
+        'username':
+            username ?? user.displayName ?? user.email?.split('@').first,
         // Only include birthdate if it's not null or empty
         if (birthdate != null && birthdate.isNotEmpty) 'birthdate': birthdate,
         'created_at': DateTime.now().toIso8601String(),
       });
     } catch (e) {
       print("Supabase Error: Failed to save user data. $e");
-      // This is likely where your error occurred. Check the console for details.
-      // Common Error: "column <column_name> does not exist"
     }
   }
 
@@ -76,13 +82,8 @@ class FirebaseAuthService {
   // GOOGLE SIGN IN
   Future<User?> signInWithGoogle() async {
     try {
-      const googleSignInWebClientId = String.fromEnvironment(
-        'GOOGLE_SIGN_IN_WEB_CLIENT_ID',
-      );
-      final googleSignIn = GoogleSignIn(
-        clientId: kIsWeb ? googleSignInWebClientId : null,
-      );
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      // Now use the pre-configured _googleSignIn instance
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
         print("Google sign-in was cancelled by the user.");
@@ -101,9 +102,7 @@ class FirebaseAuthService {
         credential,
       );
 
-      // Save user data to Supabase.
       if (userCredential.user != null) {
-        // Note: Birthdate isn't available from Google Sign-In by default.
         await _saveUserToSupabase(userCredential.user!);
       }
       return userCredential.user;
@@ -118,7 +117,7 @@ class FirebaseAuthService {
 
   // SIGN OUT
   Future<void> signOut() async {
-    await GoogleSignIn().signOut();
+    await _googleSignIn.signOut();
     await _auth.signOut();
   }
 }
