@@ -48,7 +48,13 @@ class _HomeScreenState extends State<HomeScreen> {
   // New method to build the category filter chips
   Widget _buildCategoryFilters() {
     // Dummy categories based on your screenshot
-    final categories = ['All', 'Necklace', 'Earring', 'Ring', 'Wedding Jewellery'];
+    final categories = [
+      'All',
+      'Necklace',
+      'Earring',
+      'Ring',
+      'Wedding Jewellery',
+    ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -58,8 +64,9 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.only(right: 8.0),
             child: Chip(
               label: Text(category),
-              backgroundColor:
-                  category == 'All' ? Colors.black : Colors.grey[200],
+              backgroundColor: category == 'All'
+                  ? Colors.black
+                  : Colors.grey[200],
               labelStyle: TextStyle(
                 color: category == 'All' ? Colors.white : Colors.black,
               ),
@@ -88,8 +95,10 @@ class _HomeScreenState extends State<HomeScreen> {
               hintText: 'Search',
               prefixIcon: Icon(Icons.search, color: Colors.grey),
               border: InputBorder.none,
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 11,
+              ),
             ),
           ),
         ),
@@ -98,17 +107,26 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.person, color: Colors.black54),
             onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) => const ProfileScreen(),
-              ));
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
             },
           ),
           // Logout Button (You can keep this here or just have it in the profile screen)
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.black54),
+            icon: const Icon(Icons.logout, color: Colors.black),
             onPressed: () async {
-              // The AuthGate will automatically navigate to the LoginScreen
-              await _authService.signOut();
+              try {
+                await _authService.signOut();
+              } catch (e) {
+                print("Error during sign out: $e");
+                // Optionally, show a snackbar to the user
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text("Error signing out. Please try again."),
+                  ),
+                );
+              }
             },
           ),
         ],
@@ -141,7 +159,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     return Card(
                       clipBehavior: Clip.antiAlias, // For rounded corners
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -150,12 +169,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             fit: BoxFit.cover,
                             loadingBuilder: (context, child, progress) =>
                                 progress == null
-                                    ? child
-                                    : const AspectRatio(
-                                        aspectRatio: 2 / 3,
-                                        child: Center(
-                                            child: CircularProgressIndicator()),
-                                      ),
+                                ? child
+                                : const AspectRatio(
+                                    aspectRatio: 2 / 3,
+                                    child: Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  ),
                           ),
                           Padding(
                             padding: const EdgeInsets.all(8.0),

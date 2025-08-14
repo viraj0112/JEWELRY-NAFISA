@@ -1,6 +1,5 @@
 import "package:flutter/material.dart";
 import "package:firebase_core/firebase_core.dart";
-import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
 import "package:supabase_flutter/supabase_flutter.dart";
 import 'firebase_options.dart';
@@ -45,4 +44,4 @@ class MyApp extends StatelessWidget {
 }
 
 // Helper for Supabase instance, accessible globally
-final supabase = Supabase.instance.client;
+// final supabase = Supabase.instance.client;

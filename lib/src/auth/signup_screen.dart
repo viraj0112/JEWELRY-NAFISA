@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:jewelry_nafisa/src/auth/firebase_auth_service.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/social_auth_button.dart';
-import 'login_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
