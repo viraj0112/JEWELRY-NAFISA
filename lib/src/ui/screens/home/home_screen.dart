@@ -120,12 +120,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 await _authService.signOut();
               } catch (e) {
                 print("Error during sign out: $e");
-                // Optionally, show a snackbar to the user
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text("Error signing out. Please try again."),
-                  ),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Error signing out. Please try again."),
+                    ),
+                  );
+                }
               }
             },
           ),

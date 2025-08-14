@@ -42,6 +42,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-// Helper for Supabase instance, accessible globally
-// final supabase = Supabase.instance.client;
