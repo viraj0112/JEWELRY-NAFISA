@@ -5,34 +5,29 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  // Create a single, configured instance of GoogleSignIn
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: kIsWeb
         ? const String.fromEnvironment('GOOGLE_SIGN_IN_WEB_CLIENT_ID')
         : null,
   );
+  final sp.SupabaseClient _supabase = sp.Supabase.instance.client;
 
-  // Helper to save user data to Supabase
-  Future<void> _saveUserToSupabase(
-    User user, {
+  // Helper to save user profile data to your public 'Users' table
+  Future<void> _saveUserToPublicTable({
+    required String uid,
+    String? email,
     String? username,
-    String? birthdate, // Added birthdate
+    String? birthdate,
   }) async {
-    final supabase = sp.Supabase.instance.client;
     try {
-      // Use upsert to either insert a new user or update an existing one.
-      await supabase.from('Users').upsert({
-        'id': user.uid, // Firebase UID as the text primary key
-        'email': user.email,
-        'username':
-            username ?? user.displayName ?? user.email?.split('@').first,
-        // Only include birthdate if it's not null or empty
+      await _supabase.from('Users').upsert({
+        'id': uid, // The Firebase UID
+        'email': email,
+        'username': username,
         if (birthdate != null && birthdate.isNotEmpty) 'birthdate': birthdate,
-        'created_at': DateTime.now().toIso8601String(),
       });
     } catch (e) {
-      print("Supabase Error: Failed to save user data. $e");
+      print("Supabase Error: Failed to save user data to public table. $e");
     }
   }
 
@@ -41,24 +36,35 @@ class FirebaseAuthService {
     String email,
     String password,
     String username,
-    String birthdate, // Added birthdate
+    String birthdate,
   ) async {
     try {
-      UserCredential credential = await _auth.createUserWithEmailAndPassword(
+      // 1. Create user in Firebase
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      if (credential.user != null) {
-        // Update the user's display name in Firebase
-        await credential.user!.updateDisplayName(username);
-        // Save all data to Supabase
-        await _saveUserToSupabase(
-          credential.user!,
+      final firebaseUser = credential.user;
+
+      if (firebaseUser != null) {
+        await firebaseUser.updateDisplayName(username);
+        final idToken = await firebaseUser.getIdToken();
+
+        // 2. Sign into Supabase using the Firebase token
+        await _supabase.auth.signInWithIdToken(
+          provider: sp.OAuthProvider.google, // Use google provider for Firebase
+          idToken: idToken!,
+        );
+
+        // 3. Save additional profile info to your public 'Users' table
+        await _saveUserToPublicTable(
+          uid: firebaseUser.uid,
+          email: email,
           username: username,
           birthdate: birthdate,
         );
       }
-      return credential.user;
+      return firebaseUser;
     } on FirebaseAuthException catch (e) {
       print("Firebase Auth Exception (Sign Up): ${e.message}");
       return null;
@@ -68,11 +74,21 @@ class FirebaseAuthService {
   // EMAIL & PASSWORD SIGN IN
   Future<User?> signInWithEmailPassword(String email, String password) async {
     try {
-      UserCredential credential = await _auth.signInWithEmailAndPassword(
+      final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      return credential.user;
+      final firebaseUser = credential.user;
+
+      if (firebaseUser != null) {
+        final idToken = await firebaseUser.getIdToken();
+        // Sign into Supabase using the Firebase token
+        await _supabase.auth.signInWithIdToken(
+          provider: sp.OAuthProvider.google,
+          idToken: idToken!,
+        );
+      }
+      return firebaseUser;
     } on FirebaseAuthException catch (e) {
       print("Firebase Auth Exception (Sign In): ${e.message}");
       return null;
@@ -82,35 +98,37 @@ class FirebaseAuthService {
   // GOOGLE SIGN IN
   Future<User?> signInWithGoogle() async {
     try {
-      // Now use the pre-configured _googleSignIn instance
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null; // User cancelled
 
-      if (googleUser == null) {
-        print("Google sign-in was cancelled by the user.");
-        return null;
-      }
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      final AuthCredential credential = GoogleAuthProvider.credential(
+      final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+        idToken: idToken,
       );
 
-      UserCredential userCredential = await _auth.signInWithCredential(
-        credential,
-      );
+      final userCredential = await _auth.signInWithCredential(credential);
+      final firebaseUser = userCredential.user;
 
-      if (userCredential.user != null) {
-        await _saveUserToSupabase(userCredential.user!);
+      if (firebaseUser != null && idToken != null) {
+        // Sign into Supabase using the Google ID token
+        await _supabase.auth.signInWithIdToken(
+          provider: sp.OAuthProvider.google,
+          idToken: idToken,
+        );
+
+        // Save profile info to your public 'Users' table
+        await _saveUserToPublicTable(
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          username: firebaseUser.displayName,
+        );
       }
-      return userCredential.user;
-    } on FirebaseAuthException catch (e) {
-      print("Firebase Auth Exception (Google Sign In): ${e.message}");
-      return null;
+      return firebaseUser;
     } catch (e) {
-      print("An unexpected error occurred during Google Sign In: $e");
+      print("An error occurred during Google Sign In: $e");
       return null;
     }
   }
@@ -119,5 +137,6 @@ class FirebaseAuthService {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
+    await _supabase.auth.signOut();
   }
 }
