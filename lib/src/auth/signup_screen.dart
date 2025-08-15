@@ -1,9 +1,15 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:jewelry_nafisa/src/auth/firebase_auth_service.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/social_auth_button.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+
+class BrandIcons {
+  static const IconData google = Icons.g_mobiledata_rounded; // Placeholder
+}
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -59,7 +65,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Account created successfully! Please log in.')),
+              content: Text('Account created successfully! Please log in.'),
+            ),
           );
           Navigator.of(context).pop();
         }
@@ -80,7 +87,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Account created successfully! Please log in.')),
+            content: Text('Account created successfully! Please log in.'),
+          ),
         );
         Navigator.of(context).pop();
       }
@@ -104,28 +112,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEFEFEF),
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          Container(color: Colors.black.withOpacity(0.2)),
+          _buildBackgroundGrid(),
           Center(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                double formWidth = constraints.maxWidth > 520
+                double formWidth = constraints.maxWidth > 500
                     ? 480.0
                     : constraints.maxWidth * 0.95;
                 return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(vertical: 24.0),
                   child: Center(
                     child: Container(
                       width: formWidth,
-                      margin: const EdgeInsets.symmetric(vertical: 24.0),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(32),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
                       child: _buildForm(),
                     ),
@@ -139,100 +150,243 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
+  Widget _buildBackgroundGrid() {
+    return MasonryGridView.count(
+      crossAxisCount: 4,
+      itemCount: 20,
+      itemBuilder: (BuildContext context, int index) => Opacity(
+        opacity: 0.5,
+        child: Image.network(
+          'https://picsum.photos/200/300?random=$index',
+          fit: BoxFit.cover,
+        ),
+      ),
+      mainAxisSpacing: 4.0,
+      crossAxisSpacing: 4.0,
+    );
+  }
+
   Widget _buildForm() {
-    return Form(
-      key: _formKey,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Align(
-            alignment: Alignment.topRight,
-            child: IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            "Welcome to AKD Designs",
-            style: GoogleFonts.ptSerif(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: const Color.fromARGB(213, 255, 214, 64),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "It's time to refresh your collection",
-            style: GoogleFonts.lato(fontSize: 16, fontStyle: FontStyle.italic),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          // Added Username Field
-          _buildTextField(
-            label: "Username",
-            controller: _usernameController,
-            hint: "Choose a username",
-            validator: (val) =>
-                val!.isEmpty ? "Username cannot be empty" : null,
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            label: "Email",
-            controller: _emailController,
-            hint: "Email",
-            validator: (val) =>
-                !(val?.contains('@') ?? false) ? "Enter a valid email" : null,
-          ),
-          const SizedBox(height: 16),
-          _buildPasswordField(),
-          const SizedBox(height: 16),
-          _buildDateField(),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _isLoading ? null : _signUp,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color.fromARGB(255, 244, 164, 53),
-              minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
-              ),
-            ),
-            child: _isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text(
-                    'Continue',
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(34, 16, 34, 24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, size: 24),
+                    onPressed: () => Navigator.of(context).pop(),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                Container(
+                  width: 120,
+                  height: 50,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.rectangle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      'AKD',
+                      style: GoogleFonts.ptSerif(
+                        color: Colors.amberAccent,
+                        fontSize: 42,
+                        fontWeight: FontWeight.bold,
+                        fontFeatures: [FontFeature('smcp')],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Welcome text
+                Text(
+                  "Welcome to AKD Designs",
+                  style: GoogleFonts.ptSerif(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF333333),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Find new ideas to try with Daginawalas",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF767676),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+
+                // Username field
+                _buildTextField(
+                  label: "Username",
+                  controller: _usernameController,
+                  hint: "Username",
+                  validator: (val) =>
+                      val!.isEmpty ? "Username cannot be empty" : null,
+                ),
+                const SizedBox(height: 16),
+
+                // Email field
+                _buildTextField(
+                  label: "Email",
+                  controller: _emailController,
+                  hint: "Email",
+                  validator: (val) => !(val?.contains('@') ?? false)
+                      ? "Enter a valid email"
+                      : null,
+                ),
+                const SizedBox(height: 16),
+
+                // Password field
+                _buildPasswordField(),
+                const SizedBox(height: 16),
+
+                // Birthdate field
+                _buildDateField(),
+                const SizedBox(height: 24),
+
+                // Continue button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _signUp,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(
+                        255,
+                        240,
+                        198,
+                        48,
+                      ), // Pinterest Red
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Continue',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // OR divider
+                const Row(
+                  children: [
+                    Expanded(child: Divider(color: Color(0xFFE1E1E1))),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Text(
+                        'OR',
+                        style: TextStyle(
+                          color: Color(0xFF333333),
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Color(0xFFE1E1E1))),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Google sign up button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _signUpWithGoogle,
+                    icon: Icon(BrandIcons.google, color: Colors.blue, size: 24),
+                    label: const Text(
+                      'Continue with Google',
+                      style: TextStyle(
+                        color: Color(0xFF333333),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFCDCDCD)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Terms and conditions
+                _buildTermsText(),
+                const SizedBox(height: 16),
+
+                // Already a member? Log in
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: const Text(
+                    'Already a member? Log in',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
+                      color: Color(0xFF333333),
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          const Row(
-            children: [
-              Expanded(child: Divider()),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8.0),
-                child: Text('OR'),
+        ),
+
+        // Create business account
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          decoration: const BoxDecoration(
+            color: Color(0xFFF0F0F0), // Slightly different background
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(32),
+              bottomRight: Radius.circular(32),
+            ),
+          ),
+          child: const Center(
+            child: Text(
+              'Create a free business account',
+              style: TextStyle(
+                color: Color(0xFF333333),
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
               ),
-              Expanded(child: Divider()),
-            ],
+            ),
           ),
-          const SizedBox(height: 16),
-          SocialAuthButton(
-            text: 'Continue with Google',
-            backgroundColor: const Color(0xFFF2F2F2),
-            textColor: Colors.black87,
-            icon: Icons.g_mobiledata_rounded,
-            onPressed: _isLoading ? () {} : _signUpWithGoogle,
-          ),
-          const SizedBox(height: 16),
-          _buildTermsText(),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -242,26 +396,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
     required String hint,
     String? Function(String?)? validator,
   }) {
+    // This widget is mostly unchanged but used for the Email field.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: const TextStyle(
+            fontWeight: FontWeight.normal,
+            fontSize: 12,
+            color: Color(0xFF333333),
+          ),
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           validator: validator,
+          style: const TextStyle(fontSize: 16),
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle: const TextStyle(color: Color(0xFF8E8E8E)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Colors.grey),
+              borderSide: const BorderSide(color: Color(0xFFCDCDCD)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFFCDCDCD)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Colors.blue, width: 2),
+              borderSide: const BorderSide(color: Colors.black, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
             ),
           ),
         ),
@@ -273,9 +442,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Password",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "Password",
+              style: TextStyle(
+                fontWeight: FontWeight.normal,
+                fontSize: 12,
+                color: Color(0xFF333333),
+              ),
+            ),
+            Text(
+              "Password tips",
+              style: TextStyle(
+                fontWeight: FontWeight.normal,
+                fontSize: 12,
+                color: Color(0xFF333333),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -284,30 +470,40 @@ class _SignUpScreenState extends State<SignUpScreen> {
           validator: (value) => (value == null || value.length < 8)
               ? 'Password must be at least 8 characters'
               : null,
+          style: const TextStyle(fontSize: 16),
           decoration: InputDecoration(
             hintText: "Create a password",
+            hintStyle: const TextStyle(color: Color(0xFF8E8E8E)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Colors.grey),
+              borderSide: const BorderSide(color: Color(0xFFCDCDCD)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFFCDCDCD)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Colors.blue, width: 2),
+              borderSide: const BorderSide(color: Colors.black, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
             ),
             suffixIcon: IconButton(
               icon: Icon(
                 _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                color: Colors.grey,
+                color: const Color(0xFF767676),
               ),
               onPressed: () =>
                   setState(() => _isPasswordVisible = !_isPasswordVisible),
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         const Text(
           "Use 8 or more letters, numbers and symbols",
-          style: TextStyle(color: Colors.grey, fontSize: 12),
+          style: TextStyle(color: Color(0xFF767676), fontSize: 12),
         ),
       ],
     );
@@ -317,26 +513,50 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Birthdate",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        const Row(
+          children: [
+            Text(
+              "Birthdate",
+              style: TextStyle(
+                fontWeight: FontWeight.normal,
+                fontSize: 12,
+                color: Color(0xFF333333),
+              ),
+            ),
+            SizedBox(width: 4),
+            Icon(Icons.info_outline, size: 16, color: Color(0xFF767676)),
+          ],
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: _birthdateController,
           readOnly: true,
           onTap: () => _selectDate(context),
+          style: const TextStyle(fontSize: 16),
           decoration: InputDecoration(
             hintText: "dd-mm-yyyy",
+            hintStyle: const TextStyle(color: Color(0xFF8E8E8E)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Colors.grey),
+              borderSide: const BorderSide(color: Color(0xFFCDCDCD)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFFCDCDCD)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Colors.blue, width: 2),
+              borderSide: const BorderSide(color: Colors.black, width: 2),
             ),
-            suffixIcon: const Icon(Icons.calendar_today, color: Colors.grey),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            suffixIcon: const Icon(
+              Icons.calendar_today_outlined,
+              color: Color(0xFF767676),
+              size: 20,
+            ),
           ),
         ),
       ],
@@ -345,18 +565,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Widget _buildTermsText() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
       child: RichText(
         textAlign: TextAlign.center,
         text: TextSpan(
-          style: const TextStyle(color: Colors.grey, fontSize: 12),
+          style: const TextStyle(
+            color: Color(0xFF767676),
+            fontSize: 11,
+            height: 1.4,
+          ),
           children: [
-            const TextSpan(text: "By continuing, you agree to AKD's "),
+            const TextSpan(text: "By continuing, you agree to Pinterest's "),
             TextSpan(
               text: "Terms of Service",
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
+                color: Color(0xFF333333),
               ),
               recognizer: TapGestureRecognizer()..onTap = () {},
             ),
@@ -365,7 +589,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
               text: "Privacy Policy.",
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
+                color: Color(0xFF333333),
+              ),
+              recognizer: TapGestureRecognizer()..onTap = () {},
+            ),
+            const TextSpan(text: " "),
+            TextSpan(
+              text: "Notice at collection.",
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF333333),
               ),
               recognizer: TapGestureRecognizer()..onTap = () {},
             ),
