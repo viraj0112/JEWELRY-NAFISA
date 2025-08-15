@@ -32,9 +32,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   void _showErrorSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _signUp() async {
@@ -44,7 +44,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         _emailController.text.trim(),
         _passwordController.text.trim(),
         _usernameController.text.trim(),
-        _birthdateController.text.trim(), // Pass the birthdate text
+        _birthdateController.text.trim(),
       );
       if (mounted) {
         setState(() => _isLoading = false);
@@ -52,22 +52,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       if (user == null) {
         _showErrorSnackbar(
-            'Sign up failed. The email might already be in use.');
+          'Sign up failed. The email might already be in use.',
+        );
+      } else {
+        // Pop the screen on successful signup
+        if (mounted) Navigator.of(context).pop();
       }
     }
   }
 
-Future<void> _signUpWithGoogle() async {
+  Future<void> _signUpWithGoogle() async {
     setState(() => _isLoading = true);
     final user = await _authService.signInWithGoogle();
-     if (mounted) {
-        setState(() => _isLoading = false);
-     }
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
     if (user == null) {
       _showErrorSnackbar('Google sign-in was cancelled or failed.');
+    } else {
+      // Pop the screen on successful signup
+      if (mounted) Navigator.of(context).pop();
     }
   }
-  
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -92,14 +99,22 @@ Future<void> _signUpWithGoogle() async {
           Center(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                double formWidth = constraints.maxWidth > 520 ? 480.0 : constraints.maxWidth * 0.95;
+                double formWidth = constraints.maxWidth > 520
+                    ? 480.0
+                    : constraints.maxWidth * 0.95;
                 return SingleChildScrollView(
                   child: Center(
                     child: Container(
                       width: formWidth,
                       margin: const EdgeInsets.symmetric(vertical: 24.0),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
                       child: _buildForm(),
                     ),
                   ),
@@ -120,17 +135,44 @@ Future<void> _signUpWithGoogle() async {
         children: [
           Align(
             alignment: Alignment.topRight,
-            child: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
+            child: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
           ),
           const SizedBox(height: 16),
-          Text("Welcome to AKD Designs", style: GoogleFonts.ptSerif(fontSize: 32, fontWeight: FontWeight.bold, color: const Color.fromARGB(213, 255, 214, 64)), textAlign: TextAlign.center),
+          Text(
+            "Welcome to AKD Designs",
+            style: GoogleFonts.ptSerif(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: const Color.fromARGB(213, 255, 214, 64),
+            ),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 8),
-          Text("It's time to refresh your collection", style: GoogleFonts.lato(fontSize: 16, fontStyle: FontStyle.italic), textAlign: TextAlign.center),
+          Text(
+            "It's time to refresh your collection",
+            style: GoogleFonts.lato(fontSize: 16, fontStyle: FontStyle.italic),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 24),
           // Added Username Field
-          _buildTextField(label: "Username", controller: _usernameController, hint: "Choose a username", validator: (val) => val!.isEmpty ? "Username cannot be empty" : null),
+          _buildTextField(
+            label: "Username",
+            controller: _usernameController,
+            hint: "Choose a username",
+            validator: (val) =>
+                val!.isEmpty ? "Username cannot be empty" : null,
+          ),
           const SizedBox(height: 16),
-          _buildTextField(label: "Email", controller: _emailController, hint: "Email", validator: (val) => !(val?.contains('@') ?? false) ? "Enter a valid email" : null),
+          _buildTextField(
+            label: "Email",
+            controller: _emailController,
+            hint: "Email",
+            validator: (val) =>
+                !(val?.contains('@') ?? false) ? "Enter a valid email" : null,
+          ),
           const SizedBox(height: 16),
           _buildPasswordField(),
           const SizedBox(height: 16),
@@ -141,12 +183,32 @@ Future<void> _signUpWithGoogle() async {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color.fromARGB(255, 244, 164, 53),
               minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
             ),
-            child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Continue', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+                    'Continue',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
           ),
           const SizedBox(height: 16),
-          const Row(children: [Expanded(child: Divider()), Padding(padding: EdgeInsets.symmetric(horizontal: 8.0), child: Text('OR')), Expanded(child: Divider())]),
+          const Row(
+            children: [
+              Expanded(child: Divider()),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text('OR'),
+              ),
+              Expanded(child: Divider()),
+            ],
+          ),
           const SizedBox(height: 16),
           SocialAuthButton(
             text: 'Continue with Google',
@@ -162,19 +224,33 @@ Future<void> _signUpWithGoogle() async {
     );
   }
 
-  Widget _buildTextField({required String label, required TextEditingController controller, required String hint, String? Function(String?)? validator}) {
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+    String? Function(String?)? validator,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.grey)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.blue, width: 2)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Colors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Colors.blue, width: 2),
+            ),
           ),
         ),
       ],
@@ -185,24 +261,42 @@ Future<void> _signUpWithGoogle() async {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Password", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        const Text(
+          "Password",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
         const SizedBox(height: 8),
         TextFormField(
           controller: _passwordController,
           obscureText: !_isPasswordVisible,
-          validator: (value) => (value == null || value.length < 8) ? 'Password must be at least 8 characters' : null,
+          validator: (value) => (value == null || value.length < 8)
+              ? 'Password must be at least 8 characters'
+              : null,
           decoration: InputDecoration(
             hintText: "Create a password",
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.grey)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.blue, width: 2)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Colors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Colors.blue, width: 2),
+            ),
             suffixIcon: IconButton(
-              icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.grey),
-              onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+              icon: Icon(
+                _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                color: Colors.grey,
+              ),
+              onPressed: () =>
+                  setState(() => _isPasswordVisible = !_isPasswordVisible),
             ),
           ),
         ),
         const SizedBox(height: 4),
-        const Text("Use 8 or more letters, numbers and symbols", style: TextStyle(color: Colors.grey, fontSize: 12)),
+        const Text(
+          "Use 8 or more letters, numbers and symbols",
+          style: TextStyle(color: Colors.grey, fontSize: 12),
+        ),
       ],
     );
   }
@@ -211,7 +305,10 @@ Future<void> _signUpWithGoogle() async {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Birthdate", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        const Text(
+          "Birthdate",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
         const SizedBox(height: 8),
         TextFormField(
           controller: _birthdateController,
@@ -219,8 +316,14 @@ Future<void> _signUpWithGoogle() async {
           onTap: () => _selectDate(context),
           decoration: InputDecoration(
             hintText: "dd-mm-yyyy",
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.grey)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.blue, width: 2)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Colors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Colors.blue, width: 2),
+            ),
             suffixIcon: const Icon(Icons.calendar_today, color: Colors.grey),
           ),
         ),
@@ -239,13 +342,19 @@ Future<void> _signUpWithGoogle() async {
             const TextSpan(text: "By continuing, you agree to AKD's "),
             TextSpan(
               text: "Terms of Service",
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
               recognizer: TapGestureRecognizer()..onTap = () {},
             ),
             const TextSpan(text: " and acknowledge you've read our "),
             TextSpan(
               text: "Privacy Policy.",
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
               recognizer: TapGestureRecognizer()..onTap = () {},
             ),
           ],
