@@ -20,9 +20,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseAuthService authService = FirebaseAuthService();
   final User? currentUser = FirebaseAuth.instance.currentUser;
   final sp.SupabaseClient _supabase = sp.Supabase.instance.client;
-  bool _isLoggingOut = false;
 
   late Future<List<Board>> _boardsFuture;
+  bool _isLoggingOut = false; // State to track logout process
 
   @override
   void initState() {
@@ -39,16 +39,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .select('name')
           .eq('user_id', currentUser!.uid);
 
-      final boards = (response as List)
-          .map((data) => Board(name: data['name']))
-          .toList();
+      final boards =
+          (response as List).map((data) => Board(name: data['name'])).toList();
       return boards;
     } catch (e) {
       print("Error fetching boards: $e");
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Could not fetch boards')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Could not fetch boards')));
       }
       return [];
     }
@@ -109,8 +107,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       print("Error creating board: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to create board.')),
-        );
+            const SnackBar(content: Text('Failed to create board.')));
       }
     }
   }
@@ -121,15 +118,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Profile'),
         actions: [
+          // Show a loading indicator while logging out
           if (_isLoggingOut)
             const Padding(
-              padding: EdgeInsets.all(10.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.black,
+              padding: EdgeInsets.symmetric(horizontal: 16.0),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.black,
+                  ),
                 ),
               ),
             )
@@ -140,7 +140,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 setState(() {
                   _isLoggingOut = true;
                 });
-                await authService.signOut();
+                try {
+                  await authService.signOut();
+                  if (mounted) {
+                    // Pop all routes until the first one (AuthGate)
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  }
+                } catch (e) {
+                  print("Error during sign out: $e");
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Error signing out. Please try again."),
+                      ),
+                    );
+                  }
+                } finally {
+                  if (mounted) {
+                    setState(() {
+                      _isLoggingOut = false;
+                    });
+                  }
+                }
               },
             ),
         ],
@@ -163,9 +184,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Text(
                         currentUser?.displayName ?? 'Username',
                         style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                            fontSize: 24, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
                       const Text(
@@ -179,10 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SliverPersistentHeader(
                 delegate: _SliverTabBarDelegate(
                   const TabBar(
-                    tabs: [
-                      Tab(text: 'Boards'),
-                      Tab(text: 'Pins'),
-                    ],
+                    tabs: [Tab(text: 'Boards'), Tab(text: 'Pins')],
                     labelColor: Colors.black,
                     unselectedLabelColor: Colors.grey,
                   ),
@@ -246,9 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Text(
                       boards[index].name,
                       style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
+                          fontWeight: FontWeight.bold, color: Colors.black),
                     ),
                   ),
                 ],
@@ -273,10 +287,7 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       child: tabBar,
