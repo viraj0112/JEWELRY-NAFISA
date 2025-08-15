@@ -16,6 +16,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _scrollController = ScrollController();
   final _imageList = <String>[];
   final _random = Random();
+  bool _isLoggingOut = false;
   // Service for handling sign out
   final FirebaseAuthService _authService = FirebaseAuthService();
 
@@ -103,7 +104,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          // Profile Button
           IconButton(
             icon: const Icon(Icons.person, color: Colors.black54),
             onPressed: () {
@@ -112,24 +112,42 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
-          // Logout Button (You can keep this here or just have it in the profile screen)
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.black),
-            onPressed: () async {
-              try {
-                await _authService.signOut();
-              } catch (e) {
-                print("Error during sign out: $e");
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Error signing out. Please try again."),
-                    ),
-                  );
+          if (_isLoggingOut)
+            const Padding(
+              padding: EdgeInsets.all(10.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.black,
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.logout, color: Colors.black),
+              onPressed: () async {
+                setState(() {
+                  _isLoggingOut = true;
+                });
+                try {
+                  await _authService.signOut();
+                } catch (e) {
+                  print("Error during sign out: $e");
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Error signing out. Please try again."),
+                      ),
+                    );
+                    setState(() {
+                      _isLoggingOut = false;
+                    });
+                  }
                 }
-              }
-            },
-          ),
+              },
+            ),
         ],
       ),
       body: Column(

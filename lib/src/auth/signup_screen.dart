@@ -68,6 +68,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               content: Text('Account created successfully! Please log in.'),
             ),
           );
+          // This will pop the current screen and return to the login screen.
           Navigator.of(context).pop();
         }
       }
