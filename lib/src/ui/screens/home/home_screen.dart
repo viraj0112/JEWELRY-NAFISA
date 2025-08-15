@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'dart:math';
-
 import 'package:jewelry_nafisa/src/auth/firebase_auth_service.dart';
-import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart'; // Import the new profile screen
+import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:jewelry_nafisa/src/ui/screens/membership/buy_membership_screen.dart';
+import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,8 +20,77 @@ class _HomeScreenState extends State<HomeScreen> {
   final _imageList = <String>[];
   final _random = Random();
   bool _isLoggingOut = false;
-  // Service for handling sign out
   final FirebaseAuthService _authService = FirebaseAuthService();
+
+  // --- NEW: LOGIC FOR MEMBERSHIP GATE & QUOTES ---
+  void _onGetQuotePressed(BuildContext context) {
+    final profile = Provider.of<UserProfileProvider>(context, listen: false);
+
+    if (profile.isMember) {
+      if (profile.creditsRemaining > 0) {
+        _useQuoteCredit(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You are out of quotes for today!')),
+        );
+      }
+    } else {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Member Exclusive"),
+          content: const Text(
+            "Getting a quote is a premium feature available only to lifetime members.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Maybe Later"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const BuyMembershipScreen(),
+                  ),
+                );
+              },
+              child: const Text("Upgrade Now"),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Future<void> _useQuoteCredit(BuildContext context) async {
+    final profile = Provider.of<UserProfileProvider>(context, listen: false);
+    final supabase = Supabase.instance.client;
+
+    try {
+      // Call the Supabase RPC function
+      await supabase.rpc('decrement_credit');
+
+      // Update the UI immediately
+      profile.decrementCredit();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Quote request sent! One credit used.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print("Error using quote credit: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not get quote. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -104,6 +176,28 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
+          // --- NEW: CREDITS UI ---
+          Consumer<UserProfileProvider>(
+            builder: (context, profile, child) {
+              if (profile.isLoading || !profile.isMember) {
+                return const SizedBox.shrink(); // Hide if loading or not a member
+              }
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: Center(
+                  child: Chip(
+                    avatar: const Icon(
+                      Icons.star,
+                      color: Colors.amber,
+                      size: 18,
+                    ),
+                    label: Text('${profile.creditsRemaining} Left'),
+                  ),
+                ),
+              );
+            },
+          ),
+          // --- END OF CREDITS UI ---
           IconButton(
             icon: const Icon(Icons.person, color: Colors.black54),
             onPressed: () {
@@ -176,12 +270,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: _imageList.length,
                   itemBuilder: (context, index) {
                     return Card(
-                      clipBehavior: Clip.antiAlias, // For rounded corners
+                      clipBehavior: Clip.antiAlias,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Stack(
+                        alignment: Alignment.bottomCenter,
                         children: [
                           Image.network(
                             _imageList[index],
@@ -196,9 +290,49 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Text('Image $index'),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.center,
+                                colors: [
+                                  Colors.black.withOpacity(0.6),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Image $index',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  ElevatedButton.icon(
+                                    onPressed: () =>
+                                        _onGetQuotePressed(context),
+                                    icon: const Icon(
+                                      Icons.request_quote_outlined,
+                                      size: 16,
+                                    ),
+                                    label: const Text('Get Quote'),
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ],
                       ),
