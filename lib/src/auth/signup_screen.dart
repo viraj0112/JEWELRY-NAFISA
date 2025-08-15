@@ -55,8 +55,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
           'Sign up failed. The email might already be in use.',
         );
       } else {
-        // Pop the screen on successful signup
-        if (mounted) Navigator.of(context).pop();
+        await _authService.signOut();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Account created successfully! Please log in.')),
+          );
+          Navigator.of(context).pop();
+        }
       }
     }
   }
@@ -70,8 +76,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (user == null) {
       _showErrorSnackbar('Google sign-in was cancelled or failed.');
     } else {
-      // Pop the screen on successful signup
-      if (mounted) Navigator.of(context).pop();
+      await _authService.signOut();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Account created successfully! Please log in.')),
+        );
+        Navigator.of(context).pop();
+      }
     }
   }
 
