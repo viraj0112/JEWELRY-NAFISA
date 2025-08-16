@@ -51,7 +51,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         _passwordController.text.trim(),
         _usernameController.text.trim(),
         _birthdateController.text.trim(),
-      );
+        context);
       if (mounted) {
         setState(() => _isLoading = false);
       }

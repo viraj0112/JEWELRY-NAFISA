@@ -7,6 +7,7 @@ import 'package:jewelry_nafisa/src/ui/screens/membership/buy_membership_screen.d
 import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -269,73 +270,86 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisCount: crossAxisCount,
                   itemCount: _imageList.length,
                   itemBuilder: (context, index) {
-                    return Card(
-                      clipBehavior: Clip.antiAlias,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Stack(
-                        alignment: Alignment.bottomCenter,
-                        children: [
-                          Image.network(
-                            _imageList[index],
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, progress) =>
-                                progress == null
-                                ? child
-                                : const AspectRatio(
-                                    aspectRatio: 2 / 3,
-                                    child: Center(
-                                      child: CircularProgressIndicator(),
-                                    ),
-                                  ),
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.bottomCenter,
-                                end: Alignment.center,
-                                colors: [
-                                  Colors.black.withOpacity(0.6),
-                                  Colors.transparent,
-                                ],
-                              ),
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => JewelryDetailScreen(
+                              imageUrl: _imageList[index],
+                              itemName:
+                                  'Image $index', // You'll replace this with real data later
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Image $index',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  ElevatedButton.icon(
-                                    onPressed: () =>
-                                        _onGetQuotePressed(context),
-                                    icon: const Icon(
-                                      // Icons.request_quote_outlined,
-                                      Icons.remove_red_eye_sharp,
-                                      size: 16,
-                                    ),
-                                    label: const Text('Get Details'),
-                                    style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
+                          ),
+                        );
+                      },
+                      child: Card(
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Stack(
+                          alignment: Alignment.bottomCenter,
+                          children: [
+                            Image.network(
+                              _imageList[index],
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) =>
+                                  progress == null
+                                  ? child
+                                  : const AspectRatio(
+                                      aspectRatio: 2 / 3,
+                                      child: Center(
+                                        child: CircularProgressIndicator(),
                                       ),
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
-                                  ),
-                                ],
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.center,
+                                  colors: [
+                                    Colors.black.withOpacity(0.6),
+                                    Colors.transparent,
+                                  ],
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Image $index',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    ElevatedButton.icon(
+                                      onPressed: () =>
+                                          _onGetQuotePressed(context),
+                                      icon: const Icon(
+                                        // Icons.request_quote_outlined,
+                                        Icons.remove_red_eye_sharp,
+                                        size: 16,
+                                      ),
+                                      label: const Text('Get Details'),
+                                      style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                        ),
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   },
