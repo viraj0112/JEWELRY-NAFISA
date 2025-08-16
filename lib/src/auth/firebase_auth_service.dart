@@ -21,17 +21,22 @@ class FirebaseAuthService {
     String? birthdate,
   }) async {
     try {
+      debugPrint('Syncing user profile for UID: $uid');
+      
       // 'upsert' creates a new row if 'id' doesn't exist, or updates it if it does.
       await _supabase.from('Users').upsert({
         'id': uid, // The Firebase UID now matches the Supabase auth UID
-        'email': email,
-        'username': username,
+        if (email != null) 'email': email,
+        if (username != null && username.isNotEmpty) 'username': username,
         if (birthdate != null && birthdate.isNotEmpty) 'birthdate': birthdate,
+        'membership_status': 'free',
+        'credits_remaining': 0,
       });
+      
+      debugPrint('User profile synced successfully');
     } catch (e) {
-      print(
-        "Supabase Error: Failed to sync user profile. Check RLS policies. Error: $e",
-      );
+      debugPrint("Supabase Error: Failed to sync user profile. Check RLS policies. Error: $e");
+      rethrow;
     }
   }
 
@@ -41,7 +46,6 @@ class FirebaseAuthService {
     String password,
     String username,
     String birthdate,
-    // Add BuildContext for showing SnackBars
     BuildContext context,
   ) async {
     try {
@@ -49,18 +53,21 @@ class FirebaseAuthService {
         email: email,
         password: password,
       );
+      
       final firebaseUser = credential.user;
-
       if (firebaseUser != null) {
         await firebaseUser.updateDisplayName(username);
         final idToken = await firebaseUser.getIdToken();
-
-        // 1. Sign into Supabase using the Firebase token
+        
+        // 1. Sign into Supabase using the Firebase token with 'google' provider
+        // Note: We use google provider because Firebase ID tokens are compatible with Google OAuth
         await _supabase.auth.signInWithIdToken(
-          provider: sp.OAuthProvider.google, // Use google provider for Firebase
+          provider: sp.OAuthProvider.google, // Use OAuthProvider enum
           idToken: idToken!,
         );
-
+        
+        debugPrint('Supabase session created: ${_supabase.auth.currentUser?.id}');
+        
         // 2. **CRITICAL STEP**: Sync the new user's profile to your public table
         await _syncUserProfileToSupabase(
           uid: firebaseUser.uid,
@@ -68,22 +75,27 @@ class FirebaseAuthService {
           username: username,
           birthdate: birthdate,
         );
+
+        return firebaseUser;
       }
-      return firebaseUser;
     } on FirebaseAuthException catch (e) {
-      print("Firebase Auth Exception (Sign Up): ${e.message}");
-      // Show a user-friendly error
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Sign-up failed: ${e.message}")));
+      debugPrint("Firebase Auth Exception (Sign Up): ${e.message}");
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Sign-up failed: ${e.message}"))
+        );
+      }
       return null;
-    } catch (e){
-      print('Supabase/Other Exception (Sign Up): $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Could not sync profile. Pleasae Try again.")),
-      );
+    } catch (e) {
+      debugPrint('Supabase/Other Exception (Sign Up): $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not sync profile. Please try again.")),
+        );
+      }
       return null;
     }
+    return null;
   }
 
   // EMAIL & PASSWORD SIGN IN
@@ -93,21 +105,29 @@ class FirebaseAuthService {
         email: email,
         password: password,
       );
+      
       final firebaseUser = credential.user;
-
       if (firebaseUser != null) {
         final idToken = await firebaseUser.getIdToken();
+        
         // Sign into Supabase using the Firebase token
         await _supabase.auth.signInWithIdToken(
-          provider: sp.OAuthProvider.google,
+          provider: sp.OAuthProvider.google, // Use OAuthProvider enum
           idToken: idToken!,
         );
+        
+        debugPrint('Supabase session created: ${_supabase.auth.currentUser?.id}');
+        
+        return firebaseUser;
       }
-      return firebaseUser;
     } on FirebaseAuthException catch (e) {
-      print("Firebase Auth Exception (Sign In): ${e.message}");
+      debugPrint("Firebase Auth Exception (Sign In): ${e.message}");
+      return null;
+    } catch (e) {
+      debugPrint('Supabase Exception (Sign In): $e');
       return null;
     }
+    return null;
   }
 
   // MODIFIED GOOGLE SIGN IN
@@ -115,37 +135,41 @@ class FirebaseAuthService {
     try {
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
-
+      
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
-
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: idToken,
       );
-
+      
       final userCredential = await _auth.signInWithCredential(credential);
       final firebaseUser = userCredential.user;
-
+      
       if (firebaseUser != null && idToken != null) {
         // 1. Sign into Supabase
         await _supabase.auth.signInWithIdToken(
-          provider: sp.OAuthProvider.google,
+          provider: sp.OAuthProvider.google, // Keep google for actual Google sign-ins
           idToken: idToken,
+          accessToken: googleAuth.accessToken,
         );
-
+        
+        debugPrint('Supabase session created: ${_supabase.auth.currentUser?.id}');
+        
         // 2. **CRITICAL STEP**: Sync profile data. `upsert` handles both new and returning users.
         await _syncUserProfileToSupabase(
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           username: firebaseUser.displayName,
         );
+
+        return firebaseUser;
       }
-      return firebaseUser;
     } catch (e) {
-      print("An error occurred during Google Sign In: $e");
+      debugPrint("An error occurred during Google Sign In: $e");
       return null;
     }
+    return null;
   }
 
   // SIGN OUT
