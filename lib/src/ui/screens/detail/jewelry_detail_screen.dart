@@ -1,3 +1,5 @@
+// lib/src/ui/screens/detail/jewelry_detail_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
@@ -5,7 +7,7 @@ import 'package:jewelry_nafisa/src/ui/screens/membership/buy_membership_screen.d
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:firebase_auth/firebase_auth.dart' as fb; // Added import
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 
 class JewelryDetailScreen extends StatefulWidget {
   final String imageUrl;
@@ -39,67 +41,18 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     _initializePin();
   }
 
-  Future<void> _initializePin() async {
-    try {
-      // Ensure we have a Supabase session before proceeding
-      if (supabase.auth.currentUser == null) {
-        await _ensureSupabaseSession();
-      }
-      final uid = supabase.auth.currentUser?.id;
-
-      // Find the pin by its unique image URL or create it if it doesn't exist
-      var existingPin = await supabase
-          .from('pins')
-          .select('id, like_count, share_slug')
-          .eq('image_url', widget.imageUrl)
-          .maybeSingle();
-
-      if (existingPin == null && uid != null) {
-        // Pin doesn't exist, create it.
-        existingPin = await supabase
-            .from('pins')
-            .insert({
-              'owner_id': uid, // Correct column from your schema
-              'title': widget.itemName,
-              'image_url': widget.imageUrl,
-              'description': 'Beautiful jewelry piece from AKD',
-            })
-            .select('id, like_count, share_slug')
-            .single();
-      }
-
-      if (existingPin != null) {
-        pinId = existingPin['id'] as String;
-        likeCount = (existingPin['like_count'] ?? 0) as int;
-        shareSlug = existingPin['share_slug'] as String?;
-      }
-
-      // If a user is logged in, check if they have liked this specific pin
-      if (uid != null && pinId != null) {
-        final likeRow = await supabase
-            .from('user_likes')
-            .select('user_id')
-            .eq('user_id', uid)
-            .eq('pin_id', pinId!)
-            .maybeSingle();
-        userLiked = likeRow != null;
-      }
-    } catch (e) {
-      debugPrint('Error initializing pin: $e');
-    } finally {
-      if(mounted) setState(() => isLoading = false);
-    }
-  }
-
+  // Ensures a Supabase session exists, syncing from Firebase if needed.
   Future<void> _ensureSupabaseSession() async {
     try {
+      if (supabase.auth.currentUser != null) {
+        return; // Session already exists
+      }
       final fbUser = fb.FirebaseAuth.instance.currentUser;
-      if (fbUser != null && supabase.auth.currentUser == null) {
+      if (fbUser != null) {
         final idToken = await fbUser.getIdToken();
         if (idToken != null) {
-          // CORRECTED: Use the OAuthProvider enum, not a string
           await supabase.auth.signInWithIdToken(
-            provider: OAuthProvider.google, 
+            provider: OAuthProvider.google,
             idToken: idToken,
           );
         }
@@ -109,17 +62,79 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
   }
 
+  // Fetches pin details or creates a new pin if it doesn't exist.
+  Future<void> _initializePin() async {
+    if (!mounted) return;
+    setState(() => isLoading = true);
+
+    try {
+      await _ensureSupabaseSession();
+      final uid = supabase.auth.currentUser?.id;
+
+      var response = await supabase
+          .from('pins')
+          .select('id, like_count, share_slug')
+          .eq('image_url', widget.imageUrl)
+          .maybeSingle();
+
+      if (response == null) {
+        if (uid == null) {
+          // Can't create a pin if user is not logged in.
+          debugPrint("Cannot create pin: User not logged in.");
+          if (mounted) setState(() => isLoading = false);
+          return;
+        }
+        // Pin doesn't exist, so we create it.
+        response = await supabase
+            .from('pins')
+            .insert({
+              'owner_id': uid,
+              'title': widget.itemName,
+              'image_url': widget.imageUrl,
+              'description': 'Beautiful jewelry piece from AKD',
+            })
+            .select('id, like_count, share_slug')
+            .single();
+      }
+
+      pinId = response['id'] as String;
+      likeCount = (response['like_count'] ?? 0) as int;
+      shareSlug = response['share_slug'] as String?;
+
+      // If a user is logged in, check their like status for this pin.
+      if (uid != null) {
+        final likeResponse = await supabase
+            .from('user_likes')
+            .select('user_id')
+            .match({'user_id': uid, 'pin_id': pinId!}).maybeSingle();
+        userLiked = (likeResponse != null);
+      }
+    } catch (e) {
+      debugPrint('Error initializing pin: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not load pin details.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  // Toggles the like status for a pin.
   Future<void> _toggleLike() async {
     if (pinId == null || isLiking) return;
-    
+
     final uid = supabase.auth.currentUser?.id;
     if (uid == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please log in to like items.")));
-        return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to like items.")),
+      );
+      return;
     }
 
-    setState(() => isLiking = true);
-    
+    if (mounted) setState(() => isLiking = true);
+
     try {
       if (userLiked) {
         // Unlike
@@ -127,64 +142,57 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             .from('user_likes')
             .delete()
             .match({'user_id': uid, 'pin_id': pinId!});
-        
-        // Call the database function to decrement the count
-        await supabase.rpc('increment_like_count', params: {
-          'pin_id_to_update': pinId, // CORRECTED RPC parameter name
-          'delta': -1,
-        });
-        
+        await supabase.rpc('increment_like_count',
+            params: {'pin_id_to_update': pinId, 'delta': -1});
       } else {
         // Like
-        await supabase.from('user_likes').insert({
-          'user_id': uid,
-          'pin_id': pinId,
-        });
-        
-        // Call the database function to increment the count
-        await supabase.rpc('increment_like_count', params: {
-          'pin_id_to_update': pinId, // CORRECTED RPC parameter name
-          'delta': 1,
-        });
+        await supabase
+            .from('user_likes')
+            .insert({'user_id': uid, 'pin_id': pinId});
+        await supabase.rpc('increment_like_count',
+            params: {'pin_id_to_update': pinId, 'delta': 1});
       }
 
-      // Instead of guessing, let's get the true like count from the DB
-      final updatedData = await supabase.from('pins').select('like_count').eq('id', pinId!).single();
-      
+      // Fetch the updated count to ensure UI is accurate
+      final updatedData = await supabase
+          .from('pins')
+          .select('like_count')
+          .eq('id', pinId!)
+          .single();
+
       if (mounted) {
         setState(() {
-            likeCount = updatedData['like_count'] ?? 0;
-            userLiked = !userLiked;
+          likeCount = updatedData['like_count'] ?? 0;
+          userLiked = !userLiked;
         });
       }
     } catch (e) {
       debugPrint('Error toggling like: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update like')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update like status.')),
+        );
+      }
     } finally {
-      if(mounted) setState(() => isLiking = false);
+      if (mounted) setState(() => isLiking = false);
     }
   }
 
-  // The rest of your file is well-structured and doesn't need changes.
-  // Paste the functions below into your file, replacing the existing ones.
-
+  // Generates a unique link and opens the native share dialog.
   Future<void> _sharePin() async {
     if (pinId == null) return;
-    
+
     try {
-      // Generate slug if doesn't exist
-      if (shareSlug == null) {
-        // Create a simple slug from item name and a timestamp
-        final safeName = widget.itemName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '-');
-        shareSlug = '$safeName-${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}';
+      // Generate and save the slug if it doesn't exist yet
+      if (shareSlug == null || shareSlug!.isEmpty) {
+        final generatedSlug = await supabase.rpc('gen_share_slug');
+        shareSlug = generatedSlug as String;
+
         await supabase
             .from('pins')
-            .update({'share_slug': shareSlug})
-            .eq('id', pinId!);
+            .update({'share_slug': shareSlug}).eq('id', pinId!);
       }
-      
+
       final shareUrl = 'https://daginawala.in/p/$shareSlug';
       await Share.share(
         'Check out this beautiful ${widget.itemName} from AKD Designs: $shareUrl',
@@ -192,24 +200,30 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       );
     } catch (e) {
       debugPrint('Error sharing pin: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to share')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to create share link.')),
+        );
+      }
     }
   }
 
+  // Allows the user to save a pin to a new or existing board.
   Future<void> _saveToBoard() async {
     if (pinId == null || isSaving) return;
-    
+
     final uid = supabase.auth.currentUser?.id;
     if (uid == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please log in to save items.")));
-        return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to save items.")),
+      );
+      return;
     }
 
-    setState(() => isSaving = true);
-    
+    if (mounted) setState(() => isSaving = true);
+
     try {
+      // Fetch user's existing boards
       final boards = await supabase
           .from('boards')
           .select('id, name')
@@ -217,34 +231,35 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           .order('created_at');
 
       if (!mounted) return;
-      
+
+      // Show the dialog to pick or create a board
       final selectedBoard = await showDialog<Map<String, dynamic>>(
         context: context,
         builder: (_) => _BoardPickerDialog(boards: boards),
       );
 
+      // If the user cancelled, do nothing
       if (selectedBoard == null) {
         if (mounted) setState(() => isSaving = false);
         return;
       }
 
-      int boardId = selectedBoard['id'] as int;
+      int boardId;
 
       // If user chose to create a new board
       if (selectedBoard['create_new'] == true) {
         final boardName = selectedBoard['name'] as String;
-        final inserted = await supabase
+        final newBoard = await supabase
             .from('boards')
-            .insert({
-              'user_id': uid,
-              'name': boardName,
-            })
+            .insert({'user_id': uid, 'name': boardName})
             .select('id')
             .single();
-        boardId = inserted['id'] as int;
+        boardId = newBoard['id'] as int;
+      } else {
+        boardId = selectedBoard['id'] as int;
       }
 
-      // Save pin to board
+      // Use upsert to prevent duplicates
       await supabase.from('boards_pins').upsert({
         'board_id': boardId,
         'pin_id': pinId,
@@ -253,7 +268,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Saved to board!'),
+          content: Text('Saved to board successfully!'),
           backgroundColor: Colors.green,
         ),
       );
@@ -261,12 +276,15 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       debugPrint('Error saving to board: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to save to board')),
+        const SnackBar(content: Text('Failed to save. Please try again.')),
       );
     } finally {
-      if(mounted) setState(() => isSaving = false);
+      if (mounted) setState(() => isSaving = false);
     }
   }
+  
+  // --- The rest of your file (UI code) remains the same ---
+  // --- Paste this code block over your existing state class ---
 
   void _onGetQuotePressed(BuildContext context) {
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
@@ -582,6 +600,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 }
 
+// Dialog for picking a board
 class _BoardPickerDialog extends StatefulWidget {
   final List<dynamic> boards;
 
