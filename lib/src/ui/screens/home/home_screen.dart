@@ -318,10 +318,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                     onPressed: () =>
                                         _onGetQuotePressed(context),
                                     icon: const Icon(
-                                      Icons.request_quote_outlined,
+                                      // Icons.request_quote_outlined,
+                                      Icons.remove_red_eye_sharp,
                                       size: 16,
                                     ),
-                                    label: const Text('Get Quote'),
+                                    label: const Text('Get Details'),
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,

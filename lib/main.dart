@@ -5,6 +5,7 @@ import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart'; // Imp
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'firebase_options.dart';
 import 'package:provider/provider.dart'; // Import provider
+import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +39,8 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const AuthGate(),
+      // home: const AuthGate(),
+      home: const HomeScreen(),
     );
   }
 }
