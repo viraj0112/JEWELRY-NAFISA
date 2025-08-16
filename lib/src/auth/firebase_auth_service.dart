@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sp;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -40,6 +41,8 @@ class FirebaseAuthService {
     String password,
     String username,
     String birthdate,
+    // Add BuildContext for showing SnackBars
+    BuildContext context,
   ) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -54,7 +57,7 @@ class FirebaseAuthService {
 
         // 1. Sign into Supabase using the Firebase token
         await _supabase.auth.signInWithIdToken(
-         provider: sp.OAuthProvider.google, // Use google provider for Firebase
+          provider: sp.OAuthProvider.google, // Use google provider for Firebase
           idToken: idToken!,
         );
 
@@ -69,6 +72,16 @@ class FirebaseAuthService {
       return firebaseUser;
     } on FirebaseAuthException catch (e) {
       print("Firebase Auth Exception (Sign Up): ${e.message}");
+      // Show a user-friendly error
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Sign-up failed: ${e.message}")));
+      return null;
+    } catch (e){
+      print('Supabase/Other Exception (Sign Up): $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Could not sync profile. Pleasae Try again.")),
+      );
       return null;
     }
   }
