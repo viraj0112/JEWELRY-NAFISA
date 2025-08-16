@@ -54,7 +54,7 @@ class FirebaseAuthService {
 
         // 1. Sign into Supabase using the Firebase token
         await _supabase.auth.signInWithIdToken(
-          provider: sp.OAuthProvider.google, // Use google provider for Firebase
+         provider: sp.OAuthProvider.google, // Use google provider for Firebase
           idToken: idToken!,
         );
 
