@@ -63,7 +63,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '498124910842',
     projectId: 'jewellery-nafisa',
     storageBucket: 'jewellery-nafisa.firebasestorage.app',
-    iosClientId: '498124910842-nlc18c7irm4vlbnkvjlr7hg3nclrkue1.apps.googleusercontent.com',
+    iosClientId:
+        '498124910842-nlc18c7irm4vlbnkvjlr7hg3nclrkue1.apps.googleusercontent.com',
     iosBundleId: 'com.example.jewelryNafisa',
   );
 
@@ -73,7 +74,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '498124910842',
     projectId: 'jewellery-nafisa',
     storageBucket: 'jewellery-nafisa.firebasestorage.app',
-    iosClientId: '498124910842-nlc18c7irm4vlbnkvjlr7hg3nclrkue1.apps.googleusercontent.com',
+    iosClientId:
+        '498124910842-nlc18c7irm4vlbnkvjlr7hg3nclrkue1.apps.googleusercontent.com',
     iosBundleId: 'com.example.jewelryNafisa',
   );
 

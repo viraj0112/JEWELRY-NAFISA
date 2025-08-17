@@ -94,13 +94,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Saves the new board to Supabase
   Future<void> _createNewBoard(String name) async {
-    if (currentUser == null) return;
+    // --- FIX #2: Use the Supabase user object, not Firebase ---
+    final supabaseUser = _supabase.auth.currentUser;
+    if (supabaseUser == null) {
+      // Handle case where user is not logged into Supabase
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Not logged in. Please restart the app.'),
+          ),
+        );
+      }
+      return;
+    }
+
     try {
       await _supabase.from('boards').insert({
-        'user_id': currentUser!.uid,
+        'user_id': supabaseUser.id, // This is the correct UUID
         'name': name,
       });
-      // Refresh the list of boards after creating a new one
       setState(() {
         _boardsFuture = _fetchUserBoards();
       });
