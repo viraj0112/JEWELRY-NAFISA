@@ -1,10 +1,8 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:jewelry_nafisa/src/auth/firebase_auth_service.dart';
-import 'package:jewelry_nafisa/src/ui/widgets/social_auth_button.dart';
+import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 class BrandIcons {
@@ -24,7 +22,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _passwordController = TextEditingController();
   final _usernameController = TextEditingController(); // Added for username
   final _birthdateController = TextEditingController();
-  final _authService = FirebaseAuthService();
+  final _authService = SupabaseAuthService();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 

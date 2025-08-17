@@ -1,19 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
-import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart'; // Import provider
+import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'firebase_options.dart';
-import 'package:provider/provider.dart'; // Import provider
-import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
+import 'package:provider/provider.dart';
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
   await dotenv.load();
   
   // Get Supabase URL and Anon Key with fallback to environment variables

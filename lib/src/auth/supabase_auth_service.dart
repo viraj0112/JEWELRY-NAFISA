@@ -1,0 +1,157 @@
+// lib/src/auth/supabase_auth_service.dart
+
+import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+class SupabaseAuthService {
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: kIsWeb
+        ? const String.fromEnvironment('GOOGLE_SIGN_IN_WEB_CLIENT_ID')
+        : null,
+  );
+
+  // Get current user
+  User? get currentUser => _supabase.auth.currentUser;
+
+  // Auth state stream
+  Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
+
+  Future<void> _syncUserProfileToSupabase({
+    required String uid,
+    String? email,
+    String? username,
+    String? birthdate,
+  }) async {
+    try {
+      debugPrint('Attempting to sync user profile with ID: $uid');
+      await _supabase.from('Users').upsert({
+        'id': uid,
+        if (email != null) 'email': email,
+        if (username != null && username.isNotEmpty) 'username': username,
+        if (birthdate != null && birthdate.isNotEmpty) 'birthdate': birthdate,
+        'membership_status': 'free',
+        'credits_remaining': 0,
+      });
+      debugPrint('User profile synced successfully.');
+    } catch (e) {
+      debugPrint("Supabase Error: Failed to sync user profile: $e");
+      rethrow;
+    }
+  }
+
+  // Sign up with email and password
+  Future<User?> signUpWithEmailPassword(
+    String email,
+    String password,
+    String username,
+    String birthdate,
+    BuildContext context,
+  ) async {
+    try {
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'username': username,
+          'birthdate': birthdate,
+        },
+      );
+
+      final user = response.user;
+      if (user != null) {
+        // Sync user profile to Users table
+        await _syncUserProfileToSupabase(
+          uid: user.id,
+          email: email,
+          username: username,
+          birthdate: birthdate,
+        );
+        return user;
+      }
+    } catch (e) {
+      debugPrint('Exception during sign up: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Sign-up failed: ${e.toString()}")),
+        );
+      }
+    }
+    return null;
+  }
+
+  // Sign in with email and password
+  Future<User?> signInWithEmailPassword(String email, String password) async {
+    try {
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      return response.user;
+    } catch (e) {
+      debugPrint('Exception during sign in: $e');
+    }
+    return null;
+  }
+
+  // Sign in with Google
+  Future<User?> signInWithGoogle() async {
+    try {
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null;
+
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      final accessToken = googleAuth.accessToken;
+
+      if (idToken == null) {
+        throw Exception('No ID Token found.');
+      }
+
+      final response = await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+
+      final user = response.user;
+      if (user != null) {
+        // Sync user profile to Users table
+        await _syncUserProfileToSupabase(
+          uid: user.id,
+          email: user.email,
+          username: user.userMetadata?['full_name'] ?? googleUser.displayName,
+        );
+        return user;
+      }
+    } catch (e) {
+      debugPrint("Error during Google Sign In: $e");
+    }
+    return null;
+  }
+
+  // Sign out
+  Future<void> signOut() async {
+    try {
+      await _googleSignIn.signOut();
+      await _supabase.auth.signOut();
+    } catch (e) {
+      debugPrint("Error during sign out: $e");
+    }
+  }
+
+  // Reset password
+  Future<void> resetPassword(String email) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(email);
+    } catch (e) {
+      debugPrint("Error during password reset: $e");
+      rethrow;
+    }
+  }
+
+  // Check if user is signed in
+  bool get isSignedIn => _supabase.auth.currentUser != null;
+}
