@@ -23,6 +23,7 @@ class FirebaseAuthService {
   }) async {
     try {
       // Use the Supabase user ID, which is now a valid UUID
+      debugPrint('Attempting to sync user profile with ID: $uid');
       await _supabase.from('Users').upsert({
         'id': uid,
         if (email != null) 'email': email,
@@ -45,12 +46,15 @@ class FirebaseAuthService {
     BuildContext context,
   ) async {
     try {
-      final credential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
       final firebaseUser = credential.user;
 
       if (firebaseUser != null) {
         await firebaseUser.updateDisplayName(username);
-        final idToken = await firebaseUser.getIdToken();
+        final idToken = await firebaseUser.getIdToken(true);
 
         // Use signInWithIdToken with the 'google' provider.
         // This requires a configuration change in your Supabase dashboard (see Step 2).
@@ -62,19 +66,21 @@ class FirebaseAuthService {
         // **CRITICAL:** Use the UID from the Supabase response from now on.
         final supabaseUser = authResponse.user;
         if (supabaseUser != null) {
-            await _syncUserProfileToSupabase(
-                uid: supabaseUser.id, // Use the new Supabase UID
-                email: email,
-                username: username,
-                birthdate: birthdate,
-            );
+          await _syncUserProfileToSupabase(
+            uid: supabaseUser.id, // Use the new Supabase UID
+            email: email,
+            username: username,
+            birthdate: birthdate,
+          );
         }
         return firebaseUser;
       }
     } catch (e) {
       debugPrint('Exception during sign up: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sign-up failed: ${e.toString()}")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Sign-up failed: ${e.toString()}")),
+        );
       }
     }
     return null;
@@ -83,11 +89,14 @@ class FirebaseAuthService {
   // --- SIGN IN WITH EMAIL & PASSWORD (CORRECTED) ---
   Future<User?> signInWithEmailPassword(String email, String password) async {
     try {
-      final credential = await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
       final firebaseUser = credential.user;
       if (firebaseUser != null) {
-        final idToken = await firebaseUser.getIdToken();
-        
+        final idToken = await firebaseUser.getIdToken(true);
+
         await _supabase.auth.signInWithIdToken(
           provider: sp.OAuthProvider.google,
           idToken: idToken!,
@@ -99,34 +108,38 @@ class FirebaseAuthService {
     }
     return null;
   }
-  
+
   // --- SIGN IN WITH GOOGLE (Unchanged, already correct) ---
   Future<User?> signInWithGoogle() async {
     try {
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
-      
+
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
-      final credential = GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: idToken);
-      
+      debugPrint('Google ID Token: $idToken');
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: idToken,
+      );
+
       final userCredential = await _auth.signInWithCredential(credential);
       final firebaseUser = userCredential.user;
-      
+
       if (firebaseUser != null && idToken != null) {
         final authResponse = await _supabase.auth.signInWithIdToken(
           provider: sp.OAuthProvider.google,
           idToken: idToken,
           accessToken: googleAuth.accessToken,
         );
-        
+
         final supabaseUser = authResponse.user;
         if (supabaseUser != null) {
-            await _syncUserProfileToSupabase(
-                uid: supabaseUser.id,
-                email: firebaseUser.email,
-                username: firebaseUser.displayName,
-            );
+          await _syncUserProfileToSupabase(
+            uid: supabaseUser.id,
+            email: firebaseUser.email,
+            username: firebaseUser.displayName,
+          );
         }
         return firebaseUser;
       }

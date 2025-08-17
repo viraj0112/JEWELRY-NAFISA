@@ -31,15 +31,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Fetches boards for the current user from Supabase
   Future<List<Board>> _fetchUserBoards() async {
-    if (currentUser == null) return [];
+    // Use the Supabase user object, not Firebase
+    final supabaseUser = _supabase.auth.currentUser;
+    if (supabaseUser == null) return [];
     try {
       final response = await _supabase
           .from('boards')
           .select('name')
-          .eq('user_id', currentUser!.uid);
+          .eq('user_id', supabaseUser.id);
 
       final boards = (response as List)
-          .map((data) => Board(name: data['name']))
+          .map((data) => Board(name: data['name'] as String))
           .toList();
       return boards;
     } catch (e) {

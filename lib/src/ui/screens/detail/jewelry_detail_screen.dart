@@ -68,6 +68,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     try {
       await _ensureSupabaseSession();
       final uid = supabase.auth.currentUser?.id;
+      debugPrint('Current Supabase user ID: $uid');
 
       var response = await supabase
           .from('pins')
@@ -83,6 +84,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           return;
         }
         // Pin doesn't exist, so we create it.
+        debugPrint('Creating new pin for user: $uid');
         response = await supabase
             .from('pins')
             .insert({
@@ -183,8 +185,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     try {
       // Generate and save the slug if it doesn't exist yet
       if (shareSlug == null || shareSlug!.isEmpty) {
+        debugPrint('Generating new share slug for pin: $pinId');
         final generatedSlug = await supabase.rpc('gen_share_slug');
         shareSlug = generatedSlug as String;
+        debugPrint('Generated share slug: $shareSlug');
 
         await supabase
             .from('pins')
@@ -247,6 +251,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       // If user chose to create a new board
       if (selectedBoard['create_new'] == true) {
         final boardName = selectedBoard['name'] as String;
+        debugPrint('Creating new board: $boardName for user: $uid');
         final newBoard = await supabase
             .from('boards')
             .insert({'user_id': uid, 'name': boardName})
