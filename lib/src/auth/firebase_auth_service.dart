@@ -11,9 +11,12 @@ class FirebaseAuthService {
         ? const String.fromEnvironment('GOOGLE_SIGN_IN_WEB_CLIENT_ID')
         : null,
   );
+
   final sp.SupabaseClient _supabase = sp.Supabase.instance.client;
 
-  // MODIFIED HELPER: This is now the single source of truth for syncing profile data.
+  // NEW HELPER FUNCTION: This is the key change.
+  // It takes the user details from Firebase and creates a corresponding
+  // profile row in your public.Users table.
   Future<void> _syncUserProfileToSupabase({
     required String uid,
     String? email,
@@ -21,26 +24,29 @@ class FirebaseAuthService {
     String? birthdate,
   }) async {
     try {
-      debugPrint('Syncing user profile for UID: $uid');
-      
-      // 'upsert' creates a new row if 'id' doesn't exist, or updates it if it does.
+      debugPrint('Syncing user profile to Supabase for UID: $uid');
+      // 'upsert' is used to either INSERT a new profile or UPDATE an existing one.
+      // This prevents errors if a user signs in who already has a profile.
       await _supabase.from('Users').upsert({
-        'id': uid, // The Firebase UID now matches the Supabase auth UID
+        'id': uid,
         if (email != null) 'email': email,
         if (username != null && username.isNotEmpty) 'username': username,
         if (birthdate != null && birthdate.isNotEmpty) 'birthdate': birthdate,
         'membership_status': 'free',
         'credits_remaining': 0,
       });
-      
-      debugPrint('User profile synced successfully');
+
+      debugPrint("User profile synced successfully.");
     } catch (e) {
-      debugPrint("Supabase Error: Failed to sync user profile. Check RLS policies. Error: $e");
+      // This error usually means your RLS policy is blocking the upsert.
+      debugPrint(
+        "Supabase Error: Failed to sync user profile. Check RLS policies on the 'Users' table. Error: $e",
+      );
+      // Rethrowing the error so the calling function can handle it.
       rethrow;
     }
   }
 
-  // MODIFIED SIGN UP
   Future<User?> signUpWithEmailPassword(
     String email,
     String password,
@@ -53,22 +59,21 @@ class FirebaseAuthService {
         email: email,
         password: password,
       );
-      
+
       final firebaseUser = credential.user;
       if (firebaseUser != null) {
         await firebaseUser.updateDisplayName(username);
         final idToken = await firebaseUser.getIdToken();
-        
-        // 1. Sign into Supabase using the Firebase token with 'google' provider
-        // Note: We use google provider because Firebase ID tokens are compatible with Google OAuth
+
         await _supabase.auth.signInWithIdToken(
-          provider: sp.OAuthProvider.google, // Use OAuthProvider enum
+          provider: sp.OAuthProvider.google,
           idToken: idToken!,
         );
-        
-        debugPrint('Supabase session created: ${_supabase.auth.currentUser?.id}');
-        
-        // 2. **CRITICAL STEP**: Sync the new user's profile to your public table
+
+        debugPrint(
+          'Supabase auth session created: ${_supabase.auth.currentUser?.id}',
+        );
+
         await _syncUserProfileToSupabase(
           uid: firebaseUser.uid,
           email: email,
@@ -81,16 +86,18 @@ class FirebaseAuthService {
     } on FirebaseAuthException catch (e) {
       debugPrint("Firebase Auth Exception (Sign Up): ${e.message}");
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Sign-up failed: ${e.message}"))
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Sign-up failed: ${e.message}")));
       }
       return null;
     } catch (e) {
       debugPrint('Supabase/Other Exception (Sign Up): $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not sync profile. Please try again.")),
+          const SnackBar(
+            content: Text("Could not sync profile. Please try again."),
+          ),
         );
       }
       return null;
@@ -98,26 +105,31 @@ class FirebaseAuthService {
     return null;
   }
 
-  // EMAIL & PASSWORD SIGN IN
   Future<User?> signInWithEmailPassword(String email, String password) async {
     try {
+      // 1. Sign into Firebase
       final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       final firebaseUser = credential.user;
       if (firebaseUser != null) {
         final idToken = await firebaseUser.getIdToken();
-        
-        // Sign into Supabase using the Firebase token
+
+        // 2. Sign into Supabase to create a session
         await _supabase.auth.signInWithIdToken(
-          provider: sp.OAuthProvider.google, // Use OAuthProvider enum
+          provider: sp.OAuthProvider.google,
           idToken: idToken!,
         );
-        
-        debugPrint('Supabase session created: ${_supabase.auth.currentUser?.id}');
-        
+
+        debugPrint(
+          'Supabase auth session created: ${_supabase.auth.currentUser?.id}',
+        );
+
+        // Note: We don't need to sync the profile here because it was already
+        // synced during their initial sign-up.
+
         return firebaseUser;
       }
     } on FirebaseAuthException catch (e) {
@@ -130,33 +142,36 @@ class FirebaseAuthService {
     return null;
   }
 
-  // MODIFIED GOOGLE SIGN IN
   Future<User?> signInWithGoogle() async {
     try {
+      // 1. Authenticate with Google & Firebase
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
-      
+
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: idToken,
       );
-      
+
       final userCredential = await _auth.signInWithCredential(credential);
       final firebaseUser = userCredential.user;
-      
+
       if (firebaseUser != null && idToken != null) {
-        // 1. Sign into Supabase
+        // 2. Sign into Supabase
         await _supabase.auth.signInWithIdToken(
-          provider: sp.OAuthProvider.google, // Keep google for actual Google sign-ins
+          provider: sp.OAuthProvider.google,
           idToken: idToken,
           accessToken: googleAuth.accessToken,
         );
-        
-        debugPrint('Supabase session created: ${_supabase.auth.currentUser?.id}');
-        
-        // 2. **CRITICAL STEP**: Sync profile data. `upsert` handles both new and returning users.
+
+        debugPrint(
+          'Supabase session created: ${_supabase.auth.currentUser?.id}',
+        );
+
+        // 3. CRITICAL STEP: Sync profile data. The 'upsert' handles both
+        // new and returning Google users perfectly.
         await _syncUserProfileToSupabase(
           uid: firebaseUser.uid,
           email: firebaseUser.email,
@@ -172,10 +187,10 @@ class FirebaseAuthService {
     return null;
   }
 
-  // SIGN OUT
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
     await _supabase.auth.signOut();
   }
 }
+

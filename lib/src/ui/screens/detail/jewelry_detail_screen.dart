@@ -1,5 +1,3 @@
-// lib/src/ui/screens/detail/jewelry_detail_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
@@ -398,7 +396,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: Image.network(
                   widget.imageUrl,
-                  fit: BoxFit.cover,
+                  fit: BoxFit.fitHeight,
+                  width: 400,
+                  height: 300,
                   errorBuilder: (context, error, stackTrace) =>
                       const Icon(Icons.broken_image, size: 100),
                 ),

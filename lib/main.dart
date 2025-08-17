@@ -7,6 +7,7 @@ import 'firebase_options.dart';
 import 'package:provider/provider.dart'; // Import provider
 import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
