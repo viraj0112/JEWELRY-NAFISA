@@ -334,7 +334,7 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.firebase-auth]
-enabled = true
+enabled = false
 verify_jwt = true
 import_map = "./functions/firebase-auth/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
