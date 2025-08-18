@@ -6,7 +6,9 @@
     git clone https://github.com/flutter/flutter.git && \
     # 3. Enable web support
     ./flutter/bin/flutter config --enable-web && \
-    # 4. Run the actual build with compile-time variables
+    # 4. Get dependencies
+    ./flutter/bin/flutter pub get && \
+    # 5. Run the actual build with compile-time variables
     ./flutter/bin/flutter build web --release \
       --dart-define=SUPABASE_URL=${SUPABASE_URL} \
       --dart-define=SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY} \
