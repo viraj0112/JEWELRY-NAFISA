@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:jewelry_nafisa/src/auth/firebase_auth_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' as sp;
+import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Board {
   final String name;
@@ -16,9 +15,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final FirebaseAuthService authService = FirebaseAuthService();
-  final User? currentUser = FirebaseAuth.instance.currentUser;
-  final sp.SupabaseClient _supabase = sp.Supabase.instance.client;
+  final SupabaseAuthService authService = SupabaseAuthService();
+  final SupabaseClient _supabase = Supabase.instance.client;
   bool _isLoggingOut = false; // Keep this state variable
 
   late Future<List<Board>> _boardsFuture;
@@ -197,7 +195,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        currentUser?.displayName ?? 'Username',
+                        _supabase.auth.currentUser?.userMetadata?['username'] ??
+                        _supabase.auth.currentUser?.email?.split('@')[0] ?? 'Username',
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'dart:math';
-import 'package:jewelry_nafisa/src/auth/firebase_auth_service.dart';
+import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/membership/buy_membership_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart';
@@ -21,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _imageList = <String>[];
   final _random = Random();
   bool _isLoggingOut = false;
-  final FirebaseAuthService _authService = FirebaseAuthService();
+  final SupabaseAuthService _authService = SupabaseAuthService();
 
   // --- NEW: LOGIC FOR MEMBERSHIP GATE & QUOTES ---
   void _onGetQuotePressed(BuildContext context) {

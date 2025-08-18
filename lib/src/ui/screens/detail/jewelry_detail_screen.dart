@@ -5,7 +5,6 @@ import 'package:jewelry_nafisa/src/ui/screens/membership/buy_membership_screen.d
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:firebase_auth/firebase_auth.dart' as fb;
 
 class JewelryDetailScreen extends StatefulWidget {
   final String imageUrl;
@@ -39,22 +38,14 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     _initializePin();
   }
 
-  // Ensures a Supabase session exists, syncing from Firebase if needed.
+  // Ensures a Supabase session exists.
   Future<void> _ensureSupabaseSession() async {
     try {
       if (supabase.auth.currentUser != null) {
         return; // Session already exists
       }
-      final fbUser = fb.FirebaseAuth.instance.currentUser;
-      if (fbUser != null) {
-        final idToken = await fbUser.getIdToken();
-        if (idToken != null) {
-          await supabase.auth.signInWithIdToken(
-            provider: OAuthProvider.google,
-            idToken: idToken,
-          );
-        }
-      }
+      // If no session exists, user needs to log in again
+      debugPrint('No Supabase session found');
     } catch (e) {
       debugPrint('Error ensuring Supabase session: $e');
     }
