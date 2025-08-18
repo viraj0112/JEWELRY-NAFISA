@@ -7,16 +7,16 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 class SupabaseAuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
+
+  // This instance is still needed for the signOut method to work correctly.
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: kIsWeb
         ? const String.fromEnvironment('GOOGLE_SIGN_IN_WEB_CLIENT_ID')
         : null,
   );
 
-  // Get current user
   User? get currentUser => _supabase.auth.currentUser;
 
-  // Auth state stream
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
   Future<void> _syncUserProfileToSupabase({
@@ -42,7 +42,6 @@ class SupabaseAuthService {
     }
   }
 
-  // Sign up with email and password
   Future<User?> signUpWithEmailPassword(
     String email,
     String password,
@@ -54,15 +53,10 @@ class SupabaseAuthService {
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
-        data: {
-          'username': username,
-          'birthdate': birthdate,
-        },
+        data: {'username': username, 'birthdate': birthdate},
       );
-
       final user = response.user;
       if (user != null) {
-        // Sync user profile to Users table
         await _syncUserProfileToSupabase(
           uid: user.id,
           email: email,
@@ -82,7 +76,6 @@ class SupabaseAuthService {
     return null;
   }
 
-  // Sign in with email and password
   Future<User?> signInWithEmailPassword(String email, String password) async {
     try {
       final response = await _supabase.auth.signInWithPassword(
@@ -96,43 +89,23 @@ class SupabaseAuthService {
     return null;
   }
 
-  // Sign in with Google
-  Future<User?> signInWithGoogle() async {
+  // **CORRECTED** Sign in with Google
+  Future<void> signInWithGoogle() async {
     try {
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
-
-      final googleAuth = await googleUser.authentication;
-      final idToken = googleAuth.idToken;
-      final accessToken = googleAuth.accessToken;
-
-      if (idToken == null) {
-        throw Exception('No ID Token found.');
-      }
-
-      final response = await _supabase.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: idToken,
-        accessToken: accessToken,
+      // Use OAuthProvider.google instead of Provider.google
+      await _supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        // For web, a redirect URL is required. This should be a page in your app
+        // that handles the auth callback. For mobile, this can be null.
+        redirectTo: kIsWeb ? 'https://nafisa-jewellery-akd.netlify.app' : null,
       );
-
-      final user = response.user;
-      if (user != null) {
-        // Sync user profile to Users table
-        await _syncUserProfileToSupabase(
-          uid: user.id,
-          email: user.email,
-          username: user.userMetadata?['full_name'] ?? googleUser.displayName,
-        );
-        return user;
-      }
     } catch (e) {
       debugPrint("Error during Google Sign In: $e");
     }
-    return null;
+    // This method is now void because it only triggers the redirect.
+    // The actual sign-in is detected by the AuthGate's stream listener.
   }
 
-  // Sign out
   Future<void> signOut() async {
     try {
       await _googleSignIn.signOut();
@@ -142,7 +115,6 @@ class SupabaseAuthService {
     }
   }
 
-  // Reset password
   Future<void> resetPassword(String email) async {
     try {
       await _supabase.auth.resetPasswordForEmail(email);
@@ -152,6 +124,5 @@ class SupabaseAuthService {
     }
   }
 
-  // Check if user is signed in
   bool get isSignedIn => _supabase.auth.currentUser != null;
 }

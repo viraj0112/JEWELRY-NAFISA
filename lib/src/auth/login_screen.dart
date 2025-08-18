@@ -1,3 +1,5 @@
+// lib/src/auth/login_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
@@ -47,34 +49,31 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (user == null) {
         _showErrorSnackbar('Login failed. Please check your credentials.');
-      } else {
-        // TODO: Navigate to Home Screen on successful login
       }
+      // No need for navigation here, AuthGate handles it.
     }
   }
 
+  // **CORRECTED** Google Sign In method
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
-    final user = await _authService.signInWithGoogle();
+    await _authService.signInWithGoogle();
+
+    // The user will be redirected to Google to sign in. After that, they will
+    // be redirected back to your app. The AuthGate will detect the new session
+    // and navigate to the home screen. We just set loading to false in case there's
+    // an error and the user stays on the page.
     if (mounted) {
       setState(() => _isLoading = false);
-    }
-
-    if (user == null) {
-      _showErrorSnackbar('Google sign-in was cancelled or failed.');
-    } else {
-      // TODO: Navigate to Home Screen on successful login
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // ... rest of your build method is correct
     return Scaffold(
-      // The LayoutBuilder is the key to creating a responsive UI.
-      // It rebuilds the UI based on the parent widget's constraints.
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // I've increased the breakpoint to 700 for a better tablet experience.
           if (constraints.maxWidth > 700) {
             return _buildWideLayout();
           } else {
@@ -85,6 +84,9 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // All your other layout methods (_buildWideLayout, _buildNarrowLayout, etc.) are correct.
+  // ... Paste the rest of your login_screen.dart file here
+  
   /// Layout for wide screens (web, tablets in landscape).
   Widget _buildWideLayout() {
     return Row(
@@ -389,4 +391,5 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
 }
