@@ -8,15 +8,12 @@
     ./flutter/bin/flutter config --enable-web && \
     # 4. Get dependencies
     ./flutter/bin/flutter pub get && \
-    # 5. Run the actual build with compile-time variables
+    # 5. Create a dummy .env file to satisfy the build process
+    touch assets/.env && \
+    # 6. Run the actual build with compile-time variables
     ./flutter/bin/flutter build web --release \
       --dart-define=SUPABASE_URL=${SUPABASE_URL} \
       --dart-define=SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY} \
       --dart-define=GOOGLE_SIGN_IN_WEB_CLIENT_ID=${GOOGLE_SIGN_IN_WEB_CLIENT_ID}
   """
   publish = "build/web"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
