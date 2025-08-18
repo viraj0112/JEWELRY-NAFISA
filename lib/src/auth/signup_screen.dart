@@ -20,7 +20,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _usernameController = TextEditingController(); // Added for username
+  final _usernameController = TextEditingController();
   final _birthdateController = TextEditingController();
   final _authService = SupabaseAuthService();
   bool _isPasswordVisible = false;
@@ -36,64 +36,52 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   void _showErrorSnackbar(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       final user = await _authService.signUpWithEmailPassword(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-        _usernameController.text.trim(),
-        _birthdateController.text.trim(),
-        context);
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+          _usernameController.text.trim(),
+          _birthdateController.text.trim(),
+          context);
       if (mounted) {
         setState(() => _isLoading = false);
       }
 
       if (user == null) {
-        _showErrorSnackbar(
-          'Sign up failed. The email might already be in use.',
-        );
+        _showErrorSnackbar('Sign up failed. The email might already be in use.');
       } else {
         await _authService.signOut();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Account created successfully! Please log in.'),
-            ),
+                content: Text('Account created successfully! Please log in.')),
           );
-          // This will pop the current screen and return to the login screen.
           Navigator.of(context).pop();
         }
       }
     }
   }
 
+  // **CORRECTED** Google Sign Up method
   Future<void> _signUpWithGoogle() async {
     setState(() => _isLoading = true);
-    final user = await _authService.signInWithGoogle();
+    await _authService.signInWithGoogle();
+    
+    // As with the login screen, we just start the flow. The AuthGate
+    // will handle the successful authentication and navigation.
     if (mounted) {
       setState(() => _isLoading = false);
     }
-    if (user == null) {
-      _showErrorSnackbar('Google sign-in was cancelled or failed.');
-    } else {
-      await _authService.signOut();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created successfully! Please log in.'),
-          ),
-        );
-        Navigator.of(context).pop();
-      }
-    }
   }
 
+  // ... (The rest of your signup_screen.dart file is correct)
+  // Paste the build methods and other helper methods here.
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
