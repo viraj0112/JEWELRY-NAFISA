@@ -93,11 +93,13 @@ class SupabaseAuthService {
   Future<void> signInWithGoogle() async {
     try {
       // Use OAuthProvider.google instead of Provider.google
+      final redirectUrl = kIsWeb
+          ? 'https://nafisa-jewellery-akd.netlify.app'
+          : null;
+
       await _supabase.auth.signInWithOAuth(
         OAuthProvider.google,
-        // For web, a redirect URL is required. This should be a page in your app
-        // that handles the auth callback. For mobile, this can be null.
-        redirectTo: kIsWeb ? 'https://nafisa-jewellery-akd.netlify.app/#/auth-callback' : null,
+        redirectTo: redirectUrl,
       );
     } catch (e) {
       debugPrint("Error during Google Sign In: $e");

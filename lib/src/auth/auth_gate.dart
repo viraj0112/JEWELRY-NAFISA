@@ -23,7 +23,10 @@ class AuthGate extends StatelessWidget {
         }
 
         // User is signed in, fetch their profile then show the HomeScreen
-        final profileProvider = Provider.of<UserProfileProvider>(context, listen: false);
+        final profileProvider = Provider.of<UserProfileProvider>(
+          context,
+          listen: false,
+        );
 
         // Use a FutureBuilder to wait for the profile to be fetched
         return FutureBuilder(
