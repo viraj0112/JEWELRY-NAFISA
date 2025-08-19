@@ -32,7 +32,7 @@ class UserProfileProvider with ChangeNotifier {
 
     try {
       final data = await _supabase
-          .from('Users')
+          .from('users')
           .select()
           .eq('id', userId)
           .single();

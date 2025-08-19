@@ -41,7 +41,7 @@ BEGIN
   user_id := auth.uid();
   
   -- Decrement the user's credit count
-  UPDATE Users 
+  UPDATE users 
   SET credits_remaining = credits_remaining - 1 
   WHERE id = user_id AND credits_remaining > 0;
 END;
