@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
+import 'package:jewelry_nafisa/src/utils/user_profile_utils.dart'; 
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -13,7 +14,7 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
-  String? _fetchedForUserId;
+  bool _fetchedForUserId = false;
 
   @override
   Widget build(BuildContext context) {
@@ -24,36 +25,21 @@ class _AuthGateState extends State<AuthGate> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // User is not signed in
         final session = snapshot.data?.session;
         if (session == null) {
-          // reset fetched id when user signs out
-          _fetchedForUserId = null;
           return const LoginScreen();
         }
-
-        // User is signed in
-        final profileProvider = Provider.of<UserProfileProvider>(
-          context,
-          listen: false,
-        );
-
-        final userId = session.user.id;
-
-        // If we haven't fetched for this user yet, schedule a post-frame fetch
-        if (_fetchedForUserId != userId) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            profileProvider.fetchProfile();
-          });
-          _fetchedForUserId = userId;
-        }
-
-        // Show loading while profile is being fetched
-        return Consumer<UserProfileProvider>(
-          builder: (context, provider, child) {
-            if (provider.isLoading) {
+        return FutureBuilder<void>(
+          future: _ensureAndFetchProfile(context, session.user.id),
+          builder: (context, futureSnapshot) {
+            if (futureSnapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (futureSnapshot.hasError) {
+              return const Scaffold(
+                body: Center(child: Text("Error loading profile.")),
               );
             }
             return const HomeScreen();
@@ -61,5 +47,13 @@ class _AuthGateState extends State<AuthGate> {
         );
       },
     );
+  }
+
+  // NEW HELPER FUNCTION
+  Future<void> _ensureAndFetchProfile(BuildContext context, String userId) async {
+    await UserProfileUtils.ensureUserProfile(userId);
+    if (mounted) {
+      await Provider.of<UserProfileProvider>(context, listen: false).fetchProfile();
+    }
   }
 }
