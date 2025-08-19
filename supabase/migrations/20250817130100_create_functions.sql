@@ -1,3 +1,32 @@
+-- Function to increment like count
+CREATE OR REPLACE FUNCTION increment_like_count(pin_id_to_update UUID, delta INTEGER)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE pins 
+  SET like_count = like_count + delta 
+  WHERE id = pin_id_to_update;
+END;
+$$ LANGUAGE plpgsql 
+-- ADD THESE TWO LINES
+SECURITY DEFINER 
+SET search_path = public;
+
+-- Function to decrement credit (for membership feature)
+CREATE OR REPLACE FUNCTION decrement_credit()
+RETURNS VOID AS $$
+DECLARE
+  user_id UUID;
+BEGIN
+  user_id := auth.uid();
+  UPDATE users 
+  SET credits_remaining = credits_remaining - 1 
+  WHERE id = user_id AND credits_remaining > 0;
+END;
+$$ LANGUAGE plpgsql 
+-- ADD THESE TWO LINES
+SECURITY DEFINER 
+SET search_path = public;
+
 -- Create RPC functions for the jewelry app
 
 -- Function to generate a unique share slug
@@ -19,7 +48,9 @@ BEGIN
   
   RETURN new_slug;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public;
 
 -- Function to increment like count
 CREATE OR REPLACE FUNCTION increment_like_count(pin_id_to_update UUID, delta INTEGER)
@@ -29,7 +60,9 @@ BEGIN
   SET like_count = like_count + delta 
   WHERE id = pin_id_to_update;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public;
 
 -- Function to decrement credit (for membership feature)
 CREATE OR REPLACE FUNCTION decrement_credit()
@@ -45,4 +78,6 @@ BEGIN
   SET credits_remaining = credits_remaining - 1 
   WHERE id = user_id AND credits_remaining > 0;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public;
