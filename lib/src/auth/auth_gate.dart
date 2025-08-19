@@ -14,7 +14,7 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
-  bool _fetchedForUserId = false;
+  // bool _fetchedForUserId = false;
 
   @override
   Widget build(BuildContext context) {

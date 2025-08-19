@@ -82,6 +82,11 @@ class SupabaseAuthService {
         email: email,
         password: password,
       );
+      final user = response.user;
+      if (user != null) {
+        // Ensure the user profile exists in the database
+        await _syncUserProfileToSupabase(uid: user.id, email: user.email);
+      }
       return response.user;
     } catch (e) {
       debugPrint('Exception during sign in: $e');
