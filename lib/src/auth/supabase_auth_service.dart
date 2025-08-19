@@ -90,21 +90,15 @@ class SupabaseAuthService {
   }
 
   // **CORRECTED** Sign in with Google
-  Future<void> signInWithGoogle() async {
+    Future<void> signInWithGoogle() async {
     try {
-      // Always use the production URL for web, null for mobile
-      final redirectUrl = kIsWeb
-          ? 'https://nafisa-jewellery-akd.netlify.app'
-          : null;
-
       await _supabase.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: redirectUrl,
+        redirectTo: kIsWeb ? '${Uri.base.origin}/auth-callback' : null,
       );
     } catch (e) {
       debugPrint("Error during Google Sign In: $e");
     }
-    // The actual sign-in is detected by the AuthGate's stream listener.
   }
 
   Future<void> signOut() async {

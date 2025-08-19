@@ -29,7 +29,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Fetches boards for the current user from Supabase
   Future<List<Board>> _fetchUserBoards() async {
-    // Use the Supabase user object, not Firebase
     final supabaseUser = _supabase.auth.currentUser;
     if (supabaseUser == null) return [];
     try {
@@ -196,7 +195,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 10),
                       Text(
                         _supabase.auth.currentUser?.userMetadata?['username'] ??
-                        _supabase.auth.currentUser?.email?.split('@')[0] ?? 'Username',
+                            _supabase.auth.currentUser?.email?.split('@')[0] ??
+                            'Username',
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
