@@ -97,7 +97,7 @@ class SupabaseAuthService {
         OAuthProvider.google,
         // For web, a redirect URL is required. This should be a page in your app
         // that handles the auth callback. For mobile, this can be null.
-        redirectTo: kIsWeb ? 'https://nafisa-jewellery-akd.netlify.app' : null,
+        redirectTo: kIsWeb ? 'https://nafisa-jewellery-akd.netlify.app/#/auth-callback' : null,
       );
     } catch (e) {
       debugPrint("Error during Google Sign In: $e");
