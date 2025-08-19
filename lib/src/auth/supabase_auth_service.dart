@@ -27,7 +27,7 @@ class SupabaseAuthService {
   }) async {
     try {
       debugPrint('Attempting to sync user profile with ID: $uid');
-      await _supabase.from('Users').upsert({
+      await _supabase.from('users').upsert({
         'id': uid,
         if (email != null) 'email': email,
         if (username != null && username.isNotEmpty) 'username': username,

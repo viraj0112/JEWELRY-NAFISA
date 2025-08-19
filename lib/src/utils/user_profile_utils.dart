@@ -10,7 +10,7 @@ class UserProfileUtils {
     try {
       // First check if user profile exists
       final userProfile = await _supabase
-          .from('Users')
+          .from('users')
           .select()
           .eq('id', userId)
           .maybeSingle();
@@ -21,7 +21,7 @@ class UserProfileUtils {
       }
 
       // If not, create it with default values
-      await _supabase.from('Users').insert({
+      await _supabase.from('users').insert({
         'id': userId,
         'email': _supabase.auth.currentUser?.email,
         'username':
