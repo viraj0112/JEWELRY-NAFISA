@@ -40,8 +40,16 @@ CREATE POLICY "Users can view own boards"
 
 DROP POLICY IF EXISTS "Users can create own boards" ON public.boards;
 CREATE POLICY "Users can create own boards"
-    ON public.boards FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
+ON public.boards
+FOR INSERT
+WITH CHECK (
+  auth.uid() = user_id AND
+  EXISTS (
+    SELECT 1
+    FROM public.users
+    WHERE id = auth.uid()
+  )
+);
 
 DROP POLICY IF EXISTS "Users can update own boards" ON public.boards;
 CREATE POLICY "Users can update own boards"

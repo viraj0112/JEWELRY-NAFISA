@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:jewelry_nafisa/src/utils/user_profile_utils.dart';
 
 class Board {
   final String name;
@@ -109,6 +110,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     try {
+      // Ensure the user's row exists in public.users before inserting (RLS requires it)
+      try {
+        debugPrint('Ensuring user profile exists for id: ${supabaseUser.id}');
+        final ensureResp = await UserProfileUtils.ensureUserProfile(
+          supabaseUser.id,
+        );
+        debugPrint('ensureUserProfile result: $ensureResp');
+      } catch (e) {
+        debugPrint('Error while ensuring user profile: $e');
+      }
+
       await _supabase.from('boards').insert({
         'user_id': supabaseUser.id, // This is the correct UUID
         'name': name,
