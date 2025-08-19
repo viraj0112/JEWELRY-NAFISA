@@ -13,7 +13,7 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -69,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
     final supabase = Supabase.instance.client;
 
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       // Call the Supabase RPC function
       await supabase.rpc('decrement_credit');
@@ -76,15 +77,17 @@ class _HomeScreenState extends State<HomeScreen> {
       // Update the UI immediately
       profile.decrementCredit();
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('Quote request sent! One credit used.'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
-      print("Error using quote credit: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
+      debugPrint("Error using quote credit: $e");
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('Could not get quote. Please try again.'),
           backgroundColor: Colors.red,
@@ -226,12 +229,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 setState(() {
                   _isLoggingOut = true;
                 });
+                // Get provider before async operation
+                final profile = Provider.of<UserProfileProvider>(
+                  context,
+                  listen: false,
+                );
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
                 try {
                   await _authService.signOut();
+                  // Reset local provider state after successful sign out
+                  profile.reset();
                 } catch (e) {
-                  print("Error during sign out: $e");
+                  debugPrint("Error during sign out: $e");
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    scaffoldMessenger.showSnackBar(
                       const SnackBar(
                         content: Text("Error signing out. Please try again."),
                       ),
@@ -309,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   begin: Alignment.bottomCenter,
                                   end: Alignment.center,
                                   colors: [
-                                    Colors.black.withOpacity(0.6),
+                                    Colors.black.withAlpha(153),
                                     Colors.transparent,
                                   ],
                                 ),

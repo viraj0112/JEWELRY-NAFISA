@@ -90,7 +90,7 @@ class SupabaseAuthService {
   }
 
   // **CORRECTED** Sign in with Google
-    Future<void> signInWithGoogle() async {
+  Future<void> signInWithGoogle() async {
     try {
       await _supabase.auth.signInWithOAuth(
         OAuthProvider.google,

@@ -42,7 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .toList();
       return boards;
     } catch (e) {
-      print("Error fetching boards: $e");
+      debugPrint("Error fetching boards: $e");
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -78,9 +78,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
+                final navigator = Navigator.of(context);
                 if (formKey.currentState!.validate()) {
                   await _createNewBoard(boardNameController.text);
-                  if (mounted) Navigator.of(context).pop();
+                  if (mounted) navigator.pop();
                 }
               },
               child: const Text('Create'),
@@ -116,7 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _boardsFuture = _fetchUserBoards();
       });
     } catch (e) {
-      print("Error creating board: $e");
+      debugPrint("Error creating board: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to create board.')),
@@ -153,17 +154,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _isLoggingOut = true;
                 });
 
+                final navigator = Navigator.of(context);
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
                 try {
                   await authService.signOut();
-                  // ADD THIS LINE:
-                  // This ensures that we pop all screens until we get back to the root.
+                  // Reset provider state after sign out
+                  // Using Provider.of here would require importing provider; we'll safely pop to root
                   if (mounted) {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    navigator.popUntil((route) => route.isFirst);
                   }
                 } catch (e) {
-                  print("Error during sign out: $e");
+                  debugPrint("Error during sign out: $e");
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    scaffoldMessenger.showSnackBar(
                       const SnackBar(
                         content: Text("Error signing out. Please try again."),
                       ),

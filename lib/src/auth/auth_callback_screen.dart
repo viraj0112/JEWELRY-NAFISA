@@ -1,4 +1,4 @@
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -19,22 +19,18 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
   }
 
   Future<void> _handleAuthCallback() async {
-    final uri = html.window.location.href;
+    final uri = web.window.location.href;
     try {
       await _supabase.auth.getSessionFromUrl(Uri.parse(uri));
-      html.window.location.replace('/');
+      web.window.location.replace('/');
     } catch (e) {
       debugPrint('Authentication error: $e');
-      html.window.location.replace('/login');
+      web.window.location.replace('/login');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

@@ -5,6 +5,7 @@ import 'package:jewelry_nafisa/src/ui/screens/membership/buy_membership_screen.d
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class JewelryDetailScreen extends StatefulWidget {
   final String imageUrl;
@@ -92,12 +93,16 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       likeCount = (response['like_count'] ?? 0) as int;
       shareSlug = response['share_slug'] as String?;
 
+      // Increment view count for analytics
+      await _incrementViewCount();
+
       // If a user is logged in, check their like status for this pin.
       if (uid != null) {
         final likeResponse = await supabase
             .from('user_likes')
             .select('user_id')
-            .match({'user_id': uid, 'pin_id': pinId!}).maybeSingle();
+            .match({'user_id': uid, 'pin_id': pinId!})
+            .maybeSingle();
         userLiked = (likeResponse != null);
       }
     } catch (e) {
@@ -129,19 +134,24 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     try {
       if (userLiked) {
         // Unlike
-        await supabase
-            .from('user_likes')
-            .delete()
-            .match({'user_id': uid, 'pin_id': pinId!});
-        await supabase.rpc('increment_like_count',
-            params: {'pin_id_to_update': pinId, 'delta': -1});
+        await supabase.from('user_likes').delete().match({
+          'user_id': uid,
+          'pin_id': pinId!,
+        });
+        await supabase.rpc(
+          'increment_like_count',
+          params: {'pin_id_to_update': pinId, 'delta': -1},
+        );
       } else {
         // Like
-        await supabase
-            .from('user_likes')
-            .insert({'user_id': uid, 'pin_id': pinId});
-        await supabase.rpc('increment_like_count',
-            params: {'pin_id_to_update': pinId, 'delta': 1});
+        await supabase.from('user_likes').insert({
+          'user_id': uid,
+          'pin_id': pinId,
+        });
+        await supabase.rpc(
+          'increment_like_count',
+          params: {'pin_id_to_update': pinId, 'delta': 1},
+        );
       }
 
       // Fetch the updated count to ensure UI is accurate
@@ -183,10 +193,13 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
         await supabase
             .from('pins')
-            .update({'share_slug': shareSlug}).eq('id', pinId!);
+            .update({'share_slug': shareSlug})
+            .eq('id', pinId!);
       }
 
-      final shareUrl = 'https://daginawala.in/p/$shareSlug';
+      // Allow base share URL to be configured via env; fallback to daginawala.in
+      final baseUrl = dotenv.env['BASE_SHARE_URL'] ?? 'https://daginawala.in';
+      final shareUrl = '$baseUrl/p/$shareSlug';
       await Share.share(
         'Check out this beautiful ${widget.itemName} from AKD Designs: $shareUrl',
         subject: 'Beautiful Jewelry from AKD',
@@ -197,6 +210,31 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to create share link.')),
         );
+      }
+    }
+  }
+
+  // Increment view count for the pin. Tries an RPC first, otherwise does a safe select+update.
+  Future<void> _incrementViewCount() async {
+    if (pinId == null) return;
+    try {
+      // Prefer RPC if available for atomic increment
+      await supabase.rpc('increment_view_count', params: {'pin_id': pinId});
+    } catch (_) {
+      try {
+        // Fallback: read current count and increment
+        final res = await supabase
+            .from('pins')
+            .select('view_count')
+            .eq('id', pinId!)
+            .single();
+        final current = (res['view_count'] ?? 0) as int;
+        await supabase
+            .from('pins')
+            .update({'view_count': current + 1})
+            .eq('id', pinId!);
+      } catch (e) {
+        debugPrint('Failed to increment view count: $e');
       }
     }
   }
@@ -276,7 +314,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       if (mounted) setState(() => isSaving = false);
     }
   }
-  
+
   // --- The rest of your file (UI code) remains the same ---
   // --- Paste this code block over your existing state class ---
 
@@ -321,12 +359,13 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<void> _useQuoteCredit(BuildContext context) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
     try {
       await supabase.rpc('decrement_credit');
       profile.decrementCredit();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('Quote request sent! One credit used.'),
           backgroundColor: Colors.green,
@@ -335,7 +374,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     } catch (e) {
       debugPrint('Error using quote credit: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('Could not get quote. Please try again.'),
           backgroundColor: Colors.red,
@@ -365,11 +404,13 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                 // Responsive layout
                 final isWide = constraints.maxWidth > 900;
                 final isTablet = constraints.maxWidth > 600;
-                
+
                 return Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1200),
-                    child: isWide ? _buildWideLayout() : _buildNarrowLayout(isTablet),
+                    child: isWide
+                        ? _buildWideLayout()
+                        : _buildNarrowLayout(isTablet),
                   ),
                 );
               },
@@ -470,21 +511,18 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             _buildActionButtons(),
           ],
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // Like count
         if (likeCount > 0)
           Text(
             '$likeCount ${likeCount == 1 ? 'like' : 'likes'}',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
           ),
-        
+
         const SizedBox(height: 20),
-        
+
         // Get Quote button
         SizedBox(
           width: double.infinity,
@@ -507,11 +545,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             ),
           ),
         ),
-        
+
         const SizedBox(height: 32),
         const Divider(),
         const SizedBox(height: 16),
-        
+
         // Description
         const Text(
           "Description",
@@ -522,9 +560,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           "A beautiful piece of jewelry crafted with precision and care. Each piece is unique and tells its own story.",
           style: TextStyle(fontSize: 14, height: 1.5),
         ),
-        
+
         const SizedBox(height: 24),
-        
+
         // Specifications
         const Text(
           "Specifications",
@@ -552,14 +590,14 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           ),
           tooltip: userLiked ? 'Unlike' : 'Like',
         ),
-        
+
         // Share button
         IconButton(
           onPressed: _sharePin,
           icon: Icon(Icons.share_outlined, color: Colors.grey[600]),
           tooltip: 'Share',
         ),
-        
+
         // Save button
         IconButton(
           onPressed: isSaving ? null : _saveToBoard,
@@ -582,10 +620,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: TextStyle(color: Colors.grey[600], fontSize: 14),
-          ),
+          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
           Text(
             value,
             style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
@@ -643,7 +678,7 @@ class _BoardPickerDialogState extends State<_BoardPickerDialog> {
               ),
               const Divider(),
             ],
-            
+
             ListTile(
               leading: Radio<int?>(
                 value: -1,
@@ -663,7 +698,7 @@ class _BoardPickerDialogState extends State<_BoardPickerDialog> {
                 });
               },
             ),
-            
+
             if (showNewBoardField) ...[
               const SizedBox(height: 8),
               TextField(
@@ -695,7 +730,10 @@ class _BoardPickerDialogState extends State<_BoardPickerDialog> {
               });
             } else if (selectedBoardId != null) {
               // Use existing board
-              Navigator.pop(context, {'id': selectedBoardId, 'create_new': false});
+              Navigator.pop(context, {
+                'id': selectedBoardId,
+                'create_new': false,
+              });
             }
           },
           child: const Text('Save'),

@@ -5,8 +5,15 @@ import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  String? _fetchedForUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -18,21 +25,33 @@ class AuthGate extends StatelessWidget {
         }
 
         // User is not signed in
-        if (snapshot.data?.session == null) {
+        final session = snapshot.data?.session;
+        if (session == null) {
+          // reset fetched id when user signs out
+          _fetchedForUserId = null;
           return const LoginScreen();
         }
 
-        // User is signed in, fetch their profile then show the HomeScreen
+        // User is signed in
         final profileProvider = Provider.of<UserProfileProvider>(
           context,
           listen: false,
         );
 
-        // Use a FutureBuilder to wait for the profile to be fetched
-        return FutureBuilder(
-          future: profileProvider.fetchProfile(),
-          builder: (context, profileSnapshot) {
-            if (profileSnapshot.connectionState == ConnectionState.waiting) {
+        final userId = session.user.id;
+
+        // If we haven't fetched for this user yet, schedule a post-frame fetch
+        if (_fetchedForUserId != userId) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            profileProvider.fetchProfile();
+          });
+          _fetchedForUserId = userId;
+        }
+
+        // Show loading while profile is being fetched
+        return Consumer<UserProfileProvider>(
+          builder: (context, provider, child) {
+            if (provider.isLoading) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
               );

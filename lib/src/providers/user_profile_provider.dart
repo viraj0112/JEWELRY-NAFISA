@@ -31,14 +31,17 @@ class UserProfileProvider with ChangeNotifier {
     }
 
     try {
-      final data =
-          await _supabase.from('Users').select().eq('id', userId).single();
+      final data = await _supabase
+          .from('Users')
+          .select()
+          .eq('id', userId)
+          .single();
 
       _username = data['username'] ?? 'No Name';
       _membershipStatus = data['membership_status'] ?? 'free';
       _creditsRemaining = data['credits_remaining'] ?? 0;
     } catch (e) {
-      print("Error fetching profile: $e");
+      debugPrint("Error fetching profile: $e");
       // Handle error case, maybe set default values
       _username = 'Guest';
       _membershipStatus = 'free';
@@ -47,6 +50,15 @@ class UserProfileProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // Reset provider to default (used after sign out)
+  void reset() {
+    _username = 'Guest';
+    _membershipStatus = 'free';
+    _creditsRemaining = 0;
+    _isLoading = false;
+    notifyListeners();
   }
 
   // Method to manually decrement credit in the UI after a successful quote
