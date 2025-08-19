@@ -13,7 +13,7 @@ class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
   @override
-  _SignUpScreenState createState() => _SignUpScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
@@ -37,30 +37,36 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   void _showErrorSnackbar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       final user = await _authService.signUpWithEmailPassword(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-          _usernameController.text.trim(),
-          _birthdateController.text.trim(),
-          context);
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+        _usernameController.text.trim(),
+        _birthdateController.text.trim(),
+        context,
+      );
       if (mounted) {
         setState(() => _isLoading = false);
       }
 
       if (user == null) {
-        _showErrorSnackbar('Sign up failed. The email might already be in use.');
+        _showErrorSnackbar(
+          'Sign up failed. The email might already be in use.',
+        );
       } else {
         await _authService.signOut();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Account created successfully! Please log in.')),
+              content: Text('Account created successfully! Please log in.'),
+            ),
           );
           Navigator.of(context).pop();
         }
@@ -72,7 +78,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Future<void> _signUpWithGoogle() async {
     setState(() => _isLoading = true);
     await _authService.signInWithGoogle();
-    
+
     // As with the login screen, we just start the flow. The AuthGate
     // will handle the successful authentication and navigation.
     if (mounted) {
@@ -119,7 +125,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         borderRadius: BorderRadius.circular(32),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withAlpha(25),
                             blurRadius: 20,
                             offset: const Offset(0, 5),
                           ),

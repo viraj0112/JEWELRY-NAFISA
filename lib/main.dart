@@ -9,15 +9,13 @@ import 'package:provider/provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Only load .env in debug mode (for local dev)
+  // Load environment-specific .env file
   const bool isDebug = bool.fromEnvironment('dart.vm.product') == false;
-  if (isDebug) {
-    try {
-      await dotenv.load(fileName: ".env");
-    } catch (e) {
-      // Ignore if .env is missing in debug
-      debugPrint("Warning: .env file not found, skipping dotenv load.");
-    }
+  final envFile = isDebug ? '.env.local' : '.env.production';
+  try {
+    await dotenv.load(fileName: envFile);
+  } catch (e) {
+    debugPrint('Warning: $envFile file not found, skipping dotenv load.');
   }
 
   // Always prefer --dart-define for production

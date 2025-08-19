@@ -39,7 +39,7 @@ class BuyMembershipScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () {
                     launchUrl(Uri.parse('https://members.daginawala.in'));
-                    print("Redirecting to daginawala.in...");
+                    debugPrint("Redirecting to daginawala.in...");
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
