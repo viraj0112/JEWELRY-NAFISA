@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/social_auth_button.dart';
+import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -43,14 +44,22 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
 
       if (user == null) {
         _showErrorSnackbar('Login failed. Please check your credentials.');
+        return;
       }
-      // No need for navigation here, AuthGate handles it.
+
+      // User exists and sign-in succeeded. Navigate to HomeScreen.
+      // Use pushReplacement so login screen is removed from the stack.
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
     }
   }
 
@@ -84,9 +93,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // All your other layout methods (_buildWideLayout, _buildNarrowLayout, etc.) are correct.
-  // ... Paste the rest of your login_screen.dart file here
-  
   /// Layout for wide screens (web, tablets in landscape).
   Widget _buildWideLayout() {
     return Row(
@@ -391,5 +397,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
 }
