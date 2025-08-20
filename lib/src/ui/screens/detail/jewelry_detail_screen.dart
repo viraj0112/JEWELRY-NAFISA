@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/membership/buy_membership_screen.dart';
@@ -7,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+// (Keep the existing StatefulWidget and State class definitions)
 class JewelryDetailScreen extends StatefulWidget {
   final String imageUrl;
   final String itemName;
@@ -24,6 +26,8 @@ class JewelryDetailScreen extends StatefulWidget {
 }
 
 class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
+  // --- All your existing state variables and methods (_initializePin, _toggleLike, etc.) should be kept here. ---
+  // --- No changes are needed in the logic part of your State class. ---
   final supabase = Supabase.instance.client;
   bool isLiking = false;
   bool isSaving = false;
@@ -315,9 +319,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
   }
 
-  // --- The rest of your file (UI code) remains the same ---
-  // --- Paste this code block over your existing state class ---
-
   void _onGetQuotePressed(BuildContext context) {
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
     if (profile.isMember) {
@@ -386,252 +387,175 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(
-          widget.itemName,
-          style: const TextStyle(fontSize: 18),
-          overflow: TextOverflow.ellipsis,
-        ),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        foregroundColor: Colors.black,
+      body: SafeArea(
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  bool isWide = constraints.maxWidth > 800;
+                  return isWide ? _buildWideLayout() : _buildNarrowLayout();
+                },
+              ),
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                // Responsive layout
-                final isWide = constraints.maxWidth > 900;
-                final isTablet = constraints.maxWidth > 600;
-
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1200),
-                    child: isWide
-                        ? _buildWideLayout()
-                        : _buildNarrowLayout(isTablet),
-                  ),
-                );
-              },
-            ),
     );
   }
 
   Widget _buildWideLayout() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Image section (60% width)
-        Expanded(
-          flex: 3,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: AspectRatio(
-              aspectRatio: 4 / 5,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  widget.imageUrl,
-                  fit: BoxFit.fitHeight,
-                  width: 400,
-                  height: 300,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.broken_image, size: 100),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Card(
+          elevation: 0,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Image.network(widget.imageUrl, fit: BoxFit.cover),
+              ),
+              Expanded(
+                flex: 2,
+                child: Scaffold(
+                  appBar: AppBar(elevation: 0),
+                  body: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24.0),
+                    child: _buildContentSection(),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
-        // Content section (40% width)
-        Expanded(
-          flex: 2,
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _buildContentSection(),
-            ),
+      ),
+    );
+  }
+
+  Widget _buildNarrowLayout() {
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          expandedHeight: 400,
+          stretch: true,
+          pinned: true,
+          flexibleSpace: FlexibleSpaceBar(
+            background: Image.network(widget.imageUrl, fit: BoxFit.cover),
           ),
         ),
+        SliverToBoxAdapter(child: _buildContentSection()),
+        SliverToBoxAdapter(
+          child: Column(
+            children: [
+              const Divider(height: 48),
+              Text(
+                "More like this",
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+        _buildSimilarItemsGrid(),
       ],
     );
   }
 
-  Widget _buildNarrowLayout(bool isTablet) {
-    return SingleChildScrollView(
+  Widget _buildContentSection() {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: AspectRatio(
-              aspectRatio: isTablet ? 3 / 2 : 4 / 5,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  widget.imageUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Center(child: Icon(Icons.broken_image, size: 100)),
-                ),
-              ),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: _buildActionButtons(),
           ),
-          // Content
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
-            child: _buildContentSection(),
+          const SizedBox(height: 8),
+          Text(widget.itemName, style: theme.textTheme.displaySmall),
+          const SizedBox(height: 16),
+          if (likeCount > 0)
+            Text(
+              '$likeCount ${likeCount == 1 ? 'like' : 'likes'}',
+              style: theme.textTheme.bodyMedium,
+            ),
+          const SizedBox(height: 24),
+          Text("Description", style: theme.textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text(
+            "A beautiful piece of jewelry crafted with precision and care. Each piece is unique and tells its own story.",
+            style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => _onGetQuotePressed(context),
+              child: const Text('Get Quote'),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildContentSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Title and action buttons
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                widget.itemName,
-                style: GoogleFonts.ptSerif(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            _buildActionButtons(),
-          ],
+  List<Widget> _buildActionButtons() {
+    return [
+      IconButton(
+        onPressed: isLiking ? null : _toggleLike,
+        icon: Icon(
+          userLiked ? Icons.favorite : Icons.favorite_border,
+          color: userLiked ? Colors.red : Theme.of(context).iconTheme.color,
         ),
-
-        const SizedBox(height: 16),
-
-        // Like count
-        if (likeCount > 0)
-          Text(
-            '$likeCount ${likeCount == 1 ? 'like' : 'likes'}',
-            style: TextStyle(color: Colors.grey[600], fontSize: 14),
-          ),
-
-        const SizedBox(height: 20),
-
-        // Get Quote button
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: () => _onGetQuotePressed(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber[700],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              'Get Quote',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 32),
-        const Divider(),
-        const SizedBox(height: 16),
-
-        // Description
-        const Text(
-          "Description",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          "A beautiful piece of jewelry crafted with precision and care. Each piece is unique and tells its own story.",
-          style: TextStyle(fontSize: 14, height: 1.5),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Specifications
-        const Text(
-          "Specifications",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        _buildSpecRow("Material", "Gold"),
-        _buildSpecRow("Style", "Modern"),
-        _buildSpecRow("Occasion", "Bridal"),
-        _buildSpecRow("Karat", "22k"),
-      ],
-    );
+        tooltip: userLiked ? 'Unlike' : 'Like',
+      ),
+      IconButton(
+        onPressed: _sharePin,
+        icon: const Icon(Icons.share_outlined),
+        tooltip: 'Share',
+      ),
+      IconButton(
+        onPressed: isSaving ? null : _saveToBoard,
+        icon: isSaving
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.bookmark_add_outlined),
+        tooltip: 'Save to Board',
+      ),
+    ];
   }
 
-  Widget _buildActionButtons() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Like button
-        IconButton(
-          onPressed: isLiking ? null : _toggleLike,
-          icon: Icon(
-            userLiked ? Icons.favorite : Icons.favorite_border,
-            color: userLiked ? Colors.red : Colors.grey[600],
-          ),
-          tooltip: userLiked ? 'Unlike' : 'Like',
-        ),
-
-        // Share button
-        IconButton(
-          onPressed: _sharePin,
-          icon: Icon(Icons.share_outlined, color: Colors.grey[600]),
-          tooltip: 'Share',
-        ),
-
-        // Save button
-        IconButton(
-          onPressed: isSaving ? null : _saveToBoard,
-          icon: isSaving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Icon(Icons.bookmark_add_outlined, color: Colors.grey[600]),
-          tooltip: 'Save to Board',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSpecRow(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-          ),
-        ],
+  Widget _buildSimilarItemsGrid() {
+    return SliverPadding(
+      padding: const EdgeInsets.all(8.0),
+      sliver: SliverMasonryGrid.count(
+        crossAxisCount: 2,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childCount: 10,
+        itemBuilder: (context, index) {
+          return Card(
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Image.network(
+              'https://picsum.photos/seed/${widget.imageUrl.hashCode + index}/200/300',
+              fit: BoxFit.cover,
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-// Dialog for picking a board
+// Keep the _BoardPickerDialog class exactly as it is.
 class _BoardPickerDialog extends StatefulWidget {
   final List<dynamic> boards;
 

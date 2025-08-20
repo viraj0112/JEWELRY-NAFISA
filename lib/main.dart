@@ -3,9 +3,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:jewelry_nafisa/src/auth/auth_callback_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
-import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,18 +50,20 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Designs by AKD',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.theme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system, 
       initialRoute: '/',
       routes: {
         '/': (context) => const AuthGate(),
         '/auth-callback': (context) => const AuthCallbackScreen(),
       },
-      // home: HomeScreen(),
     );
   }
 }
