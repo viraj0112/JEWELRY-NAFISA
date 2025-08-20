@@ -2,99 +2,103 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color navajoWhite = Color(0xFFFDDDAA);
-  static const Color gold = Color(0xFFDAB766);
-  static const Color darkGoldenrod = Color(0xFFB69121);
-  static const Color goldenBrown = Color(0xFF8E6015);
-  static const Color black = Color(0xFF000000);
+  // Light Theme Colors
+  static const Color lightBackground = Color(0xFFFFFFFF);
+  static const Color lightSurface = Color(0xFFF1F1F1); // For cards
+  static const Color lightPrimary = Color(0xFFE60023); // Pinterest Red
+  static const Color lightOnSurface = Color(0xFF111111);
+
+  // Dark Theme Colors
+  static const Color darkBackground = Color(0xFF111111);
+  static const Color darkSurface = Color(0xFF1C1C1C);
+  static const Color darkPrimary = Color(0xFFE60023);
+  static const Color darkOnSurface = Color(0xFFF1F1F1);
 
   static ThemeData get lightTheme {
     return ThemeData(
       brightness: Brightness.light,
-      primaryColor: darkGoldenrod,
-      scaffoldBackgroundColor: navajoWhite,
+      primaryColor: lightPrimary,
+      scaffoldBackgroundColor: lightBackground,
       colorScheme: const ColorScheme.light(
-        primary: darkGoldenrod,
-        secondary: gold,
-        surface: navajoWhite,
-        onSurface: black,
-        primaryContainer: gold,
-        secondaryContainer: goldenBrown,
+        primary: lightPrimary,
+        secondary: lightPrimary,
+        surface: lightSurface,
+        background: lightBackground,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: lightOnSurface,
+        onBackground: lightOnSurface,
       ),
-      textTheme: _textTheme(goldenBrown),
-      appBarTheme: AppBarTheme(
-        backgroundColor: navajoWhite,
+      textTheme: _textTheme(lightOnSurface),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: lightBackground,
         elevation: 0,
-        iconTheme: const IconThemeData(color: goldenBrown),
-        titleTextStyle: GoogleFonts.ptSerif(
-          color: goldenBrown,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
+        iconTheme: IconThemeData(color: lightOnSurface),
+        titleTextStyle: TextStyle(
+            color: lightOnSurface, fontSize: 20, fontWeight: FontWeight.bold),
       ),
-      elevatedButtonTheme: _elevatedButtonTheme(darkGoldenrod, navajoWhite),
-      // Other theme properties...
+      cardTheme: CardThemeData(
+        elevation: 0,
+        color: lightSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      elevatedButtonTheme: _elevatedButtonTheme(lightPrimary, Colors.white),
     );
   }
 
   static ThemeData get darkTheme {
     return ThemeData(
       brightness: Brightness.dark,
-      primaryColor: gold,
-      scaffoldBackgroundColor: black,
+      primaryColor: darkPrimary,
+      scaffoldBackgroundColor: darkBackground,
       colorScheme: const ColorScheme.dark(
-        primary: gold,
-        secondary: darkGoldenrod,
-        surface: black,
-        onSurface: navajoWhite,
-        primaryContainer: goldenBrown,
-        secondaryContainer: gold,
+        primary: darkPrimary,
+        secondary: darkPrimary,
+        surface: darkSurface,
+        background: darkBackground,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: darkOnSurface,
+        onBackground: darkOnSurface,
       ),
-      textTheme: _textTheme(navajoWhite),
-      appBarTheme: AppBarTheme(
-        backgroundColor: black,
+      textTheme: _textTheme(darkOnSurface),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: darkBackground,
         elevation: 0,
-        iconTheme: const IconThemeData(color: navajoWhite),
-        titleTextStyle: GoogleFonts.ptSerif(
-          color: navajoWhite,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
+        iconTheme: IconThemeData(color: darkOnSurface),
+        titleTextStyle: TextStyle(
+            color: darkOnSurface, fontSize: 20, fontWeight: FontWeight.bold),
       ),
-      elevatedButtonTheme: _elevatedButtonTheme(gold, black),
-      // Other theme properties...
+      cardTheme: CardThemeData(
+        elevation: 0,
+        color: darkSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      elevatedButtonTheme: _elevatedButtonTheme(darkPrimary, Colors.white),
     );
   }
 
   static TextTheme _textTheme(Color color) {
     return TextTheme(
-      displayLarge: GoogleFonts.ptSerif(
-        color: color,
-        fontWeight: FontWeight.bold,
-      ),
-      headlineMedium: GoogleFonts.ptSerif(
-        color: color,
-        fontWeight: FontWeight.w700,
-      ),
-      titleLarge: GoogleFonts.ptSerif(
-        color: color,
-        fontWeight: FontWeight.w700,
-      ),
-      bodyLarge: GoogleFonts.poppins(color: color),
-      bodyMedium: GoogleFonts.poppins(color: color),
+      displayLarge:
+          GoogleFonts.ptSerif(color: color, fontWeight: FontWeight.bold),
+      headlineMedium:
+          GoogleFonts.ptSerif(color: color, fontWeight: FontWeight.w700),
+      titleLarge: GoogleFonts.poppins(color: color, fontWeight: FontWeight.w600),
+      bodyLarge: GoogleFonts.poppins(color: color, fontSize: 16),
+      bodyMedium: GoogleFonts.poppins(color: color, fontSize: 14),
     );
   }
 
   static ElevatedButtonThemeData _elevatedButtonTheme(
-    Color background,
-    Color foreground,
-  ) {
+      Color background, Color foreground) {
     return ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: background,
         foregroundColor: foreground,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        textStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+        textStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
       ),
     );
   }

@@ -1,15 +1,12 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
+import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
-import 'package:jewelry_nafisa/src/ui/screens/membership/buy_membership_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart';
-import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
-import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,18 +17,21 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _scrollController = ScrollController();
-  final _imageList = <String>[];
-  final _random = Random();
-  final SupabaseAuthService _authService = SupabaseAuthService();
+  final JewelryService _jewelryService = JewelryService();
+  final List<JewelryItem> _items = [];
+  bool _isLoading = false;
+  bool _hasMore = true;
 
   @override
   void initState() {
     super.initState();
-    _loadMoreImages();
+    _loadMoreItems(); // Initial data load
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels ==
-          _scrollController.position.maxScrollExtent) {
-        _loadMoreImages();
+      // Load more when user is near the end of the list
+      if (_scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent * 0.9 &&
+          !_isLoading) {
+        _loadMoreItems();
       }
     });
   }
@@ -42,44 +42,71 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _loadMoreImages() {
-    // Placeholder to load more images
-    for (int i = 0; i < 15; i++) {
-      final imageId = _random.nextInt(1000);
-      _imageList.add('https://picsum.photos/id/$imageId/400/${_random.nextInt(200) + 400}');
+  Future<void> _loadMoreItems() async {
+    if (_isLoading || !_hasMore) return;
+    setState(() => _isLoading = true);
+
+    final newItems =
+        await _jewelryService.fetchJewelryItems(offset: _items.length);
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        if (newItems.isEmpty) {
+          _hasMore = false;
+        } else {
+          _items.addAll(newItems);
+        }
+      });
     }
-    if(mounted) setState(() {});
   }
 
+  Future<void> _onRefresh() async {
+    _items.clear();
+    _hasMore = true;
+    await _loadMoreItems();
+  }
+  
   @override
   Widget build(BuildContext context) {
     final userProfile = Provider.of<UserProfileProvider>(context);
-    final theme = Theme.of(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: _buildSearchBar(theme),
+        title: _buildSearchBar(Theme.of(context)),
         actions: [
-          _buildUserProfileDropdown(context, userProfile),
+          IconButton(
+            icon: Icon(
+              themeProvider.themeMode == ThemeMode.light
+                  ? Icons.dark_mode_outlined
+                  : Icons.light_mode_outlined,
+            ),
+            onPressed: () => themeProvider.toggleTheme(),
+            tooltip: 'Toggle Theme',
+          ),
+          _buildUserProfileIcon(context, userProfile),
           const SizedBox(width: 8),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          int crossAxisCount = (constraints.maxWidth / 200).floor().clamp(2, 6);
-          return MasonryGridView.count(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(8.0),
-            crossAxisCount: crossAxisCount,
-            itemCount: _imageList.length,
-            itemBuilder: (context, index) {
-              return _buildImageCard(context, index, 'Item $index');
-            },
-            mainAxisSpacing: 8.0,
-            crossAxisSpacing: 8.0,
-          );
-        },
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: MasonryGridView.count(
+          controller: _scrollController,
+          padding: const EdgeInsets.all(8.0),
+          crossAxisCount:
+              (MediaQuery.of(context).size.width / 200).floor().clamp(2, 6),
+          itemCount: _items.length + (_hasMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == _items.length) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return _buildImageCard(context, _items[index]);
+          },
+          mainAxisSpacing: 8.0,
+          crossAxisSpacing: 8.0,
+        ),
       ),
     );
   }
@@ -88,87 +115,78 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       height: 48,
       decoration: BoxDecoration(
-        color: theme.brightness == Brightness.light
-            ? Colors.grey.shade200
-            : Colors.grey.shade800,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
       ),
       child: TextField(
         decoration: InputDecoration(
           hintText: 'Search for designs',
-          prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+          prefixIcon: Icon(
+              Icons.search, color: theme.colorScheme.onSurface.withOpacity(0.6)),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         ),
       ),
     );
   }
 
-  Widget _buildUserProfileDropdown(BuildContext context, UserProfileProvider user) {
-    return PopupMenuButton<String>(
-      offset: const Offset(0, 50),
+  Widget _buildUserProfileIcon(
+      BuildContext context, UserProfileProvider user) {
+    return IconButton(
       icon: CircleAvatar(
-        backgroundColor: AppTheme.darkGoldenrod,
-        child: Text(
-          user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        child: user.isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white))
+            : Text(
+                user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
+                style:
+                    const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
       ),
-      onSelected: (value) async {
-        if (value == 'profile') {
-          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
-        } else if (value == 'logout') {
-          await _authService.signOut();
-          if (mounted) {
-            Provider.of<UserProfileProvider>(context, listen: false).reset();
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-              (route) => false,
-            );
-          }
-        }
+      onPressed: () {
+        Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
       },
-      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        PopupMenuItem<String>(
-          value: 'profile',
-          child: ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('View Profile'),
-          ),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem<String>(
-          value: 'logout',
-          child: ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Log Out'),
-          ),
-        ),
-      ],
+      tooltip: 'View Profile',
     );
   }
 
-  Widget _buildImageCard(BuildContext context, int index, String itemName) {
+  Widget _buildImageCard(BuildContext context, JewelryItem item) {
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => JewelryDetailScreen(
-              imageUrl: _imageList[index],
-              itemName: itemName,
+              imageUrl: item.imageUrl,
+              itemName: item.name,
+              pinId: item.id,
             ),
           ),
         );
       },
       child: Card(
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 0,
         child: Image.network(
-          _imageList[index],
+          item.imageUrl,
           fit: BoxFit.cover,
-          loadingBuilder: (context, child, progress) =>
-              progress == null ? child : Container(color: Colors.grey.shade300),
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              color: Theme.of(context).colorScheme.surface,
+              child: const Center(child: CircularProgressIndicator.adaptive()),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Theme.of(context).colorScheme.surface,
+              child: const Icon(Icons.error_outline, color: Colors.grey),
+            );
+          },
         ),
       ),
     );

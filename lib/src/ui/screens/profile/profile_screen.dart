@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
-import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
-import 'package:jewelry_nafisa/src/utils/user_profile_utils.dart';
+import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -23,6 +23,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseAuthService _authService = SupabaseAuthService();
   late Future<List<Board>> _boardsFuture;
 
   @override
@@ -74,15 +75,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = _supabase.auth.currentUser;
     if (user == null) return;
     try {
-      await UserProfileUtils.ensureUserProfile(user.id);
       await _supabase.from('boards').insert({'user_id': user.id, 'name': name});
       if (mounted) setState(() => _boardsFuture = _fetchUserBoards());
     } catch (e) {
       debugPrint('create board failed: $e');
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Failed to create board')));
+      }
     }
   }
 
@@ -120,6 +121,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _signOut() async {
+    await _authService.signOut();
+    if (mounted) {
+      Provider.of<UserProfileProvider>(context, listen: false).reset();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final userProfile = Provider.of<UserProfileProvider>(context);
@@ -127,9 +139,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(userProfile.username),
+        title: Text(userProfile.username, style: theme.appBarTheme.titleTextStyle),
         actions: [
-          IconButton(onPressed: _showCreateDialog, icon: const Icon(Icons.add)),
+          IconButton(
+            onPressed: _showCreateDialog,
+            icon: const Icon(Icons.add),
+            tooltip: 'Create Board',
+          ),
+          IconButton(
+            onPressed: _signOut,
+            icon: const Icon(Icons.logout),
+            tooltip: 'Log Out',
+          ),
         ],
       ),
       body: CustomScrollView(
@@ -141,9 +162,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
-                vertical: 8.0,
+                vertical: 24.0,
               ),
-              child: Text('My Boards', style: theme.textTheme.titleLarge),
+              child: Text('My Boards',
+                  style: theme.textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold)),
             ),
           ),
           _buildBoardsGrid(),
@@ -164,19 +187,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           CircleAvatar(
             radius: 50,
-            backgroundColor: AppTheme.gold.withOpacity(0.8),
+            backgroundColor: theme.colorScheme.primary,
             child: Text(
               user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
-              style: TextStyle(fontSize: 48, color: theme.colorScheme.surface),
+              style: const TextStyle(fontSize: 48, color: Colors.white),
             ),
           ),
           const SizedBox(height: 16),
           Text(user.username, style: theme.textTheme.headlineMedium),
           Text(
             '@${user.username.toLowerCase().replaceAll(' ', '')}',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
           ),
         ],
       ),
@@ -194,17 +215,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
         final boards = snap.data ?? [];
         if (boards.isEmpty) {
-          return const SliverFillRemaining(
-            child: Center(child: Text('No boards yet. Create one!')),
+          return SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  children: [
+                    const Text('No boards yet. Create one!'),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.add),
+                      label: const Text("Create Board"),
+                      onPressed: _showCreateDialog,
+                    )
+                  ],
+                ),
+              ),
+            ),
           );
         }
 
         return SliverPadding(
           padding: const EdgeInsets.all(12.0),
           sliver: SliverMasonryGrid.count(
-            crossAxisCount: (MediaQuery.of(context).size.width / 200)
-                .floor()
-                .clamp(2, 4),
+            crossAxisCount:
+                (MediaQuery.of(context).size.width / 200).floor().clamp(2, 4),
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
             childCount: boards.length,
@@ -221,16 +256,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   );
-                  if (mounted)
+                  if (mounted) {
                     setState(() => _boardsFuture = _fetchUserBoards());
+                  }
                 },
                 child: Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
                   clipBehavior: Clip.antiAlias,
-                  elevation: 0,
-                  color: Theme.of(context).colorScheme.surface.withAlpha(150),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -239,12 +270,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: board.coverUrl != null
                             ? Image.network(board.coverUrl!, fit: BoxFit.cover)
                             : Container(
-                                color: Colors.grey.shade300,
-                                child: Icon(
-                                  Icons.photo_library_outlined,
-                                  size: 48,
-                                  color: Colors.grey.shade500,
-                                ),
+                                color: Theme.of(context).colorScheme.surface,
+                                child: Icon(Icons.photo_library_outlined,
+                                    size: 48, color: Colors.grey),
                               ),
                       ),
                       Padding(
@@ -253,7 +281,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           board.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodyLarge
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),

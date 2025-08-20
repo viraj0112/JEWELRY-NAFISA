@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:jewelry_nafisa/src/auth/auth_callback_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:jewelry_nafisa/src/providers/theme_provider.dart'; 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
@@ -19,18 +20,15 @@ void main() async {
     debugPrint('Warning: $envFile file not found, skipping dotenv load.');
   }
 
-  // Always prefer --dart-define for production
   final supabaseUrl =
       const String.fromEnvironment('SUPABASE_URL', defaultValue: '').isNotEmpty
-      ? const String.fromEnvironment('SUPABASE_URL')
-      : dotenv.env['SUPABASE_URL'] ?? '';
+          ? const String.fromEnvironment('SUPABASE_URL')
+          : dotenv.env['SUPABASE_URL'] ?? '';
   final supabaseAnonKey =
-      const String.fromEnvironment(
-        'SUPABASE_ANON_KEY',
-        defaultValue: '',
-      ).isNotEmpty
-      ? const String.fromEnvironment('SUPABASE_ANON_KEY')
-      : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+      const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '')
+              .isNotEmpty
+          ? const String.fromEnvironment('SUPABASE_ANON_KEY')
+          : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   // Validate that we have the required values
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
@@ -39,10 +37,13 @@ void main() async {
 
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
-  // Wrap the app in the provider
+  // Use MultiProvider to provide both UserProfile and Theme
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => UserProfileProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => UserProfileProvider()),
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -53,12 +54,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Consume the ThemeProvider to dynamically set the theme
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return MaterialApp(
       title: 'Designs by AKD',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system, 
+      themeMode: themeProvider.themeMode, // Use the provider's value
       initialRoute: '/',
       routes: {
         '/': (context) => const AuthGate(),
