@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/ui/screens/membership/buy_membership_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// (Keep the existing StatefulWidget and State class definitions)
 class JewelryDetailScreen extends StatefulWidget {
   final String imageUrl;
   final String itemName;
@@ -26,9 +26,9 @@ class JewelryDetailScreen extends StatefulWidget {
 }
 
 class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
-  // --- All your existing state variables and methods (_initializePin, _toggleLike, etc.) should be kept here. ---
-  // --- No changes are needed in the logic part of your State class. ---
   final supabase = Supabase.instance.client;
+  final JewelryService _jewelryService = JewelryService();
+  late Future<List<JewelryItem>> _similarItemsFuture;
   bool isLiking = false;
   bool isSaving = false;
   String? pinId;
@@ -40,7 +40,12 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   @override
   void initState() {
     super.initState();
+    pinId = widget.pinId;
     _initializePin();
+    _similarItemsFuture = _jewelryService.fetchJewelryItems(
+      limit: 10,
+      offset: 10,
+    );
   }
 
   // Ensures a Supabase session exists.
@@ -440,21 +445,24 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           expandedHeight: 400,
           stretch: true,
           pinned: true,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           flexibleSpace: FlexibleSpaceBar(
-            background: Image.network(widget.imageUrl, fit: BoxFit.cover),
+            background: Image.network(
+              widget.imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) =>
+                  const Center(child: Icon(Icons.broken_image)),
+            ),
           ),
         ),
         SliverToBoxAdapter(child: _buildContentSection()),
         SliverToBoxAdapter(
-          child: Column(
-            children: [
-              const Divider(height: 48),
-              Text(
-                "More like this",
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              "More like this",
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
           ),
         ),
         _buildSimilarItemsGrid(),
@@ -531,26 +539,58 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildSimilarItemsGrid() {
-    return SliverPadding(
-      padding: const EdgeInsets.all(8.0),
-      sliver: SliverMasonryGrid.count(
-        crossAxisCount: 2,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childCount: 10,
-        itemBuilder: (context, index) {
-          return Card(
-            clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Image.network(
-              'https://picsum.photos/seed/${widget.imageUrl.hashCode + index}/200/300',
-              fit: BoxFit.cover,
-            ),
+    return FutureBuilder<List<JewelryItem>>(
+      future: _similarItemsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SliverToBoxAdapter(
+            child: Center(child: CircularProgressIndicator()),
           );
-        },
-      ),
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+
+        final items = snapshot.data!;
+        return SliverPadding(
+          padding: const EdgeInsets.all(8.0),
+          sliver: SliverMasonryGrid.count(
+            crossAxisCount: 2,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return GestureDetector(
+                onTap: () {
+                  // Navigate to the detail screen for the similar item
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => JewelryDetailScreen(
+                        imageUrl: item.imageUrl,
+                        itemName: item.name,
+                        pinId: item.id,
+                      ),
+                    ),
+                  );
+                },
+                child: Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.network(
+                    item.imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
