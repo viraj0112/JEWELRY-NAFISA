@@ -3,6 +3,7 @@ import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -29,23 +30,30 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const _WelcomeAppBar(),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            const _HeroSection(),
-            _DynamicJewelrySection(
-              title: 'Featured Boards',
-              future: _featuredItemsFuture,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 650;
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                _HeroSection(isMobile: isMobile),
+                _DynamicJewelrySection(
+                  title: 'Featured Boards',
+                  future: _featuredItemsFuture,
+                  isMobile: isMobile,
+                ),
+                _DynamicJewelrySection(
+                  title: 'Trending Collections',
+                  future: _trendingItemsFuture,
+                  isMobile: isMobile,
+                ),
+                const _WelcomeFooter(),
+              ],
             ),
-            _DynamicJewelrySection(
-              title: 'Trending Collections',
-              future: _trendingItemsFuture,
-            ),
-            const _WelcomeFooter(),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -106,53 +114,90 @@ class _WelcomeAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 // Hero and Search Section
-class _HeroSection extends StatelessWidget {
-  const _HeroSection();
+class _HeroSection extends StatefulWidget {
+  final bool isMobile;
+  const _HeroSection({this.isMobile = true});
+
+  @override
+  State<_HeroSection> createState() => _HeroSectionState();
+}
+
+class _HeroSectionState extends State<_HeroSection>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 400,
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-          image: NetworkImage(
-            'https://images.unsplash.com/photo-1599351432809-ac94d1784652?w=1600&auto=format&fit=crop&q=80',
-          ),
-          fit: BoxFit.cover,
-        ),
-      ),
+    final size = MediaQuery.of(context).size;
+    final height = widget.isMobile ? size.height * 0.45 : 420.0;
+
+    return FadeTransition(
+      opacity: _fade,
       child: Container(
-        color: Colors.black.withOpacity(0.5),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'NEW COLLECTION',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
+        height: height,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: NetworkImage(
+              'https://images.unsplash.com/photo-1599351432809-ac94d1784652?w=1600&auto=format&fit=crop&q=80',
+            ),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          color: const Color.fromRGBO(0, 0, 0, 0.45),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'NEW COLLECTION',
+                  style:
+                      Theme.of(context).textTheme.displayMedium?.copyWith(
+                        color: Colors.white,
+                        letterSpacing: 2,
+                      ) ??
+                      GoogleFonts.ptSerif(fontSize: 36, color: Colors.white),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 40),
-              Container(
-                width: 600,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search Filter',
-                    icon: Icon(Icons.search),
-                    border: InputBorder.none,
+                const SizedBox(height: 24),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: widget.isMobile ? 24 : 80,
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Material(
+                      elevation: 6,
+                      borderRadius: BorderRadius.circular(8),
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search Filter',
+                          prefixIcon: const Icon(Icons.search),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -164,20 +209,27 @@ class _HeroSection extends StatelessWidget {
 class _DynamicJewelrySection extends StatelessWidget {
   final String title;
   final Future<List<JewelryItem>> future;
+  final bool isMobile;
 
-  const _DynamicJewelrySection({required this.title, required this.future});
+  const _DynamicJewelrySection({
+    required this.title,
+    required this.future,
+    this.isMobile = true,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final horizontalPadding = isMobile ? 16.0 : 48.0;
     return Padding(
-      padding: const EdgeInsets.all(32.0),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: 24,
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 24),
+          Text(title, style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 16),
           FutureBuilder<List<JewelryItem>>(
             future: future,
             builder: (context, snapshot) {
@@ -191,13 +243,20 @@ class _DynamicJewelrySection extends StatelessWidget {
               }
 
               final items = snapshot.data!;
-              return Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                alignment: WrapAlignment.center,
-                children: items
-                    .map((item) => _JewelryCard(item: item))
-                    .toList(),
+              // responsive grid: 2 columns on mobile, 3-4 on larger screens
+              final crossAxis = isMobile ? 2 : 4;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxis,
+                  mainAxisExtent: isMobile ? 260 : 300,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                itemCount: items.length,
+                itemBuilder: (context, index) =>
+                    _JewelryCard(item: items[index]),
               );
             },
           ),
@@ -215,22 +274,38 @@ class _JewelryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
       clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: 200,
+      child: InkWell(
+        onTap: () {},
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.network(item.imageUrl, height: 150, fit: BoxFit.cover),
+            Expanded(
+              child: Hero(
+                tag: item.id,
+                child: Image.network(
+                  item.imageUrl,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
             Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(12.0),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     item.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  Text('\$${item.price.toStringAsFixed(2)}'),
+                  const SizedBox(height: 6),
+                  Text(
+                    '\$${item.price.toStringAsFixed(2)}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ],
               ),
             ),
