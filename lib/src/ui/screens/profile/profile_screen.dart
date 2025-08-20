@@ -4,6 +4,9 @@ import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/utils/user_profile_utils.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
+import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
+import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:provider/provider.dart';
 
 class Board {
   final int id;
@@ -185,13 +188,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: () async {
                 setState(() => _isLoggingOut = true);
                 try {
+                  // Access provider before async gap
+                  final profile = Provider.of<UserProfileProvider>(context, listen: false);
                   await _authService.signOut();
+                  profile.reset(); // Reset state
+
+                  // Navigate to WelcomeScreen and remove all previous routes
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                      (route) => false,
+                    );
+                  }
+                } catch (e) {
+                  debugPrint("Sign out error: $e");
                 } finally {
-                  if (mounted) setState(() => _isLoggingOut = false);
+                  if (mounted) {
+                    setState(() => _isLoggingOut = false);
+                  }
                 }
               },
             ),
-        ],
+        ]
       ),
       body: DefaultTabController(
         length: 2,

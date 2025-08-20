@@ -1,140 +1,205 @@
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
+import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  final JewelryService _jewelryService = JewelryService();
+  late Future<List<JewelryItem>> _featuredItemsFuture;
+  late Future<List<JewelryItem>> _trendingItemsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _featuredItemsFuture = _jewelryService.fetchJewelryItems(limit: 6);
+    _trendingItemsFuture = _jewelryService.fetchJewelryItems(
+      limit: 6,
+      offset: 6,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      backgroundColor: Colors.white,
+      appBar: const _WelcomeAppBar(),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            const _HeroSection(),
+            _DynamicJewelrySection(
+              title: 'Featured Boards',
+              future: _featuredItemsFuture,
+            ),
+            _DynamicJewelrySection(
+              title: 'Trending Collections',
+              future: _trendingItemsFuture,
+            ),
+            const _WelcomeFooter(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Header Section
+class _WelcomeAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _WelcomeAppBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      backgroundColor: Colors.black,
+      title: Row(
         children: [
-          Expanded(
-            flex: 4,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.network(
-                  'https://images.unsplash.com/photo-1543163521-1bf539c55b98?w=1600&auto=format&fit=crop&q=80',
-                  fit: BoxFit.cover,
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color.fromRGBO(0, 0, 0, 0.6),
-                        Colors.transparent,
-                      ],
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 36.0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        'NEW COLLECTION',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontSize: 28,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Handcrafted Jewelry',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 42,
-                            ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 28,
-                                vertical: 14,
-                              ),
-                            ),
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const LoginScreen(),
-                              ),
-                            ),
-                            child: const Text('Log in'),
-                          ),
-                          const SizedBox(width: 12),
-                          OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(color: Colors.white),
-                            ),
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SignUpScreen(),
-                              ),
-                            ),
-                            child: const Text('Register'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          _navButton('Explore'),
+          _navButton('Categories'),
+          _navButton('Gift Suggestions'),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
           ),
-          Expanded(
-            flex: 5,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20.0,
-                vertical: 18.0,
+          child: const Text('LOGIN', style: TextStyle(color: Colors.white)),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SignUpScreen()),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black,
+          ),
+          child: const Text('REGISTER'),
+        ),
+        const SizedBox(width: 16),
+      ],
+    );
+  }
+
+  Widget _navButton(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      child: TextButton(
+        onPressed: () {},
+        child: Text(text, style: const TextStyle(color: Colors.white70)),
+      ),
+    );
+  }
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
+
+// Hero and Search Section
+class _HeroSection extends StatelessWidget {
+  const _HeroSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 400,
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: NetworkImage(
+            'https://images.unsplash.com/photo-1599351432809-ac94d1784652?w=1600&auto=format&fit=crop&q=80',
+          ),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Container(
+        color: Colors.black.withOpacity(0.5),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'NEW COLLECTION',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Featured Boards',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              const SizedBox(height: 40),
+              Container(
+                width: 600,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search Filter',
+                    icon: Icon(Icons.search),
+                    border: InputBorder.none,
                   ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: List.generate(
-                        6,
-                        (i) => _FeaturedCard(index: i),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: Text(
-                      'Explore more collections',
-                      style: TextStyle(color: Colors.grey[700]),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Dynamic Section for Jewelry Items
+class _DynamicJewelrySection extends StatelessWidget {
+  final String title;
+  final Future<List<JewelryItem>> future;
+
+  const _DynamicJewelrySection({required this.title, required this.future});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(32.0),
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 24),
+          FutureBuilder<List<JewelryItem>>(
+            future: future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError ||
+                  !snapshot.hasData ||
+                  snapshot.data!.isEmpty) {
+                return const Center(child: Text('No items to display.'));
+              }
+
+              final items = snapshot.data!;
+              return Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                alignment: WrapAlignment.center,
+                children: items
+                    .map((item) => _JewelryCard(item: item))
+                    .toList(),
+              );
+            },
           ),
         ],
       ),
@@ -142,80 +207,81 @@ class WelcomeScreen extends StatelessWidget {
   }
 }
 
-class _FeaturedCard extends StatelessWidget {
-  final int index;
-  const _FeaturedCard({required this.index});
+// Jewelry Item Card
+class _JewelryCard extends StatelessWidget {
+  final JewelryItem item;
+  const _JewelryCard({required this.item});
 
   @override
   Widget build(BuildContext context) {
-    final urls = [
-      'https://images.unsplash.com/photo-1519741497951-7c6a8e1d6d7f?w=800&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1520975687004-2b0a7d88b3f9?w=800&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1556228720-25d6f9f0a5b3?w=800&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1543163521-1bf539c55b98?w=800&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1518544639378-0edb9f33b2f2?w=800&q=80&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&q=80&auto=format&fit=crop',
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 12.0),
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.0, end: 1.0),
-        duration: Duration(milliseconds: 400 + index * 80),
-        builder: (context, v, child) => Opacity(
-          opacity: v,
-          child: Transform.translate(
-            offset: Offset((1 - v) * 30, 0),
-            child: child,
-          ),
-        ),
-        child: Container(
-          width: 220,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Color.fromRGBO(0, 0, 0, 0.12),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+    return Card(
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: 200,
+        child: Column(
+          children: [
+            Image.network(item.imageUrl, height: 150, fit: BoxFit.cover),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                children: [
+                  Text(
+                    item.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('\$${item.price.toStringAsFixed(2)}'),
+                ],
               ),
-            ],
-          ),
-          clipBehavior: Clip.hardEdge,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                height: 140,
-                child: Image.network(
-                  urls[index % urls.length],
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Sparkling Collection',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Curated picks · ${120 - index} items',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton(onPressed: () {}, child: const Text('View')),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+// Footer Section
+class _WelcomeFooter extends StatelessWidget {
+  const _WelcomeFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.grey[100],
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              _footerLink('Help Center'),
+              _footerLink('Contact Us'),
+              _footerLink('Blog'),
+            ],
+          ),
+          Row(
+            children: [
+              _socialIcon(Icons.camera_alt_outlined),
+              _socialIcon(Icons.facebook),
+              _socialIcon(Icons.all_inclusive_outlined),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _footerLink(String text) => Padding(
+    padding: const EdgeInsets.only(right: 16),
+    child: TextButton(
+      onPressed: () {},
+      child: Text(text, style: const TextStyle(color: Colors.black54)),
+    ),
+  );
+
+  Widget _socialIcon(IconData icon) => IconButton(
+    onPressed: () {},
+    icon: Icon(icon, color: Colors.black54),
+  );
 }

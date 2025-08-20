@@ -8,6 +8,7 @@ import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
+import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -229,7 +230,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 setState(() {
                   _isLoggingOut = true;
                 });
-                // Get provider before async operation
                 final profile = Provider.of<UserProfileProvider>(
                   context,
                   listen: false,
@@ -237,8 +237,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 final scaffoldMessenger = ScaffoldMessenger.of(context);
                 try {
                   await _authService.signOut();
-                  // Reset local provider state after successful sign out
-                  profile.reset();
+                  profile.reset(); // Reset user profile state
+
+                  // Navigate to WelcomeScreen and remove all previous routes
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                      (route) => false,
+                    );
+                  }
                 } catch (e) {
                   debugPrint("Error during sign out: $e");
                   if (mounted) {
@@ -247,6 +254,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         content: Text("Error signing out. Please try again."),
                       ),
                     );
+                  }
+                } finally {
+                  if (mounted) {
                     setState(() {
                       _isLoggingOut = false;
                     });
