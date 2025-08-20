@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
-import 'package:jewelry_nafisa/src/utils/user_profile_utils.dart'; 
+import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
+import 'package:jewelry_nafisa/src/utils/user_profile_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -27,7 +27,8 @@ class _AuthGateState extends State<AuthGate> {
 
         final session = snapshot.data?.session;
         if (session == null) {
-          return const LoginScreen();
+          // Show the welcome screen for unauthenticated users (keeps existing login/signup flows accessible)
+          return const WelcomeScreen();
         }
         return FutureBuilder<void>(
           future: _ensureAndFetchProfile(context, session.user.id),
@@ -50,10 +51,14 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   // NEW HELPER FUNCTION
-  Future<void> _ensureAndFetchProfile(BuildContext context, String userId) async {
+  Future<void> _ensureAndFetchProfile(
+    BuildContext context,
+    String userId,
+  ) async {
+    // Capture provider synchronously so we don't rely on BuildContext after awaits
+    final provider = Provider.of<UserProfileProvider>(context, listen: false);
     await UserProfileUtils.ensureUserProfile(userId);
-    if (mounted) {
-      await Provider.of<UserProfileProvider>(context, listen: false).fetchProfile();
-    }
+    if (!mounted) return;
+    await provider.fetchProfile();
   }
 }
