@@ -7,6 +7,8 @@ import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
+// import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart';
+// import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,3 +73,4 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+

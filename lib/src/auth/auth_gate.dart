@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
-import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
+import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:jewelry_nafisa/src/utils/user_profile_utils.dart';
 import 'package:provider/provider.dart';
@@ -21,19 +21,24 @@ class _AuthGateState extends State<AuthGate> {
   void initState() {
     super.initState();
     _recoverSessionAndRedirect();
-    _authSubscription =
-        Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
+      data,
+    ) {
       final Session? session = data.session;
       if (session == null) {
+        if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const WelcomeScreen()),
           (route) => false,
         );
       } else {
+        if (!mounted) return;
         if (ModalRoute.of(context)?.isCurrent ?? false) {
-           _ensureAndFetchProfile(context, session.user.id).then((_) {
+          _ensureAndFetchProfile(context, session.user.id).then((_) {
+            if (!mounted) return;
             Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              // ✨ CHANGED: Navigate to MainShell
+              MaterialPageRoute(builder: (_) => const MainShell()),
               (route) => false,
             );
           });
@@ -50,14 +55,16 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _recoverSessionAndRedirect() async {
     await Future.delayed(Duration.zero);
-    
+
     final session = Supabase.instance.client.auth.currentSession;
 
     if (session != null) {
+      if (!mounted) return;
       await _ensureAndFetchProfile(context, session.user.id);
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          // ✨ CHANGED: Navigate to MainShell
+          MaterialPageRoute(builder: (_) => const MainShell()),
         );
       }
     } else {
@@ -69,7 +76,10 @@ class _AuthGateState extends State<AuthGate> {
     }
   }
 
-  Future<void> _ensureAndFetchProfile(BuildContext context, String userId) async {
+  Future<void> _ensureAndFetchProfile(
+    BuildContext context,
+    String userId,
+  ) async {
     final provider = Provider.of<UserProfileProvider>(context, listen: false);
     await UserProfileUtils.ensureUserProfile(userId);
     if (mounted) {
@@ -79,8 +89,6 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

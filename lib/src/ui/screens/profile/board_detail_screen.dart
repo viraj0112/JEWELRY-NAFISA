@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 
 class BoardDetailScreen extends StatefulWidget {
   final int boardId;
@@ -57,7 +58,11 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
         'board_id': widget.boardId,
         'pin_id': pinId,
       });
-      if (mounted) setState(() => _pinsFuture = _fetchPins());
+      if (mounted) {
+        setState(() {
+          _pinsFuture = _fetchPins();
+        });
+      }
     } catch (e) {
       debugPrint('Error removing pin: $e');
       if (mounted) {
@@ -70,11 +75,12 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.boardName),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        foregroundColor: theme.colorScheme.onPrimary,
         elevation: 1,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -91,7 +97,7 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
           }
 
           return MasonryGridView.count(
-            crossAxisCount: MediaQuery.of(context).size.width > 800 ? 4 : 2,
+            crossAxisCount: MediaQuery.of(context).size.width > 800 ? 6 : 2,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
             padding: const EdgeInsets.all(12),
@@ -107,7 +113,7 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     AspectRatio(
-                      aspectRatio: 3 / 4,
+                      aspectRatio: 4 / 3,
                       child: Image.network(
                         pin['image_url'] ?? '',
                         fit: BoxFit.cover,
