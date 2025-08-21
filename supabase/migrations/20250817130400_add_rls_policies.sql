@@ -56,6 +56,13 @@ CREATE POLICY "Users can update own boards"
     ON public.boards FOR UPDATE
     USING (auth.uid() = user_id);
 
+-- ✨ NEW: Add policy to allow users to delete their own boards
+DROP POLICY IF EXISTS "Users can delete own boards" ON public.boards;
+CREATE POLICY "Users can delete own boards"
+    ON public.boards FOR DELETE
+    USING (auth.uid() = user_id);
+
+
 -- User likes policies
 DROP POLICY IF EXISTS "Users can manage their likes" ON public.user_likes;
 CREATE POLICY "Users can manage their likes"

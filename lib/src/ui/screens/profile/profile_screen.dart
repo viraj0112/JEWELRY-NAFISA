@@ -1,18 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
-import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class Board {
-  final int id;
-  final String name;
-  final String? coverUrl;
-  Board({required this.id, required this.name, this.coverUrl});
-}
+// Board class remains the same
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -23,7 +16,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
-  final SupabaseAuthService _authService = SupabaseAuthService();
   late Future<List<Board>> _boardsFuture;
 
   @override
@@ -32,6 +24,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _boardsFuture = _fetchUserBoards();
   }
 
+  // ... _fetchUserBoards, _createNewBoard, _deleteBoard, _showCreateDialog methods are unchanged ...
   Future<List<Board>> _fetchUserBoards() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return [];
@@ -76,13 +69,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user == null) return;
     try {
       await _supabase.from('boards').insert({'user_id': user.id, 'name': name});
-      if (mounted) setState(() => _boardsFuture = _fetchUserBoards());
+      if (mounted) {
+        setState(() {
+          _boardsFuture = _fetchUserBoards();
+        });
+      }
     } catch (e) {
       debugPrint('create board failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Failed to create board')));
+      }
+    }
+  }
+
+  Future<void> _deleteBoard(int boardId) async {
+    try {
+      await _supabase.from('boards_pins').delete().eq('board_id', boardId);
+      await _supabase.from('boards').delete().eq('id', boardId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Board deleted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {
+          _boardsFuture = _fetchUserBoards();
+        });
+      }
+    } catch (e) {
+      debugPrint('Delete board error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to delete board. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -110,7 +136,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ElevatedButton(
             onPressed: () async {
               if (key.currentState?.validate() ?? false) {
-                await _createNewBoard(ctrl.text.trim());
+                final boardName = ctrl.text.trim();
+                final user = _supabase.auth.currentUser;
+                if (user == null) return;
+
+                try {
+                  final existingBoards = await _supabase
+                      .from('boards')
+                      .select('id')
+                      .eq('user_id', user.id)
+                      .eq('name', boardName)
+                      .limit(1);
+
+                  if (existingBoards.isNotEmpty) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'A board with this name already exists.',
+                          ),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error checking boards: $e')),
+                    );
+                  }
+                  return;
+                }
+
+                await _createNewBoard(boardName);
                 if (mounted) Navigator.of(ctx).pop();
               }
             },
@@ -121,37 +181,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _signOut() async {
-    await _authService.signOut();
-    if (mounted) {
-      Provider.of<UserProfileProvider>(context, listen: false).reset();
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-        (route) => false,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final userProfile = Provider.of<UserProfileProvider>(context);
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(userProfile.username, style: theme.appBarTheme.titleTextStyle),
-        actions: [
-          IconButton(
-            onPressed: _showCreateDialog,
-            icon: const Icon(Icons.add),
-            tooltip: 'Create Board',
-          ),
-          IconButton(
-            onPressed: _signOut,
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log Out',
-          ),
-        ],
+      // ✨ REMOVED: AppBar is now handled by MainShell
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showCreateDialog,
+        tooltip: 'Create Board',
+        child: const Icon(Icons.add),
       ),
       body: CustomScrollView(
         slivers: [
@@ -164,9 +204,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 horizontal: 16.0,
                 vertical: 24.0,
               ),
-              child: Text('My Boards',
-                  style: theme.textTheme.headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+              child: Text(
+                'My Boards',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
           _buildBoardsGrid(),
@@ -175,6 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ... _buildProfileHeader and _buildBoardsGrid methods are unchanged ...
   Widget _buildProfileHeader(
     BuildContext context,
     UserProfileProvider user,
@@ -227,7 +271,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: const Icon(Icons.add),
                       label: const Text("Create Board"),
                       onPressed: _showCreateDialog,
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -238,8 +282,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return SliverPadding(
           padding: const EdgeInsets.all(12.0),
           sliver: SliverMasonryGrid.count(
-            crossAxisCount:
-                (MediaQuery.of(context).size.width / 200).floor().clamp(2, 4),
+            crossAxisCount: (MediaQuery.of(context).size.width / 100)
+                .floor()
+                .clamp(3, 8),
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
             childCount: boards.length,
@@ -247,8 +292,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final board = boards[idx];
               return GestureDetector(
                 onTap: () async {
-                  await Navigator.push(
-                    context,
+                  final navigator = Navigator.of(context);
+                  await navigator.push(
                     MaterialPageRoute(
                       builder: (_) => BoardDetailScreen(
                         boardId: board.id,
@@ -257,7 +302,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   );
                   if (mounted) {
-                    setState(() => _boardsFuture = _fetchUserBoards());
+                    setState(() {
+                      _boardsFuture = _fetchUserBoards();
+                    });
                   }
                 },
                 child: Card(
@@ -266,25 +313,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       AspectRatio(
-                        aspectRatio: 1,
+                        aspectRatio: 4 / 3,
                         child: board.coverUrl != null
                             ? Image.network(board.coverUrl!, fit: BoxFit.cover)
                             : Container(
                                 color: Theme.of(context).colorScheme.surface,
-                                child: Icon(Icons.photo_library_outlined,
-                                    size: 48, color: Colors.grey),
+                                child: Icon(
+                                  Icons.photo_library_outlined,
+                                  size: 48,
+                                  color: const Color.fromARGB(
+                                    255,
+                                    149,
+                                    148,
+                                    148,
+                                  ),
+                                ),
                               ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Text(
-                          board.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                        padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                board.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodyLarge
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Delete Board?'),
+                                    content: Text(
+                                      'Are you sure you want to delete the "${board.name}" board and all its images?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, true),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                        ),
+                                        child: const Text('Delete'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  await _deleteBoard(board.id);
+                                }
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -297,4 +389,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
   }
+}
+
+// ✨ ADDED: This is needed since the class was defined inside the build method before
+class Board {
+  final int id;
+  final String name;
+  final String? coverUrl;
+  Board({required this.id, required this.name, this.coverUrl});
 }

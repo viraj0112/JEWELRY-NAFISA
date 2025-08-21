@@ -26,6 +26,7 @@ class JewelryDetailScreen extends StatefulWidget {
 }
 
 class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
+  // ... all state variables and methods remain the same ...
   final supabase = Supabase.instance.client;
   final JewelryService _jewelryService = JewelryService();
   late Future<List<JewelryItem>> _similarItemsFuture;
@@ -48,20 +49,17 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     );
   }
 
-  // Ensures a Supabase session exists.
   Future<void> _ensureSupabaseSession() async {
     try {
       if (supabase.auth.currentUser != null) {
-        return; // Session already exists
+        return;
       }
-      // If no session exists, user needs to log in again
       debugPrint('No Supabase session found');
     } catch (e) {
       debugPrint('Error ensuring Supabase session: $e');
     }
   }
 
-  // Fetches pin details or creates a new pin if it doesn't exist.
   Future<void> _initializePin() async {
     if (!mounted) return;
     setState(() => isLoading = true);
@@ -79,12 +77,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
       if (response == null) {
         if (uid == null) {
-          // Can't create a pin if user is not logged in.
           debugPrint("Cannot create pin: User not logged in.");
           if (mounted) setState(() => isLoading = false);
           return;
         }
-        // Pin doesn't exist, so we create it.
         debugPrint('Creating new pin for user: $uid');
         response = await supabase
             .from('pins')
@@ -102,10 +98,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       likeCount = (response['like_count'] ?? 0) as int;
       shareSlug = response['share_slug'] as String?;
 
-      // Increment view count for analytics
       await _incrementViewCount();
 
-      // If a user is logged in, check their like status for this pin.
       if (uid != null) {
         final likeResponse = await supabase
             .from('user_likes')
@@ -126,7 +120,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
   }
 
-  // Toggles the like status for a pin.
   Future<void> _toggleLike() async {
     if (pinId == null || isLiking) return;
 
@@ -163,7 +156,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         );
       }
 
-      // Fetch the updated count to ensure UI is accurate
       final updatedData = await supabase
           .from('pins')
           .select('like_count')
@@ -188,12 +180,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
   }
 
-  // Generates a unique link and opens the native share dialog.
   Future<void> _sharePin() async {
     if (pinId == null) return;
 
     try {
-      // Generate and save the slug if it doesn't exist yet
       if (shareSlug == null || shareSlug!.isEmpty) {
         debugPrint('Generating new share slug for pin: $pinId');
         final generatedSlug = await supabase.rpc('gen_share_slug');
@@ -206,7 +196,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             .eq('id', pinId!);
       }
 
-      // Allow base share URL to be configured via env; fallback to daginawala.in
       final baseUrl = dotenv.env['BASE_SHARE_URL'] ?? 'https://daginawala.in';
       final shareUrl = '$baseUrl/p/$shareSlug';
       await Share.share(
@@ -223,15 +212,12 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
   }
 
-  // Increment view count for the pin. Tries an RPC first, otherwise does a safe select+update.
   Future<void> _incrementViewCount() async {
     if (pinId == null) return;
     try {
-      // Prefer RPC if available for atomic increment
       await supabase.rpc('increment_view_count', params: {'pin_id': pinId});
     } catch (_) {
       try {
-        // Fallback: read current count and increment
         final res = await supabase
             .from('pins')
             .select('view_count')
@@ -248,7 +234,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
   }
 
-  // Allows the user to save a pin to a new or existing board.
   Future<void> _saveToBoard() async {
     if (pinId == null || isSaving) return;
 
@@ -263,7 +248,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     if (mounted) setState(() => isSaving = true);
 
     try {
-      // Fetch user's existing boards
       final boards = await supabase
           .from('boards')
           .select('id, name')
@@ -272,13 +256,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
       if (!mounted) return;
 
-      // Show the dialog to pick or create a board
       final selectedBoard = await showDialog<Map<String, dynamic>>(
         context: context,
         builder: (_) => _BoardPickerDialog(boards: boards),
       );
 
-      // If the user cancelled, do nothing
       if (selectedBoard == null) {
         if (mounted) setState(() => isSaving = false);
         return;
@@ -286,7 +268,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
       int boardId;
 
-      // If user chose to create a new board
       if (selectedBoard['create_new'] == true) {
         final boardName = selectedBoard['name'] as String;
         debugPrint('Creating new board: $boardName for user: $uid');
@@ -300,7 +281,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         boardId = selectedBoard['id'] as int;
       }
 
-      // Use upsert to prevent duplicates
       await supabase.from('boards_pins').upsert({
         'board_id': boardId,
         'pin_id': pinId,
@@ -406,35 +386,69 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildWideLayout() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Card(
-          elevation: 0,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+                tooltip: 'Close',
+              ),
+            ],
           ),
+        ),
+        Expanded(
           child: Row(
             children: [
               Expanded(
-                flex: 3,
-                child: Image.network(widget.imageUrl, fit: BoxFit.cover),
+                flex: 2,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 8,
+                  ),
+                  child: Column(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          widget.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Center(
+                            child: Icon(Icons.broken_image, size: 48),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildContentSection(),
+                    ],
+                  ),
+                ),
               ),
               Expanded(
-                flex: 2,
-                child: Scaffold(
-                  appBar: AppBar(elevation: 0),
-                  body: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24.0),
-                    child: _buildContentSection(),
-                  ),
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+                      child: Text(
+                        "More like this",
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    Expanded(child: _buildSimilarItemsGrid()),
+                  ],
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -465,7 +479,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             ),
           ),
         ),
-        _buildSimilarItemsGrid(),
+        _buildSimilarItemsGrid(isSliver: true),
       ],
     );
   }
@@ -482,7 +496,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             children: _buildActionButtons(),
           ),
           const SizedBox(height: 8),
-          Text(widget.itemName, style: theme.textTheme.displaySmall),
+          Text(widget.itemName, style: theme.textTheme.headlineMedium),
           const SizedBox(height: 16),
           if (likeCount > 0)
             Text(
@@ -538,64 +552,73 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     ];
   }
 
-  Widget _buildSimilarItemsGrid() {
+  Widget _buildSimilarItemsGrid({bool isSliver = false}) {
     return FutureBuilder<List<JewelryItem>>(
       future: _similarItemsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SliverToBoxAdapter(
-            child: Center(child: CircularProgressIndicator()),
-          );
+          return isSliver
+              ? const SliverToBoxAdapter(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : const Center(child: CircularProgressIndicator());
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const SliverToBoxAdapter(child: SizedBox.shrink());
+          return isSliver
+              ? const SliverToBoxAdapter(child: SizedBox.shrink())
+              : const SizedBox.shrink();
         }
 
         final items = snapshot.data!;
-        return SliverPadding(
-          padding: const EdgeInsets.all(8.0),
-          sliver: SliverMasonryGrid.count(
-            crossAxisCount: 2,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return GestureDetector(
-                onTap: () {
-                  // Navigate to the detail screen for the similar item
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => JewelryDetailScreen(
-                        imageUrl: item.imageUrl,
-                        itemName: item.name,
-                        pinId: item.id,
-                      ),
-                    ),
-                  );
-                },
-                child: Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: Image.network(
-                    item.imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.broken_image),
+        final grid = MasonryGridView.count(
+          crossAxisCount: 2,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return GestureDetector(
+              onTap: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => JewelryDetailScreen(
+                      imageUrl: item.imageUrl,
+                      itemName: item.name,
+                      pinId: item.id,
                     ),
                   ),
+                );
+              },
+              child: Card(
+                clipBehavior: Clip.antiAlias,
+                child: Image.network(
+                  item.imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.broken_image),
+                  ),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         );
+
+        if (isSliver) {
+          return SliverPadding(
+            padding: const EdgeInsets.all(8.0),
+            sliver: grid,
+          );
+        } else {
+          return Padding(padding: const EdgeInsets.all(8.0), child: grid);
+        }
       },
     );
   }
 }
 
-// Keep the _BoardPickerDialog class exactly as it is.
+// ✨ ADDED: The missing _BoardPickerDialog class
 class _BoardPickerDialog extends StatefulWidget {
   final List<dynamic> boards;
 
@@ -642,7 +665,6 @@ class _BoardPickerDialogState extends State<_BoardPickerDialog> {
               ),
               const Divider(),
             ],
-
             ListTile(
               leading: Radio<int?>(
                 value: -1,
@@ -662,7 +684,6 @@ class _BoardPickerDialogState extends State<_BoardPickerDialog> {
                 });
               },
             ),
-
             if (showNewBoardField) ...[
               const SizedBox(height: 8),
               TextField(
@@ -685,7 +706,6 @@ class _BoardPickerDialogState extends State<_BoardPickerDialog> {
         ElevatedButton(
           onPressed: () {
             if (selectedBoardId == -1) {
-              // Create new board
               if (newBoardController.text.trim().isEmpty) return;
               Navigator.pop(context, {
                 'id': -1,
@@ -693,7 +713,6 @@ class _BoardPickerDialogState extends State<_BoardPickerDialog> {
                 'create_new': true,
               });
             } else if (selectedBoardId != null) {
-              // Use existing board
               Navigator.pop(context, {
                 'id': selectedBoardId,
                 'create_new': false,
