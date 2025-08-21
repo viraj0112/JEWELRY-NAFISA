@@ -1,30 +1,62 @@
+// lib/src/models/jewelry_item.dart
+
+import 'dart:math';
+
 class JewelryItem {
   final String id;
   final String name;
-  final String imageUrl;
+  final String description;
   final double price;
+  final String imageUrl;
+  final String category;
+  bool isFavorite;
 
   JewelryItem({
     required this.id,
     required this.name,
-    required this.imageUrl,
+    required this.description,
     required this.price,
-  });
+    required this.category,
+    this.isFavorite = false,
+  }) : imageUrl = 'https://placehold.co/600x400?text=${name.replaceAll(' ', '+')}';
 
-  // A flexible factory constructor that allows you to specify the keys
-  factory JewelryItem.fromMap(
-    Map<String, dynamic> map, {
-    String idKey = 'id',
-    String nameKey = 'title',
-    String imageUrlKey = 'image_url',
-    String priceKey = 'price',
+  factory JewelryItem.fromMap(Map<String, dynamic> map) {
+    return JewelryItem(
+      id: map['id'],
+      name: map['name'],
+      description: map['description'],
+      price: map['price']?.toDouble() ?? 0.0,
+      category: map['category'],
+      isFavorite: map['isFavorite'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'price': price,
+      'category': category,
+      'isFavorite': isFavorite,
+    };
+  }
+
+  JewelryItem copyWith({
+    String? id,
+    String? name,
+    String? description,
+    double? price,
+    String? category,
+    bool? isFavorite,
   }) {
     return JewelryItem(
-      id: map[idKey]?.toString() ?? '',
-      name: map[nameKey]?.toString() ?? 'Unnamed Jewelry',
-      imageUrl: map[imageUrlKey]?.toString() ?? 'https://via.placeholder.com/200x300', // Placeholder image
-      // Safely parse the price, defaulting to 0.0 if not found or invalid
-      price: double.tryParse(map[priceKey]?.toString() ?? '0.0') ?? 0.0,
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      price: price ?? this.price,
+      category: category ?? this.category,
+      isFavorite: isFavorite ?? this.isFavorite,
     );
   }
 }
