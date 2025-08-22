@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 
 class BoardDetailScreen extends StatefulWidget {
   final int boardId;

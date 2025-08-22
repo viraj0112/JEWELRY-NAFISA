@@ -26,11 +26,9 @@ class AppTheme {
       colorScheme: const ColorScheme.light(
         primary: lightPrimary,
         secondary: lightPrimary, // Using primary color for secondary as well
-        background: lightBackground,
         surface: lightSurface,
         onPrimary: Colors.white, // Text on top of buttons
         onSecondary: Colors.white,
-        onBackground: lightOnSurface,
         onSurface: lightOnSurface, // Main text color
       ),
       textTheme: _textTheme(lightOnSurface),
@@ -62,11 +60,9 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: darkPrimary,
         secondary: darkPrimary,
-        background: darkBackground,
         surface: darkSurface,
         onPrimary: Colors.black, // Text on top of buttons
         onSecondary: Colors.black,
-        onBackground: darkOnSurface,
         onSurface: darkOnSurface, // Main text color
       ),
       textTheme: _textTheme(darkOnSurface),

@@ -29,15 +29,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   // Palette matching the mock
-  static const _cream = Color(0xFFF5E8CC);
   static const _creamLight = Color(0xFFF9EDD2);
   static const _gold = Color(0xFFC6A23B);
   static const _goldDark = Color(0xFFB18E2F);
   static const _brownText = Color(0xFF5C432B);
   static const _darkBar = Color(0xFF3A2A1C);
-
-  TextStyle get _serifTitle =>
-      GoogleFonts.playfairDisplay(color: _brownText, letterSpacing: 1.0);
 
   @override
   Widget build(BuildContext context) {
@@ -538,10 +534,11 @@ class _DynamicJewelrySection extends StatelessWidget {
               final items = snapshot.data!;
               final w = MediaQuery.of(context).size.width;
               int crossAxisCount = 4;
-              if (w < 500)
+              if (w < 500) {
                 crossAxisCount = 2;
-              else if (w < 900)
+              } else if (w < 900) {
                 crossAxisCount = 3;
+              }
 
               return GridView.builder(
                 shrinkWrap: true,
@@ -672,28 +669,28 @@ class _Footer extends StatelessWidget {
 
   // Extracted Links and Social Icons for reusability
   static Widget _icon(IconData icon) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-        child: CircleAvatar(
-          radius: 14,
-          backgroundColor: _gold,
-          child: Icon(icon, size: 16, color: Colors.black),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+    child: CircleAvatar(
+      radius: 14,
+      backgroundColor: _gold,
+      child: Icon(icon, size: 16, color: Colors.black),
+    ),
+  );
 
   static Widget _link(String text) => TextButton(
-        onPressed: () {},
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-        ),
-        child: Text(
-          text,
-          style: GoogleFonts.openSans(
-            color: Colors.white70,
-            fontSize: 12,
-            letterSpacing: 0.6,
-          ),
-        ),
-      );
+    onPressed: () {},
+    style: TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+    ),
+    child: Text(
+      text,
+      style: GoogleFonts.openSans(
+        color: Colors.white70,
+        fontSize: 12,
+        letterSpacing: 0.6,
+      ),
+    ),
+  );
 }
 
 // Widget for all the links and social media icons
@@ -741,7 +738,6 @@ class _LinksAndSocial extends StatelessWidget {
   }
 }
 
-
 // --- The ContactUsForm remains the same ---
 class _ContactUsForm extends StatefulWidget {
   const _ContactUsForm();
@@ -778,8 +774,9 @@ class _ContactUsFormState extends State<_ContactUsForm> {
           TextFormField(
             style: const TextStyle(color: Colors.white),
             decoration: _inputDecoration('Email'),
-            validator: (v) =>
-                v!.isEmpty || !v.contains('@') ? 'Please enter a valid email' : null,
+            validator: (v) => v!.isEmpty || !v.contains('@')
+                ? 'Please enter a valid email'
+                : null,
           ),
           const SizedBox(height: 12),
           TextFormField(

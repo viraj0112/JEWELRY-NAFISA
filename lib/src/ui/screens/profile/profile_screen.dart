@@ -5,7 +5,6 @@ import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// Board class remains the same
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -24,7 +23,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _boardsFuture = _fetchUserBoards();
   }
 
-  // ... _fetchUserBoards, _createNewBoard, _deleteBoard, _showCreateDialog methods are unchanged ...
   Future<List<Board>> _fetchUserBoards() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return [];
@@ -138,6 +136,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (key.currentState?.validate() ?? false) {
                 final boardName = ctrl.text.trim();
                 final user = _supabase.auth.currentUser;
+                final scaffoldMessenger = ScaffoldMessenger.of(ctx);
+                final navigator = Navigator.of(ctx);
                 if (user == null) return;
 
                 try {
@@ -149,29 +149,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       .limit(1);
 
                   if (existingBoards.isNotEmpty) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'A board with this name already exists.',
-                          ),
-                          backgroundColor: Colors.orange,
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'A board with this name already exists.',
                         ),
-                      );
-                    }
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
                     return;
                   }
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error checking boards: $e')),
-                    );
-                  }
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('Error checking boards: $e')),
+                  );
                   return;
                 }
 
                 await _createNewBoard(boardName);
-                if (mounted) Navigator.of(ctx).pop();
+                navigator.pop();
               }
             },
             child: const Text('Create'),
@@ -187,7 +183,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      // ✨ REMOVED: AppBar is now handled by MainShell
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateDialog,
         tooltip: 'Create Board',
@@ -218,7 +213,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ... _buildProfileHeader and _buildBoardsGrid methods are unchanged ...
   Widget _buildProfileHeader(
     BuildContext context,
     UserProfileProvider user,
@@ -391,7 +385,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// ✨ ADDED: This is needed since the class was defined inside the build method before
 class Board {
   final int id;
   final String name;

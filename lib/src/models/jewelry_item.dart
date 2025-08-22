@@ -1,7 +1,3 @@
-// lib/src/models/jewelry_item.dart
-
-import 'dart:math';
-
 class JewelryItem {
   final String id;
   final String name;
