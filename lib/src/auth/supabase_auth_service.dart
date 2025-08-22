@@ -41,7 +41,6 @@ class SupabaseAuthService {
     return null;
   }
 
-  // **NEW: Handles login with either email or username**
   Future<User?> signInWithEmailOrUsername(
       String emailOrUsername, String password) async {
     try {
@@ -96,12 +95,29 @@ class SupabaseAuthService {
 
   Future<void> resetPassword(String email) async {
     try {
-      await _supabase.auth.resetPasswordForEmail(email);
+      await _supabase.auth.resetPasswordForEmail(email,
+          // IMPORTANT: This tells Supabase where to redirect the user on mobile.
+          // This requires native setup (see note below).
+          redirectTo:
+              kIsWeb ? null : 'io.supabase.nafisajewelry://login-callback/');
     } catch (e) {
       debugPrint("Error during password reset: $e");
       rethrow;
     }
   }
-
+ 
+  Future<bool> updateUserPassword(String newPassword) async {
+    try {
+      await _supabase.auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
+      await _supabase.auth.signOut();
+      return true;
+    } catch (e) {
+      debugPrint("Error updating password: $e");
+      return false;
+    }
+  }
+ 
   bool get isSignedIn => _supabase.auth.currentUser != null;
 }

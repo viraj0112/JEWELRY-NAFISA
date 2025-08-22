@@ -1,6 +1,3 @@
--- Creates a trigger that automatically creates a user profile
--- when a new user signs up via Supabase Auth.
-
 -- 1. Create the function
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -9,7 +6,12 @@ BEGIN
   VALUES (
     NEW.id,
     NEW.email,
-    NEW.raw_user_meta_data ->> 'username',
+    -- Use 'username' from metadata for email signups,
+    -- and fallback to 'full_name' for OAuth providers like Google.
+    COALESCE(
+      NEW.raw_user_meta_data ->> 'username',
+      NEW.raw_user_meta_data ->> 'full_name'
+    ),
     (NEW.raw_user_meta_data ->> 'birthdate')::date
   );
   RETURN NEW;

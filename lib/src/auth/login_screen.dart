@@ -69,6 +69,71 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _forgotPassword() async {
+    final emailController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Reset Password"),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: emailController,
+              decoration: const InputDecoration(labelText: 'Enter your email'),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your email';
+                }
+                if (!value.contains('@')) {
+                  return 'Please enter a valid email';
+                }
+                return null;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  try {
+                    await _authService.resetPassword(
+                      emailController.text.trim(),
+                    );
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Password reset link sent. Please check your email.',
+                          ),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      _showErrorSnackbar(
+                        'Failed to send reset link. Please try again.',
+                      );
+                    }
+                  }
+                }
+              },
+              child: const Text("Send Link"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -102,13 +167,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.all(32),
                       decoration: BoxDecoration(
                         color: isDarkMode
-                            ? Colors.black.withOpacity(0.5)
-                            : Colors.white.withOpacity(0.8),
+                            ? const Color.fromRGBO(0, 0, 0, 0.5)
+                            : const Color.fromRGBO(255, 255, 255, 0.8),
                         borderRadius: BorderRadius.circular(32),
                         border: Border.all(
                           color: isDarkMode
-                              ? Colors.white.withOpacity(0.2)
-                              : Colors.black.withOpacity(0.1),
+                              ? const Color.fromRGBO(255, 255, 255, 0.2)
+                              : const Color.fromRGBO(0, 0, 0, 0.1),
                         ),
                       ),
                       child: _buildFormContents(theme),
@@ -187,9 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: () {
-                // TODO: Implement forgot password functionality
-              },
+              onPressed: _forgotPassword, 
               child: const Text('Forgot your password?'),
             ),
           ),
@@ -230,7 +293,7 @@ class _LoginScreenState extends State<LoginScreen> {
             text: 'Continue with Google',
             backgroundColor: Colors.white,
             textColor: Colors.black,
-            icon: Icons.g_mobiledata_rounded, // Example icon
+            icon: Icons.g_mobiledata_rounded, 
             onPressed: _isLoading ? () {} : _signInWithGoogle,
           ),
           const SizedBox(height: 8),
