@@ -4,6 +4,7 @@ import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:jewelry_nafisa/src/ui/widgets/board_card.dart';
 
 
 class ProfileScreen extends StatefulWidget {
@@ -11,6 +12,13 @@ class ProfileScreen extends StatefulWidget {
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class Board {
+  final int id;
+  final String name;
+  final List<String> coverUrls;
+  Board({required this.id, required this.name, this.coverUrls = const []});
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
@@ -23,7 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _boardsFuture = _fetchUserBoards();
   }
 
-  Future<List<Board>> _fetchUserBoards() async {
+   Future<List<Board>> _fetchUserBoards() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return [];
     try {
@@ -36,24 +44,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final result = <Board>[];
       for (final r in rows) {
         final id = r['id'] as int;
-        String? cover;
-        final bp = await _supabase
+        final pinRes = await _supabase
             .from('boards_pins')
-            .select('pin_id')
+            .select('pins!fk_boards_pins_pin_id(image_url)')
             .eq('board_id', id)
-            .limit(1)
-            .maybeSingle();
-        if (bp != null && bp['pin_id'] != null) {
-          final pin = await _supabase
-              .from('pins')
-              .select('image_url')
-              .eq('id', bp['pin_id'])
-              .maybeSingle();
-          if (pin != null && pin['image_url'] != null) {
-            cover = pin['image_url'] as String;
-          }
-        }
-        result.add(Board(id: id, name: r['name'] as String, coverUrl: cover));
+            .limit(3);
+        
+        final imageUrls = (pinRes as List<dynamic>)
+            .map((e) => e['pins']['image_url'] as String)
+            .toList();
+
+        result.add(Board(
+          id: id,
+          name: r['name'] as String,
+          coverUrls: imageUrls,
+        ));
       }
       return result;
     } catch (e) {
@@ -61,6 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return [];
     }
   }
+
 
   Future<void> _createNewBoard(String name) async {
     final user = _supabase.auth.currentUser;
@@ -276,18 +282,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return SliverPadding(
           padding: const EdgeInsets.all(12.0),
           sliver: SliverMasonryGrid.count(
-            crossAxisCount: (MediaQuery.of(context).size.width / 100)
+            crossAxisCount: (MediaQuery.of(context).size.width / 250)
                 .floor()
-                .clamp(3, 8),
+                .clamp(2, 5),
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
             childCount: boards.length,
             itemBuilder: (context, idx) {
               final board = boards[idx];
-              return GestureDetector(
+              return BoardCard(
+                board: board,
                 onTap: () async {
-                  final navigator = Navigator.of(context);
-                  await navigator.push(
+                  await Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => BoardDetailScreen(
                         boardId: board.id,
@@ -301,81 +307,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     });
                   }
                 },
-                child: Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      AspectRatio(
-                        aspectRatio: 4 / 3,
-                        child: board.coverUrl != null
-                            ? Image.network(board.coverUrl!, fit: BoxFit.cover)
-                            : Container(
-                                color: Theme.of(context).colorScheme.surface,
-                                child: Icon(
-                                  Icons.photo_library_outlined,
-                                  size: 48,
-                                  color: const Color.fromARGB(
-                                    255,
-                                    149,
-                                    148,
-                                    148,
-                                  ),
-                                ),
-                              ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                board.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodyLarge
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Delete Board?'),
-                                    content: Text(
-                                      'Are you sure you want to delete the "${board.name}" board and all its images?',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, true),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.red,
-                                        ),
-                                        child: const Text('Delete'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm == true) {
-                                  await _deleteBoard(board.id);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                onDelete: () => _deleteBoard(board.id),
               );
             },
           ),
@@ -385,9 +317,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class Board {
-  final int id;
-  final String name;
-  final String? coverUrl;
-  Board({required this.id, required this.name, this.coverUrl});
-}

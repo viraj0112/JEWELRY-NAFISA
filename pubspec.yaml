@@ -32,7 +32,7 @@ dependencies:
     sdk: flutter
   shared_preferences: ^2.2.3
   http: ^1.1.0
-  provider: ^6.1.2
+  provider: ^6.0.5
   share_plus: ^9.0.0
   google_sign_in: ^6.3.0
 

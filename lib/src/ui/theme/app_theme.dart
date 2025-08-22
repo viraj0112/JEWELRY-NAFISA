@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // --- NEW LIGHT THEME COLORS ---
-  static const Color lightBackground = Color(0xFFFDDDAA); // Navajo White
+  static const Color lightBackground = Color.fromARGB(255, 213, 207, 199); // Navajo White
   static const Color lightSurface = Color(0xFFFFFFFF); // White for cards
   static const Color lightPrimary = Color(
     0xFFB69121,
@@ -81,12 +81,10 @@ class AppTheme {
         color: darkSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-      // For dark theme, buttons are Gold with black text for contrast
       elevatedButtonTheme: _elevatedButtonTheme(darkPrimary, Colors.black),
     );
   }
 
-  // Helper method for TextTheme, remains unchanged
   static TextTheme _textTheme(Color color) {
     return TextTheme(
       displayLarge: GoogleFonts.ptSerif(
@@ -106,7 +104,6 @@ class AppTheme {
     );
   }
 
-  // Helper method for ElevatedButtonThemeData, remains unchanged
   static ElevatedButtonThemeData _elevatedButtonTheme(
     Color background,
     Color foreground,
