@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jewelry_nafisa/src/auth/reset_password_screen.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
@@ -21,23 +22,35 @@ class _AuthGateState extends State<AuthGate> {
   void initState() {
     super.initState();
     _recoverSessionAndRedirect();
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
-      data,
-    ) {
-      final Session? session = data.session;
+    _authSubscription =
+        Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final session = data.session;
+      final event = data.event;
+
+      // ✨ ADDED: Listen for the password recovery event
+      if (event == AuthChangeEvent.passwordRecovery) {
+        if (mounted) {
+          // Navigate to the screen where the user can enter a new password.
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
+            (route) => false,
+          );
+        }
+        return;
+      }
+      
       if (session == null) {
-        if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-          (route) => false,
-        );
+        if (mounted && ModalRoute.of(context)?.isCurrent == true) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+            (route) => false,
+          );
+        }
       } else {
-        if (!mounted) return;
-        if (ModalRoute.of(context)?.isCurrent ?? false) {
+        if (mounted && ModalRoute.of(context)?.isCurrent == true) {
           _ensureAndFetchProfile(context, session.user.id).then((_) {
             if (!mounted) return;
             Navigator.of(context).pushAndRemoveUntil(
-              // ✨ CHANGED: Navigate to MainShell
               MaterialPageRoute(builder: (_) => const MainShell()),
               (route) => false,
             );
@@ -54,25 +67,23 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _recoverSessionAndRedirect() async {
-    await Future.delayed(Duration.zero);
+    // This prevents a brief flash of the loading screen on hot restart.
+    await Future.delayed(const Duration(milliseconds: 100));
 
     final session = Supabase.instance.client.auth.currentSession;
+    if (!mounted) return;
 
     if (session != null) {
-      if (!mounted) return;
       await _ensureAndFetchProfile(context, session.user.id);
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          // ✨ CHANGED: Navigate to MainShell
           MaterialPageRoute(builder: (_) => const MainShell()),
         );
       }
     } else {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-        );
-      }
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      );
     }
   }
 

@@ -93,13 +93,14 @@ class SupabaseAuthService {
     }
   }
 
+  // ✨ MODIFIED THIS METHOD
   Future<void> resetPassword(String email) async {
     try {
+      // Use a consistent deep link for mobile that you will configure natively.
+      // For web, Supabase will use your project's Site URL by default.
       await _supabase.auth.resetPasswordForEmail(email,
-          // IMPORTANT: This tells Supabase where to redirect the user on mobile.
-          // This requires native setup (see note below).
           redirectTo:
-              kIsWeb ? null : 'io.supabase.nafisajewelry://login-callback/');
+              kIsWeb ? null : 'com.example.jewelryNafisa://reset-password');
     } catch (e) {
       debugPrint("Error during password reset: $e");
       rethrow;
@@ -111,6 +112,7 @@ class SupabaseAuthService {
       await _supabase.auth.updateUser(
         UserAttributes(password: newPassword),
       );
+      // It's good practice to sign out after a password change.
       await _supabase.auth.signOut();
       return true;
     } catch (e) {
