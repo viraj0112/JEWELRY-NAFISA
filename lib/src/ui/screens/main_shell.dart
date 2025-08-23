@@ -242,11 +242,15 @@ class _MainShellState extends State<MainShell> {
         const PopupMenuDivider(),
         const PopupMenuItem<String>(
           value: 'business',
-          child: Text('Convert to business'),
+          child: Text('Be a contributor'),
         ),
         const PopupMenuItem<String>(
           value: 'add_account',
           child: Text('Add account'),
+        ),
+        const PopupMenuItem<String>(
+          value: 'membership',
+          child: Text('Buy Lifetime of Membership'),
         ),
         const PopupMenuItem<String>(value: 'logout', child: Text('Log out')),
       ],

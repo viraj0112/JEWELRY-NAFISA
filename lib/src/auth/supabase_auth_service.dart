@@ -42,14 +42,19 @@ class SupabaseAuthService {
   }
 
   Future<User?> signInWithEmailOrUsername(
-      String emailOrUsername, String password) async {
+    String emailOrUsername,
+    String password,
+  ) async {
     try {
       String email = emailOrUsername;
       // 1. Check if the input is a username (doesn't contain '@')
       if (!emailOrUsername.contains('@')) {
         // 2. If it's a username, call the RPC function to get the email
         final response = await _supabase
-            .rpc('get_email_by_username', params: {'p_username': emailOrUsername})
+            .rpc(
+              'get_email_by_username',
+              params: {'p_username': emailOrUsername},
+            )
             .maybeSingle();
 
         if (response != null && response['email'] != null) {
@@ -93,25 +98,51 @@ class SupabaseAuthService {
     }
   }
 
-  // ✨ MODIFIED THIS METHOD
+  Future<User?> signUpBusiness({
+    required String email,
+    required String password,
+    required String businessName,
+    required String businessType,
+    required String phone,
+  }) async {
+    try {
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        // This 'data' object passes the extra business info to Supabase.
+        data: {
+          'business_name': businessName,
+          'business_type': businessType,
+          'phone': phone,
+          'role': 'designer', // This sets their role to 'designer' [cite: 1790]
+        },
+      );
+      return response.user;
+    } catch (e) {
+      debugPrint('Exception during business sign up: $e');
+      return null;
+    }
+  }
+
   Future<void> resetPassword(String email) async {
     try {
       // Use a consistent deep link for mobile that you will configure natively.
       // For web, Supabase will use your project's Site URL by default.
-      await _supabase.auth.resetPasswordForEmail(email,
-          redirectTo:
-              kIsWeb ? null : 'com.example.jewelryNafisa://reset-password');
+      await _supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo: kIsWeb
+            ? null
+            : 'com.example.jewelryNafisa://reset-password',
+      );
     } catch (e) {
       debugPrint("Error during password reset: $e");
       rethrow;
     }
   }
- 
+
   Future<bool> updateUserPassword(String newPassword) async {
     try {
-      await _supabase.auth.updateUser(
-        UserAttributes(password: newPassword),
-      );
+      await _supabase.auth.updateUser(UserAttributes(password: newPassword));
       // It's good practice to sign out after a password change.
       await _supabase.auth.signOut();
       return true;
@@ -120,6 +151,6 @@ class SupabaseAuthService {
       return false;
     }
   }
- 
+
   bool get isSignedIn => _supabase.auth.currentUser != null;
 }
