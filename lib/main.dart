@@ -21,13 +21,15 @@ void main() async {
 
   final supabaseUrl =
       const String.fromEnvironment('SUPABASE_URL', defaultValue: '').isNotEmpty
-          ? const String.fromEnvironment('SUPABASE_URL')
-          : dotenv.env['SUPABASE_URL'] ?? '';
+      ? const String.fromEnvironment('SUPABASE_URL')
+      : dotenv.env['SUPABASE_URL'] ?? '';
   final supabaseAnonKey =
-      const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '')
-              .isNotEmpty
-          ? const String.fromEnvironment('SUPABASE_ANON_KEY')
-          : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+      const String.fromEnvironment(
+        'SUPABASE_ANON_KEY',
+        defaultValue: '',
+      ).isNotEmpty
+      ? const String.fromEnvironment('SUPABASE_ANON_KEY')
+      : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
     throw Exception('Supabase URL and Anon Key must be provided');
