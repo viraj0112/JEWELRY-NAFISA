@@ -229,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
-                      colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                      colors: [Colors.black.withAlpha((255 * 0.7).round()), Colors.transparent],
                     ),
                   ),
                   child: Padding(
