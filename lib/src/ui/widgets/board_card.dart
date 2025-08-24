@@ -37,7 +37,7 @@ class BoardCard extends StatelessWidget {
     return AspectRatio(
       aspectRatio: 4 / 3,
       child: Container(
-        color: theme.colorScheme.surface.withOpacity(0.5),
+        color: theme.colorScheme.surface.withAlpha((255 * 0.5).round()),
         child: images.isEmpty
             ? _buildPlaceholder(context)
             : images.length < 3
@@ -51,7 +51,7 @@ class BoardCard extends StatelessWidget {
     return Icon(
       Icons.photo_library_outlined,
       size: 48,
-      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+      color: Theme.of(context).colorScheme.onSurface.withAlpha((255 * 0.3).round()),
     );
   }
 

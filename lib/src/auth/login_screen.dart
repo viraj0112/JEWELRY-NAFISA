@@ -106,17 +106,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     await _authService.resetPassword(
                       emailController.text.trim(),
                     );
-                    if (mounted) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Password reset link sent. Please check your email.',
-                          ),
-                          backgroundColor: Colors.green,
+                    if (!mounted) return;
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Password reset link sent. Please check your email.',
                         ),
-                      );
-                    }
+                        backgroundColor: Colors.green,
+                      ),
+                    );
                   } catch (e) {
                     if (mounted) {
                       _showErrorSnackbar(
@@ -252,7 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: _forgotPassword, 
+              onPressed: _forgotPassword,
               child: const Text('Forgot your password?'),
             ),
           ),
@@ -293,7 +292,7 @@ class _LoginScreenState extends State<LoginScreen> {
             text: 'Continue with Google',
             backgroundColor: Colors.white,
             textColor: Colors.black,
-            icon: Icons.g_mobiledata_rounded, 
+            icon: Icons.g_mobiledata_rounded,
             onPressed: _isLoading ? () {} : _signInWithGoogle,
           ),
           const SizedBox(height: 8),

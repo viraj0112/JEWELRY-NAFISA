@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -276,7 +275,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 onPressed: _navigateToLogin,
                 backgroundColor: Theme.of(
                   context,
-                ).colorScheme.surface.withOpacity(0.8),
+                ).colorScheme.surface.withAlpha((255 * 0.8).round()),
               ),
             )
             .toList(),
@@ -293,13 +292,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
           return Container(
-            color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.surface.withAlpha((255 * 0.1).round()),
             child: const Center(child: CircularProgressIndicator.adaptive()),
           );
         },
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.surface.withAlpha((255 * 0.1).round()),
             child: Icon(Icons.error_outline, color: Colors.grey[400]),
           );
         },
