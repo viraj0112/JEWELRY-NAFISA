@@ -99,7 +99,7 @@ class AppTheme {
         color: color,
         fontWeight: FontWeight.w600,
       ),
-      bodyLarge: GoogleFonts.poppins(color: color, fontSize: 16),
+       bodyLarge: GoogleFonts.poppins(color: color, fontSize: 16),
       bodyMedium: GoogleFonts.poppins(color: color, fontSize: 14),
     );
   }
