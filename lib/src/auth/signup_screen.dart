@@ -1,6 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+// import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
 import 'package:jewelry_nafisa/src/auth/business_signup_screen.dart';
@@ -71,7 +71,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Account created! Please check your email to verify and then log in.'),
+            content: Text(
+              'Account created! Please check your email to verify and then log in.',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -91,7 +93,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)), // Default to 18 years ago
+      initialDate: DateTime.now().subtract(
+        const Duration(days: 365 * 18),
+      ), // Default to 18 years ago
       firstDate: DateTime(1920, 1),
       lastDate: DateTime.now(),
     );
@@ -113,7 +117,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
           _buildBackgroundGrid(),
           Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 48.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 48.0,
+              ),
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 480),
@@ -178,21 +185,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
             Text(
               'AKD',
               textAlign: TextAlign.center,
-              style: GoogleFonts.ptSerif(
-                color: theme.colorScheme.primary,
-                fontSize: 42,
-                fontWeight: FontWeight.bold,
-              ),
+
+              // style: GoogleFonts.ptSerif(
+              //   color: theme.colorScheme.primary,
+              //   fontSize: 42,
+              //   fontWeight: FontWeight.bold,
+              // ),
+              style: (theme.textTheme.bodyMedium),
+              selectionColor: theme.colorScheme.primary,
             ),
             const SizedBox(height: 24),
             Text(
               "Welcome to AKD Designs",
               textAlign: TextAlign.center,
-              style: GoogleFonts.ptSerif(
-                fontSize: 28,
-                fontWeight: FontWeight.w600,
-                color: theme.textTheme.bodyLarge?.color,
-              ),
+              // style: GoogleFonts.ptSerif(
+              //   fontSize: 28,
+              //   fontWeight: FontWeight.w600,
+              //   color: theme.textTheme.bodyLarge?.color,
+              // ),
+              style: (theme.textTheme.bodyMedium),
+              selectionColor: theme.colorScheme.primary,
             ),
             const SizedBox(height: 8),
             const Text(
@@ -263,7 +275,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
-          validator: (val) => (val == null || val.isEmpty) ? '$label is required' : null,
+          validator: (val) =>
+              (val == null || val.isEmpty) ? '$label is required' : null,
           decoration: InputDecoration(
             hintText: hint,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
@@ -285,19 +298,32 @@ class _SignUpScreenState extends State<SignUpScreen> {
           obscureText: !_isPasswordVisible,
           validator: (value) {
             if (value == null || value.isEmpty) return 'Password is required';
-            if (value.length < 8) return 'Password must be at least 8 characters long';
-            if (!RegExp(r'(?=.*[A-Z])').hasMatch(value)) return 'Must contain an uppercase letter';
-            if (!RegExp(r'(?=.*[a-z])').hasMatch(value)) return 'Must contain a lowercase letter';
-            if (!RegExp(r'(?=.*[0-9])').hasMatch(value)) return 'Must contain a number';
-            if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) return 'Must contain a special character';
+            if (value.length < 8) {
+              return 'Password must be at least 8 characters long';
+            }
+            if (!RegExp(r'(?=.*[A-Z])').hasMatch(value)) {
+              return 'Must contain an uppercase letter';
+            }
+            if (!RegExp(r'(?=.*[a-z])').hasMatch(value)) {
+              return 'Must contain a lowercase letter';
+            }
+            if (!RegExp(r'(?=.*[0-9])').hasMatch(value)) {
+              return 'Must contain a number';
+            }
+            if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) {
+              return 'Must contain a special character';
+            }
             return null;
           },
           decoration: InputDecoration(
             hintText: "Create a password",
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
             suffixIcon: IconButton(
-              icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off),
-              onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+              icon: Icon(
+                _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+              ),
+              onPressed: () =>
+                  setState(() => _isPasswordVisible = !_isPasswordVisible),
             ),
           ),
         ),
@@ -316,7 +342,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
           controller: _birthdateController,
           readOnly: true,
           onTap: () => _selectDate(context),
-          validator: (value) => (value == null || value.isEmpty) ? 'Your birthdate is required' : null,
+          validator: (value) => (value == null || value.isEmpty)
+              ? 'Your birthdate is required'
+              : null,
           decoration: InputDecoration(
             hintText: "YYYY-MM-DD",
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
@@ -351,23 +379,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
           const TextSpan(text: "By continuing, you agree to our "),
           TextSpan(
             text: "Terms of Service",
-            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black, decoration: TextDecoration.underline),
-            recognizer: TapGestureRecognizer()..onTap = () { /* TODO: Navigate to Terms URL */ },
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+              decoration: TextDecoration.underline,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () {
+                /* TODO: Navigate to Terms URL */
+              },
           ),
           const TextSpan(text: " and acknowledge you've read our "),
           TextSpan(
             text: "Privacy Policy.",
-            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black, decoration: TextDecoration.underline),
-            recognizer: TapGestureRecognizer()..onTap = () { /* TODO: Navigate to Privacy URL */ },
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+              decoration: TextDecoration.underline,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () {
+                /* TODO: Navigate to Privacy URL */
+              },
           ),
         ],
       ),
     );
   }
-  
+
   // A link to navigate back to the login screen
   Widget _buildLoginLink(BuildContext context) {
-     return TextButton(
+    return TextButton(
       onPressed: () => Navigator.of(context).pop(),
       child: const Text('Already a member? Log in'),
     );
@@ -377,14 +419,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget _buildBusinessAccountLink(BuildContext context, ThemeData theme) {
     return TextButton(
       onPressed: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const BusinessSignUpScreen()),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const BusinessSignUpScreen()));
       },
       child: RichText(
         textAlign: TextAlign.center,
         text: TextSpan(
-          style: TextStyle(color: theme.textTheme.bodySmall?.color ?? Colors.grey),
+          style: TextStyle(
+            color: theme.textTheme.bodySmall?.color ?? Colors.grey,
+          ),
           children: [
             const TextSpan(text: 'Are you a designer? '),
             TextSpan(

@@ -101,15 +101,14 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
                     validator: (value) => (value!.isEmpty || !value.contains('@')) ? 'Please enter a valid email' : null,
                   ),
                   const SizedBox(height: 16),
-                  // ✅ REPLACED with IntlPhoneField
                   IntlPhoneField(
                     decoration: const InputDecoration(
                       labelText: 'Phone Number',
                       border: OutlineInputBorder(),
                     ),
-                    initialCountryCode: 'IN', // Default to India
+                    initialCountryCode: 'IN', 
                     onChanged: (phone) {
-                      _fullPhoneNumber = phone.completeNumber; // Store the full number
+                      _fullPhoneNumber = phone.completeNumber; 
                     },
                     validator: (phoneNumber) {
                         if (phoneNumber == null || phoneNumber.number.isEmpty) {

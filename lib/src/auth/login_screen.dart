@@ -39,7 +39,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _signIn() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      // **MODIFIED: Use the new signInWithEmailOrUsername method**
       final user = await _authService.signInWithEmailOrUsername(
         _emailOrUsernameController.text.trim(),
         _passwordController.text.trim(),
@@ -53,7 +52,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // On success, AuthGate will handle navigation, but as a fallback:
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainShell()),
         (route) => false,
@@ -202,6 +200,8 @@ class _LoginScreenState extends State<LoginScreen> {
               fontWeight: FontWeight.bold,
               color: theme.colorScheme.primary,
             ),
+            
+            selectionColor: theme.colorScheme.primary,
           ),
           const SizedBox(height: 8),
           Text(
@@ -212,6 +212,8 @@ class _LoginScreenState extends State<LoginScreen> {
               fontWeight: FontWeight.w600,
               color: theme.textTheme.bodyLarge?.color,
             ),
+            
+            selectionColor: theme.colorScheme.primary,
           ),
           const SizedBox(height: 32),
 
