@@ -38,6 +38,7 @@ migrate_working_dir/
 
 # Ignore all Windows executables
 *.exe
+*txt
 
 # Ignore all tarballs
 *.tar.gz
