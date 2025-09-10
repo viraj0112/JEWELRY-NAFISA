@@ -41,13 +41,13 @@ serve(async (req) => {
         membership_plan: plan_name,
       })
       .eq("email", user_email)
-      .select() // Select the updated row to return it in the response
-      .single(); // Use .single() to ensure exactly one row is updated
+      .select()
+      .single();
     if (error) {
       console.error("Supabase query error:", error);
       if (error.code === 'PGRST116') {
         return new Response(JSON.stringify({ error: `User with email ${user_email} not found.` }), {
-          status: 404, // Not Found
+          status: 404, 
           headers: { "Content-Type": "application/json" },
         });
       }
@@ -66,7 +66,7 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 400, // Bad Request
+      status: 400, 
       headers: { "Content-Type": "application/json" },
     });
   }

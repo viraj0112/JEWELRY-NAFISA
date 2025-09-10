@@ -1,5 +1,3 @@
-// lib/src/providers/user_profile_provider.dart
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,11 +8,11 @@ class UserProfileProvider with ChangeNotifier {
   String _membershipStatus = 'free';
   String _role = 'member';
   String _approvalStatus = 'pending';
+  bool _isMember = false;
 
   int _creditsRemaining = 0;
   bool _isLoading = true;
 
-  // Public getters
   String get username => _username;
   String get membershipStatus => _membershipStatus;
   String get role => _role;
@@ -22,10 +20,9 @@ class UserProfileProvider with ChangeNotifier {
   bool get isDesigner => _role == 'designer';
   bool get isApproved => _approvalStatus == 'approved';
   int get creditsRemaining => _creditsRemaining;
-  bool get isMember => _membershipStatus == 'member';
+  bool get isMember => _isMember;
   bool get isLoading => _isLoading;
 
-  // Fetch the user's profile from the 'Users' table in Supabase
   Future<void> fetchProfile() async {
     _isLoading = true;
     notifyListeners();
@@ -45,23 +42,24 @@ class UserProfileProvider with ChangeNotifier {
           .single();
 
       _username = data['username'] ?? 'No Name';
-      _membershipStatus = data['membership_status'] ?? 'free';
+      _membershipStatus = data['membership_plan'] ?? 'free';
       _creditsRemaining = data['credits_remaining'] ?? 0;
       _role = data['role'] ?? 'member';
       _approvalStatus = data['approval_status'] ?? 'pending';
+      _isMember = data['is_member'] ?? false; 
+
     } catch (e) {
       debugPrint("Error fetching profile: $e");
-      // Handle error case, maybe set default values
       _username = 'Guest';
       _membershipStatus = 'free';
       _creditsRemaining = 0;
+      _isMember = false;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // Reset provider to default (used after sign out)
   void reset() {
     _username = 'Guest';
     _membershipStatus = 'free';
@@ -69,10 +67,10 @@ class UserProfileProvider with ChangeNotifier {
     _isLoading = false;
     _role = 'member';
     _approvalStatus = 'pending';
+    _isMember = false; 
     notifyListeners();
   }
 
-  // Method to manually decrement credit in the UI after a successful quote
   void decrementCredit() {
     if (_creditsRemaining > 0) {
       _creditsRemaining--;
