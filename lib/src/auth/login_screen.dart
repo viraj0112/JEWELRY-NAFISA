@@ -101,9 +101,8 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   try {
-                    await _authService.resetPassword(
-                      emailController.text.trim(),
-                    );
+                    await _authService
+                        .resetPassword(emailController.text.trim());
                     if (!mounted) return;
                     Navigator.of(context).pop();
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -200,8 +199,6 @@ class _LoginScreenState extends State<LoginScreen> {
               fontWeight: FontWeight.bold,
               color: theme.colorScheme.primary,
             ),
-            
-            selectionColor: theme.colorScheme.primary,
           ),
           const SizedBox(height: 8),
           Text(
@@ -212,11 +209,8 @@ class _LoginScreenState extends State<LoginScreen> {
               fontWeight: FontWeight.w600,
               color: theme.textTheme.bodyLarge?.color,
             ),
-            
-            selectionColor: theme.colorScheme.primary,
           ),
           const SizedBox(height: 32),
-
           TextFormField(
             controller: _emailOrUsernameController,
             decoration: InputDecoration(
@@ -225,9 +219,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            validator: (value) => (value == null || value.isEmpty)
-                ? 'This field is required'
-                : null,
+            validator: (value) =>
+                (value == null || value.isEmpty) ? 'This field is required' : null,
           ),
           const SizedBox(height: 16),
           TextFormField(

@@ -7,6 +7,7 @@ import 'package:jewelry_nafisa/src/ui/screens/notifications_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/search_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
+import 'package:jewelry_nafisa/src/widgets/edit_profile_dialog.dart';
 import 'package:provider/provider.dart';
 
 class MainShell extends StatefulWidget {
@@ -18,7 +19,6 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
-
   static const List<Widget> _pages = <Widget>[
     HomeScreen(),
     SearchScreen(),
@@ -54,9 +54,7 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildWideLayout() {
-    // Add this line to get the user profile
     final userProfile = Provider.of<UserProfileProvider>(context);
-
     return Scaffold(
       body: Row(
         children: [
@@ -64,10 +62,8 @@ class _MainShellState extends State<MainShell> {
             selectedIndex: _selectedIndex,
             onDestinationSelected: _onItemTapped,
             labelType: NavigationRailLabelType.all,
-            // Update this line to pass the user profile
             leading: _buildLogo(userProfile),
             destinations: const [
-              // ... destinations remain the same
               NavigationRailDestination(
                 icon: Icon(Icons.home_outlined),
                 selectedIcon: Icon(Icons.home),
@@ -141,7 +137,6 @@ class _MainShellState extends State<MainShell> {
   PreferredSizeWidget _buildAppBar({required bool isWide}) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final userProfile = Provider.of<UserProfileProvider>(context);
-
     return AppBar(
       automaticallyImplyLeading: !isWide,
       title: _buildSearchBar(Theme.of(context)),
@@ -205,19 +200,20 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildProfileMenu(UserProfileProvider user) {
+    final avatarUrl = user.userProfile?['avatar_url'] as String?;
     return PopupMenuButton<String>(
       tooltip: 'Profile Menu',
       offset: const Offset(0, 50),
       onSelected: (value) {
         switch (value) {
+          case 'edit_profile':
+            showDialog(
+              context: context,
+              builder: (context) => const EditProfileDialog(),
+            );
+            break;
           case 'logout':
             _signOut();
-            break;
-          case 'business':
-          case 'add_account':
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('This feature is coming soon!')),
-            );
             break;
         }
       },
@@ -226,11 +222,17 @@ class _MainShellState extends State<MainShell> {
           enabled: false,
           child: ListTile(
             leading: CircleAvatar(
+              backgroundImage:
+                  avatarUrl != null ? NetworkImage(avatarUrl) : null,
               backgroundColor: Theme.of(context).colorScheme.primary,
-              child: Text(
-                user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
-                style: const TextStyle(color: Colors.white),
-              ),
+              child: (avatarUrl == null)
+                  ? Text(
+                      user.username.isNotEmpty
+                          ? user.username[0].toUpperCase()
+                          : 'U',
+                      style: const TextStyle(color: Colors.white),
+                    )
+                  : null,
             ),
             title: Text(
               user.username,
@@ -241,20 +243,13 @@ class _MainShellState extends State<MainShell> {
         ),
         const PopupMenuDivider(),
         const PopupMenuItem<String>(
-          value: 'business',
-          child: Text('Be a contributor'),
-        ),
-        const PopupMenuItem<String>(
-          value: 'add_account',
-          child: Text('Add account'),
-        ),
-        const PopupMenuItem<String>(
-          value: 'membership',
-          child: Text('Buy Lifetime of Membership'),
+          value: 'edit_profile',
+          child: Text('Edit Profile'),
         ),
         const PopupMenuItem<String>(value: 'logout', child: Text('Log out')),
       ],
       child: CircleAvatar(
+        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
         backgroundColor: Theme.of(context).colorScheme.primary,
         child: user.isLoading
             ? const SizedBox(
@@ -265,13 +260,17 @@ class _MainShellState extends State<MainShell> {
                   color: Colors.white,
                 ),
               )
-            : Text(
-                user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+            : (avatarUrl == null)
+                ? Text(
+                    user.username.isNotEmpty
+                        ? user.username[0].toUpperCase()
+                        : 'U',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : null,
       ),
     );
   }

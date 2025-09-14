@@ -1,6 +1,5 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-// import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
 import 'package:jewelry_nafisa/src/auth/business_signup_screen.dart';
@@ -185,26 +184,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
             Text(
               'AKD',
               textAlign: TextAlign.center,
-
-              // style: GoogleFonts.ptSerif(
-              //   color: theme.colorScheme.primary,
-              //   fontSize: 42,
-              //   fontWeight: FontWeight.bold,
-              // ),
-              style: (theme.textTheme.bodyMedium),
-              selectionColor: theme.colorScheme.primary,
+              style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 24),
             Text(
               "Welcome to AKD Designs",
               textAlign: TextAlign.center,
-              // style: GoogleFonts.ptSerif(
-              //   fontSize: 28,
-              //   fontWeight: FontWeight.w600,
-              //   color: theme.textTheme.bodyLarge?.color,
-              // ),
-              style: (theme.textTheme.bodyMedium),
-              selectionColor: theme.colorScheme.primary,
+              style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 8),
             const Text(
@@ -336,7 +322,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Birthdate", style: TextStyle(fontWeight: FontWeight.w500)),
+        const Text("Birthdate",
+            style: TextStyle(fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         TextFormField(
           controller: _birthdateController,
@@ -421,7 +408,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       onPressed: () {
         Navigator.of(
           context,
-        ).push(MaterialPageRoute(builder: (_) => const BusinessSignUpScreen()));
+        ).push(
+            MaterialPageRoute(builder: (_) => const BusinessSignUpScreen()));
       },
       child: RichText(
         textAlign: TextAlign.center,

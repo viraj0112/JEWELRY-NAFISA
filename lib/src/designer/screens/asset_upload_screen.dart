@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -40,9 +42,7 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
         final fileBytes = await _imageFile!.readAsBytes();
         final fileName =
             '${DateTime.now().millisecondsSinceEpoch}-${_imageFile!.name}';
-        await supabase.storage
-            .from('assets')
-            .uploadBinary(fileName, fileBytes);
+        await supabase.storage.from('assets').uploadBinary(fileName, fileBytes);
 
         final imageUrl =
             supabase.storage.from('assets').getPublicUrl(fileName);
@@ -66,12 +66,11 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
         setState(() => _imageFile = null);
       } on StorageException catch (e) {
         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Storage Error: ${e.message}")),
           );
         }
-      } 
-      catch (e) {
+      } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Error uploading asset: $e")),
@@ -83,7 +82,7 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
         }
       }
     } else if (_imageFile == null) {
-       ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select an image to upload.")),
       );
     }
@@ -115,10 +114,9 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 24),
                           ),
                         )
-                      // FIX: Use Image.network for web compatibility
-                      : kIsWeb 
-                        ? Image.network(_imageFile!.path)
-                        : Image.asset(_imageFile!.path),
+                      : kIsWeb
+                          ? Image.network(_imageFile!.path)
+                          : Image.file(File(_imageFile!.path)),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _titleController,
@@ -139,8 +137,8 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _tagsController,
-                    decoration: const InputDecoration(
-                        labelText: "Tags (comma-separated)"),
+                    decoration:
+                        const InputDecoration(labelText: "Tags (comma-separated)"),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(

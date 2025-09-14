@@ -1,37 +1,19 @@
--- Add foreign key constraints after all tables are created
+-- The name 'fk_board' comes directly from the error message you received.
+ALTER TABLE public.boards_pins
+  DROP CONSTRAINT IF EXISTS fk_board;
 
--- Add foreign key constraints to pins table
-ALTER TABLE pins
-  ADD CONSTRAINT fk_pins_owner_id
-  FOREIGN KEY (owner_id)
-  REFERENCES users(id)
-  ON DELETE CASCADE;
+-- Also drop the other existing constraints on the table to recreate them cleanly.
+ALTER TABLE public.boards_pins
+  DROP CONSTRAINT IF EXISTS fk_boards_pins_board_id;
 
--- Add foreign key constraints to boards table
-ALTER TABLE boards
-  ADD CONSTRAINT fk_boards_user_id
-  FOREIGN KEY (user_id)
-  REFERENCES users(id)
-  ON DELETE CASCADE;
+ALTER TABLE public.boards_pins
+  DROP CONSTRAINT IF EXISTS fk_boards_pins_pin_id;
 
--- Add foreign key constraints to user_likes table
-ALTER TABLE user_likes
-  ADD CONSTRAINT fk_user_likes_user_id
-  FOREIGN KEY (user_id)
-  REFERENCES users(id)
-  ON DELETE CASCADE,
-  ADD CONSTRAINT fk_user_likes_pin_id
-  FOREIGN KEY (pin_id)
-  REFERENCES pins(id)
-  ON DELETE CASCADE;
+-- Re-add the foreign key for board_id with ON DELETE CASCADE enabled.
+-- This ensures that deleting a board will also delete its entries in this table.
+ALTER TABLE public.boards_pins
+  ADD CONSTRAINT fk_boards_pins_board_id FOREIGN KEY (board_id) REFERENCES public.boards(id) ON DELETE CASCADE;
 
--- Add foreign key constraints to boards_pins table
-ALTER TABLE boards_pins
-  ADD CONSTRAINT fk_boards_pins_board_id
-  FOREIGN KEY (board_id)
-  REFERENCES boards(id)
-  ON DELETE CASCADE,
-  ADD CONSTRAINT fk_boards_pins_pin_id
-  FOREIGN KEY (pin_id)
-  REFERENCES pins(id)
-  ON DELETE CASCADE;
+-- Re-add the foreign key for pin_id with ON DELETE CASCADE enabled for consistency.
+ALTER TABLE public.boards_pins
+  ADD CONSTRAINT fk_boards_pins_pin_id FOREIGN KEY (pin_id) REFERENCES public.pins(id) ON DELETE CASCADE;

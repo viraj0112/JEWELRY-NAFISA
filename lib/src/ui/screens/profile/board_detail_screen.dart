@@ -28,25 +28,28 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
 
   Future<List<Map<String, dynamic>>> _fetchPins() async {
     try {
+      
       final resp = await _supabase
           .from('boards_pins')
-          .select('pin_id')
+          .select('pins!fk_boards_pins_pin_id(id, image_url, title, description)')
           .eq('board_id', widget.boardId)
           .order('created_at', ascending: false);
-      final items = resp as List<dynamic>;
-      final List<Map<String, dynamic>> pins = [];
-      for (final i in items) {
-        final pinId = i['pin_id'] as String;
-        final pin = await _supabase
-            .from('pins')
-            .select('id, image_url, title, description')
-            .eq('id', pinId)
-            .maybeSingle();
-        if (pin != null) pins.add(Map<String, dynamic>.from(pin as Map));
-      }
+
+      final pins = (resp as List<dynamic>)
+          .map((e) => e['pins'] as Map<String, dynamic>?)
+          .where((pin) => pin != null) 
+          .map((pin) => pin!)
+          .toList();
+
       return pins;
     } catch (e) {
       debugPrint('Error fetching board pins: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Error loading pins: ${e is PostgrestException ? e.message : e.toString()}'),
+            backgroundColor: Colors.red));
+      }
       return [];
     }
   }
