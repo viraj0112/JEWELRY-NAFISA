@@ -109,7 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           backgroundColor: Colors.green,
         ),
       );
-      _fetchUserBoards(); 
+      _fetchUserBoards();
     } catch (e) {
       debugPrint('Error deleting board: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -161,23 +161,66 @@ class _ProfileScreenState extends State<ProfileScreen>
       padding: const EdgeInsets.all(24.0),
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 50,
-            backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-            backgroundColor: theme.colorScheme.surface,
-            child: avatarUrl == null
-                ? Text(
-                    user.username.isNotEmpty
-                        ? user.username[0].toUpperCase()
-                        : 'U',
-                    style: TextStyle(
-                      fontSize: 48,
-                      color: theme.colorScheme.primary,
-                    ),
-                  )
-                : null,
+          Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.bottomCenter,
+            children: [
+              CircleAvatar(
+                radius: 50,
+                backgroundImage:
+                    avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                backgroundColor: theme.colorScheme.surface,
+                child: avatarUrl == null
+                    ? Text(
+                        user.username.isNotEmpty
+                            ? user.username[0].toUpperCase()
+                            : 'U',
+                        style: TextStyle(
+                          fontSize: 48,
+                          color: theme.colorScheme.primary,
+                        ),
+                      )
+                    : null,
+              ),
+              Positioned(
+                bottom: -10,
+                child: user.isMember
+                    ? Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: theme.scaffoldBackgroundColor,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.amber.withOpacity(0.6),
+                              blurRadius: 12.0,
+                              spreadRadius: 3.0,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.star_rounded,
+                            color: Colors.amber, size: 32),
+                      )
+                    : Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: theme.scaffoldBackgroundColor,
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Icon(Icons.star_rounded,
+                                color: Colors.grey[400], size: 32),
+                            Icon(Icons.lock,
+                                color: Colors.grey[600], size: 14),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Text(user.username, style: theme.textTheme.headlineMedium),
           Text(
             userProfileData?['email'] ?? '',
@@ -190,10 +233,96 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildMyAccountTab(UserProfileProvider userProfile) {
-    if (userProfile.isMember) {
-      return const Center(child: Text("You are a Lifetime Golden Member!"));
-    }
-    return _buildMembershipSection(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!userProfile.isMember) ...[
+            _buildMembershipSection(context),
+            const SizedBox(height: 16),
+          ],
+          _buildCreditsCard(context, userProfile),
+          const SizedBox(height: 16),
+          _buildQuotesCard(context, userProfile),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildCreditsCard(BuildContext context, UserProfileProvider userProfile) {
+    final theme = Theme.of(context);
+    final totalCredits = userProfile.isMember ? '3 Daily' : '6';
+    final usedCredits = userProfile.isMember ? (3 - userProfile.creditsRemaining).clamp(0, 3).toString() : '5';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('My Credits', style: theme.textTheme.titleLarge),
+                TextButton(
+                  onPressed: () { /* TODO: Navigate to Credit History */ },
+                  child: const Text('View Credit History'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _buildStatRow('Total Credits:', totalCredits),
+            _buildStatRow('Used:', usedCredits),
+            _buildStatRow('Remaining Credits:', '${userProfile.creditsRemaining}'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuotesCard(BuildContext context, UserProfileProvider userProfile) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('My Quotes', style: theme.textTheme.titleLarge),
+                TextButton(
+                  onPressed: () { /* TODO: Navigate to Quote History */ },
+                  child: const Text('View Detail History'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _buildStatRow('Total Quotes:', '6'),
+            _buildStatRow('Expired:', '5'),
+            _buildStatRow('Valid:', '1'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatRow(String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.bodyMedium),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildMyBoardsTab() {
@@ -262,7 +391,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       boardNameController.text.trim(),
                     );
                 Navigator.pop(context);
-                _fetchUserBoards(); 
+                _fetchUserBoards();
               }
             },
             child: const Text('Create'),
@@ -273,34 +402,30 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildMembershipSection(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Card(
-        // ... contents of membership card are the same
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Membership Status',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Eligible for Free Making on Jewelry, Get Discount on Making Charges, Free Jewelry Cleaning, Discount on your Occasions',
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const BuyMembershipScreen(),
-                  ),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Membership Status',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Eligible for Free Making on Jewelry, Get Discount on Making Charges, Free Jewelry Cleaning, Discount on your Occasions',
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const BuyMembershipScreen(),
                 ),
-                child: const Text('Become a Lifetime Golden Member'),
               ),
-            ],
-          ),
+              child: const Text('Become a Lifetime Golden Member'),
+            ),
+          ],
         ),
       ),
     );
@@ -333,7 +458,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     BoardDetailScreen(boardId: board.id, boardName: board.name),
               ),
             );
-            _fetchUserBoards(); // Refresh boards in case pins were removed
+            _fetchUserBoards(); 
           },
           onDelete: () => _deleteBoard(board.id),
         );
@@ -342,7 +467,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 }
 
-// Helper class to make the TabBar stick to the top
 class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverTabBarDelegate(this._tabBar);
   final TabBar _tabBar;

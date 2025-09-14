@@ -4,6 +4,7 @@ import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/ui/screens/membership/buy_membership_screen.dart';
+import 'package:jewelry_nafisa/src/ui/widgets/get_quote_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -26,7 +27,6 @@ class JewelryDetailScreen extends StatefulWidget {
 }
 
 class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
-  // ... all state variables and methods remain the same ...
   final supabase = Supabase.instance.client;
   final JewelryService _jewelryService = JewelryService();
   late Future<List<JewelryItem>> _similarItemsFuture;
@@ -135,7 +135,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     try {
       if (userLiked) {
-        // Unlike
         await supabase.from('user_likes').delete().match({
           'user_id': uid,
           'pin_id': pinId!,
@@ -145,7 +144,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           params: {'pin_id_to_update': pinId, 'delta': -1},
         );
       } else {
-        // Like
         await supabase.from('user_likes').insert({
           'user_id': uid,
           'pin_id': pinId,
@@ -304,44 +302,58 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
   }
 
-  void _onGetQuotePressed(BuildContext context) {
+  void _onGetQuotePressed(BuildContext context) async {
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
-    if (profile.isMember) {
+    final bool? useCredit = await showDialog<bool>(
+      context: context,
+      builder: (context) => const GetQuoteDialog(),
+    );
+
+    if (useCredit == true) {
       if (profile.creditsRemaining > 0) {
-        _useQuoteCredit(context);
+        await _useQuoteCredit(context);
+        _showItemDetails(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You are out of quotes for today!')),
+          const SnackBar(content: Text('You are out of credits!')),
         );
       }
-    } else {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Member Exclusive"),
-          content: const Text(
-            "Getting a quote is a premium feature available only to lifetime members.",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("Maybe Later"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const BuyMembershipScreen(),
-                  ),
-                );
-              },
-              child: const Text("Upgrade Now"),
-            ),
-          ],
-        ),
-      );
     }
+  }
+
+  void _showItemDetails(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(widget.itemName),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Details revealed!",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text("Metal: 18K Rose Gold"),
+              Text("Weight: 3.5g"),
+              Text("SKU: AKD-RN-1025"),
+              SizedBox(height: 16),
+              Text(
+                "This is where you would show the detailed information after a credit is successfully used.",
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _useQuoteCredit(BuildContext context) async {
@@ -515,7 +527,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () => _onGetQuotePressed(context),
-              child: const Text('Get Quote'),
+              child: const Text('Get Details'),
             ),
           ),
         ],
@@ -618,7 +630,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 }
 
-// ✨ ADDED: The missing _BoardPickerDialog class
 class _BoardPickerDialog extends StatefulWidget {
   final List<dynamic> boards;
 
