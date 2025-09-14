@@ -7,7 +7,6 @@ class BuyMembershipScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text("Unlock Premium")),
       body: Padding(
@@ -16,7 +15,8 @@ class BuyMembershipScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.star_rate_outlined, size: 80, color: Colors.amber),
+            const Icon(Icons.star_rate_outlined,
+                size: 80, color: Colors.amber),
             const SizedBox(height: 24),
             Text(
               "Become a Lifetime Member",
@@ -25,7 +25,6 @@ class BuyMembershipScreen extends StatelessWidget {
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
               ),
-            selectionColor: theme.colorScheme.primary,
             ),
             const SizedBox(height: 16),
             const Text(
