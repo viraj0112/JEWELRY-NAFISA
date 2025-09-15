@@ -1,64 +1,68 @@
-import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserProfileProvider with ChangeNotifier {
   final SupabaseClient _supabaseClient;
+  StreamSubscription<List<Map<String, dynamic>>>? _profileSubscription;
   Map<String, dynamic>? _userProfile;
-  bool _isLoading = true;
+  bool _isLoading = false;
   String _username = 'Guest';
-  String _membershipStatus = 'free';
-  String _role = 'member';
-  String _approvalStatus = 'pending';
   bool _isMember = false;
   int _creditsRemaining = 0;
+  String _role = 'member';
+  String _approvalStatus = 'pending';
+  String? _referralCode;
 
   UserProfileProvider() : _supabaseClient = Supabase.instance.client;
 
   Map<String, dynamic>? get userProfile => _userProfile;
   bool get isLoading => _isLoading;
   String get username => _username;
-  String get membershipStatus => _membershipStatus;
   String get role => _role;
   String get approvalStatus => _approvalStatus;
+  String? get referralCode => _referralCode;
   bool get isDesigner => _role == 'designer';
   bool get isApproved => _approvalStatus == 'approved';
   int get creditsRemaining => _creditsRemaining;
   bool get isMember => _isMember;
 
-  Future<void> fetchProfile() async {
-    _isLoading = true;
+  void _updateFromData(Map<String, dynamic>? data) {
+    if (data == null) {
+      reset();
+      return;
+    }
+    _userProfile = data;
+    _username = data['username'] ?? 'No Name';
+    _isMember = data['is_member'] ?? false;
+    _creditsRemaining = data['credits_remaining'] ?? 0;
+    _role = data['role'] ?? 'member';
+    _approvalStatus = data['approval_status'] ?? 'pending';
+    _referralCode = data['referral_code'];
+    _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> fetchProfile() async {
     final userId = _supabaseClient.auth.currentUser?.id;
     if (userId == null) {
       _isLoading = false;
       notifyListeners();
       return;
     }
-    try {
-      final data = await _supabaseClient
-          .from('users')
-          .select()
-          .eq('id', userId)
-          .single();
-      _userProfile = data;
-      _username = data['username'] ?? 'No Name';
-      _membershipStatus = data['membership_plan'] ?? 'free';
-      _creditsRemaining = data['credits_remaining'] ?? 0;
-      _role = data['role'] ?? 'member';
-      _approvalStatus = data['approval_status'] ?? 'pending';
-      _isMember = data['is_member'] ?? false;
-    } catch (e) {
-      debugPrint("Error fetching profile: $e");
-      _username = 'Guest';
-      _membershipStatus = 'free';
-      _creditsRemaining = 0;
-      _isMember = false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+
+    await _profileSubscription?.cancel();
+
+    _profileSubscription = _supabaseClient
+        .from('users')
+        .stream(primaryKey: ['id'])
+        .eq('id', userId)
+        .listen((data) {
+          if (data.isNotEmpty) {
+            _updateFromData(data.first);
+          }
+        });
   }
 
   Future<String?> _uploadAvatar(XFile avatarFile) async {
@@ -106,7 +110,6 @@ class UserProfileProvider with ChangeNotifier {
         if (avatarUrl != null) 'avatar_url': avatarUrl,
       };
       await _supabaseClient.from('users').update(updates).eq('id', userId);
-      await fetchProfile();
     } catch (error) {
       if (kDebugMode) {
         print(error);
@@ -115,13 +118,15 @@ class UserProfileProvider with ChangeNotifier {
   }
 
   void reset() {
+    _userProfile = null;
     _username = 'Guest';
-    _membershipStatus = 'free';
     _creditsRemaining = 0;
     _isLoading = false;
     _role = 'member';
     _approvalStatus = 'pending';
+    _referralCode = null;
     _isMember = false;
+    _profileSubscription?.cancel();
     notifyListeners();
   }
 
