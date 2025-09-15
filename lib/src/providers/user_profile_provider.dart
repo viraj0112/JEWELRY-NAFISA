@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -61,8 +62,39 @@ class UserProfileProvider with ChangeNotifier {
         .listen((data) {
           if (data.isNotEmpty) {
             _updateFromData(data.first);
+            // If the user doesn't have a referral code, generate one.
+            if (data.first['referral_code'] == null) {
+              generateAndSaveReferralCode();
+            }
           }
         });
+  }
+
+  Future<void> generateAndSaveReferralCode() async {
+    final userId = _supabaseClient.auth.currentUser?.id;
+    if (userId == null || _referralCode != null) return;
+
+    // Generate a random, unique code.
+    final random = Random();
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final randomPart = String.fromCharCodes(
+      Iterable.generate(
+        6,
+        (_) => chars.codeUnitAt(random.nextInt(chars.length)),
+      ),
+    );
+    final newCode = 'AKD-$randomPart'; // Add the prefix
+
+    try {
+      await _supabaseClient
+          .from('users')
+          .update({'referral_code': newCode})
+          .eq('id', userId);
+      _referralCode = newCode;
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error saving referral code: $e");
+    }
   }
 
   Future<String?> _uploadAvatar(XFile avatarFile) async {

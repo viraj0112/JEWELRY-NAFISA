@@ -7,6 +7,9 @@ import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/board_card.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:jewelry_nafisa/src/ui/screens/referral_screen.dart';
+import 'package:jewelry_nafisa/src/ui/widgets/credit_info_card.dart';
+
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -28,7 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _fetchUserBoards();
     _searchController.addListener(_filterBoards);
   }
@@ -138,6 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   tabs: const [
                     Tab(text: 'My Account'),
                     Tab(text: 'My Boards'),
+                    Tab(text: 'My Credits'), // New Tab
                   ],
                 ),
               ),
@@ -147,7 +151,11 @@ class _ProfileScreenState extends State<ProfileScreen>
         },
         body: TabBarView(
           controller: _tabController,
-          children: [_buildMyAccountTab(userProfile), _buildMyBoardsTab()],
+          children: [
+            _buildMyAccountTab(userProfile),
+            _buildMyBoardsTab(),
+            const ReferralScreen(), // New Screen
+          ],
         ),
       ),
     );
@@ -232,55 +240,25 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildMyAccountTab(UserProfileProvider userProfile) {
+   Widget _buildMyAccountTab(UserProfileProvider userProfile) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // The new animated credit card
+          const CreditInfoCard(),
+          const SizedBox(height: 16),
           if (!userProfile.isMember) ...[
             _buildMembershipSection(context),
             const SizedBox(height: 16),
           ],
-          _buildCreditsCard(context, userProfile),
-          const SizedBox(height: 16),
           _buildQuotesCard(context, userProfile),
         ],
       ),
     );
   }
   
-  Widget _buildCreditsCard(BuildContext context, UserProfileProvider userProfile) {
-    final theme = Theme.of(context);
-    final totalCredits = userProfile.isMember ? '3 Daily' : '6';
-    final usedCredits = userProfile.isMember ? (3 - userProfile.creditsRemaining).clamp(0, 3).toString() : '5';
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('My Credits', style: theme.textTheme.titleLarge),
-                TextButton(
-                  onPressed: () { /* TODO: Navigate to Credit History */ },
-                  child: const Text('View Credit History'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _buildStatRow('Total Credits:', totalCredits),
-            _buildStatRow('Used:', usedCredits),
-            _buildStatRow('Remaining Credits:', '${userProfile.creditsRemaining}'),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildQuotesCard(BuildContext context, UserProfileProvider userProfile) {
     final theme = Theme.of(context);
     return Card(
