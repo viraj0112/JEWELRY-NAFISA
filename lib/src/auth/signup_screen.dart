@@ -59,7 +59,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _passwordController.text.trim(),
       _usernameController.text.trim(),
       _birthdateController.text.trim(),
-      _referralCodeController.text.trim(), // Corrected: Pass the referral code here instead of context
+      _referralCodeController.text
+          .trim(), // Corrected: Pass the referral code here instead of context
     );
     if (mounted) setState(() => _isLoading = false);
 
@@ -81,6 +82,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       }
     }
   }
+
   // Initiates the Google sign-in flow
   Future<void> _signUpWithGoogle() async {
     setState(() => _isLoading = true);
@@ -215,6 +217,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
             _buildPasswordField(),
             const SizedBox(height: 16),
             _buildDateField(),
+            TextFormField(
+              controller: _referralCodeController,
+              decoration: InputDecoration(
+                labelText: 'Referral Code (Optional)',
+              ),
+            ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _isLoading ? null : _signUp,
@@ -322,8 +330,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Birthdate",
-            style: TextStyle(fontWeight: FontWeight.w500)),
+        const Text("Birthdate", style: TextStyle(fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         TextFormField(
           controller: _birthdateController,
@@ -408,8 +415,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       onPressed: () {
         Navigator.of(
           context,
-        ).push(
-            MaterialPageRoute(builder: (_) => const BusinessSignUpScreen()));
+        ).push(MaterialPageRoute(builder: (_) => const BusinessSignUpScreen()));
       },
       child: RichText(
         textAlign: TextAlign.center,
