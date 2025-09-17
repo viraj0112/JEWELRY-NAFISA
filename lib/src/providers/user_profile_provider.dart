@@ -15,6 +15,7 @@ class UserProfileProvider with ChangeNotifier {
   String _role = 'member';
   String _approvalStatus = 'pending';
   String? _referralCode;
+  String? _usedReferralCode;
 
   UserProfileProvider() : _supabaseClient = Supabase.instance.client;
 
@@ -24,6 +25,7 @@ class UserProfileProvider with ChangeNotifier {
   String get role => _role;
   String get approvalStatus => _approvalStatus;
   String? get referralCode => _referralCode;
+  String? get usedReferralCode => _usedReferralCode;
   bool get isDesigner => _role == 'designer';
   bool get isApproved => _approvalStatus == 'approved';
   int get creditsRemaining => _creditsRemaining;
@@ -41,6 +43,7 @@ class UserProfileProvider with ChangeNotifier {
     _role = data['role'] ?? 'member';
     _approvalStatus = data['approval_status'] ?? 'pending';
     _referralCode = data['referral_code'];
+    _usedReferralCode = data['referred_by'];
     _isLoading = false;
     notifyListeners();
   }
@@ -62,8 +65,8 @@ class UserProfileProvider with ChangeNotifier {
         .listen((data) {
           if (data.isNotEmpty) {
             _updateFromData(data.first);
-            // If the user doesn't have a referral code, generate one.
-            if (data.first['referral_code'] == null) {
+            final currentCode = data.first['referral_code'] as String?;
+            if (currentCode == null || !currentCode.startsWith('AKD-')) {
               generateAndSaveReferralCode();
             }
           }
@@ -74,7 +77,6 @@ class UserProfileProvider with ChangeNotifier {
     final userId = _supabaseClient.auth.currentUser?.id;
     if (userId == null || _referralCode != null) return;
 
-    // Generate a random, unique code.
     final random = Random();
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final randomPart = String.fromCharCodes(
@@ -83,7 +85,7 @@ class UserProfileProvider with ChangeNotifier {
         (_) => chars.codeUnitAt(random.nextInt(chars.length)),
       ),
     );
-    final newCode = 'AKD-$randomPart'; // Add the prefix
+    final newCode = 'AKD-$randomPart';
 
     try {
       await _supabaseClient

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ReferralScreen extends StatelessWidget {
   const ReferralScreen({super.key});
@@ -11,14 +12,11 @@ class ReferralScreen extends StatelessWidget {
     final userProfile = context.watch<UserProfileProvider>();
     final referralCode = userProfile.referralCode ?? 'Generating...';
 
-    // Use LayoutBuilder to create a responsive layout
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth > 600) {
-          // Desktop layout
           return _buildDesktopLayout(context, referralCode);
         } else {
-          // Mobile layout
           return _buildMobileLayout(context, referralCode);
         }
       },
@@ -45,15 +43,9 @@ class ReferralScreen extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 2,
-            child: _buildReferralCard(context, referralCode),
-          ),
+          Expanded(flex: 2, child: _buildReferralCard(context, referralCode)),
           const SizedBox(width: 32),
-          Expanded(
-            flex: 3,
-            child: _buildReferralHistory(context),
-          ),
+          Expanded(flex: 3, child: _buildReferralHistory(context)),
         ],
       ),
     );
@@ -80,10 +72,7 @@ class ReferralScreen extends StatelessWidget {
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 24),
-            Text(
-              'Your Referral Code:',
-              style: theme.textTheme.titleMedium,
-            ),
+            Text('Your Referral Code:', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             GestureDetector(
               onTap: () {
@@ -93,7 +82,10 @@ class ReferralScreen extends StatelessWidget {
                 );
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.secondary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(30),
@@ -111,12 +103,17 @@ class ReferralScreen extends StatelessWidget {
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () {
-                // TODO: Implement sharing functionality
+                Share.share(
+                  'Join using my referral code to get exclusive benefits: $referralCode',
+                );
               },
               icon: const Icon(Icons.share),
               label: const Text('Share My Code'),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
               ),
             ),
           ],
@@ -130,10 +127,7 @@ class ReferralScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Your Referral History',
-          style: theme.textTheme.titleLarge,
-        ),
+        Text('Your Referral History', style: theme.textTheme.titleLarge),
         const SizedBox(height: 16),
         // This would be replaced with actual data from your provider
         _buildHistoryItem(
@@ -163,17 +157,17 @@ class ReferralScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHistoryItem(BuildContext context,
-      {required String username,
-      required String date,
-      required String creditsEarned}) {
+  Widget _buildHistoryItem(
+    BuildContext context, {
+    required String username,
+    required String date,
+    required String creditsEarned,
+  }) {
     final theme = Theme.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: const CircleAvatar(
-          child: Icon(Icons.person),
-        ),
+        leading: const CircleAvatar(child: Icon(Icons.person)),
         title: Text('$username joined!'),
         subtitle: Text('On $date'),
         trailing: Text(
