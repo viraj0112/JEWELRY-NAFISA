@@ -141,7 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   tabs: const [
                     Tab(text: 'My Account'),
                     Tab(text: 'My Boards'),
-                    Tab(text: 'My Credits'), // New Tab
+                    Tab(text: 'My Credits'), 
                   ],
                 ),
               ),
@@ -154,7 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           children: [
             _buildMyAccountTab(userProfile),
             _buildMyBoardsTab(),
-            const ReferralScreen(), // New Screen
+            const ReferralScreen(), 
           ],
         ),
       ),

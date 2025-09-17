@@ -221,6 +221,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
               controller: _referralCodeController,
               decoration: InputDecoration(
                 labelText: 'Referral Code (Optional)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
               ),
             ),
             const SizedBox(height: 24),
