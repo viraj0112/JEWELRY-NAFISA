@@ -21,7 +21,7 @@ class SupabaseAuthService {
     String password,
     String username,
     String birthdate,
-    BuildContext context,
+    String? referralCode, 
   ) async {
     try {
       final response = await _supabase.auth.signUp(
@@ -29,16 +29,23 @@ class SupabaseAuthService {
         password: password,
         data: {'username': username, 'birthdate': birthdate},
       );
+      if (response.user != null &&
+          referralCode != null &&
+          referralCode.isNotEmpty) {
+        await _supabase.functions.invoke(
+          'handle-referral',
+          body: {
+            'referral_code': referralCode,
+            'new_user_id': response.user!.id,
+          },
+        );
+      }
+
       return response.user;
     } catch (e) {
       debugPrint('Exception during sign up: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Sign-up failed: ${e.toString()}")),
-        );
-      }
+      return null;
     }
-    return null;
   }
 
   Future<User?> signInWithEmailOrUsername(

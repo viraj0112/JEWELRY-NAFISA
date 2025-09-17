@@ -23,6 +23,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _passwordController = TextEditingController();
   final _usernameController = TextEditingController();
   final _birthdateController = TextEditingController();
+  final _referralCodeController = TextEditingController();
   final _authService = SupabaseAuthService();
 
   bool _isPasswordVisible = false;
@@ -58,7 +59,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _passwordController.text.trim(),
       _usernameController.text.trim(),
       _birthdateController.text.trim(),
-      context,
+      _referralCodeController.text.trim(), // Corrected: Pass the referral code here instead of context
     );
     if (mounted) setState(() => _isLoading = false);
 
@@ -80,7 +81,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       }
     }
   }
-
   // Initiates the Google sign-in flow
   Future<void> _signUpWithGoogle() async {
     setState(() => _isLoading = true);
