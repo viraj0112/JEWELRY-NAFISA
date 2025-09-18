@@ -2,21 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // --- NEW LIGHT THEME COLORS ---
-  static const Color lightBackground = Color.fromARGB(255, 213, 207, 199); // Navajo White
-  static const Color lightSurface = Color(0xFFFFFFFF); // White for cards
-  static const Color lightPrimary = Color(
-    0xFFB69121,
-  ); // Dark Goldenrod for buttons
-  static const Color lightOnSurface = Color(0xFF000000); // Black for text
+  // --- LIGHT THEME COLORS ---
+  static const Color lightBackground = Color(0xFFF9F5EF);
+  static const Color lightSurface = Colors.white;
+  static const Color lightPrimary = Color(0xFFC8A36A);
+  static const Color lightOnSurface = Color(0xFF333333);
+  static const Color lightGrey = Colors.grey;
 
-  // --- NEW DARK THEME COLORS ---
-  static const Color darkBackground = Color(0xFF1A1A1A); // Very dark grey
-  static const Color darkSurface = Color(0xFF2C2C2C); // Lighter grey for cards
-  static const Color darkPrimary = Color(
-    0xFFDAB766,
-  ); // Gold (metallic) for buttons
-  static const Color darkOnSurface = Color(0xFFF1F1F1); // Off-white for text
+  // --- DARK THEME COLORS ---
+  static const Color darkBackground = Color(0xFF121212);
+  static const Color darkSurface = Color(0xFF1E1E1E);
+  static const Color darkPrimary = Color(0xFFDAB766);
+  static const Color darkOnSurface = Color(0xFFE0E0E0);
+  static const Color darkGrey = Colors.grey;
 
   static ThemeData get lightTheme {
     return ThemeData(
@@ -25,30 +23,21 @@ class AppTheme {
       scaffoldBackgroundColor: lightBackground,
       colorScheme: const ColorScheme.light(
         primary: lightPrimary,
-        secondary: lightPrimary, // Using primary color for secondary as well
+        secondary: lightPrimary,
         surface: lightSurface,
-        onPrimary: Colors.white, // Text on top of buttons
+        background: lightBackground,
+        onPrimary: Colors.white,
         onSecondary: Colors.white,
-        onSurface: lightOnSurface, // Main text color
+        onSurface: lightOnSurface,
+        onBackground: lightOnSurface,
+        error: Colors.redAccent,
+        onError: Colors.white,
       ),
       textTheme: _textTheme(lightOnSurface),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: lightBackground,
-        elevation: 0,
-        iconTheme: IconThemeData(color: lightOnSurface),
-        titleTextStyle: TextStyle(
-          color: lightOnSurface,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: lightSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-      // For light theme, buttons are Dark Goldenrod with white text
+      appBarTheme: _appBarTheme(lightBackground, lightOnSurface),
+      cardTheme: _cardTheme(lightSurface),
       elevatedButtonTheme: _elevatedButtonTheme(lightPrimary, Colors.white),
+      navigationRailTheme: _navigationRailThemeData(lightSurface, lightPrimary),
     );
   }
 
@@ -61,27 +50,19 @@ class AppTheme {
         primary: darkPrimary,
         secondary: darkPrimary,
         surface: darkSurface,
-        onPrimary: Colors.black, // Text on top of buttons
+        background: darkBackground,
+        onPrimary: Colors.black,
         onSecondary: Colors.black,
-        onSurface: darkOnSurface, // Main text color
+        onSurface: darkOnSurface,
+        onBackground: darkOnSurface,
+        error: Colors.red,
+        onError: Colors.white,
       ),
       textTheme: _textTheme(darkOnSurface),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: darkBackground,
-        elevation: 0,
-        iconTheme: IconThemeData(color: darkOnSurface),
-        titleTextStyle: TextStyle(
-          color: darkOnSurface,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: darkSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
+      appBarTheme: _appBarTheme(darkSurface, darkOnSurface),
+      cardTheme: _cardTheme(darkSurface),
       elevatedButtonTheme: _elevatedButtonTheme(darkPrimary, Colors.black),
+      navigationRailTheme: _navigationRailThemeData(darkSurface, darkPrimary),
     );
   }
 
@@ -99,8 +80,32 @@ class AppTheme {
         color: color,
         fontWeight: FontWeight.w600,
       ),
-       bodyLarge: GoogleFonts.poppins(color: color, fontSize: 16),
+      bodyLarge: GoogleFonts.poppins(color: color, fontSize: 16),
       bodyMedium: GoogleFonts.poppins(color: color, fontSize: 14),
+    );
+  }
+
+  static AppBarTheme _appBarTheme(
+    Color backgroundColor,
+    Color foregroundColor,
+  ) {
+    return AppBarTheme(
+      backgroundColor: backgroundColor,
+      elevation: 0,
+      iconTheme: IconThemeData(color: foregroundColor),
+      titleTextStyle: TextStyle(
+        color: foregroundColor,
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  static CardThemeData _cardTheme(Color cardColor) {
+    return CardThemeData(
+      elevation: 0,
+      color: cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 
@@ -119,6 +124,18 @@ class AppTheme {
           fontSize: 16,
         ),
       ),
+    );
+  }
+
+  static NavigationRailThemeData _navigationRailThemeData(
+    Color backgroundColor,
+    Color selectedColor,
+  ) {
+    return NavigationRailThemeData(
+      backgroundColor: backgroundColor,
+      selectedIconTheme: IconThemeData(color: selectedColor),
+      unselectedIconTheme: IconThemeData(color: Colors.grey[600]),
+      selectedLabelTextStyle: TextStyle(color: selectedColor),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/admin/models/admin_quote.dart';
 import 'package:jewelry_nafisa/src/admin/models/admin_user.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -5,7 +6,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class AdminService {
   final _supabase = Supabase.instance.client;
 
-  Future<Map<String, int>> getDashboardMetrics() async {
+  Stream<Map<String, int>> getDashboardMetrics() {
+    return Stream.periodic(const Duration(seconds: 30), (_) {
+      return _fetchDashboardMetrics();
+    }).asyncMap((event) async => await event);
+  }
+
+  Future<Map<String, int>> _fetchDashboardMetrics() async {
     try {
       final results = await Future.wait([
         _supabase.rpc('get_total_users'),
@@ -14,74 +21,55 @@ class AdminService {
         _supabase.rpc('get_total_referrals'),
       ]);
 
-      final totalUsers = results[0] as int;
-      final dailyActiveUsers = results[1] as int;
-      final totalPosts = results[2] as int;
-      final totalReferrals = results[3] as int;
-
       return {
-        'totalUsers': totalUsers,
-        'dailyActiveUsers': dailyActiveUsers,
-        'totalPosts': totalPosts,
-        'totalReferrals': totalReferrals,
+        'totalUsers': results[0] as int,
+        'dailyActiveUsers': results[1] as int,
+        'totalPosts': results[2] as int,
+        'totalReferrals': results[3] as int,
       };
     } catch (e) {
-      print('Error fetching dashboard information: $e');
-      return {
-        'totalUsers': 0,
-        'dailyActiveUsers': 0,
-        'totalPosts': 0,
-        'totalReferrals': 0,
-      };
+      debugPrint('Error fetching dashboard metrics: $e');
+      return {};
     }
   }
 
-  Future<List<Map<String, dynamic>>> getEngagementData() async {
-    await Future.delayed(const Duration(milliseconds: 700));
-    return [
-      /*TODO implementation */
-    ];
-  }
-
-  Future<List<Map<String, String>>> getTopPerformingContent() async {
-    await Future.delayed(const Duration(milliseconds: 900));
-    return [
-      /*TODO Implementation */
-    ];
-  }
-
-  Future<Map<String, int>> getDashboardSummary() async {
+  // Placeholder for fetching chart data
+  Future<Map<String, List<double>>> getChartData() async {
     await Future.delayed(const Duration(milliseconds: 500));
     return {
-      /*TODO Implementation */
+      'dailyCredits': [20, 40, 60, 80, 50, 70, 90], // Sample data
+      'memberships': [10, 15, 12, 18, 25, 22, 30], // Sample data
     };
+  }
+
+  // Placeholder for fetching alerts
+  Future<Map<String, int>> getPendingAlerts() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return {'pendingAccounts': 34, 'pendingPosts': 346};
   }
 
   Future<List<AdminUser>> getUsers(String filter) async {
     try {
-      PostgrestFilterBuilder query = _supabase.from('Users').select();
+      var query = _supabase.from('users').select();
+
       if (filter == 'Members') {
         query = query.eq('is_member', true);
-      } else if (filter == 'Non-members') {
+      } else if (filter == 'Non-Members') {
         query = query.eq('is_member', false);
       }
 
       final response = await query.order('created_at', ascending: false);
-      final users = (response as List<dynamic>)
+      return (response as List)
           .map((data) => AdminUser.fromMap(data as Map<String, dynamic>))
           .toList();
-
-      return users;
     } catch (e) {
-      print('Error fetching users: $e');
+      debugPrint('Error fetching users: $e');
       return [];
     }
   }
 
   Future<List<AdminQuote>> getQuotes() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    return [
-      /*TODO implementation */
-    ];
+    return [];
   }
 }
