@@ -129,30 +129,30 @@ class _MainShellState extends State<MainShell> {
                       onTap: _onItemTapped,
                       type: BottomNavigationBarType.fixed,
                       backgroundColor: Colors.transparent,
-                      elevation: 0.5, 
+                      elevation: 0.5,
                       selectedItemColor: Theme.of(context).colorScheme.primary,
                       unselectedItemColor: Theme.of(
                         context,
                       ).colorScheme.onSurface.withOpacity(0.6),
                       items: const <BottomNavigationBarItem>[
                         BottomNavigationBarItem(
-                          icon: Icon(Icons.home_outlined),
+                          icon: Icon(Icons.home_filled),
                           activeIcon: Icon(Icons.home),
                           label: 'Home',
                         ),
                         BottomNavigationBarItem(
-                          icon: Icon(Icons.search_outlined),
+                          icon: Icon(Icons.search_sharp),
                           activeIcon: Icon(Icons.search),
                           label: 'Search',
                         ),
                         BottomNavigationBarItem(
-                          icon: Icon(Icons.notifications_outlined),
-                          activeIcon: Icon(Icons.notifications),
-                          label: 'Updates',
+                          icon: Icon(Icons.notifications_active),
+                          activeIcon: Icon(Icons.notifications_active_outlined),
+                          label: 'Notifications',
                         ),
                         BottomNavigationBarItem(
-                          icon: Icon(Icons.person_outline),
-                          activeIcon: Icon(Icons.person),
+                          icon: Icon(Icons.person_pin),
+                          activeIcon: Icon(Icons.person_pin),
                           label: 'Profile',
                         ),
                       ],

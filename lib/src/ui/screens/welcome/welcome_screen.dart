@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -33,13 +34,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         final item = entry as Map<String, dynamic>;
         if (item['images'] != null && item['images'] is List) {
           final images = List<String>.from(
-            (item['images'] as List).where((img) => img is String && img.startsWith('http')),
+            (item['images'] as List).where(
+              (img) => img is String && img.startsWith('http'),
+            ),
           );
           allImages.addAll(images);
         }
       }
       final validImages = allImages
-          .where((url) => url.toLowerCase().contains('.jpg') || url.toLowerCase().contains('.png'))
+          .where(
+            (url) =>
+                url.toLowerCase().contains('.jpg') ||
+                url.toLowerCase().contains('.png'),
+          )
           .toSet()
           .toList();
       validImages.shuffle();
@@ -55,7 +62,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         setState(() => _isLoading = false);
       }
     }
-    
   }
 
   void _navigateToLogin() {
@@ -103,9 +109,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Widget _buildNarrowLayout() {
     return Scaffold(
       appBar: _buildAppBar(),
-      body: _buildImageGrid(),
-      // ✅ NEW: Bottom navigation bar for mobile
-      bottomNavigationBar: _buildBottomNavBar(),
+      body: Stack(children: [_buildImageGrid(), _buildFloatingNavBar()]),
     );
   }
 
@@ -141,27 +145,57 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  // ✅ NEW: Bottom Navigation Bar Widget
-  Widget _buildBottomNavBar() {
-    return BottomNavigationBar(
-      currentIndex: 0,
-      onTap: (index) => _navigateToLogin(),
-      type: BottomNavigationBarType.fixed, // Ensures all items are visible
-      items: const <BottomNavigationBarItem>[
-        BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.search_outlined),
-          label: 'Search',
+  Widget _buildFloatingNavBar() {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 24, left: 24, right: 24),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24.0),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(24.0),
+              ),
+              child: BottomNavigationBar(
+                currentIndex: 0,
+                onTap: (index) => _navigateToLogin(),
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                selectedItemColor: Theme.of(context).colorScheme.primary,
+                unselectedItemColor: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withOpacity(0.6),
+                items: const <BottomNavigationBarItem>[
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home_filled),
+                    activeIcon: Icon(Icons.home),
+                    label: 'Home',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.search_sharp),
+                    activeIcon: Icon(Icons.search),
+                    label: 'Search',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.notifications_active),
+                    activeIcon: Icon(Icons.notifications_active_outlined),
+                    label: 'Notifications',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.person_pin),
+                    activeIcon: Icon(Icons.person_pin),
+                    label: 'Profile',
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.notifications_outlined),
-          label: 'Updates',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          label: 'Profile',
-        ),
-      ],
+      ),
     );
   }
 
@@ -292,13 +326,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
           return Container(
-            color: Theme.of(context).colorScheme.surface.withAlpha((255 * 0.1).round()),
+            color: Theme.of(
+              context,
+            ).colorScheme.surface.withAlpha((255 * 0.1).round()),
             child: const Center(child: CircularProgressIndicator.adaptive()),
           );
         },
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            color: Theme.of(context).colorScheme.surface.withAlpha((255 * 0.1).round()),
+            color: Theme.of(
+              context,
+            ).colorScheme.surface.withAlpha((255 * 0.1).round()),
             child: Icon(Icons.error_outline, color: Colors.grey[400]),
           );
         },
