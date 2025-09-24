@@ -126,7 +126,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       ),
       destinations: const [
         NavigationRailDestination(
-          icon: Icon(Icons.home_outlined),
+          icon: Icon(Icons.home),
           label: Text('Home'),
         ),
         NavigationRailDestination(

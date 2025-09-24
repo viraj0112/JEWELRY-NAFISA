@@ -8,6 +8,10 @@ import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
+// import 'package:jewelry_nafisa/src/admin/screens/admin_dashboard_screen.dart';
+// import 'package:jewelry_nafisa/src/adminNew/providers/app_state.dart';
+// import 'package:jewelry_nafisa/src/adminNew/admin_screen.dart';
+import 'package:jewelry_nafisa/src/adminNew2/admin_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,12 +25,13 @@ void main() async {
 
   final supabaseUrl =
       const String.fromEnvironment('SUPABASE_URL', defaultValue: '').isNotEmpty
-          ? const String.fromEnvironment('SUPABASE_URL')
-          : dotenv.env['SUPABASE_URL'] ?? '';
-  final supabaseAnonKey = const String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: '',
-  ).isNotEmpty
+      ? const String.fromEnvironment('SUPABASE_URL')
+      : dotenv.env['SUPABASE_URL'] ?? '';
+  final supabaseAnonKey =
+      const String.fromEnvironment(
+        'SUPABASE_ANON_KEY',
+        defaultValue: '',
+      ).isNotEmpty
       ? const String.fromEnvironment('SUPABASE_ANON_KEY')
       : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
@@ -48,6 +53,28 @@ void main() async {
   );
 }
 
+// class MyApp extends StatelessWidget {
+//   const MyApp({super.key});
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final themeProvider = Provider.of<ThemeProvider>(context);
+
+//     return MaterialApp(
+//       title: 'Designs by AKD',
+//       debugShowCheckedModeBanner: false,
+//       theme: AppTheme.lightTheme,
+//       darkTheme: AppTheme.darkTheme,
+//       themeMode: themeProvider.themeMode,
+//       initialRoute: '/',
+//       routes: {
+//         '/': (context) => const AuthGate(),
+//         '/auth-callback': (context) => const AuthCallbackScreen(),
+//       },
+//     );
+//   }
+// }
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -61,11 +88,20 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
-      initialRoute: '/',
+
+      // initialRoute: '/',
+      initialRoute: '/admin-shell',
       routes: {
         '/': (context) => const AuthGate(),
         '/auth-callback': (context) => const AuthCallbackScreen(),
+        '/admin-shell':(context) => const AdminShell(),
+        // '/admin-screen': (context) => ChangeNotifierProvider(
+        //       create: (context) => AppState(),
+        //       child: const AdminScreen(),
+        //     ),
       },
     );
   }
 }
+
+ /* '/admin_shell':(context)=>const AdminShell(),*/
