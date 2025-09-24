@@ -103,5 +103,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
- /* '/admin_shell':(context)=>const AdminShell(),*/
