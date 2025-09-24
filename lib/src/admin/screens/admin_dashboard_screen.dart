@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:jewelry_nafisa/src/admin/admin_service.dart';
-import 'package:fl_chart/fl_chart.dart'; // Ensure fl_chart is in your pubspec.yaml
+import 'package:jewelry_nafisa/src/admin/widgets/metric_card.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -11,56 +14,15 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final AdminService _adminService = AdminService();
-  late Future<Map<String, int>> _metricsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _metricsFuture = _adminService.getDashboardMetrics();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F5EF), // Background color from image
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          // Search Bar
-          Container(
-            width: 250,
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search something...',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.notifications_none_outlined), onPressed: () {}),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0),
-            child: CircleAvatar(
-              backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=3'), // Placeholder
-            ),
-          ),
-        ],
-      ),
-      body: FutureBuilder<Map<String, int>>(
-        future: _metricsFuture,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: StreamBuilder<Map<String, int>>(
+        stream: _adminService.getDashboardMetrics(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
@@ -80,26 +42,42 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   children: [
                     const Expanded(flex: 3, child: DailyCreditsChart()),
                     const SizedBox(width: 24),
-                    const Expanded(flex: 2, child: VisitorStatusChart()),
+                    Expanded(
+                      flex: 2,
+                      child: VisitorStatusChart(
+                        dailyTotal: metrics['dailyActiveUsers'] ?? 0,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
-                 Row(
+                const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                     Expanded(flex: 1, child: Column(
-                       children: [
-                         PendingAccountsCard(),
-                         SizedBox(height: 24,),
-                         PendingPostsCard()
-                       ],
-                     )),
-                    const SizedBox(width: 24),
-                    const Expanded(flex: 2, child: MembershipsChart()),
+                    Expanded(
+                      flex: 1,
+                      child: Column(
+                        children: [
+                          QuickAlertCard(
+                            title: "Pending B2B Accounts",
+                            value: "34",
+                            date: "Last Reply Date - 23/2/24",
+                          ),
+                          SizedBox(height: 24),
+                          QuickAlertCard(
+                            title: "Pending Post Approvals",
+                            value: "346",
+                            date: "Last Approval Date - 23/2/24",
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: 24),
+                    Expanded(flex: 2, child: MembershipsChart()),
                   ],
-                )
+                ),
               ],
-            ),
+            ).animate().fadeIn(duration: 500.ms),
           );
         },
       ),
@@ -107,58 +85,92 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildMetricCards(Map<String, int> metrics) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 1200 ? 4 : 2;
-        return GridView.count(
-          crossAxisCount: crossAxisCount,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 24,
-          mainAxisSpacing: 24,
-          childAspectRatio: 2.5,
-          children: [
-            _MetricCard(title: 'Total Users', value: metrics['totalUsers'].toString()),
-            _MetricCard(title: 'Daily Active Users', value: metrics['dailyActiveUsers'].toString()),
-            _MetricCard(title: 'Total Referrals', value: metrics['totalReferrals'].toString()),
-            _MetricCard(title: 'Total Posts', value: metrics['totalPosts'].toString()),
-          ],
-        );
-      },
+    return GridView.count(
+      crossAxisCount: 4,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 24,
+      mainAxisSpacing: 24,
+      childAspectRatio: 2.2,
+      children: [
+        MetricCard(
+          title: 'Total Users',
+          value: metrics['totalUsers']?.toString() ?? '0',
+          icon: Icons.people_alt_outlined,
+        ),
+        MetricCard(
+          title: 'Daily Active Users',
+          value: metrics['dailyActiveUsers']?.toString() ?? '0',
+          icon: Icons.person_pin_circle_outlined,
+        ),
+        MetricCard(
+          title: 'Total Referrals',
+          value: metrics['totalReferrals']?.toString() ?? '0',
+          icon: Icons.share_outlined,
+        ),
+        MetricCard(
+          title: 'Total Posts',
+          value: metrics['totalPosts']?.toString() ?? '0',
+          icon: Icons.article_outlined,
+        ),
+      ],
     );
   }
 }
 
-// Reusable Metric Card matching the design
-class _MetricCard extends StatelessWidget {
+// --- DASHBOARD WIDGETS ---
+
+class QuickAlertCard extends StatelessWidget {
   final String title;
   final String value;
-  const _MetricCard({required this.title, required this.value});
+  final String date;
+
+  const QuickAlertCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.date,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+          Text(title, style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            date,
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+              Text(
+                value,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9F5EF),
+                  color: theme.scaffoldBackgroundColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFFC8A36A)),
+                child: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
               ),
             ],
           ),
@@ -168,73 +180,192 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-// Placeholder for Daily Credits Chart
 class DailyCreditsChart extends StatelessWidget {
   const DailyCreditsChart({super.key});
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       height: 300,
-      child: const Center(child: Text('Daily Credits Used Chart - Placeholder')),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Daily Credits Used", style: theme.textTheme.titleLarge),
+          const SizedBox(height: 24),
+          Expanded(
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                barTouchData: BarTouchData(enabled: true),
+                titlesData: FlTitlesData(
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) => Text(
+                        DateFormat('MMM').format(DateTime(0, value.toInt())),
+                      ),
+                    ),
+                  ),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: true),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                ),
+                gridData: const FlGridData(show: false),
+                borderData: FlBorderData(show: false),
+                barGroups: List.generate(
+                  12,
+                  (index) => BarChartGroupData(
+                    x: index + 1,
+                    barRods: [
+                      BarChartRodData(
+                        toY: (index == 4)
+                            ? 70
+                            : (index % 5 + 1) * 15.0, // May has high value
+                        color: (index == 4)
+                            ? theme.colorScheme.primary
+                            : Colors.grey[300],
+                        width: 15,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// Placeholder for Visitor Status Chart
 class VisitorStatusChart extends StatelessWidget {
-  const VisitorStatusChart({super.key});
+  final int dailyTotal;
+  const VisitorStatusChart({super.key, required this.dailyTotal});
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       height: 300,
-      child: const Center(child: Text('Visitor Status Chart - Placeholder')),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text("Visitor Status", style: theme.textTheme.titleLarge),
+          Expanded(
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 4,
+                centerSpaceRadius: 60,
+                sections: [
+                  PieChartSectionData(
+                    value: 60,
+                    color: Colors.teal[300],
+                    title: '60%',
+                    radius: 25,
+                  ),
+                  PieChartSectionData(
+                    value: 25,
+                    color: Colors.orange[300],
+                    title: '25%',
+                    radius: 25,
+                  ),
+                  PieChartSectionData(
+                    value: 15,
+                    color: Colors.blue[300],
+                    title: '15%',
+                    radius: 25,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Text("Daily total: $dailyTotal", style: theme.textTheme.bodyMedium),
+        ],
+      ),
     );
   }
 }
 
-// Placeholder for Memberships Chart
 class MembershipsChart extends StatelessWidget {
   const MembershipsChart({super.key});
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       height: 300,
-      child: const Center(child: Text('Memberships Purchased Chart - Placeholder')),
-    );
-  }
-}
-
-// Placeholder for Pending B2B Accounts
-class PendingAccountsCard extends StatelessWidget {
-  const PendingAccountsCard({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-      height: 138,
-      child: const Center(child: Text('Pending B2B Accounts - Placeholder')),
-    );
-  }
-}
-
-
-// Placeholder for Pending Post Approvals
-class PendingPostsCard extends StatelessWidget {
-  const PendingPostsCard({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-      height: 138,
-      child: const Center(child: Text('Pending Post Approvals - Placeholder')),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Membership's Purchased", style: theme.textTheme.titleLarge),
+          const SizedBox(height: 24),
+          Expanded(
+            child: LineChart(
+              LineChartData(
+                gridData: const FlGridData(show: false),
+                titlesData: const FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: true),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: true),
+                  ),
+                  topTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: const [
+                      FlSpot(0, 3),
+                      FlSpot(2, 2),
+                      FlSpot(4, 5),
+                      FlSpot(6, 3.1),
+                      FlSpot(8, 4),
+                      FlSpot(9.5, 3),
+                      FlSpot(11, 4),
+                    ],
+                    isCurved: true,
+                    color: theme.colorScheme.primary,
+                    barWidth: 5,
+                    isStrokeCapRound: true,
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: theme.colorScheme.primary.withOpacity(0.3),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

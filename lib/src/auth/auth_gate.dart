@@ -18,7 +18,6 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
-
         if (snapshot.hasData &&
             snapshot.data?.event == AuthChangeEvent.passwordRecovery) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -28,7 +27,8 @@ class AuthGate extends StatelessWidget {
             );
           });
           return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
 
         if (!snapshot.hasData || snapshot.data?.session == null) {
@@ -41,7 +41,8 @@ class AuthGate extends StatelessWidget {
           builder: (context, providerSnapshot) {
             if (providerSnapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()));
+                body: Center(child: CircularProgressIndicator()),
+              );
             }
 
             if (providerSnapshot.hasError || !providerSnapshot.hasData) {
@@ -57,7 +58,7 @@ class AuthGate extends StatelessWidget {
                 return userProfile.isApproved
                     ? const DesignerShell()
                     : const PendingApprovalScreen();
-              default: 
+              default:
                 return const MainShell();
             }
           },
@@ -65,6 +66,7 @@ class AuthGate extends StatelessWidget {
       },
     );
   }
+
   Future<UserProfileProvider> _fetchProfileAndGetProvider(
     BuildContext context,
     String userId,
