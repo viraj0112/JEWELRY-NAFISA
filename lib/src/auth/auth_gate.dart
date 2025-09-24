@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jewelry_nafisa/src/admin/admin_shell.dart';
+import 'package:jewelry_nafisa/src/adminNew2/admin_shell.dart';
 import 'package:jewelry_nafisa/src/auth/reset_password_screen.dart';
 import 'package:jewelry_nafisa/src/designer/designer_shell.dart';
 import 'package:jewelry_nafisa/src/designer/screens/pending_approval_screen.dart';

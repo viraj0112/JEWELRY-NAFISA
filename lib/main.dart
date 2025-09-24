@@ -53,28 +53,6 @@ void main() async {
   );
 }
 
-// class MyApp extends StatelessWidget {
-//   const MyApp({super.key});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final themeProvider = Provider.of<ThemeProvider>(context);
-
-//     return MaterialApp(
-//       title: 'Designs by AKD',
-//       debugShowCheckedModeBanner: false,
-//       theme: AppTheme.lightTheme,
-//       darkTheme: AppTheme.darkTheme,
-//       themeMode: themeProvider.themeMode,
-//       initialRoute: '/',
-//       routes: {
-//         '/': (context) => const AuthGate(),
-//         '/auth-callback': (context) => const AuthCallbackScreen(),
-//       },
-//     );
-//   }
-// }
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -95,10 +73,6 @@ class MyApp extends StatelessWidget {
         '/': (context) => const AuthGate(),
         '/auth-callback': (context) => const AuthCallbackScreen(),
         // '/admin-shell':(context) => const AdminShell(),
-        // '/admin-screen': (context) => ChangeNotifierProvider(
-        //       create: (context) => AppState(),
-        //       child: const AdminScreen(),
-        //     ),
       },
     );
   }

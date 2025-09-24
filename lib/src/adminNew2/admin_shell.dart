@@ -1,292 +1,100 @@
-import "dart:ui";
-import 'package:flutter/animation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
-import 'package:provider/provider.dart';
-import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
-import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
+import 'package:flutter/material.dart' as material;
+import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
+import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
+import 'constants/app_menu_items.dart';
+import 'models/menu_item.dart';
+import 'widgets/header.dart';
 
-class MenuItem {
-  final String title;
-  final IconData icon;
-  final List<MenuItem>? subItems;
-
-  MenuItem({required this.title, required this.icon, this.subItems});
-}
-
-final List<MenuItem> menuItems = [
-  MenuItem(title: 'Dashboard', icon: Icons.dashboard_outlined),
-  MenuItem(
-    title: 'Analytics',
-    icon: Icons.analytics_outlined,
-    subItems: [
-      MenuItem(title: 'Post Analytics', icon: Icons.remove_red_eye_outlined),
-      MenuItem(title: 'Members Behavior', icon: Icons.auto_graph),
-      MenuItem(title: 'Credit System', icon: Icons.credit_score),
-      MenuItem(title: 'Referral Tracking', icon: Icons.trending_up_sharp),
-      MenuItem(title: 'Search & Filters', icon: Icons.search_outlined),
-      MenuItem(title: 'Geo Analytics', icon: Icons.map_outlined),
-    ],
-  ),
-  MenuItem(
-    title: 'Users',
-    icon: Icons.people_outline,
-    subItems: [
-      MenuItem(title: 'Members', icon: Icons.person_add_outlined),
-      MenuItem(title: 'Non-Members', icon: Icons.person_add_disabled_outlined),
-      MenuItem(title: 'Referrals', icon: Icons.share_outlined),
-    ],
-  ),
-  MenuItem(
-    title: 'B2B Creators',
-    icon: Icons.palette_outlined,
-    subItems: [
-      MenuItem(title: '3D Artists', icon: Icons.palette_outlined),
-      MenuItem(title: 'Sketch Designers', icon: Icons.brush_outlined),
-      MenuItem(title: 'Uploads', icon: Icons.file_upload_outlined),
-    ],
-  ),
-  MenuItem(
-    title: 'Notifications',
-    icon: Icons.message_outlined,
-    subItems: [
-      MenuItem(title: 'Admin Notifications', icon: Icons.shield_outlined),
-      MenuItem(title: 'User Notifications', icon: Icons.person_outline_rounded),
-      MenuItem(title: 'Alerts', icon: Icons.add_alert_sharp),
-    ],
-  ),
-  MenuItem(
-    title: 'Reports',
-    icon: Icons.add_chart,
-    subItems: [
-      MenuItem(title: 'Platform Reports', icon: Icons.bar_chart),
-      MenuItem(title: 'User Reports', icon: Icons.stacked_line_chart),
-      MenuItem(title: 'Content Reports', icon: Icons.person_pin_outlined),
-      MenuItem(title: 'Revenue Reports', icon: Icons.monetization_on_outlined),
-    ],
-  ),
-  MenuItem(
-    title: 'Activity Logs',
-    icon: Icons.settings_backup_restore_outlined,
-    subItems: [
-      MenuItem(title: 'Admin Logs', icon: Icons.admin_panel_settings_outlined),
-      MenuItem(title: 'User Logs', icon: Icons.supervised_user_circle_outlined),
-      MenuItem(title: 'Export Logs', icon: Icons.download_outlined),
-    ],
-  ),
-  MenuItem(title: 'Emails', icon: Icons.email_outlined),
-  MenuItem(
-    title: 'Settings',
-    icon: Icons.settings,
-    subItems: [
-      MenuItem(title: 'User Roles & Permissions', icon: Icons.shield_outlined),
-      MenuItem(title: 'Webhooks', icon: Icons.web_asset),
-    ],
-  ),
-];
-
-class AdminShell extends StatefulWidget {
+class AdminShell extends material.StatefulWidget {
   const AdminShell({super.key});
 
   @override
-  State<AdminShell> createState() => _AdminShellState();
+  material.State<AdminShell> createState() => _AdminShellState();
 }
 
-class _AdminShellState extends State<AdminShell> with TickerProviderStateMixin {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  int _selectedIndex = 0;
-  bool _isExpanded = false; // Start collapsed
-  late AnimationController _animationController;
+class _AdminShellState extends material.State<AdminShell> {
+  final material.GlobalKey<material.ScaffoldState> _scaffoldKey =
+      material.GlobalKey<material.ScaffoldState>();
+  late MenuItem _selectedItem;
+  bool _isExpanded = false;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 350),
-      vsync: this,
-    );
-    if (_isExpanded) {
-      _animationController.forward();
+    _selectedItem = menuItems.first;
+  }
+
+  void _expandPanel() => setState(() => _isExpanded = true);
+  void _collapsePanel() => setState(() => _isExpanded = false);
+
+  void _handleItemSelected(MenuItem item) {
+    if (item.screen != null) {
+      setState(() {
+        _selectedItem = item;
+      });
+    }
+  }
+
+  Future<void> _signOut() async {
+    await SupabaseAuthService().signOut();
+    if (mounted) {
+      material.Navigator.of(context).pushAndRemoveUntil(
+        material.MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+        (route) => false,
+      );
     }
   }
 
   @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  void _expandPanel() {
-    if (_isExpanded) return;
-    setState(() {
-      _isExpanded = true;
-      _animationController.forward();
-    });
-  }
-
-  void _collapsePanel() {
-    if (!_isExpanded) return;
-    setState(() {
-      _isExpanded = false;
-      _animationController.reverse();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.themeMode == ThemeMode.dark;
-    final isMobile = MediaQuery.of(context).size.width < 600;
-
-    return Scaffold(
+  material.Widget build(material.BuildContext context) {
+    final isMobile = material.MediaQuery.of(context).size.width < 800;
+    return material.Scaffold(
       key: _scaffoldKey,
       appBar: isMobile
-          ? AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () {
-                  _scaffoldKey.currentState!.openDrawer();
-                },
+          ? material.AppBar(
+              title: material.Text(_selectedItem.title),
+              leading: material.IconButton(
+                icon: const material.Icon(material.Icons.menu),
+                onPressed: () => _scaffoldKey.currentState!.openDrawer(),
               ),
-              centerTitle: true,
-              actions: [
-                IconButton(
-                  icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
-                  onPressed: () {
-                    themeProvider.toggleTheme();
-                  },
-                ),
-              ],
             )
           : null,
       drawer: isMobile
-          ? Drawer(
+          ? material.Drawer(
               child: SidePanel(
                 isExpanded: true,
-                selectedIndex: _selectedIndex,
-                onItemSelected: (index) {
-                  setState(() {
-                    _selectedIndex = index;
-                  });
-                  Navigator.pop(context);
+                selectedItem: _selectedItem,
+                onItemSelected: (item) {
+                  _handleItemSelected(item);
+                  material.Navigator.pop(context);
                 },
               ),
             )
           : null,
-      body: Row(
+      body: material.Row(
         children: [
           if (!isMobile)
-            MouseRegion(
+            material.MouseRegion(
               onEnter: (_) => _expandPanel(),
               onExit: (_) => _collapsePanel(),
               child: SidePanel(
                 isExpanded: _isExpanded,
-                selectedIndex: _selectedIndex,
-                onItemSelected: (index) {
-                  setState(() {
-                    _selectedIndex = index;
-                  });
-                },
+                selectedItem: _selectedItem,
+                onItemSelected: _handleItemSelected,
               ),
             ),
-          Expanded(
-            child: Column(
+          material.Expanded(
+            child: material.Column(
               children: [
-                if (!isMobile)
-                  Container(
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color:
-                          Theme.of(context).appBarTheme.backgroundColor ??
-                          Theme.of(context).primaryColor,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.4),
-                          offset: const Offset(0, 2),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 24), // Left padding for title
-                        Expanded(
-                          child: Text(
-                            menuItems[_selectedIndex].title,
-                            style:
-                                Theme.of(context).appBarTheme.titleTextStyle ??
-                                TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: Theme.of(
-                                    context,
-                                  ).appBarTheme.foregroundColor,
-                                ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                            color: Theme.of(
-                              context,
-                            ).appBarTheme.foregroundColor,
-                          ),
-                          onPressed: () {
-                            themeProvider.toggleTheme();
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                    ),
-                  ),
-                Expanded(
-                  child: Container(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    child: IndexedStack(
-                      index: _selectedIndex,
-                      children: List.generate(
-                        menuItems.length,
-                        (index) => Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                menuItems[index].icon,
-                                size: 64,
-                                color: Theme.of(
-                                  context,
-                                ).primaryColor.withOpacity(0.3),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                menuItems[index].title,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(
-                                      color: Theme.of(
-                                        context,
-                                      ).textTheme.bodyLarge?.color,
-                                    ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Content for ${menuItems[index].title} goes here',
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.color
-                                          ?.withOpacity(0.7),
-                                    ),
-                              ),
-                            ],
-                          ),
+                if (!isMobile) Header(onSignOut: _signOut),
+                material.Expanded(
+                  child:
+                      _selectedItem.screen ??
+                      const material.Center(
+                        child: material.Text(
+                          "Select an item to view its content.",
                         ),
                       ),
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -297,226 +105,186 @@ class _AdminShellState extends State<AdminShell> with TickerProviderStateMixin {
   }
 }
 
-class SidePanel extends StatefulWidget {
+class SidePanel extends material.StatefulWidget {
   final bool isExpanded;
-  final int selectedIndex;
-  final ValueChanged<int> onItemSelected;
+  final MenuItem selectedItem;
+  final material.ValueChanged<MenuItem> onItemSelected;
 
   const SidePanel({
     super.key,
     required this.isExpanded,
-    required this.selectedIndex,
+    required this.selectedItem,
     required this.onItemSelected,
   });
 
   @override
-  State<SidePanel> createState() => _SidePanelState();
+  material.State<SidePanel> createState() => _SidePanelState();
 }
 
-class _SidePanelState extends State<SidePanel>
-    with SingleTickerProviderStateMixin {
-  int? _expandedIndex;
-  late AnimationController _expansionController;
+class _SidePanelState extends material.State<SidePanel> {
+  MenuItem? _expandedItem;
 
   @override
   void initState() {
     super.initState();
-    _expansionController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
+    for (var item in menuItems) {
+      if (item.subItems?.contains(widget.selectedItem) ?? false) {
+        _expandedItem = item;
+        break;
+      }
+    }
   }
 
   @override
-  void dispose() {
-    _expansionController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-
-    // Better color scheme for both themes
+  material.Widget build(material.BuildContext context) {
+    final theme = material.Theme.of(context);
+    final isDarkMode = theme.brightness == material.Brightness.dark;
     final backgroundColor = isDarkMode
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFFAFAFA);
-
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF2D2D2D);
-
-    final subtextColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
-
+        ? const material.Color(0xFF1E1E1E)
+        : const material.Color(0xFFFAFAFA);
+    final textColor = isDarkMode
+        ? material.Colors.white
+        : const material.Color(0xFF2D2D2D);
+    final subtextColor = isDarkMode
+        ? material.Colors.grey[400]!
+        : material.Colors.grey[600]!;
     final selectedColor = theme.primaryColor;
-    final hoverColor = isDarkMode ? Colors.grey[800] : Colors.grey[200];
 
-    return AnimatedContainer(
+    return material.AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       width: widget.isExpanded ? 280 : 80,
-      child: Container(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.1),
-              offset: const Offset(2, 0),
-              blurRadius: 8,
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            // Header
-            Container(
-              height: 80,
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (widget.isExpanded) ...[
-                    Flexible(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'AKD',
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: selectedColor,
-                            ),
-                            textAlign: TextAlign.center,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+      decoration: material.BoxDecoration(
+        color: backgroundColor,
+        boxShadow: [
+          material.BoxShadow(
+            color: material.Colors.black.withOpacity(isDarkMode ? 0.3 : 0.1),
+            offset: const material.Offset(2, 0),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: material.Column(
+        children: [
+          material.SizedBox(
+            height: 80,
+            child: material.Center(
+              child: widget.isExpanded
+                  ? material.Text(
+                      'AKD',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: material.FontWeight.bold,
+                        color: selectedColor,
                       ),
-                    ),
-                  ] else ...[
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
+                    )
+                  : material.Container(
+                      padding: const material.EdgeInsets.all(8),
+                      decoration: material.BoxDecoration(
                         color: selectedColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: material.BorderRadius.circular(8),
                       ),
-                      child: Center(
-                        child: Text(
-                          'A',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: selectedColor,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                      child: material.Text(
+                        'A',
+                        style: material.TextStyle(
+                          fontSize: 14,
+                          fontWeight: material.FontWeight.bold,
+                          color: selectedColor,
                         ),
                       ),
                     ),
-                  ],
-                ],
-              ),
             ),
-
-            const Divider(height: 1),
-
-            // Menu Items
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: menuItems.length,
-                itemBuilder: (context, index) {
-                  final item = menuItems[index];
-                  final isSelected = widget.selectedIndex == index;
-                  final hasSubItems =
-                      item.subItems != null && item.subItems!.isNotEmpty;
-
-                  if (hasSubItems) {
-                    return _buildExpandableItem(
+          ),
+          const material.Divider(height: 1),
+          material.Expanded(
+            child: material.ListView.builder(
+              padding: const material.EdgeInsets.symmetric(vertical: 8),
+              itemCount: menuItems.length,
+              itemBuilder: (context, index) {
+                final item = menuItems[index];
+                final hasSubItems =
+                    item.subItems != null && item.subItems!.isNotEmpty;
+                final isSelected =
+                    widget.selectedItem == item ||
+                    (item.subItems?.contains(widget.selectedItem) ?? false);
+                if (!hasSubItems) {
+                  return _buildSimpleItem(
+                    context,
+                    item,
+                    isSelected,
+                    textColor,
+                    selectedColor,
+                  );
+                } else {
+                  return material.MouseRegion(
+                    onEnter: (_) => setState(() => _expandedItem = item),
+                    onExit: (_) => setState(() => _expandedItem = null),
+                    child: _buildExpandableItem(
                       context,
                       item,
-                      index,
                       isSelected,
                       textColor,
                       subtextColor,
                       selectedColor,
-                      hoverColor,
-                    );
-                  } else {
-                    return _buildSimpleItem(
-                      context,
-                      item,
-                      index,
-                      isSelected,
-                      textColor,
-                      selectedColor,
-                      hoverColor,
-                    );
-                  }
-                },
-              ),
+                    ),
+                  );
+                }
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSimpleItem(
-    BuildContext context,
+  material.Widget _buildSimpleItem(
+    material.BuildContext context,
     MenuItem item,
-    int index,
     bool isSelected,
-    Color textColor,
-    Color selectedColor,
-    Color? hoverColor,
+    material.Color textColor,
+    material.Color selectedColor,
   ) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: () => widget.onItemSelected(index),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? selectedColor.withOpacity(0.1)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-              border: isSelected
-                  ? Border(left: BorderSide(color: selectedColor, width: 3))
-                  : null,
+    return material.Container(
+      margin: const material.EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: material.BoxDecoration(
+        color: isSelected
+            ? selectedColor.withOpacity(0.1)
+            : material.Colors.transparent,
+        borderRadius: material.BorderRadius.circular(8),
+        border: isSelected
+            ? material.Border(
+                left: material.BorderSide(color: selectedColor, width: 3),
+              )
+            : null,
+      ),
+      child: material.Material(
+        color: material.Colors.transparent,
+        child: material.InkWell(
+          borderRadius: material.BorderRadius.circular(8),
+          onTap: () => widget.onItemSelected(item),
+          child: material.Padding(
+            padding: const material.EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
             ),
-            child: Row(
+            child: material.Row(
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? selectedColor.withOpacity(0.2)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    item.icon,
-                    size: 20,
-                    color: isSelected ? selectedColor : textColor,
-                  ),
+                material.Icon(
+                  item.icon,
+                  size: 20,
+                  color: isSelected ? selectedColor : textColor,
                 ),
                 if (widget.isExpanded) ...[
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: Text(
+                  const material.SizedBox(width: 12),
+                  material.Expanded(
+                    child: material.Text(
                       item.title,
-                      style: TextStyle(
+                      style: material.TextStyle(
                         color: isSelected ? selectedColor : textColor,
                         fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
+                            ? material.FontWeight.w600
+                            : material.FontWeight.w400,
                         fontSize: 14,
                       ),
-                      overflow: TextOverflow.ellipsis,
+                      overflow: material.TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -528,87 +296,78 @@ class _SidePanelState extends State<SidePanel>
     );
   }
 
-  Widget _buildExpandableItem(
-    BuildContext context,
+  material.Widget _buildExpandableItem(
+    material.BuildContext context,
     MenuItem item,
-    int index,
     bool isSelected,
-    Color textColor,
-    Color? subtextColor,
-    Color selectedColor,
-    Color? hoverColor,
+    material.Color textColor,
+    material.Color subtextColor,
+    material.Color selectedColor,
   ) {
-    final isExpanded = _expandedIndex == index;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Column(
+    final isEffectivelyExpanded = _expandedItem == item;
+    return material.Container(
+      margin: const material.EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: material.Column(
+        mainAxisSize: material.MainAxisSize.min,
         children: [
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
+          material.Material(
+            child: material.InkWell(
+              borderRadius: material.BorderRadius.circular(8),
               onTap: () {
                 if (widget.isExpanded) {
-                  setState(() {
-                    _expandedIndex = isExpanded ? null : index;
-                  });
-                } else {
-                  widget.onItemSelected(index);
+                  setState(
+                    () => _expandedItem = isEffectivelyExpanded ? null : item,
+                  );
+                } else if (item.screen != null) {
+                  widget.onItemSelected(item);
                 }
               },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
+              child: material.Container(
+                decoration: material.BoxDecoration(
+                  color: isSelected && !isEffectivelyExpanded
+                      ? selectedColor.withOpacity(0.1)
+                      : material.Colors.transparent,
+                  borderRadius: material.BorderRadius.circular(8),
+                  border: isSelected && !isEffectivelyExpanded
+                      ? material.Border(
+                          left: material.BorderSide(
+                            color: selectedColor,
+                            width: 3,
+                          ),
+                        )
+                      : null,
+                ),
+                padding: const material.EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 12,
                 ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? selectedColor.withOpacity(0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  border: isSelected
-                      ? Border(left: BorderSide(color: selectedColor, width: 3))
-                      : null,
-                ),
-                child: Row(
+                child: material.Row(
                   children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? selectedColor.withOpacity(0.2)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        item.icon,
-                        size: 20,
-                        color: isSelected ? selectedColor : textColor,
-                      ),
+                    material.Icon(
+                      item.icon,
+                      size: 20,
+                      color: isSelected ? selectedColor : textColor,
                     ),
                     if (widget.isExpanded) ...[
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
+                      const material.SizedBox(width: 12),
+                      material.Expanded(
+                        child: material.Text(
                           item.title,
-                          style: TextStyle(
+                          style: material.TextStyle(
                             color: isSelected ? selectedColor : textColor,
                             fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
+                                ? material.FontWeight.w600
+                                : material.FontWeight.w400,
                             fontSize: 14,
                           ),
-                          overflow: TextOverflow.ellipsis,
+                          overflow: material.TextOverflow.ellipsis,
                         ),
                       ),
-                      AnimatedRotation(
-                        turns: isExpanded ? 0.5 : 0.0,
+                      material.AnimatedRotation(
+                        turns: isEffectivelyExpanded ? 0.5 : 0.0,
                         duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                          Icons.keyboard_arrow_down,
+                        child: material.Icon(
+                          material.Icons.keyboard_arrow_down,
                           color: isSelected ? selectedColor : subtextColor,
                           size: 20,
                         ),
@@ -620,28 +379,22 @@ class _SidePanelState extends State<SidePanel>
             ),
           ),
           if (widget.isExpanded)
-            AnimatedContainer(
+            material.AnimatedSize(
               duration: const Duration(milliseconds: 300),
-              height: isExpanded ? (item.subItems!.length * 44.0) : 0,
-              child: ClipRect(
-                // FIX: Wrapped the Column in a SingleChildScrollView
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  child: Column(
-                    children: item.subItems!
-                        .map(
-                          (subItem) => _buildSubItem(
-                            context,
-                            subItem,
-                            index,
-                            isSelected,
-                            textColor,
-                            subtextColor,
-                            selectedColor,
-                          ),
-                        )
-                        .toList(),
-                  ),
+              curve: material.Curves.easeInOut,
+              child: material.Container(
+                height: isEffectivelyExpanded ? null : 0,
+                child: material.Column(
+                  children: item.subItems!
+                      .map(
+                        (subItem) => _buildSubItem(
+                          context,
+                          subItem,
+                          subtextColor,
+                          selectedColor,
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
             ),
@@ -650,37 +403,55 @@ class _SidePanelState extends State<SidePanel>
     );
   }
 
-  Widget _buildSubItem(
-    BuildContext context,
+  material.Widget _buildSubItem(
+    material.BuildContext context,
     MenuItem subItem,
-    int parentIndex,
-    bool isParentSelected,
-    Color textColor,
-    Color? subtextColor,
-    Color selectedColor,
+    material.Color subtextColor,
+    material.Color selectedColor,
   ) {
-    return Container(
-      margin: const EdgeInsets.only(left: 20, right: 8, top: 2, bottom: 2),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(6),
-          onTap: () => widget.onItemSelected(parentIndex),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
+    final isSubItemSelected = widget.selectedItem == subItem;
+    return material.Container(
+      margin: const material.EdgeInsets.only(
+        left: 28,
+        right: 8,
+        top: 2,
+        bottom: 2,
+      ),
+      decoration: material.BoxDecoration(
+        color: isSubItemSelected
+            ? selectedColor.withOpacity(0.1)
+            : material.Colors.transparent,
+        borderRadius: material.BorderRadius.circular(6),
+      ),
+      child: material.Material(
+        color: material.Colors.transparent,
+        child: material.InkWell(
+          borderRadius: material.BorderRadius.circular(6),
+          onTap: () => widget.onItemSelected(subItem),
+          child: material.Padding(
+            padding: const material.EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
+            child: material.Row(
               children: [
-                Icon(subItem.icon, size: 18, color: subtextColor),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
+                material.Icon(
+                  subItem.icon,
+                  size: 18,
+                  color: isSubItemSelected ? selectedColor : subtextColor,
+                ),
+                const material.SizedBox(width: 12),
+                material.Expanded(
+                  child: material.Text(
                     subItem.title,
-                    style: TextStyle(
-                      color: subtextColor,
+                    style: material.TextStyle(
+                      color: isSubItemSelected ? selectedColor : subtextColor,
                       fontSize: 13,
-                      fontWeight: FontWeight.w400,
+                      fontWeight: isSubItemSelected
+                          ? material.FontWeight.w500
+                          : material.FontWeight.w400,
                     ),
-                    overflow: TextOverflow.ellipsis,
+                    overflow: material.TextOverflow.ellipsis,
                   ),
                 ),
               ],
