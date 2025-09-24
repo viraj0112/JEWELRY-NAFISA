@@ -89,12 +89,12 @@ class MyApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
 
-      // initialRoute: '/',
-      initialRoute: '/admin-shell',
+      initialRoute: '/',
+      // initialRoute: '/admin-shell',
       routes: {
         '/': (context) => const AuthGate(),
         '/auth-callback': (context) => const AuthCallbackScreen(),
-        '/admin-shell':(context) => const AdminShell(),
+        // '/admin-shell':(context) => const AdminShell(),
         // '/admin-screen': (context) => ChangeNotifierProvider(
         //       create: (context) => AppState(),
         //       child: const AdminScreen(),
