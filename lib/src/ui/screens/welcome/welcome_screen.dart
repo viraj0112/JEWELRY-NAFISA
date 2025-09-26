@@ -92,119 +92,150 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  // --- LAYOUTS ---
-
   Widget _buildWideLayout() {
-    return Row(
-      children: [
-        _buildNavigationRail(),
-        const VerticalDivider(thickness: 1, width: 1),
-        Expanded(
-          child: Scaffold(appBar: _buildAppBar(), body: _buildImageGrid()),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNarrowLayout() {
     return Scaffold(
-      appBar: _buildAppBar(),
-      body: Stack(children: [_buildImageGrid(), _buildFloatingNavBar()]),
+      body: SafeArea(
+        bottom: false,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildNavigationRail(),
+            const VerticalDivider(thickness: 1, width: 16),
+            Expanded(
+              child: Column(
+                children: [
+                  _buildAppBar(),
+                  Expanded(child: _buildImageGrid()),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  // --- NAVIGATION WIDGETS ---
+
+Widget _buildNarrowLayout() {
+  return Scaffold(
+    appBar: _buildAppBar(),
+    body: _buildImageGrid(), 
+    bottomNavigationBar: _buildFixedNavBar(), 
+  );
+}
 
   Widget _buildNavigationRail() {
+    final theme = Theme.of(context); 
+
     return NavigationRail(
       selectedIndex: 0,
       onDestinationSelected: (index) => _navigateToLogin(),
       labelType: NavigationRailLabelType.all,
-      leading: const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20.0),
-        child: Icon(Icons.diamond_outlined, size: 24),
+      useIndicator: true,
+      indicatorColor: Colors.transparent, 
+      selectedLabelTextStyle: theme.textTheme.titleMedium?.copyWith(
+        color: theme.colorScheme.primary,
+        fontWeight: FontWeight.bold,
+      ),
+      unselectedLabelTextStyle: theme.textTheme.titleMedium?.copyWith(
+        color: theme.colorScheme.onSurface.withOpacity(0.6),
+      ),
+      leading: Padding(
+        padding: const EdgeInsets.only(top: 8.0, bottom: 52.0),
+        child: CircleAvatar(
+          radius: 18,
+          backgroundColor: const Color(0xFFDAB766),
+          child: Text(
+            'G',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+      selectedIconTheme: IconThemeData(color: theme.colorScheme.primary),
+      unselectedIconTheme: IconThemeData(
+        color: theme.colorScheme.onSurface.withOpacity(0.6),
       ),
       destinations: const [
         NavigationRailDestination(
-          icon: Icon(Icons.home),
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home),
           label: Text('Home'),
         ),
         NavigationRailDestination(
           icon: Icon(Icons.search_outlined),
+          selectedIcon: Icon(Icons.search),
           label: Text('Search'),
         ),
         NavigationRailDestination(
           icon: Icon(Icons.notifications_outlined),
+          selectedIcon: Icon(Icons.notifications),
           label: Text('Updates'),
         ),
         NavigationRailDestination(
           icon: Icon(Icons.person_outline),
+          selectedIcon: Icon(Icons.person),
           label: Text('Profile'),
         ),
       ],
     );
   }
 
-  Widget _buildFloatingNavBar() {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 24, left: 24, right: 24),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24.0),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(24.0),
-              ),
-              child: BottomNavigationBar(
-                currentIndex: 0,
-                onTap: (index) => _navigateToLogin(),
-                type: BottomNavigationBarType.fixed,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                selectedItemColor: Theme.of(context).colorScheme.primary,
-                unselectedItemColor: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withOpacity(0.6),
-                items: const <BottomNavigationBarItem>[
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.home_filled),
-                    activeIcon: Icon(Icons.home),
-                    label: 'Home',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.search_sharp),
-                    activeIcon: Icon(Icons.search),
-                    label: 'Search',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.notifications_active),
-                    activeIcon: Icon(Icons.notifications_active_outlined),
-                    label: 'Notifications',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.person_pin),
-                    activeIcon: Icon(Icons.person_pin),
-                    label: 'Profile',
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
-  // --- CORE UI WIDGETS ---
+  
+
+ Widget _buildFixedNavBar() {
+  final theme = Theme.of(context);
+  return BottomNavigationBar(
+    currentIndex: 0,
+    onTap: (index) => _navigateToLogin(),
+    type: BottomNavigationBarType.fixed,
+  
+    backgroundColor: theme.colorScheme.surface, 
+    elevation: 8.0, 
+    selectedItemColor: theme.colorScheme.primary,
+    unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
+    items: const <BottomNavigationBarItem>[
+      BottomNavigationBarItem(
+        icon: Icon(Icons.home_outlined),
+        activeIcon: Icon(Icons.home),
+        label: 'Home',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.search_outlined),
+        activeIcon: Icon(Icons.search),
+        label: 'Search',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.add_box_outlined),
+        activeIcon: Icon(Icons.add_box_rounded),
+        label: 'Boards',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.notifications_outlined),
+        activeIcon: Icon(Icons.notifications),
+        label: 'Notifications',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.person_outline),
+        activeIcon: Icon(Icons.person),
+        label: 'Profile',
+      ),
+    ],
+  );
+}
+
 
   PreferredSizeWidget _buildAppBar() {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return AppBar(
+      automaticallyImplyLeading: false, 
+      titleSpacing: 16.0, 
+      elevation: 0,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       title: _buildSearchBar(Theme.of(context)),
       actions: [
         IconButton(
@@ -217,29 +248,42 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           tooltip: 'Toggle Theme',
         ),
         _buildGuestMenu(context),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
       ],
     );
   }
 
   Widget _buildSearchBar(ThemeData theme) {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: TextField(
-        onTap: _navigateToLogin,
-        readOnly: true,
-        decoration: InputDecoration(
-          hintText: 'Search for designs',
-          prefixIcon: const Icon(Icons.search),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 14,
-          ),
+    return InkWell(
+      onTap: _navigateToLogin,
+      borderRadius: BorderRadius.circular(12.0),
+      autofocus: true,
+      hoverColor: Colors.grey.withOpacity(0.5),
+      child: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color: theme.splashColor,
+          borderRadius: BorderRadius.circular(12.0),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        alignment: Alignment.centerLeft,
+
+        child: Row(
+          children: [
+            Icon(
+              Icons.search,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
+            const SizedBox(width: 8.0),
+            Text(
+              'Search for designs',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                fontSize: 16.0,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -256,24 +300,31 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           _navigateToRegister();
         }
       },
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            child: const Text(
+              'G',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const Icon(Icons.arrow_drop_down),
+        ],
+      ),
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
         const PopupMenuItem<String>(value: 'login', child: Text('Login')),
         const PopupMenuItem<String>(value: 'register', child: Text('Register')),
       ],
-      child: CircleAvatar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        child: const Text(
-          'G',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-      ),
     );
   }
 
   Widget _buildImageGrid() {
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: _buildFilterTags()),
         SliverPadding(
           padding: const EdgeInsets.all(8.0),
           sliver: SliverMasonryGrid.count(
@@ -295,27 +346,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  Widget _buildFilterTags() {
-    const tags = ['All', 'Necklaces', 'Rings', 'Bracelets', 'Earrings'];
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      child: Wrap(
-        spacing: 8.0,
-        runSpacing: 8.0,
-        children: tags
-            .map(
-              (tag) => ActionChip(
-                label: Text(tag),
-                onPressed: _navigateToLogin,
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.surface.withAlpha((255 * 0.8).round()),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
+
 
   Widget _buildImageCard(BuildContext context, String imageUrl) {
     return Card(

@@ -11,7 +11,7 @@ import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 // import 'package:jewelry_nafisa/src/admin/screens/admin_dashboard_screen.dart';
 // import 'package:jewelry_nafisa/src/adminNew/providers/app_state.dart';
 // import 'package:jewelry_nafisa/src/adminNew/admin_screen.dart';
-import 'package:jewelry_nafisa/src/adminNew2/admin_shell.dart';
+import 'package:jewelry_nafisa/src/admin/admin_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,11 +68,9 @@ class MyApp extends StatelessWidget {
       themeMode: themeProvider.themeMode,
 
       initialRoute: '/',
-      // initialRoute: '/admin-shell',
       routes: {
         '/': (context) => const AuthGate(),
         '/auth-callback': (context) => const AuthCallbackScreen(),
-        // '/admin-shell':(context) => const AdminShell(),
       },
     );
   }

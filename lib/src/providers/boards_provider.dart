@@ -4,25 +4,24 @@ import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BoardsProvider extends ChangeNotifier {
-final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase = Supabase.instance.client;
   final List<Board> _boards = [];
 
   List<Board> get boards => _boards;
+
   Future<void> fetchBoards() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
 
     try {
-      final response = await _supabase
-          .from('boards')
-          .select('id, name')
-          .eq('user_id', userId);
-      
+      final response =
+          await _supabase.from('boards').select('id, name').eq('user_id', userId);
+
       _boards.clear();
       for (var boardData in response) {
         _boards.add(
           Board(
-            id: boardData['id'].toString(),
+            id: boardData['id'], // Use the integer ID directly
             name: boardData['name'],
           ),
         );
@@ -43,9 +42,9 @@ final SupabaseClient _supabase = Supabase.instance.client;
           .insert({'user_id': userId, 'name': name})
           .select()
           .single();
-      
+
       final newBoard = Board(
-        id: newBoardData['id'].toString(),
+        id: newBoardData['id'], // Use the integer ID directly
         name: newBoardData['name'],
       );
       _boards.add(newBoard);
@@ -54,7 +53,8 @@ final SupabaseClient _supabase = Supabase.instance.client;
       debugPrint("Error creating board: $e");
     }
   }
-   Future<void> saveToBoard(Board board, JewelryItem item) async {
+
+  Future<void> saveToBoard(Board board, JewelryItem item) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
 
@@ -62,7 +62,7 @@ final SupabaseClient _supabase = Supabase.instance.client;
       final existingPin = await _supabase
           .from('pins')
           .select('id')
-          .eq('image_url', item.imageUrl) // Using image_url as a unique key
+          .eq('image_url', item.imageUrl)
           .maybeSingle();
 
       String pinId;
@@ -84,13 +84,14 @@ final SupabaseClient _supabase = Supabase.instance.client;
       }
 
       await _supabase.from('boards_pins').insert({
-        'board_id': int.parse(board.id),
-        'pin_id': pinId, 
+        'board_id': board.id, // Use the integer board ID directly
+        'pin_id': pinId,
       });
 
       final boardIndex = _boards.indexWhere((b) => b.id == board.id);
-      if (boardIndex != -1 && !_boards[boardIndex].items.any((i) => i.id == item.id)) {
-        item.id = pinId; 
+      if (boardIndex != -1 &&
+          !_boards[boardIndex].items.any((i) => i.id == item.id)) {
+        item.id = pinId;
         _boards[boardIndex].items.add(item);
         notifyListeners();
       }

@@ -167,7 +167,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ✨ UPDATED: This widget now handles both hover and long-press
   Widget _buildImageCard(BuildContext context, JewelryItem item) {
     final bool isHovered = _hoveredItemId == item.url;
     final bool isTapped = _tappedItemId == item.url;
