@@ -3,6 +3,14 @@
 -- Enable the pgcrypto extension for generating UUIDs
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- Create the public users table
+CREATE TABLE public.users (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username TEXT UNIQUE,
+  full_name TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create the pins table
 CREATE TABLE IF NOT EXISTS pins (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -1,48 +1,69 @@
-import 'package:flutter/material.dart';
+
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+import '../models/jewelry_item.dart';
 
 class JewelryService {
-  final _supabase = Supabase.instance.client;
+  final SupabaseClient _supabaseClient;
 
-  // This is the central function for fetching data.
-  // You can modify this to fetch from a local file or a different API.
-  Future<List<JewelryItem>> fetchJewelryItems({
+  JewelryService(this._supabaseClient);
+
+  Future<List<JewelryItem>> getProducts({int limit = 50, int offset = 0}) async {
+    try {
+      final response = await _supabaseClient
+          .from('products')
+          .select()
+          .limit(limit)
+          .range(offset, offset + limit - 1); 
+
+      final List<dynamic> data = response as List<dynamic>;
+      return data
+          .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('Error fetching products: $e');
+      return [];
+    }
+  }
+
+  Future<List<JewelryItem>> fetchSimilarItems({
+    required String currentItemId,
+    String? category,
     int limit = 10,
-    int offset = 0,
   }) async {
     try {
-      // --- CURRENT LOGIC: FETCH FROM SUPABASE ---
-      // Replace this block if you switch to JSON/Excel
-      const String tableName = 'pins'; // The name of your Supabase table
-      final response = await _supabase
-          .from(tableName)
-          .select() // Select all columns for flexibility
-          .order('created_at', ascending: false)
-          .limit(limit)
-          .range(offset, offset + limit - 1);
+      var query = _supabaseClient
+          .from('products')
+          .select()
+          .not('id', 'eq', currentItemId); 
 
-      // The `fromMap` constructor handles the mapping.
-      // You only need to adjust the keys inside the JewelryItem model.
-      final items = (response as List<dynamic>)
-          .map((item) => JewelryItem.fromMap(item as Map<String, dynamic>))
+      if (category != null && category.isNotEmpty) {
+        query = query.eq('category', category);
+      }
+
+      final response = await query.limit(limit);
+
+      final List<dynamic> data = response as List<dynamic>;
+      return data
+          .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>))
           .toList();
-      return items;
-
-      // --- EXAMPLE: HOW TO FETCH FROM A LOCAL JSON ASSET ---
-      /*
-      // 1. Add your json file to an 'assets' folder and declare it in pubspec.yaml
-      // final String jsonString = await rootBundle.loadString('assets/your_data.json');
-      // final List<dynamic> jsonList = json.decode(jsonString);
-      // final items = jsonList
-      //     .map((item) => JewelryItem.fromMap(item as Map<String, dynamic>))
-      //     .toList();
-      // return items;
-      */
-
     } catch (e) {
-      debugPrint("Error fetching jewelry items: $e");
-      return []; // Return an empty list on error
+      debugPrint('Error fetching similar products: $e');
+      return [];
+    }
+  }
+
+  Future<JewelryItem?> getJewelryItem(String id) async {
+    try {
+      final response = await _supabaseClient
+          .from('products')
+          .select()
+          .eq('id', id)
+          .single();
+      return JewelryItem.fromJson(response);
+    } catch (e) {
+      debugPrint('Error fetching single product: $e');
+      return null;
     }
   }
 }

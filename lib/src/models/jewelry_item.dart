@@ -1,48 +1,73 @@
-import 'dart:math';
+import 'package:flutter/foundation.dart';
 
 class JewelryItem {
-  String? id; 
-  final String url; 
-  final String name;
-  final String description;
-  final double price;
+  final String id;
+  final String name; 
+  final String? description;
+  final num? price;
   final String imageUrl;
-  final List<String> category;
+  final List<String> tags;
+  final String? category;
+  final String? subCategory;
+  final String? metal;
+  final String? purity;
+  final String? stoneType;
+  final String? dimensions;
+  final Map<String, dynamic>? attributes;
+  final DateTime createdAt;
   bool isFavorite;
 
   JewelryItem({
-    this.id, 
-    required this.url,
+    required this.id,
     required this.name,
-    required this.description,
-    required this.price,
+    this.description,
+    this.price,
     required this.imageUrl,
-    required this.category,
+    this.tags = const [],
+    this.category,
+    this.subCategory,
+    this.metal,
+    this.purity,
+    this.stoneType,
+    this.dimensions,
+    this.attributes,
+    required this.createdAt,
     this.isFavorite = false,
   });
 
-  factory JewelryItem.fromMap(Map<String, dynamic> map) {
-    final images = (map['images'] as List<dynamic>?)?.cast<String>() ?? [];
-    final validImages = images.where((url) => url.startsWith('http')).toList();
+  String get url => id;
 
-    double parsedPrice = 0.0;
-    if (map['price'] is num) {
-      parsedPrice = (map['price'] as num).toDouble();
-    } else if (map['price'] is String) {
-      parsedPrice = double.tryParse(map['price'] as String) ?? 0.0;
+  factory JewelryItem.fromJson(Map<String, dynamic> json) {
+    List<String> parsedTags = [];
+    if (json['tags'] != null && json['tags'] is List) {
+      parsedTags = List<String>.from(json['tags']);
     }
+    
+    
+    num? parsedPrice;
+    final priceValue = json['price'];
+    if (priceValue is num) {
+      parsedPrice = priceValue;
+    } else if (priceValue is String) {
+      parsedPrice = num.tryParse(priceValue);
+    }
+    
 
     return JewelryItem(
-      id: map['id'] as String?, 
-      url: map['url'] as String? ?? 'temp_url_${Random().nextDouble()}', 
-      name: map['title'] as String? ?? 'No Name',
-      description: map['description'] as String? ?? 'No Description',
+      id: json['id'] as String,
+      name: json['title'] as String,
+      description: json['description'] as String?,
       price: parsedPrice,
-      imageUrl: validImages.isNotEmpty
-          ? validImages.first
-          : 'https://placehold.co/600x400?text=No+Image',
-      category: (map['categories'] as List<dynamic>?)?.cast<String>() ?? [],
-      isFavorite: map['isFavorite'] as bool? ?? false,
+      imageUrl: json['image_url'] as String,
+      tags: parsedTags,
+      category: json['category'] as String?,
+      subCategory: json['sub_category'] as String?,
+      metal: json['metal'] as String?,
+      purity: json['purity'] as String?,
+      stoneType: json['stone_type'] as String?,
+      dimensions: json['dimensions'] as String?,
+      attributes: json['attributes'] as Map<String, dynamic>?,
+      createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
 }

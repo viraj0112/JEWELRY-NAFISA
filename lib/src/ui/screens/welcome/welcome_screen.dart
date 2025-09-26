@@ -1,12 +1,12 @@
-import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
+import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -26,38 +26,28 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   Future<void> _loadImages() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+
     try {
-      final jsonString = await rootBundle.loadString('assets/result.json');
-      final List<dynamic> jsonList = json.decode(jsonString);
-      final List<String> allImages = [];
-      for (var entry in jsonList) {
-        final item = entry as Map<String, dynamic>;
-        if (item['images'] != null && item['images'] is List) {
-          final images = List<String>.from(
-            (item['images'] as List).where(
-              (img) => img is String && img.startsWith('http'),
-            ),
-          );
-          allImages.addAll(images);
-        }
-      }
-      final validImages = allImages
-          .where(
-            (url) =>
-                url.toLowerCase().contains('.jpg') ||
-                url.toLowerCase().contains('.png'),
-          )
-          .toSet()
-          .toList();
-      validImages.shuffle();
+      final jewelryService = JewelryService(Supabase.instance.client);
+      final products = await jewelryService.getProducts(limit: 100);
+
+      final imageUrls = products.map((item) => item.imageUrl).toList();
+      
+      final uniqueImageUrls = imageUrls.toSet().toList();
+
+      uniqueImageUrls.shuffle(); 
+
       if (mounted) {
         setState(() {
-          _imageUrls.addAll(validImages.take(100));
+          _imageUrls.clear();
+          _imageUrls.addAll(uniqueImageUrls); 
           _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('Error loading images from JSON: $e');
+      debugPrint('Error loading images from Supabase: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -82,13 +72,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _imageUrls.isEmpty
-          ? const Center(child: Text("No images found."))
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 700;
-                return isWide ? _buildWideLayout() : _buildNarrowLayout();
-              },
-            ),
+              ? const Center(child: Text("No images found."))
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth > 700;
+                    return isWide ? _buildWideLayout() : _buildNarrowLayout();
+                  },
+                ),
     );
   }
 
@@ -115,24 +105,23 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-
-Widget _buildNarrowLayout() {
-  return Scaffold(
-    appBar: _buildAppBar(),
-    body: _buildImageGrid(), 
-    bottomNavigationBar: _buildFixedNavBar(), 
-  );
-}
+  Widget _buildNarrowLayout() {
+    return Scaffold(
+      appBar: _buildAppBar(),
+      body: _buildImageGrid(),
+      bottomNavigationBar: _buildFixedNavBar(),
+    );
+  }
 
   Widget _buildNavigationRail() {
-    final theme = Theme.of(context); 
+    final theme = Theme.of(context);
 
     return NavigationRail(
       selectedIndex: 0,
       onDestinationSelected: (index) => _navigateToLogin(),
       labelType: NavigationRailLabelType.all,
       useIndicator: true,
-      indicatorColor: Colors.transparent, 
+      indicatorColor: Colors.transparent,
       selectedLabelTextStyle: theme.textTheme.titleMedium?.copyWith(
         color: theme.colorScheme.primary,
         fontWeight: FontWeight.bold,
@@ -170,6 +159,11 @@ Widget _buildNarrowLayout() {
           label: Text('Search'),
         ),
         NavigationRailDestination(
+          icon: Icon(Icons.add_box_outlined),
+          selectedIcon: Icon(Icons.add_box_rounded),
+          label: Text('Boards'),
+        ),
+        NavigationRailDestination(
           icon: Icon(Icons.notifications_outlined),
           selectedIcon: Icon(Icons.notifications),
           label: Text('Updates'),
@@ -183,57 +177,52 @@ Widget _buildNarrowLayout() {
     );
   }
 
-
-  
-
- Widget _buildFixedNavBar() {
-  final theme = Theme.of(context);
-  return BottomNavigationBar(
-    currentIndex: 0,
-    onTap: (index) => _navigateToLogin(),
-    type: BottomNavigationBarType.fixed,
-  
-    backgroundColor: theme.colorScheme.surface, 
-    elevation: 8.0, 
-    selectedItemColor: theme.colorScheme.primary,
-    unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
-    items: const <BottomNavigationBarItem>[
-      BottomNavigationBarItem(
-        icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home),
-        label: 'Home',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.search_outlined),
-        activeIcon: Icon(Icons.search),
-        label: 'Search',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.add_box_outlined),
-        activeIcon: Icon(Icons.add_box_rounded),
-        label: 'Boards',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.notifications_outlined),
-        activeIcon: Icon(Icons.notifications),
-        label: 'Notifications',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(Icons.person_outline),
-        activeIcon: Icon(Icons.person),
-        label: 'Profile',
-      ),
-    ],
-  );
-}
-
+  Widget _buildFixedNavBar() {
+    final theme = Theme.of(context);
+    return BottomNavigationBar(
+      currentIndex: 0,
+      onTap: (index) => _navigateToLogin(),
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: theme.colorScheme.surface,
+      elevation: 8.0,
+      selectedItemColor: theme.colorScheme.primary,
+      unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
+      items: const <BottomNavigationBarItem>[
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home_outlined),
+          activeIcon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.search_outlined),
+          activeIcon: Icon(Icons.search),
+          label: 'Search',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.add_box_outlined),
+          activeIcon: Icon(Icons.add_box_rounded),
+          label: 'Boards',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.notifications_outlined),
+          activeIcon: Icon(Icons.notifications),
+          label: 'Notifications',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          activeIcon: Icon(Icons.person),
+          label: 'Profile',
+        ),
+      ],
+    );
+  }
 
   PreferredSizeWidget _buildAppBar() {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return AppBar(
-      automaticallyImplyLeading: false, 
-      titleSpacing: 16.0, 
+      automaticallyImplyLeading: false,
+      titleSpacing: 16.0,
       elevation: 0,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       title: _buildSearchBar(Theme.of(context)),
@@ -268,7 +257,6 @@ Widget _buildNarrowLayout() {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         alignment: Alignment.centerLeft,
-
         child: Row(
           children: [
             Icon(
@@ -345,8 +333,6 @@ Widget _buildNarrowLayout() {
       ],
     );
   }
-
-
 
   Widget _buildImageCard(BuildContext context, String imageUrl) {
     return Card(
