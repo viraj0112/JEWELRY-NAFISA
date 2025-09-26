@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/models/board.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
@@ -14,14 +15,16 @@ class BoardsProvider extends ChangeNotifier {
     if (userId == null) return;
 
     try {
-      final response =
-          await _supabase.from('boards').select('id, name').eq('user_id', userId);
+      final response = await _supabase
+          .from('boards')
+          .select('id, name')
+          .eq('user_id', userId);
 
       _boards.clear();
       for (var boardData in response) {
         _boards.add(
           Board(
-            id: boardData['id'], // Use the integer ID directly
+            id: boardData['id'], 
             name: boardData['name'],
           ),
         );
@@ -44,7 +47,7 @@ class BoardsProvider extends ChangeNotifier {
           .single();
 
       final newBoard = Board(
-        id: newBoardData['id'], // Use the integer ID directly
+        id: newBoardData['id'], 
         name: newBoardData['name'],
       );
       _boards.add(newBoard);
@@ -59,6 +62,7 @@ class BoardsProvider extends ChangeNotifier {
     if (userId == null) return;
 
     try {
+
       final existingPin = await _supabase
           .from('pins')
           .select('id')
@@ -84,14 +88,13 @@ class BoardsProvider extends ChangeNotifier {
       }
 
       await _supabase.from('boards_pins').insert({
-        'board_id': board.id, // Use the integer board ID directly
+        'board_id': board.id,
         'pin_id': pinId,
       });
 
       final boardIndex = _boards.indexWhere((b) => b.id == board.id);
       if (boardIndex != -1 &&
           !_boards[boardIndex].items.any((i) => i.id == item.id)) {
-        item.id = pinId;
         _boards[boardIndex].items.add(item);
         notifyListeners();
       }

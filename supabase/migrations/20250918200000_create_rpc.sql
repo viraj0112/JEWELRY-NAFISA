@@ -1,4 +1,4 @@
-create function get_total_users() 
+create or replace function get_total_users() 
 returns int as $$ 
     select count(*) from public.users;
 $$ language sql;
@@ -11,12 +11,12 @@ returns int as $$
   where au.last_sign_in_at > now() - interval '24 hours';
 $$ language sql security definer;
 
-create function get_total_posts()
+create or replace function get_total_posts()
 returns int as $$
   select (select count(*) from public.pins) + (select count(*) from public.assets);
 $$ language sql;
 
-create function get_total_referrals()
+create or replace function get_total_referrals()
 returns int as $$
   select count(*) from public.referrals;
 $$ language sql;
