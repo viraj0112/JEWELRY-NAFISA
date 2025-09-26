@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:jewelry_nafisa/src/admin/screens/admin_dashboard_screen.dart';
-import 'package:jewelry_nafisa/src/admin/screens/admin_users_screen.dart';
-import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
+import 'package:jewelry_nafisa/src/admin/constants/constant.dart';
+import 'package:jewelry_nafisa/src/admin/models/menu_item.dart';
+import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
+import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key});
@@ -14,33 +14,26 @@ class AdminShell extends StatefulWidget {
 }
 
 class _AdminShellState extends State<AdminShell> {
-  int _selectedIndex = 0;
+  MenuItem _selectedMenuItem = menuItems.first;
+  bool _isExpanded = false;
 
-  final List<Widget> _screens = [
-    const AdminDashboardScreen(),
-    const Center(child: Text("Product Upload")), // Placeholder
-    const Center(child: Text("Analytics")), // Placeholder
-    const AdminUsersScreen(),
-    const Center(child: Text("Quotes")), // Placeholder
-    const Center(child: Text("Push Notifications")), // Placeholder
-    const Center(child: Text("Auto Tagging")), // Placeholder
-  ];
-
-  void _selectScreen(int index) {
-    if (index == 7) {
-      _signOut();
-    } else {
+  void _onMenuItemSelected(MenuItem item) {
+    if (item.screen != null) {
+      // Close the drawer if on mobile and an item is selected
+      if (MediaQuery.of(context).size.width < 800) {
+        Navigator.of(context).pop();
+      }
       setState(() {
-        _selectedIndex = index;
+        _selectedMenuItem = item;
       });
     }
   }
 
   Future<void> _signOut() async {
-    await Supabase.instance.client.auth.signOut();
+    await SupabaseAuthService().signOut();
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const AuthGate()),
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
         (route) => false,
       );
     }
@@ -48,18 +41,54 @@ class _AdminShellState extends State<AdminShell> {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 800;
+        return isMobile ? _buildMobileLayout() : _buildDesktopLayout();
+      },
+    );
+  }
+
+  // --- Layouts ---
+
+  Widget _buildMobileLayout() {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_selectedMenuItem.title),
+        actions: _buildAppBarActions(), // Actions added here for mobile
+      ),
+      drawer: Drawer(
+        child: _buildSidePanel(isMobile: true),
+      ),
+      body:
+          _selectedMenuItem.screen ??
+          const Center(child: Text('Select a screen')),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
     return Scaffold(
       body: Row(
         children: [
-          SideMenu(
-            selectedIndex: _selectedIndex,
-            onItemSelected: _selectScreen,
+          MouseRegion(
+            onEnter: (_) => setState(() => _isExpanded = true),
+            onExit: (_) => setState(() => _isExpanded = false),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: _isExpanded ? 260 : 80,
+              curve: Curves.easeOut,
+              child: _buildSidePanel(isMobile: false),
+            ),
           ),
+          const VerticalDivider(width: 1, thickness: 1),
           Expanded(
             child: Column(
               children: [
-                _buildAppBar(context),
-                Expanded(child: _screens[_selectedIndex]),
+                _buildAdminAppBar(),
+                Expanded(
+                  child: _selectedMenuItem.screen ??
+                      const Center(child: Text('Select a screen')),
+                ),
               ],
             ),
           ),
@@ -68,176 +97,230 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
-  AppBar _buildAppBar(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final theme = Theme.of(context);
+  // --- UI Components ---
 
-    return AppBar(
-      automaticallyImplyLeading: false,
-      backgroundColor: theme.scaffoldBackgroundColor,
-      elevation: 0,
-      title: SizedBox(
-        height: 40,
-        child: TextField(
-          decoration: InputDecoration(
-            hintText: 'Search something...',
-            prefixIcon: const Icon(Icons.search, size: 20),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(24),
-              borderSide: BorderSide.none,
-            ),
-            filled: true,
-            fillColor: theme.colorScheme.surface,
+  Widget _buildAdminAppBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      child: Row(
+        children: [
+          Text(
+            _selectedMenuItem.title,
+            style: Theme.of(context).textTheme.headlineMedium,
           ),
-        ),
+          const Spacer(),
+          ..._buildAppBarActions(), // Using the shared actions
+        ],
       ),
-      actions: [
-        IconButton(
-          icon: Icon(
-            themeProvider.themeMode == ThemeMode.dark
-                ? Icons.light_mode_outlined
-                : Icons.dark_mode_outlined,
-          ),
-          onPressed: () => themeProvider.toggleTheme(),
-          tooltip: 'Toggle Theme',
-        ),
-        IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {}),
-        IconButton(
-          icon: const Icon(Icons.notifications_none_outlined),
-          onPressed: () {},
-        ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.0),
-          child: CircleAvatar(
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=3'),
-          ),
-        ),
-      ],
     );
   }
-}
 
-class SideMenu extends StatelessWidget {
-  final int selectedIndex;
-  final Function(int) onItemSelected;
+  // This new method creates the action buttons to be shared by both layouts
+  List<Widget> _buildAppBarActions() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    return [
+      IconButton(
+        icon: Icon(
+          themeProvider.themeMode == ThemeMode.light
+              ? Icons.dark_mode_outlined
+              : Icons.light_mode_outlined,
+        ),
+        onPressed: () => themeProvider.toggleTheme(),
+        tooltip: 'Toggle Theme',
+      ),
+      const SizedBox(width: 8),
+      _buildAdminProfileMenu(),
+      const SizedBox(width: 8), // Add some padding to the edge
+    ];
+  }
 
-  const SideMenu({
-    super.key,
-    required this.selectedIndex,
-    required this.onItemSelected,
-  });
+  Widget _buildAdminProfileMenu() {
+    return PopupMenuButton<String>(
+      tooltip: 'Profile Menu',
+      offset: const Offset(0, 50),
+      onSelected: (value) {
+        if (value == 'logout') {
+          _signOut();
+        }
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+        const PopupMenuItem<String>(
+          enabled: false,
+          child: ListTile(
+            leading: CircleAvatar(child: Text('A')),
+            title: Text('Admin', style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('admin@jewelrynafisa.com'),
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'logout',
+          child: Text('Log out'),
+        ),
+      ],
+      child: const CircleAvatar(
+        child: Text('A', style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildSidePanel({required bool isMobile}) {
+    final bool isPanelExpanded = isMobile || _isExpanded;
     final theme = Theme.of(context);
+
     return Container(
-      width: 250,
       color: theme.cardColor,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(24.0),
+          _buildHeader(isPanelExpanded),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              children: menuItems
+                  .map((item) => _buildMenuList(item, isPanelExpanded))
+                  .toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(bool isExpanded) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: 120,
+      child: Center(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          transitionBuilder: (child, animation) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          child: isExpanded
+              ? _buildExpandedHeader(theme)
+              : _buildCollapsedHeader(theme),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCollapsedHeader(ThemeData theme) {
+    return CircleAvatar(
+      key: const ValueKey('collapsed_header'),
+      backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+      child: Text(
+        'A',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: theme.colorScheme.primary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedHeader(ThemeData theme) {
+    return Padding(
+      key: const ValueKey('expanded_header'),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
             child: Text(
-              'AKD',
-              style: theme.textTheme.headlineMedium?.copyWith(
+              'A',
+              style: TextStyle(
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.primary,
               ),
             ),
           ),
-          Expanded(
-            child: ListView(
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildMenuItem(
-                  context,
-                  0,
-                  Icons.dashboard_outlined,
-                  'Dashboard',
-                ),
-                _buildMenuItem(
-                  context,
-                  1,
-                  Icons.cloud_upload_outlined,
-                  'Product Upload',
-                ),
-                _buildMenuItem(
-                  context,
-                  2,
-                  Icons.analytics_outlined,
-                  'Analytics',
-                ),
-                _buildMenuItem(
-                  context,
-                  3,
-                  Icons.people_outline,
-                  'Users Management',
-                ),
-                _buildMenuItem(
-                  context,
-                  4,
-                  Icons.format_quote_outlined,
-                  'Quotes',
-                ),
-                _buildMenuItem(
-                  context,
-                  5,
-                  Icons.notifications_active_outlined,
-                  'Push Notifications',
-                ),
-                _buildMenuItem(
-                  context,
-                  6,
-                  Icons.sell_outlined,
-                  'Auto Tagging Panel',
+                Text('Admin',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  'admin@jewelrynafisa.com',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
-          _buildMenuItem(context, 7, Icons.logout, 'Logout'),
         ],
       ),
     );
   }
 
-  Widget _buildMenuItem(
-    BuildContext context,
-    int index,
-    IconData icon,
-    String text,
-  ) {
-    final isSelected = selectedIndex == index;
+  Widget _buildMenuList(MenuItem item, bool isExpanded) {
+    final bool isSelected = _selectedMenuItem.title == item.title;
     final theme = Theme.of(context);
-    final color = isSelected ? theme.colorScheme.primary : Colors.grey[600];
-    final bgColor = isSelected
-        ? theme.colorScheme.primary.withOpacity(0.1)
-        : Colors.transparent;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      child: InkWell(
-        onTap: () => onItemSelected(index),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 16),
-              Text(
-                text,
-                style: TextStyle(color: color, fontWeight: FontWeight.w600),
+    if (!isExpanded) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: Tooltip(
+          message: item.title,
+          child: Material(
+            color: isSelected
+                ? theme.colorScheme.primary.withOpacity(0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: () => _onMenuItemSelected(item),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Icon(
+                  item.icon,
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : theme.iconTheme.color,
+                ),
               ),
-            ],
+            ),
           ),
         ),
-      ),
-    );
+      );
+    }
+
+    if (item.subItems == null || item.subItems!.isEmpty) {
+      return ListTile(
+        leading: Icon(item.icon),
+        title: Text(item.title),
+        onTap: () => _onMenuItemSelected(item),
+        selected: isSelected,
+        selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
+        selectedColor: theme.colorScheme.primary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      );
+    } else {
+      return ExpansionTile(
+        leading: Icon(item.icon),
+        title: Text(item.title),
+        initiallyExpanded: isSelected,
+        childrenPadding: const EdgeInsets.only(left: 20.0),
+        children: item.subItems!
+            .map(
+              (subItem) => ListTile(
+                title: Text(subItem.title),
+                leading: Icon(subItem.icon, size: 20),
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${subItem.title} clicked')),
+                  );
+                },
+              ),
+            )
+            .toList(),
+      );
+    }
   }
 }

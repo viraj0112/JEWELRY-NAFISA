@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart';
+// Import the new board model
+import 'package:jewelry_nafisa/src/models/board.dart'; 
 
 class BoardCard extends StatelessWidget {
   final Board board;

@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 class SupabaseAuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
-
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: kIsWeb
         ? const String.fromEnvironment('GOOGLE_SIGN_IN_WEB_CLIENT_ID')
@@ -13,15 +12,32 @@ class SupabaseAuthService {
   );
 
   User? get currentUser => _supabase.auth.currentUser;
-
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
+
+  Future<User?> signUpAdmin({
+    required String email,
+    required String password,
+    required String username,
+  }) async {
+    try {
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {'username': username, 'role': 'admin'},
+      );
+      return response.user;
+    } catch (e) {
+      debugPrint('Exception during admin sign up: $e');
+      return null;
+    }
+  }
 
   Future<User?> signUpWithEmailPassword(
     String email,
     String password,
     String username,
     String birthdate,
-    String? referralCode, 
+    String? referralCode,
   ) async {
     try {
       final response = await _supabase.auth.signUp(
