@@ -1,89 +1,72 @@
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/admin/models/menu_item.dart';
-import 'package:jewelry_nafisa/src/admin/screens/analytics_screen.dart';
-import 'package:jewelry_nafisa/src/admin/screens/b2b_creators_screen.dart';
 import 'package:jewelry_nafisa/src/admin/screens/dashboard_screen.dart';
-import 'package:jewelry_nafisa/src/admin/screens/notifications_screen.dart';
 import 'package:jewelry_nafisa/src/admin/screens/users_screen.dart';
-import 'package:jewelry_nafisa/src/admin/screens/emails_screen.dart';
-import 'package:jewelry_nafisa/src/admin/screens/reports_screen.dart';
+import 'package:jewelry_nafisa/src/admin/screens/b2b_creators_screen.dart';
+import 'package:jewelry_nafisa/src/admin/screens/analytics_screen.dart';
+import 'package:jewelry_nafisa/src/admin/screens/monetization_screen.dart';
+import 'package:jewelry_nafisa/src/admin/screens/referrals_screen.dart';
 import 'package:jewelry_nafisa/src/admin/screens/settings_screen.dart';
+// Note: Some screens might share sections or be simple placeholders for now.
+// For example, Activity Logs might be a separate screen or part of another.
+// Based on the doc, making it a main item.
 import 'package:jewelry_nafisa/src/admin/screens/activity_logs_screen.dart';
 
+
 final List<MenuItem> menuItems = [
-  MenuItem(title: 'Dashboard', icon: Icons.dashboard_outlined, screen: const DashboardScreen()),
+  // 1. Dashboard
   MenuItem(
-    title: 'Analytics',
-    icon: Icons.analytics_outlined,
-    screen: const AnalyticsScreen(),
-    subItems: [
-      MenuItem(title: 'Post Analytics', icon: Icons.remove_red_eye_outlined),
-      MenuItem(title: 'Members Behavior', icon: Icons.auto_graph),
-      MenuItem(title: 'Credit System', icon: Icons.credit_score),
-      MenuItem(title: 'Referral Tracking', icon: Icons.trending_up_sharp),
-      MenuItem(title: 'Search & Filters', icon: Icons.search_outlined),
-      MenuItem(title: 'Geo Analytics', icon: Icons.map_outlined),
-    ],
+    title: 'Dashboard',
+    icon: Icons.dashboard_outlined,
+    screen: const DashboardScreen(),
   ),
+
+  // 2. Users Management
   MenuItem(
-    title: 'Users',
+    title: 'Users Management',
     icon: Icons.people_outline,
-    screen: const UsersScreen(),
-    subItems: [
-      MenuItem(title: 'Members', icon: Icons.person_add_outlined),
-      MenuItem(title: 'Non-Members', icon: Icons.person_add_disabled_outlined),
-      MenuItem(title: 'Referrals', icon: Icons.share_outlined),
-    ],
+    screen: const UsersScreen(), // Main screen shows all users
   ),
+
+  // 3. B2B Creators
   MenuItem(
     title: 'B2B Creators',
     icon: Icons.palette_outlined,
     screen: const B2BCreatorsScreen(),
-    subItems: [
-      MenuItem(title: '3D Artists', icon: Icons.palette_outlined),
-      MenuItem(title: 'Sketch Designers', icon: Icons.brush_outlined),
-      MenuItem(title: 'Uploads', icon: Icons.file_upload_outlined),
-    ],
   ),
+
+  // 4. Analytics & Insights
   MenuItem(
-    title: 'Notifications',
-    icon: Icons.message_outlined,
-    screen: NotificationsScreen(),
-    subItems: [
-      MenuItem(title: 'Admin Notifications', icon: Icons.shield_outlined),
-      MenuItem(title: 'User Notifications', icon: Icons.person_outline_rounded),
-      MenuItem(title: 'Alerts', icon: Icons.add_alert_sharp),
-    ],
+    title: 'Analytics',
+    icon: Icons.analytics_outlined,
+    screen: const AnalyticsScreen(),
   ),
+  
+  // 5. Monetization & Membership
   MenuItem(
-    title: 'Reports',
-    icon: Icons.add_chart,
-    screen: ReportsScreen(),
-    subItems: [
-      MenuItem(title: 'Platform Reports', icon: Icons.bar_chart),
-      MenuItem(title: 'User Reports', icon: Icons.stacked_line_chart),
-      MenuItem(title: 'Content Reports', icon: Icons.person_pin_outlined),
-      MenuItem(title: 'Revenue Reports', icon: Icons.monetization_on_outlined),
-    ],
+    title: 'Monetization',
+    icon: Icons.monetization_on_outlined,
+    screen: const MonetizationScreen(),
   ),
+
+  // 6. Referrals & Growth
   MenuItem(
+    title: 'Referrals',
+    icon: Icons.share_outlined,
+    screen: const ReferralsScreen(),
+  ),
+  
+  // 7. Activity Logs (as a separate item based on your previous code)
+   MenuItem(
     title: 'Activity Logs',
-    icon: Icons.settings_backup_restore_outlined,
-    screen: ActivityLogsScreen(),
-    subItems: [
-      MenuItem(title: 'Admin Logs', icon: Icons.admin_panel_settings_outlined),
-      MenuItem(title: 'User Logs', icon: Icons.supervised_user_circle_outlined),
-      MenuItem(title: 'Export Logs', icon: Icons.download_outlined),
-    ],
+    icon: Icons.history_toggle_off_outlined,
+    screen: const ActivityLogsScreen(),
   ),
-  MenuItem(title: 'Emails', icon: Icons.email_outlined, screen: const EmailsScreen()),
+  
+  // 8. System Settings
   MenuItem(
     title: 'Settings',
-    icon: Icons.settings,
+    icon: Icons.settings_outlined,
     screen: const SettingsScreen(),
-    subItems: [
-      MenuItem(title: 'User Roles & Permissions', icon: Icons.shield_outlined),
-      MenuItem(title: 'Webhooks', icon: Icons.web_asset),
-    ],
   ),
 ];

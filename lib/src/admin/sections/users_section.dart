@@ -1,308 +1,134 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart'; // Using the new StyledCard
 
-class UsersSection extends StatelessWidget {
+class UsersSection extends StatefulWidget {
   const UsersSection({super.key});
 
   @override
+  State<UsersSection> createState() => _UsersSectionState();
+}
+
+class _UsersSectionState extends State<UsersSection> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    // TODO: Fetch initial user data from Supabase based on filter
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        bool isWide = constraints.maxWidth > 800;
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Page header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Users Management',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Add User'),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // Users table
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Table header with search and filters
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              decoration: InputDecoration(
-                                hintText: 'Search users...',
-                                prefixIcon:
-                                    const Icon(Icons.search, size: 20),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide.none,
-                                ),
-                                fillColor: Colors.grey.shade50,
-                                filled: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          OutlinedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(Icons.filter_list, size: 16),
-                            label: const Text('Filter'),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Users table
-                      isWide ? _buildUsersTable(context) : _buildUsersList(context),
-
-                      const SizedBox(height: 24),
-
-                      // Pagination
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Showing 1-10 of 24,567 users',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 14,
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              IconButton(
-                                onPressed: () {},
-                                icon: const Icon(Icons.chevron_left),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).primaryColor,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  '1',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              TextButton(
-                                onPressed: () {},
-                                child: const Text('2'),
-                              ),
-                              TextButton(
-                                onPressed: () {},
-                                child: const Text('3'),
-                              ),
-                              const Text('...'),
-                              TextButton(
-                                onPressed: () {},
-                                child: const Text('100'),
-                              ),
-                              IconButton(
-                                onPressed: () {},
-                                icon: const Icon(Icons.chevron_right),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildUsersList(BuildContext context) {
-    final users = _getUsers();
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: users.length,
-      separatorBuilder: (context, index) => const Divider(),
-      itemBuilder: (context, index) {
-        final user = users[index];
-        return ListTile(
-          leading: CircleAvatar(
-            radius: 16,
-            backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-            child: Text(
-              user['name']![0],
-              style: TextStyle(
-                color: Theme.of(context).primaryColor,
-                fontWeight: FontWeight.w500,
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Users Management', style: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
+            ElevatedButton.icon(
+              onPressed: () { /* TODO: Implement Add User functionality */ },
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add User'),
             ),
-          ),
-          title: Text(user['name']!),
-          subtitle: Text(user['email']!),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
+          ],
+        ),
+        const SizedBox(height: 24),
+        TabBar(
+          controller: _tabController,
+          labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          unselectedLabelStyle: GoogleFonts.inter(),
+          tabs: const [
+            Tab(text: 'Members (Premium)'),
+            Tab(text: 'Non-Members (Free)'),
+            Tab(text: 'B2B Creators'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
             children: [
-               _statusChip(user),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.edit, size: 16),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.delete, size: 16, color: Colors.red),
-              ),
+              _buildUserTable('Members'),
+              _buildUserTable('Non-Members'),
+              _buildUserTable('B2B Creators'),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  DataTable _buildUsersTable(BuildContext context) {
-    final users = _getUsers();
-
-    return DataTable(
-      columns: const [
-        DataColumn(label: Text('Name')),
-        DataColumn(label: Text('Email')),
-        DataColumn(label: Text('Status')),
-        DataColumn(label: Text('Role')),
-        DataColumn(label: Text('Joined')),
-        DataColumn(label: Text('Actions')),
+        ),
       ],
-      rows: users.map((user) => DataRow(
-        cells: [
-          DataCell(
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                  child: Text(
-                    user['name']![0],
-                    style: TextStyle(
-                      color: Theme.of(context).primaryColor,
-                      fontWeight: FontWeight.w500,
-                    ),
+    );
+  }
+
+  Widget _buildUserTable(String userType) {
+    // TODO: Fetch data from Supabase for the specific userType
+    return StyledCard(
+      child: Column(
+        children: [
+          // The search and filter row for the table
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search in $userType...',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                    fillColor: Theme.of(context).scaffoldBackgroundColor,
+                    filled: true,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Text(user['name']!),
-              ],
-            ),
-          ),
-          DataCell(Text(user['email']!)),
-          DataCell(_statusChip(user)),
-          DataCell(_roleChip(user)),
-          DataCell(Text(user['joined']!)),
-          DataCell(Row(
-            children: [
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.edit, size: 16),
               ),
-              const SizedBox(width: 8),
-              IconButton(
+              const SizedBox(width: 16),
+              OutlinedButton.icon(
                 onPressed: () {},
-                icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                icon: const Icon(Icons.file_upload_outlined, size: 16),
+                label: const Text('Export'),
               ),
             ],
-          )),
+          ),
+          const SizedBox(height: 16),
+          // A responsive DataTable
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Name')),
+                  DataColumn(label: Text('Email')),
+                  DataColumn(label: Text('Status')),
+                  DataColumn(label: Text('Joined Date')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                // Placeholder data
+                rows: List.generate(15, (index) => DataRow(cells: [
+                    DataCell(Text('$userType User ${index + 1}')),
+                    DataCell(Text('user${index+1}@email.com')),
+                    DataCell(Chip(
+                      label: Text(index % 3 == 0 ? 'Inactive' : 'Active'),
+                      backgroundColor: (index % 3 == 0 ? Colors.red : Colors.green).withOpacity(0.1),
+                      side: BorderSide.none,
+                    )),
+                    DataCell(Text('2025-09-2${8 - index}')),
+                    DataCell(Row(
+                      children: [
+                        IconButton(onPressed: () {}, icon: const Icon(Icons.edit_outlined, size: 20)),
+                        IconButton(onPressed: () {}, icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20)),
+                      ],
+                    )),
+                ])),
+              ),
+            ),
+          ),
         ],
-      )).toList(),
-    );
-  }
-   Widget _statusChip(Map<String, String> user) {
-    return Chip(
-      label: Text(user['status']!),
-      backgroundColor: user['status'] == 'Active'
-          ? Colors.green.withOpacity(0.1)
-          : Colors.red.withOpacity(0.1),
-      labelStyle: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        color: user['status'] == 'Active' ? Colors.green : Colors.red,
       ),
     );
-  }
-
-  Widget _roleChip(Map<String, String> user) {
-    return Chip(
-      label: Text(user['role']!),
-      backgroundColor: user['role'] == 'Premium'
-          ? Colors.purple.withOpacity(0.1)
-          : Colors.blue.withOpacity(0.1),
-      labelStyle: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        color: user['role'] == 'Premium' ? Colors.purple : Colors.blue,
-      ),
-    );
-  }
-  List<Map<String,String>> _getUsers() {
-    return [
-      {
-        'name': 'Sarah Chen',
-        'email': 'sarah.chen@email.com',
-        'status': 'Active',
-        'role': 'Premium',
-        'joined': 'Jan 15, 2024',
-      },
-      {
-        'name': 'Mike Johnson',
-        'email': 'mike.j@email.com',
-        'status': 'Active',
-        'role': 'Basic',
-        'joined': 'Feb 2, 2024',
-      },
-      {
-        'name': 'Emma Wilson',
-        'email': 'emma.wilson@email.com',
-        'status': 'Inactive',
-        'role': 'Premium',
-        'joined': 'Dec 20, 2023',
-      },
-      {
-        'name': 'David Brown',
-        'email': 'david.brown@email.com',
-        'status': 'Active',
-        'role': 'Basic',
-        'joined': 'Mar 5, 2024',
-      },
-      {
-        'name': 'Lisa Garcia',
-        'email': 'lisa.garcia@email.com',
-        'status': 'Active',
-        'role': 'Premium',
-        'joined': 'Jan 28, 2024',
-      },
-    ];
-
   }
 }

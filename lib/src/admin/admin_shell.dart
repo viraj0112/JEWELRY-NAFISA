@@ -5,6 +5,47 @@ import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:jewelry_nafisa/src/admin/widgets/filter_component.dart';
+
+// ... (The _HoverableMenuItem widget remains unchanged)
+class _HoverableMenuItem extends StatefulWidget {
+  final Widget child;
+  final bool isSelected;
+  const _HoverableMenuItem({required this.child, required this.isSelected});
+  @override
+  State<_HoverableMenuItem> createState() => _HoverableMenuItemState();
+}
+
+class _HoverableMenuItemState extends State<_HoverableMenuItem> {
+  bool _isHovered = false;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Color backgroundColor;
+    if (widget.isSelected) {
+      backgroundColor = theme.primaryColor.withOpacity(0.1);
+    } else if (_isHovered) {
+      backgroundColor = theme.hoverColor;
+    } else {
+      backgroundColor = Colors.transparent;
+    }
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        transform: Matrix4.translationValues(_isHovered ? 5 : 0, 0, 0),
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: widget.child,
+      ),
+    );
+  }
+}
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key});
@@ -15,12 +56,10 @@ class AdminShell extends StatefulWidget {
 
 class _AdminShellState extends State<AdminShell> {
   MenuItem _selectedMenuItem = menuItems.first;
-  bool _isExpanded = false;
 
   void _onMenuItemSelected(MenuItem item) {
     if (item.screen != null) {
-      // Close the drawer if on mobile and an item is selected
-      if (MediaQuery.of(context).size.width < 800) {
+      if (MediaQuery.of(context).size.width < 800 && Navigator.canPop(context)) {
         Navigator.of(context).pop();
       }
       setState(() {
@@ -33,14 +72,14 @@ class _AdminShellState extends State<AdminShell> {
     await SupabaseAuthService().signOut();
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-        (route) => false,
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()), (route) => false,
       );
     }
   }
-
+  
   @override
   Widget build(BuildContext context) {
+    // The provider has been REMOVED from here. It must be added where AdminShell is called.
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 800;
@@ -49,46 +88,32 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
-  // --- Layouts ---
-
+  // --- LAYOUTS ---
   Widget _buildMobileLayout() {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_selectedMenuItem.title),
-        actions: _buildAppBarActions(), // Actions added here for mobile
-      ),
-      drawer: Drawer(
-        child: _buildSidePanel(isMobile: true),
-      ),
-      body:
-          _selectedMenuItem.screen ??
-          const Center(child: Text('Select a screen')),
+      appBar: AppBar(title: Text(_selectedMenuItem.title), actions: _buildAppBarActions()),
+      drawer: Drawer(child: _buildSidePanel()),
+      body: _buildPageContent(),
     );
   }
 
   Widget _buildDesktopLayout() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
+      backgroundColor: isDarkMode ? const Color(0xFF161C24) : const Color(0xFFF9FAFB),
       body: Row(
         children: [
-          MouseRegion(
-            onEnter: (_) => setState(() => _isExpanded = true),
-            onExit: (_) => setState(() => _isExpanded = false),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              width: _isExpanded ? 260 : 80,
-              curve: Curves.easeOut,
-              child: _buildSidePanel(isMobile: false),
-            ),
-          ),
+          SizedBox(width: 260, child: _buildSidePanel()),
           const VerticalDivider(width: 1, thickness: 1),
           Expanded(
             child: Column(
               children: [
-                _buildAdminAppBar(),
-                Expanded(
-                  child: _selectedMenuItem.screen ??
-                      const Center(child: Text('Select a screen')),
+                _buildAdminHeader(),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  child: FilterComponent(),
                 ),
+                Expanded(child: _buildPageContent()),
               ],
             ),
           ),
@@ -97,26 +122,42 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
-  // --- UI Components ---
+  // --- UI COMPONENTS ---
+  Widget _buildPageContent() {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: Container(
+        key: ValueKey<String>(_selectedMenuItem.title),
+        child: _selectedMenuItem.screen,
+      ),
+    );
+  }
 
-  Widget _buildAdminAppBar() {
-    return Padding(
+  Widget _buildAdminHeader() {
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
       child: Row(
         children: [
-          Text(
-            _selectedMenuItem.title,
-            style: Theme.of(context).textTheme.headlineMedium,
+          Expanded(
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Search...',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                fillColor: Theme.of(context).scaffoldBackgroundColor,
+                filled: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+              ),
+            ),
           ),
-          const Spacer(),
-          ..._buildAppBarActions(), // Using the shared actions
+          const SizedBox(width: 16),
+          ..._buildAppBarActions(),
         ],
       ),
     );
   }
 
-  // This new method creates the action buttons to be shared by both layouts
-  List<Widget> _buildAppBarActions() {
+    List<Widget> _buildAppBarActions() {
     final themeProvider = Provider.of<ThemeProvider>(context);
     return [
       IconButton(
@@ -130,7 +171,7 @@ class _AdminShellState extends State<AdminShell> {
       ),
       const SizedBox(width: 8),
       _buildAdminProfileMenu(),
-      const SizedBox(width: 8), // Add some padding to the edge
+      const SizedBox(width: 8),
     ];
   }
 
@@ -144,18 +185,24 @@ class _AdminShellState extends State<AdminShell> {
         }
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           enabled: false,
           child: ListTile(
-            leading: CircleAvatar(child: Text('A')),
-            title: Text('Admin', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('admin@jewelrynafisa.com'),
+            leading: const CircleAvatar(child: Text('A')),
+            title: const Text('Admin', style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+              'admin@jewelrynafisa.com',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ),
         ),
         const PopupMenuDivider(),
         const PopupMenuItem<String>(
           value: 'logout',
-          child: Text('Log out'),
+          child: ListTile(
+            leading: Icon(Icons.logout),
+            title: Text('Log out'),
+          ),
         ),
       ],
       child: const CircleAvatar(
@@ -164,22 +211,18 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
-  Widget _buildSidePanel({required bool isMobile}) {
-    final bool isPanelExpanded = isMobile || _isExpanded;
+  Widget _buildSidePanel() {
     final theme = Theme.of(context);
-
     return Container(
       color: theme.cardColor,
       child: Column(
         children: [
-          _buildHeader(isPanelExpanded),
+          _buildHeader(theme),
           const Divider(height: 1),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              children: menuItems
-                  .map((item) => _buildMenuList(item, isPanelExpanded))
-                  .toList(),
+              padding: const EdgeInsets.all(8.0),
+              children: menuItems.map((item) => _buildMenuList(item, theme)).toList(),
             ),
           ),
         ],
@@ -187,139 +230,60 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
-  Widget _buildHeader(bool isExpanded) {
-    final theme = Theme.of(context);
+  Widget _buildHeader(ThemeData theme) {
     return SizedBox(
-      height: 120,
+      height: 80,
       child: Center(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          transitionBuilder: (child, animation) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          child: isExpanded
-              ? _buildExpandedHeader(theme)
-              : _buildCollapsedHeader(theme),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.diamond_outlined, size: 32),
+              const SizedBox(width: 12),
+              Text("JEWELRY", style: theme.textTheme.titleLarge),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildCollapsedHeader(ThemeData theme) {
-    return CircleAvatar(
-      key: const ValueKey('collapsed_header'),
-      backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-      child: Text(
-        'A',
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: theme.colorScheme.primary,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExpandedHeader(ThemeData theme) {
-    return Padding(
-      key: const ValueKey('expanded_header'),
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-            child: Text(
-              'A',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Admin',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                Text(
-                  'admin@jewelrynafisa.com',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuList(MenuItem item, bool isExpanded) {
+  Widget _buildMenuList(MenuItem item, ThemeData theme) {
     final bool isSelected = _selectedMenuItem.title == item.title;
-    final theme = Theme.of(context);
-
-    if (!isExpanded) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4.0),
-        child: Tooltip(
-          message: item.title,
-          child: Material(
-            color: isSelected
-                ? theme.colorScheme.primary.withOpacity(0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              onTap: () => _onMenuItemSelected(item),
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Icon(
-                  item.icon,
-                  color: isSelected
-                      ? theme.colorScheme.primary
-                      : theme.iconTheme.color,
-                ),
-              ),
-            ),
-          ),
+    final bool hasSubItems = item.subItems != null && item.subItems!.isNotEmpty;
+    if (!hasSubItems) {
+      return _HoverableMenuItem(
+        isSelected: isSelected,
+        child: ListTile(
+          leading: Icon(item.icon, color: isSelected ? theme.primaryColor : null),
+          title: Text(item.title, style: TextStyle(color: isSelected ? theme.primaryColor : null)),
+          onTap: () => _onMenuItemSelected(item),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-      );
-    }
-
-    if (item.subItems == null || item.subItems!.isEmpty) {
-      return ListTile(
-        leading: Icon(item.icon),
-        title: Text(item.title),
-        onTap: () => _onMenuItemSelected(item),
-        selected: isSelected,
-        selectedTileColor: theme.colorScheme.primary.withOpacity(0.1),
-        selectedColor: theme.colorScheme.primary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       );
     } else {
-      return ExpansionTile(
-        leading: Icon(item.icon),
-        title: Text(item.title),
-        initiallyExpanded: isSelected,
-        childrenPadding: const EdgeInsets.only(left: 20.0),
-        children: item.subItems!
-            .map(
-              (subItem) => ListTile(
-                title: Text(subItem.title),
-                leading: Icon(subItem.icon, size: 20),
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${subItem.title} clicked')),
-                  );
-                },
+      bool isChildSelected = item.subItems!.any((sub) => sub.title == _selectedMenuItem.title);
+      return _HoverableMenuItem(
+        isSelected: isChildSelected,
+        child: ExpansionTile(
+          leading: Icon(item.icon, color: isChildSelected ? theme.primaryColor : null),
+          title: Text(item.title, style: TextStyle(color: isChildSelected ? theme.primaryColor : null)),
+          initiallyExpanded: isChildSelected,
+          childrenPadding: const EdgeInsets.only(left: 20.0),
+          children: item.subItems!.map((subItem) {
+            final bool isSubItemSelected = _selectedMenuItem.title == subItem.title;
+            return _HoverableMenuItem(
+              isSelected: isSubItemSelected,
+              child: ListTile(
+                title: Text(subItem.title, style: TextStyle(color: isSubItemSelected ? theme.primaryColor : null)),
+                leading: Icon(subItem.icon, size: 20, color: isSubItemSelected ? theme.primaryColor : null),
+                onTap: () => _onMenuItemSelected(subItem),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-            )
-            .toList(),
+            );
+          }).toList(),
+        ),
       );
     }
   }
