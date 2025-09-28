@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
-// A. STYLED CARD - The new base for all dashboard widgets
+// ... (StyledCard class remains the same)
 class StyledCard extends StatefulWidget {
   final Widget child;
   const StyledCard({super.key, required this.child});
@@ -25,6 +25,8 @@ class _StyledCardState extends State<StyledCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(20),
+        margin: const EdgeInsets.symmetric(
+            vertical: 8.0), // Added margin for spacing in lists
         decoration: BoxDecoration(
           color: isDarkMode ? const Color(0xFF212B36) : Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -43,18 +45,52 @@ class _StyledCardState extends State<StyledCard> {
   }
 }
 
-// B. METRICS GRID - Redesigned metric cards with hover effects
+// MODIFIED: MetricsGrid now accepts data from the FutureBuilder
 class MetricsGrid extends StatelessWidget {
-  const MetricsGrid({super.key});
+  final int totalUsers;
+  final int totalPosts;
+  final int creditsUsed;
+  final int referrals;
+
+  const MetricsGrid({
+    super.key,
+    required this.totalUsers,
+    required this.totalPosts,
+    required this.creditsUsed,
+    required this.referrals,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Fetch this data from Supabase based on filter
     final metricsData = [
-      {'icon': Icons.people_alt_outlined, 'color': const Color(0xFF00B8D9), 'label': 'Total Users', 'value': 7081, 'change': 12.3},
-      {'icon': Icons.article_outlined, 'color': const Color(0xFF00AB55), 'label': 'Total Posts', 'value': 25234, 'change': 8.7},
-      {'icon': Icons.credit_card, 'color': const Color(0xFFFFC107), 'label': 'Credits Used', 'value': 2341, 'change': -3.1},
-      {'icon': Icons.share_outlined, 'color': const Color(0xFFFF4842), 'label': 'Referrals', 'value': 156, 'change': 18.9},
+      {
+        'icon': Icons.people_alt_outlined,
+        'color': const Color(0xFF00B8D9),
+        'label': 'Total Users',
+        'value': totalUsers,
+        'change': 12.3
+      },
+      {
+        'icon': Icons.article_outlined,
+        'color': const Color(0xFF00AB55),
+        'label': 'Total Posts',
+        'value': totalPosts,
+        'change': 8.7
+      },
+      {
+        'icon': Icons.credit_card,
+        'color': const Color(0xFFFFC107),
+        'label': 'Credits Used',
+        'value': creditsUsed,
+        'change': -3.1
+      },
+      {
+        'icon': Icons.share_outlined,
+        'color': const Color(0xFFFF4842),
+        'label': 'Referrals',
+        'value': referrals,
+        'change': 18.9
+      },
     ];
 
     return LayoutBuilder(builder: (context, constraints) {
@@ -62,6 +98,7 @@ class MetricsGrid extends StatelessWidget {
         child: Wrap(
           spacing: 24.0,
           runSpacing: 24.0,
+          alignment: WrapAlignment.center,
           children: List.generate(metricsData.length, (index) {
             final metric = metricsData[index];
             return AnimationConfiguration.staggeredList(
@@ -81,10 +118,11 @@ class MetricsGrid extends StatelessWidget {
   }
 }
 
+// ... (The rest of the file remains the same)
 class _MetricCard extends StatelessWidget {
   final Map<String, dynamic> data;
   const _MetricCard({required this.data});
-  
+
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat('#,###');
@@ -92,31 +130,46 @@ class _MetricCard extends StatelessWidget {
     final isPositive = change >= 0;
 
     return StyledCard(
-      child: SizedBox(
-        width: 220,
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 200, maxWidth: 260),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // Important for Wrap layout
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(data['label'], style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
+                Text(data['label'],
+                    style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade600)),
                 Container(
                   padding: const EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(color: (data['color'] as Color).withOpacity(0.1), shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                      color: (data['color'] as Color).withOpacity(0.1),
+                      shape: BoxShape.circle),
                   child: Icon(data['icon'], color: data['color'], size: 22),
                 ),
               ],
             ),
             const SizedBox(height: 24),
-            Text(formatter.format(data['value']), style: GoogleFonts.inter(fontSize: 32, fontWeight: FontWeight.bold)),
+            Text(formatter.format(data['value']),
+                style: GoogleFonts.inter(
+                    fontSize: 32, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(isPositive ? Icons.arrow_upward : Icons.arrow_downward, color: isPositive ? Colors.green : Colors.red, size: 16),
+                Icon(isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                    color: isPositive ? Colors.green : Colors.red, size: 16),
                 const SizedBox(width: 4),
-                Text('${isPositive ? '+' : ''}${change.toStringAsFixed(1)}%', style: GoogleFonts.inter(color: isPositive ? Colors.green : Colors.red, fontWeight: FontWeight.w600)),
-                Text(' vs last month', style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 12))
+                Text('${isPositive ? '+' : ''}${change.toStringAsFixed(1)}%',
+                    style: GoogleFonts.inter(
+                        color: isPositive ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.w600)),
+                Text(' vs last month',
+                    style: GoogleFonts.inter(
+                        color: Colors.grey.shade500, fontSize: 12))
               ],
             ),
           ],
@@ -126,7 +179,6 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-// C. CHART GRID - The main container for all the new interactive charts
 class ChartGrid extends StatelessWidget {
   const ChartGrid({super.key});
 
@@ -138,7 +190,7 @@ class ChartGrid extends StatelessWidget {
       const DailyUsageCard(),
       const GoalCompletionCard(),
     ];
-    
+
     return AnimationLimiter(
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -147,7 +199,9 @@ class ChartGrid extends StatelessWidget {
             spacing: 24,
             runSpacing: 24,
             children: List.generate(chartWidgets.length, (index) {
-              final cardWidth = isMobile ? constraints.maxWidth : (constraints.maxWidth / 2) - 12;
+              final cardWidth = isMobile
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth / 2) - 12;
               return AnimationConfiguration.staggeredList(
                 position: index,
                 duration: const Duration(milliseconds: 500),
@@ -170,7 +224,6 @@ class ChartGrid extends StatelessWidget {
   }
 }
 
-// D. NEW INTERACTIVE CHARTS
 class _ChartCardHeader extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -181,9 +234,13 @@ class _ChartCardHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+        Text(title,
+            style:
+                GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 4),
-        Text(subtitle, style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 12)),
+        Text(subtitle,
+            style:
+                GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 12)),
       ],
     );
   }
@@ -191,31 +248,43 @@ class _ChartCardHeader extends StatelessWidget {
 
 class UserGrowthCard extends StatelessWidget {
   const UserGrowthCard({super.key});
-  // TODO: Fetch chart data from Supabase
   @override
   Widget build(BuildContext context) {
     return StyledCard(
       child: Column(
         children: [
-          const _ChartCardHeader(title: 'User Growth Trend', subtitle: 'Members vs Non-Members'),
+          const _ChartCardHeader(
+              title: 'User Growth Trend', subtitle: 'Members vs Non-Members'),
           const SizedBox(height: 20),
           Expanded(
             child: SfCartesianChart(
               primaryXAxis: const CategoryAxis(),
-              legend: const Legend(isVisible: true, position: LegendPosition.top),
+              legend:
+                  const Legend(isVisible: true, position: LegendPosition.top),
               trackballBehavior: TrackballBehavior(
                   enable: true,
                   activationMode: ActivationMode.singleTap,
-                  tooltipSettings: const InteractiveTooltip(enable: true, color: Colors.black)),
+                  tooltipSettings: const InteractiveTooltip(
+                      enable: true, color: Colors.black)),
               series: <SplineSeries<Map<String, dynamic>, String>>[
                 SplineSeries<Map<String, dynamic>, String>(
                     name: 'Members',
-                    dataSource: const [{'x': 'Jan', 'y': 1200}, {'x': 'Feb', 'y': 1800}, {'x': 'Mar', 'y': 2500}, {'x': 'Apr', 'y': 2300}],
+                    dataSource: const [
+                      {'x': 'Jan', 'y': 1200},
+                      {'x': 'Feb', 'y': 1800},
+                      {'x': 'Mar', 'y': 2500},
+                      {'x': 'Apr', 'y': 2300}
+                    ],
                     xValueMapper: (data, _) => data['x'],
                     yValueMapper: (data, _) => data['y']),
                 SplineSeries<Map<String, dynamic>, String>(
                     name: 'Non-Members',
-                    dataSource: const [{'x': 'Jan', 'y': 2200}, {'x': 'Feb', 'y': 2800}, {'x': 'Mar', 'y': 3800}, {'x': 'Apr', 'y': 3500}],
+                    dataSource: const [
+                      {'x': 'Jan', 'y': 2200},
+                      {'x': 'Feb', 'y': 2800},
+                      {'x': 'Mar', 'y': 3800},
+                      {'x': 'Apr', 'y': 3500}
+                    ],
                     xValueMapper: (data, _) => data['x'],
                     yValueMapper: (data, _) => data['y']),
               ],
@@ -229,19 +298,24 @@ class UserGrowthCard extends StatelessWidget {
 
 class PostCategoriesCard extends StatelessWidget {
   const PostCategoriesCard({super.key});
-  // TODO: Fetch chart data from Supabase
   @override
   Widget build(BuildContext context) {
     return StyledCard(
       child: Column(
         children: [
-          const _ChartCardHeader(title: 'Post Categories', subtitle: 'Breakdown by content type'),
+          const _ChartCardHeader(
+              title: 'Post Categories', subtitle: 'Breakdown by content type'),
           Expanded(
             child: SfCircularChart(
               legend: const Legend(isVisible: true),
               series: <DoughnutSeries<Map<String, dynamic>, String>>[
                 DoughnutSeries<Map<String, dynamic>, String>(
-                  dataSource: const [{'cat': 'Rings', 'val': 45}, {'cat': 'Earrings', 'val': 25}, {'cat': 'Necklaces', 'val': 20}, {'cat': 'Other', 'val': 10}],
+                  dataSource: const [
+                    {'cat': 'Rings', 'val': 45},
+                    {'cat': 'Earrings', 'val': 25},
+                    {'cat': 'Necklaces', 'val': 20},
+                    {'cat': 'Other', 'val': 10}
+                  ],
                   xValueMapper: (data, _) => data['cat'],
                   yValueMapper: (data, _) => data['val'],
                   dataLabelSettings: const DataLabelSettings(isVisible: true),
@@ -258,22 +332,27 @@ class PostCategoriesCard extends StatelessWidget {
 
 class DailyUsageCard extends StatelessWidget {
   const DailyUsageCard({super.key});
-  // TODO: Fetch chart data from Supabase
   @override
   Widget build(BuildContext context) {
     return StyledCard(
       child: Column(
         children: [
-          const _ChartCardHeader(title: 'Daily Usage Pattern', subtitle: 'Platform activity by hour'),
+          const _ChartCardHeader(
+              title: 'Daily Usage Pattern',
+              subtitle: 'Platform activity by hour'),
           const SizedBox(height: 20),
           Expanded(
             child: SfCartesianChart(
               primaryXAxis: const CategoryAxis(),
               tooltipBehavior: TooltipBehavior(enable: true),
-              // Corrected: The list now explicitly contains CartesianSeries
               series: <CartesianSeries<Map<String, dynamic>, String>>[
                 ColumnSeries<Map<String, dynamic>, String>(
-                    dataSource: const [{'hour': '0-6h', 'val': 150}, {'hour': '6-12h', 'val': 550}, {'hour': '12-18h', 'val': 900}, {'hour': '18-24h', 'val': 700}],
+                    dataSource: const [
+                      {'hour': '0-6h', 'val': 150},
+                      {'hour': '6-12h', 'val': 550},
+                      {'hour': '12-18h', 'val': 900},
+                      {'hour': '18-24h', 'val': 700}
+                    ],
                     xValueMapper: (data, _) => data['hour'],
                     yValueMapper: (data, _) => data['val'],
                     borderRadius: BorderRadius.circular(8),
@@ -289,7 +368,6 @@ class DailyUsageCard extends StatelessWidget {
 
 class GoalCompletionCard extends StatelessWidget {
   const GoalCompletionCard({super.key});
-  // TODO: Fetch chart data from Supabase
   @override
   Widget build(BuildContext context) {
     const double goal = 100;
@@ -297,25 +375,28 @@ class GoalCompletionCard extends StatelessWidget {
     return StyledCard(
       child: Column(
         children: [
-          const _ChartCardHeader(title: 'Conversion Rate', subtitle: 'Visitors to Members this month'),
+          const _ChartCardHeader(
+              title: 'Conversion Rate',
+              subtitle: 'Visitors to Members this month'),
           Expanded(
             child: SfCircularChart(
               series: <RadialBarSeries<double, String>>[
                 RadialBarSeries<double, String>(
-                    dataSource: const [current],
-                    xValueMapper: (data, _) => 'Progress',
-                    yValueMapper: (data, _) => data,
-                    maximumValue: goal,
-                    cornerStyle: CornerStyle.bothCurve,
-                    trackOpacity: 0.2,
-                    useSeriesColor: true,
-                    dataLabelSettings: const DataLabelSettings(isVisible: false),
+                  dataSource: const [current],
+                  xValueMapper: (data, _) => 'Progress',
+                  yValueMapper: (data, _) => data,
+                  maximumValue: goal,
+                  cornerStyle: CornerStyle.bothCurve,
+                  trackOpacity: 0.2,
+                  useSeriesColor: true,
+                  dataLabelSettings: const DataLabelSettings(isVisible: false),
                 )
               ],
               annotations: <CircularChartAnnotation>[
                 CircularChartAnnotation(
-                  widget: Text('${current.toInt()}%', style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.bold))
-                )
+                    widget: Text('${current.toInt()}%',
+                        style: GoogleFonts.inter(
+                            fontSize: 24, fontWeight: FontWeight.bold)))
               ],
             ),
           ),

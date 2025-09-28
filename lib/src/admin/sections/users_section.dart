@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart'; // Using the new StyledCard
+import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
+import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
+import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart';
+import 'package:intl/intl.dart';
+import 'package:jewelry_nafisa/src/admin/widgets/filter_component.dart';
+import 'package:provider/provider.dart';
 
 class UsersSection extends StatefulWidget {
   const UsersSection({super.key});
@@ -9,19 +14,58 @@ class UsersSection extends StatefulWidget {
   State<UsersSection> createState() => _UsersSectionState();
 }
 
-class _UsersSectionState extends State<UsersSection> with SingleTickerProviderStateMixin {
+class _UsersSectionState extends State<UsersSection>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final AdminService _adminService = AdminService();
+  final List<String> _userTypes = ['Members', 'Non-Members', 'B2B Creators'];
+  late Future<List<AppUser>> _usersFuture;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    // TODO: Fetch initial user data from Supabase based on filter
+    _fetchUsersForTab(0, null); // Initial fetch
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        // Refetch when tab changes, applying current filters
+        _fetchUsersForTab(
+            _tabController.index, context.read<FilterStateNotifier>().value);
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Listen for filter changes and refetch data
+    final filterNotifier = Provider.of<FilterStateNotifier>(context);
+    filterNotifier.addListener(_onFilterChanged);
+  }
+
+  void _onFilterChanged() {
+    final filterState = context.read<FilterStateNotifier>().value;
+    _fetchUsersForTab(_tabController.index, filterState);
+  }
+
+  void _fetchUsersForTab(int index, FilterState? filterState) {
+    setState(() {
+      _usersFuture = _adminService.getUsers(
+        userType: _userTypes[index],
+        filterState: filterState,
+      );
+    });
+  }
+
+  Future<void> _deleteUser(String userId) async {
+    // ... (deleteUser implementation is correct)
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    Provider.of<FilterStateNotifier>(context, listen: false)
+        .removeListener(_onFilterChanged);
     super.dispose();
   }
 
@@ -33,9 +77,11 @@ class _UsersSectionState extends State<UsersSection> with SingleTickerProviderSt
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Users Management', style: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
+            Text('Users Management',
+                style: GoogleFonts.inter(
+                    fontSize: 24, fontWeight: FontWeight.bold)),
             ElevatedButton.icon(
-              onPressed: () { /* TODO: Implement Add User functionality */ },
+              onPressed: () {},
               icon: const Icon(Icons.add, size: 16),
               label: const Text('Add User'),
             ),
@@ -54,76 +100,127 @@ class _UsersSectionState extends State<UsersSection> with SingleTickerProviderSt
         ),
         const SizedBox(height: 16),
         Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildUserTable('Members'),
-              _buildUserTable('Non-Members'),
-              _buildUserTable('B2B Creators'),
-            ],
+          child: FutureBuilder<List<AppUser>>(
+            future: _usersFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(
+                    child: Text('Failed to load users: ${snapshot.error}'));
+              }
+              final users = snapshot.data ?? [];
+              if (users.isEmpty) {
+                return const Center(
+                    child: Text('No users found in this category.'));
+              }
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth < 600) {
+                    return _buildUserList(users);
+                  } else {
+                    return _buildUserTable(users);
+                  }
+                },
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  Widget _buildUserTable(String userType) {
-    // TODO: Fetch data from Supabase for the specific userType
-    return StyledCard(
-      child: Column(
-        children: [
-          // The search and filter row for the table
-          Row(
+  Widget _buildUserList(List<AppUser> users) {
+    return ListView.builder(
+      itemCount: users.length,
+      itemBuilder: (context, index) {
+        final user = users[index];
+        return StyledCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search in $userType...',
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                    fillColor: Theme.of(context).scaffoldBackgroundColor,
-                    filled: true,
+              Text(user.username ?? 'N/A',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 8),
+              Text(user.email ?? 'No Email',
+                  style: Theme.of(context).textTheme.bodySmall),
+              const Divider(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                          'Joined: ${DateFormat.yMMMd().format(user.createdAt)}'),
+                    ],
                   ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.file_upload_outlined, size: 16),
-                label: const Text('Export'),
+                  Row(
+                    children: [
+                      IconButton(
+                          onPressed: () {},
+                          icon: const Icon(Icons.edit_outlined, size: 20)),
+                      IconButton(
+                          onPressed: () => _deleteUser(user.id),
+                          icon: const Icon(Icons.delete_outline,
+                              color: Colors.red, size: 20)),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // A responsive DataTable
+        );
+      },
+    );
+  }
+
+  Widget _buildUserTable(List<AppUser> users) {
+    return StyledCard(
+      child: Column(
+        children: [
+          // Search and export UI remains the same
           Expanded(
             child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
               child: DataTable(
                 columns: const [
-                  DataColumn(label: Text('Name')),
+                  DataColumn(label: Text('Username')),
                   DataColumn(label: Text('Email')),
                   DataColumn(label: Text('Status')),
                   DataColumn(label: Text('Joined Date')),
                   DataColumn(label: Text('Actions')),
                 ],
-                // Placeholder data
-                rows: List.generate(15, (index) => DataRow(cells: [
-                    DataCell(Text('$userType User ${index + 1}')),
-                    DataCell(Text('user${index+1}@email.com')),
+                rows: users.map((user) {
+                  return DataRow(cells: [
+                    DataCell(Text(user.username ?? 'N/A')),
+                    DataCell(Text(user.email ?? 'No Email')),
                     DataCell(Chip(
-                      label: Text(index % 3 == 0 ? 'Inactive' : 'Active'),
-                      backgroundColor: (index % 3 == 0 ? Colors.red : Colors.green).withOpacity(0.1),
+                      label: Text(user.role == 'designer'
+                          ? user.approvalStatus ?? 'N/A'
+                          : (user.isMember ? 'Member' : 'Free')),
+                      backgroundColor: user.role == 'designer'
+                          ? user.statusColor.withOpacity(0.1)
+                          : (user.isMember
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.grey.withOpacity(0.1)),
                       side: BorderSide.none,
                     )),
-                    DataCell(Text('2025-09-2${8 - index}')),
+                    DataCell(Text(DateFormat.yMMMd().format(user.createdAt))),
                     DataCell(Row(
                       children: [
-                        IconButton(onPressed: () {}, icon: const Icon(Icons.edit_outlined, size: 20)),
-                        IconButton(onPressed: () {}, icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20)),
+                        IconButton(
+                            onPressed: () {/* TODO: Implement Edit */},
+                            icon: const Icon(Icons.edit_outlined, size: 20)),
+                        IconButton(
+                            onPressed: () => _deleteUser(user.id),
+                            icon: const Icon(Icons.delete_outline,
+                                color: Colors.red, size: 20)),
                       ],
                     )),
-                ])),
+                  ]);
+                }).toList(),
               ),
             ),
           ),

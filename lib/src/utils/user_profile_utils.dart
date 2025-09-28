@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class UserProfileUtils {
   static final SupabaseClient _supabase = Supabase.instance.client;
 
-
   static Future<bool> ensureUserProfile(String userId) async {
     try {
       final userProfile = await _supabase
@@ -17,18 +16,23 @@ class UserProfileUtils {
         debugPrint('User profile already exists');
         return true;
       }
+
+      final currentUser = _supabase.auth.currentUser;
+      if (currentUser == null) return false;
+
       await _supabase.from('users').insert({
         'id': userId,
-        'email': _supabase.auth.currentUser?.email,
+        'email': currentUser.email,
         'username':
-            _supabase.auth.currentUser?.userMetadata?['username'] ??
-            _supabase.auth.currentUser?.email?.split('@')[0] ??
+            currentUser.userMetadata?['username'] ??
+            currentUser.email?.split('@')[0] ??
             'User',
         'membership_plan': 'free',
         'is_member': false,
-        'credits_remaining': 0,
+        'credits_remaining': 1,
+        'role': currentUser.userMetadata?['role'] ?? 'member', 
       });
-      debugPrint('Created new user profile');
+      debugPrint('Created new user profile with correct role.');
       return true;
     } catch (e) {
       debugPrint('Error ensuring user profile: $e');

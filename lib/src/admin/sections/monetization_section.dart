@@ -9,7 +9,8 @@ class MonetizationSection extends StatefulWidget {
   State<MonetizationSection> createState() => _MonetizationSectionState();
 }
 
-class _MonetizationSectionState extends State<MonetizationSection> with SingleTickerProviderStateMixin {
+class _MonetizationSectionState extends State<MonetizationSection>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -29,7 +30,9 @@ class _MonetizationSectionState extends State<MonetizationSection> with SingleTi
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Monetization & Membership', style: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
+        Text('Monetization & Membership',
+            style:
+                GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
         const SizedBox(height: 24),
         TabBar(
           controller: _tabController,
@@ -66,10 +69,8 @@ class RevenueDashboardTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 24.0),
       children: const [
-        // Using the new, animated MetricsGrid
-        MetricsGrid(),
+        // MetricsGrid(),
         SizedBox(height: 24),
-        // Using the new, animated ChartGrid
         ChartGrid(),
       ],
     );
@@ -82,7 +83,19 @@ class SubscriptionsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Fetch Subscriptions data from Supabase
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 600) {
+          return _buildSubscriptionsList();
+        } else {
+          return _buildSubscriptionsTable();
+        }
+      },
+    );
+  }
+
+  // Table view for larger screens
+  Widget _buildSubscriptionsTable() {
     return StyledCard(
       child: Column(
         children: [
@@ -104,18 +117,69 @@ class SubscriptionsTab extends StatelessWidget {
                   DataColumn(label: Text('Next Billing')),
                   DataColumn(label: Text('Actions')),
                 ],
-                rows: List.generate(10, (index) => DataRow(cells: [
-                    const DataCell(Text('Member User')),
-                    const DataCell(Text('Premium Monthly')),
-                    DataCell(Chip(label: Text(index.isEven ? 'Active' : 'Expired'))),
-                    DataCell(Text(index.isEven ? '2025-10-15' : '-')),
-                    DataCell(IconButton(onPressed: (){}, icon: const Icon(Icons.more_vert))),
-                ])),
+                rows: List.generate(
+                    10,
+                    (index) => DataRow(cells: [
+                          const DataCell(Text('member@email.com')),
+                          const DataCell(Text('Premium Monthly')),
+                          DataCell(Chip(
+                            label: Text(index.isEven ? 'Active' : 'Expired'),
+                            backgroundColor:
+                                (index.isEven ? Colors.green : Colors.grey)
+                                    .withOpacity(0.1),
+                            side: BorderSide.none,
+                          )),
+                          DataCell(Text(index.isEven ? '2025-10-15' : '-')),
+                          DataCell(IconButton(
+                              onPressed: () {},
+                              icon: const Icon(Icons.more_vert))),
+                        ])),
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // List view for smaller screens
+  Widget _buildSubscriptionsList() {
+    return ListView.builder(
+      itemCount: 10,
+      itemBuilder: (context, index) {
+        final isActive = index.isEven;
+        return StyledCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('member@email.com',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('Premium Monthly',
+                  style: TextStyle(color: Colors.grey)),
+              const Divider(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Next Billing'),
+                      Text(isActive ? '2025-10-15' : 'N/A',
+                          style: const TextStyle(fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                  Chip(
+                    label: Text(isActive ? 'Active' : 'Expired'),
+                    backgroundColor: (isActive ? Colors.green : Colors.grey)
+                        .withOpacity(0.1),
+                    side: BorderSide.none,
+                  ),
+                ],
+              )
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -126,7 +190,6 @@ class UpsellFunnelTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Using the GoalCompletionCard (radial bar chart) as the funnel visual
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 24.0),
       child: GoalCompletionCard(),

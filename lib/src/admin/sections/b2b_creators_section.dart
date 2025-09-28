@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart'; // Using StyledCard
+import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
+import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
+import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart';
+import 'package:intl/intl.dart';
 
 class B2BCreatorsSection extends StatefulWidget {
   const B2BCreatorsSection({super.key});
@@ -9,8 +12,10 @@ class B2BCreatorsSection extends StatefulWidget {
   State<B2BCreatorsSection> createState() => _B2BCreatorsSectionState();
 }
 
-class _B2BCreatorsSectionState extends State<B2BCreatorsSection> with SingleTickerProviderStateMixin {
+class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final AdminService _adminService = AdminService();
 
   @override
   void initState() {
@@ -29,7 +34,9 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection> with SingleTick
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('B2B Creators Management', style: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
+        Text('B2B Creators Management',
+            style:
+                GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
         const SizedBox(height: 24),
         TabBar(
           controller: _tabController,
@@ -58,113 +65,144 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection> with SingleTick
 
   // --- TAB 1: Profile Approval Queue ---
   Widget _buildApprovalQueue() {
-    // TODO: Fetch creators awaiting approval from Supabase
-    final pendingCreators = [
-      {'name': 'Helena Wren', 'skills': '3D Modeling, Sketching', 'date': '2025-09-26'},
-      {'name': 'Leo Rivera', 'skills': 'Sketch Design', 'date': '2025-09-25'},
-    ];
+    return FutureBuilder<List<AppUser>>(
+      future: _adminService.getPendingCreators(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        final pendingCreators = snapshot.data ?? [];
+        if (pendingCreators.isEmpty) {
+          return const Center(child: Text('No pending approvals.'));
+        }
 
-    return StyledCard(
-      child: ListView.separated(
-        itemCount: pendingCreators.length,
-        separatorBuilder: (_, __) => const Divider(),
-        itemBuilder: (context, index) {
-          final creator = pendingCreators[index];
-          return ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-            title: Text(creator['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(creator['skills']!),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextButton(onPressed: () {}, child: const Text('Approve')),
-                const SizedBox(width: 8),
-                TextButton(onPressed: () {}, style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Reject')),
-              ],
-            ),
-          );
-        },
-      ),
+        return StyledCard(
+          child: ListView.separated(
+            itemCount: pendingCreators.length,
+            separatorBuilder: (_, __) => const Divider(),
+            itemBuilder: (context, index) {
+              final creator = pendingCreators[index];
+              return ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+                title: Text(creator.username ?? 'N/A',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(creator.email ?? 'No Email'),
+                trailing: Wrap(
+                  spacing: 4.0,
+                  children: [
+                    TextButton(
+                        onPressed: () => _updateStatus(creator.id, 'approved'),
+                        child: const Text('Approve')),
+                    TextButton(
+                      onPressed: () => _updateStatus(creator.id, 'rejected'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('Reject'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
+  }
+
+  void _updateStatus(String userId, String status) async {
+    try {
+      await _adminService.updateCreatorStatus(userId, status);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Creator status updated to $status.'),
+          backgroundColor: Colors.green));
+      setState(() {}); // Re-runs the FutureBuilder to refresh the list
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to update status: $e'),
+          backgroundColor: Colors.red));
+    }
   }
 
   // --- TAB 2: Creator Directory ---
   Widget _buildCreatorDirectory() {
-    // TODO: Fetch all approved creators from Supabase
-    return StyledCard(
-      child: Column(
-        children: [
-          const TextField(
-            decoration: InputDecoration(
-              hintText: 'Search by name, skill, or region...',
-              prefixIcon: Icon(Icons.search, size: 20),
-            ),
+    return FutureBuilder<List<AppUser>>(
+      future: _adminService.getApprovedCreators(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        final creators = snapshot.data ?? [];
+        if (creators.isEmpty) {
+          return const Center(child: Text('No approved creators found.'));
+        }
+
+        return StyledCard(
+          child: DataTable(
+            columns: const [
+              DataColumn(label: Text('Username')),
+              DataColumn(label: Text('Email')),
+              DataColumn(label: Text('Business Name')),
+              DataColumn(label: Text('Joined Date')),
+            ],
+            rows: creators.map((creator) {
+              return DataRow(cells: [
+                DataCell(Text(creator.username ?? 'N/A')),
+                DataCell(Text(creator.email ?? 'No Email')),
+                DataCell(Text(creator.businessName ?? 'N/A')),
+                DataCell(Text(DateFormat.yMMMd().format(creator.createdAt))),
+              ]);
+            }).toList(),
           ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Name')),
-                  DataColumn(label: Text('Skills')),
-                  DataColumn(label: Text('Region')),
-                  DataColumn(label: Text('Works')),
-                  DataColumn(label: Text('Actions')),
-                ],
-                rows: List.generate(8, (index) => DataRow(cells: [
-                    const DataCell(Text('Approved Creator')),
-                    const DataCell(Text('3D Modeling')),
-                    const DataCell(Text('USA')),
-                    const DataCell(Text('24')),
-                    DataCell(IconButton(onPressed: (){}, icon: const Icon(Icons.visibility_outlined))),
-                ])),
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  // --- TAB 3: Uploaded Content Status ---
+  // --- TAB 3: Uploaded Content ---
   Widget _buildUploadedContent() {
-    // TODO: Fetch creators' uploaded content from Supabase
-    return StyledCard(
-      child: Column(
-        children: [
-           const TextField(
-            decoration: InputDecoration(
-              hintText: 'Search by creator or content title...',
-              prefixIcon: Icon(Icons.search, size: 20),
-            ),
+    return FutureBuilder<List<Asset>>(
+      future: _adminService.getUploadedContent(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        final assets = snapshot.data ?? [];
+        if (assets.isEmpty) {
+          return const Center(child: Text('No content uploaded yet.'));
+        }
+
+        return StyledCard(
+          child: DataTable(
+            columns: const [
+              DataColumn(label: Text('Thumbnail')),
+              DataColumn(label: Text('Title')),
+              DataColumn(label: Text('Creator')),
+              DataColumn(label: Text('Status')),
+              DataColumn(label: Text('Upload Date')),
+            ],
+            rows: assets.map((asset) {
+              return DataRow(cells: [
+                DataCell(Image.network(asset.mediaUrl,
+                    width: 40, height: 40, fit: BoxFit.cover)),
+                DataCell(Text(asset.title)),
+                DataCell(Text(asset.ownerUsername ?? 'N/A')),
+                DataCell(Chip(
+                    label: Text(asset.status),
+                    backgroundColor: Colors.orange.withOpacity(0.1))),
+                DataCell(Text(DateFormat.yMMMd().format(asset.createdAt))),
+              ]);
+            }).toList(),
           ),
-           const SizedBox(height: 16),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Creator')),
-                  DataColumn(label: Text('Content Title')),
-                  DataColumn(label: Text('Status')),
-                  DataColumn(label: Text('Upload Date')),
-                ],
-                rows: List.generate(12, (index) {
-                  final status = index % 3 == 0 ? 'Flagged' : (index % 3 == 1 ? 'Live' : 'Draft');
-                  final color = index % 3 == 0 ? Colors.red : (index % 3 == 1 ? Colors.green : Colors.grey);
-                  return DataRow(cells: [
-                    const DataCell(Text('Creator Name')),
-                    const DataCell(Text('Elegant Diamond Ring')),
-                    DataCell(Chip(label: Text(status), backgroundColor: color.withOpacity(0.1), side: BorderSide.none)),
-                    const DataCell(Text('2025-09-20')),
-                  ]);
-                }),
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart';
+import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
+import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
+import 'package:intl/intl.dart';
 
 class AnalyticsSection extends StatefulWidget {
   const AnalyticsSection({super.key});
@@ -9,8 +12,10 @@ class AnalyticsSection extends StatefulWidget {
   State<AnalyticsSection> createState() => _AnalyticsSectionState();
 }
 
-class _AnalyticsSectionState extends State<AnalyticsSection> with SingleTickerProviderStateMixin {
+class _AnalyticsSectionState extends State<AnalyticsSection>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final AdminService _adminService = AdminService();
 
   @override
   void initState() {
@@ -29,7 +34,9 @@ class _AnalyticsSectionState extends State<AnalyticsSection> with SingleTickerPr
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Analytics & Insights', style: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
+        Text('Analytics & Insights',
+            style:
+                GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
         const SizedBox(height: 24),
         TabBar(
           controller: _tabController,
@@ -60,8 +67,46 @@ class _AnalyticsSectionState extends State<AnalyticsSection> with SingleTickerPr
   }
 
   Widget _buildPostAnalytics() {
-    // TODO: Fetch Post Analytics data from Supabase
-    return const StyledCard(child: Center(child: Text('Post-Level Analytics - Table/Grid view of all posts with filters.')));
+    return FutureBuilder<List<PostAnalytic>>(
+      future: _adminService.getPostAnalytics(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        final analytics = snapshot.data ?? [];
+        if (analytics.isEmpty) {
+          return const Center(child: Text('No post analytics available.'));
+        }
+
+        return StyledCard(
+          child: SingleChildScrollView(
+            child: DataTable(
+              columns: const [
+                DataColumn(label: Text('Date')),
+                DataColumn(label: Text('Title')),
+                DataColumn(label: Text('Type')),
+                DataColumn(label: Text('Views')),
+                DataColumn(label: Text('Likes')),
+                DataColumn(label: Text('Saves')),
+              ],
+              rows: analytics.map((analytic) {
+                return DataRow(cells: [
+                  DataCell(Text(DateFormat.yMMMd().format(analytic.date))),
+                  DataCell(Text(analytic.assetTitle)),
+                  DataCell(Text(analytic.assetType)),
+                  DataCell(Text(analytic.views.toString())),
+                  DataCell(Text(analytic.likes.toString())),
+                  DataCell(Text(analytic.saves.toString())),
+                ]);
+              }).toList(),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildUserBehavior() {
@@ -79,10 +124,10 @@ class _AnalyticsSectionState extends State<AnalyticsSection> with SingleTickerPr
       child: DailyUsageCard(), // Using a specific chart
     );
   }
-  
+
   Widget _buildEngagementSegment() {
     // TODO: Fetch Engagement Segment data from Supabase
-     return const SingleChildScrollView(
+    return const SingleChildScrollView(
       padding: EdgeInsets.symmetric(vertical: 24.0),
       child: UserGrowthCard(), // Using a specific chart
     );

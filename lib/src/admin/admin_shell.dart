@@ -7,7 +7,6 @@ import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/admin/widgets/filter_component.dart';
 
-// ... (The _HoverableMenuItem widget remains unchanged)
 class _HoverableMenuItem extends StatefulWidget {
   final Widget child;
   final bool isSelected;
@@ -79,7 +78,6 @@ class _AdminShellState extends State<AdminShell> {
   
   @override
   Widget build(BuildContext context) {
-    // The provider has been REMOVED from here. It must be added where AdminShell is called.
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 800;
@@ -91,7 +89,26 @@ class _AdminShellState extends State<AdminShell> {
   // --- LAYOUTS ---
   Widget _buildMobileLayout() {
     return Scaffold(
-      appBar: AppBar(title: Text(_selectedMenuItem.title), actions: _buildAppBarActions()),
+      appBar: AppBar(
+        title: Text(_selectedMenuItem.title),
+        actions: [
+          // Added Filter Button for Mobile
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => const AlertDialog(
+                content: SizedBox(
+                  width: 300,
+                  child: FilterComponent(),
+                ),
+              ),
+            ),
+            tooltip: 'Filters',
+          ),
+          ..._buildAppBarActions(),
+        ],
+      ),
       drawer: Drawer(child: _buildSidePanel()),
       body: _buildPageContent(),
     );
@@ -136,9 +153,14 @@ class _AdminShellState extends State<AdminShell> {
   Widget _buildAdminHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-      child: Row(
+      // Using Wrap for better responsiveness on medium screens
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 16,
+        alignment: WrapAlignment.spaceBetween,
         children: [
-          Expanded(
+          SizedBox(
+            width: 1000,// Set a max width for the search bar
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Search...',
@@ -150,8 +172,10 @@ class _AdminShellState extends State<AdminShell> {
               ),
             ),
           ),
-          const SizedBox(width: 16),
-          ..._buildAppBarActions(),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: _buildAppBarActions(),
+          ),
         ],
       ),
     );

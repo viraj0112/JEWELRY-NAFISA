@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
 import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart';
-import 'package:jewelry_nafisa/src/admin/widgets/filter_component.dart';
-import 'package:provider/provider.dart';
 
 class DashboardSection extends StatefulWidget {
   const DashboardSection({super.key});
@@ -11,56 +10,62 @@ class DashboardSection extends StatefulWidget {
 }
 
 class _DashboardSectionState extends State<DashboardSection> {
-  late FilterStateNotifier _filterNotifier;
+  final AdminService _adminService = AdminService();
+  Future<Map<String, dynamic>>? _metricsFuture;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Start listening to the global filter notifier
-    _filterNotifier = context.watch<FilterStateNotifier>();
-    _filterNotifier.addListener(_onFilterChanged);
+  void initState() {
+    super.initState();
+    _metricsFuture = _adminService.getDashboardMetrics();
   }
 
-  @override
-  void dispose() {
-    _filterNotifier.removeListener(_onFilterChanged);
-    super.dispose();
-  }
-
-  void _onFilterChanged() {
-    // TODO: Use the new filter state to fetch data from Supabase
-    // final filters = _filterNotifier.value;
-    // print("Filters updated: ${filters.dateRangeType}, ${filters.category}");
-    // fetchDashboardData(filters);
-
-    // You can use setState if you need to show a loading indicator
-    // setState(() => _isLoading = true);
+  void _refreshData() {
+    setState(() {
+      _metricsFuture = _adminService.getDashboardMetrics();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    // The main scrollable view for the dashboard content
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
-          24, 0, 24, 24), // Adjust padding as filter is outside now
-      children: const [
-        // The header can be simplified if needed, or kept
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Dashboard Overview',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            const Text('Dashboard Overview',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            IconButton(
+              onPressed: _refreshData,
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh Data',
+            ),
           ],
         ),
-        SizedBox(height: 24),
-
-        // Redesigned Key Performance Indicators (KPIs)
-        MetricsGrid(),
-
-        SizedBox(height: 24),
-
-        // Redesigned & Responsive Charts and Graphs
-        ChartGrid(),
+        const SizedBox(height: 24),
+        FutureBuilder<Map<String, dynamic>>(
+          future: _metricsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text('No metrics available.'));
+            }
+            final metrics = snapshot.data!;
+            return MetricsGrid(
+              totalUsers: metrics['totalUsers'],
+              totalPosts: metrics['totalPosts'],
+              creditsUsed: metrics['creditsUsed'],
+              referrals: metrics['totalReferrals'],
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+        const ChartGrid(),
       ],
     );
   }
