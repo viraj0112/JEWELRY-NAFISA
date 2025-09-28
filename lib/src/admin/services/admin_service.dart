@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
@@ -6,26 +8,142 @@ import 'package:jewelry_nafisa/src/admin/widgets/filter_component.dart';
 class AdminService {
   final _supabase = Supabase.instance.client;
 
-  /// Fetches various KPIs for the main dashboard.
-  Future<Map<String, dynamic>> getDashboardMetrics() async {
-    try {
-      final totalUsersRes = await _supabase.rpc('get_total_users');
-      final totalPostsRes = await _supabase.rpc('get_total_posts');
-      final totalReferralsRes = await _supabase.rpc('get_total_referrals');
-
-      return {
-        'totalUsers': totalUsersRes ?? 0,
-        'totalPosts': totalPostsRes ?? 0,
-        'creditsUsed': 2341, // Placeholder
-        'totalReferrals': totalReferralsRes ?? 0,
-      };
-    } catch (e) {
-      debugPrint('Error fetching dashboard metrics: $e');
-      rethrow;
+  // Helper to calculate percentage change safely
+  double _calculateChange(num current, num previous) {
+    if (previous == 0) {
+      return current > 0 ? 100.0 : 0.0;
     }
+    return ((current - previous) / previous) * 100;
   }
 
-  /// Fetches the top referrers from the database.
+  // Helper function to create a polling stream for functions
+  Stream<T> _createPollingStream<T>(Future<T> Function() futureFunction) {
+    late StreamController<T> controller;
+    Timer? timer;
+
+    void fetchData() async {
+      try {
+        final result = await futureFunction();
+        if (controller.isClosed) return;
+        controller.add(result);
+      } catch (e) {
+        if (controller.isClosed) return;
+        controller.addError(e);
+      }
+    }
+
+    controller = StreamController<T>(
+      onListen: () {
+        fetchData();
+        timer = Timer.periodic(const Duration(seconds: 30), (_) => fetchData());
+      },
+      onCancel: () {
+        timer?.cancel();
+      },
+    );
+
+    return controller.stream;
+  }
+
+  Stream<Map<String, dynamic>> getDashboardMetricsStream() {
+    return _createPollingStream(() async {
+      // Fetch current and previous month's data in parallel
+      final responses = await Future.wait([
+        _supabase.rpc('get_total_users'),
+        _supabase.rpc('get_total_posts'),
+        _supabase.rpc('get_total_referrals'),
+        _supabase.rpc('get_total_users_previous_month'),
+        _supabase.rpc('get_total_posts_previous_month'),
+      ]);
+
+      final totalUsers = responses[0] as int? ?? 0;
+      final totalPosts = responses[1] as int? ?? 0;
+      final totalReferrals = responses[2] as int? ?? 0;
+      final prevTotalUsers = responses[3] as int? ?? 0;
+      final prevTotalPosts = responses[4] as int? ?? 0;
+
+      // Calculate percentage changes
+      final usersChange = _calculateChange(totalUsers, prevTotalUsers);
+      final postsChange = _calculateChange(totalPosts, prevTotalPosts);
+
+      // --- Credits Used Calculation ---
+      final now = DateTime.now();
+      final startOfMonth = DateTime(now.year, now.month, 1);
+      final creditsUsedRes = await _supabase
+          .from('analytics_daily')
+          .select('quotes_requested')
+          .gte('date', startOfMonth.toIso8601String());
+      int creditsUsed = 0;
+      for (var row in creditsUsedRes) {
+        creditsUsed += (row['quotes_requested'] as int?) ?? 0;
+      }
+
+      // Note: Historical data for credits and referrals isn't available in the schema,
+      // so their change percentages remain static for now.
+      return {
+        'totalUsers': totalUsers,
+        'totalPosts': totalPosts,
+        'creditsUsed': creditsUsed,
+        'totalReferrals': totalReferrals,
+        'usersChange': usersChange,
+        'postsChange': postsChange,
+        'creditsChange': -3.1, // Placeholder
+        'referralsChange': 18.9, // Placeholder
+      };
+    });
+  }
+    // ... (rest of your AdminService code remains the same)
+  Stream<List<Map<String, dynamic>>> getUserGrowthStream() {
+    return _createPollingStream(() async {
+      final response = await _supabase.rpc('get_new_users_per_month');
+      // The RPC returns a list of objects, which is exactly what we need.
+      return (response as List).map((item) => item as Map<String, dynamic>).toList();
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> getPostCategoriesStream() {
+    // This can listen to real-time changes as post counts change frequently.
+    return _supabase.from('assets').stream(primaryKey: ['id']).map((listOfPosts) {
+      final categoryCounts = <String, int>{};
+      for (final post in listOfPosts) {
+        final category = post['category'] as String? ?? 'Other';
+        categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
+      }
+      return categoryCounts.entries
+          .map((entry) => {'cat': entry.key, 'val': entry.value})
+          .toList();
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> getDailyAnalyticsStream() {
+    return _createPollingStream(() async {
+      final response = await _supabase
+          .from('analytics_daily')
+          .select('date, views')
+          .gte('date', DateTime.now().subtract(const Duration(days: 30)).toIso8601String())
+          .order('date');
+
+      return (response as List).map((item) {
+        return {
+          'day': item['date'],
+          'val': item['views'] ?? 0,
+        };
+      }).toList();
+    });
+  }
+
+  Stream<double> getConversionRateStream() {
+    return _createPollingStream(() async {
+      final response = await _supabase.from('users').select('is_member');
+      if (response.isEmpty) return 0.0;
+      final totalUsers = response.length;
+      final memberCount = response.where((user) => user['is_member'] == true).length;
+      return (memberCount / totalUsers) * 100;
+    });
+  }
+  
+  // ... (rest of your AdminService code remains the same)
+  // Fetches the top referrers from the database.
   Future<List<TopReferrer>> getTopReferrers({int limit = 10}) async {
     try {
       final response = await _supabase

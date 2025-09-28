@@ -3,8 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
 
-// ... (StyledCard class remains the same)
+// StyledCard remains the same
 class StyledCard extends StatefulWidget {
   final Widget child;
   const StyledCard({super.key, required this.child});
@@ -45,19 +46,26 @@ class _StyledCardState extends State<StyledCard> {
   }
 }
 
-// MODIFIED: MetricsGrid now accepts data from the FutureBuilder
 class MetricsGrid extends StatelessWidget {
   final int totalUsers;
+  final double usersChange;
   final int totalPosts;
+  final double postsChange;
   final int creditsUsed;
+  final double creditsChange;
   final int referrals;
+  final double referralsChange;
 
   const MetricsGrid({
     super.key,
     required this.totalUsers,
+    required this.usersChange,
     required this.totalPosts,
+    required this.postsChange,
     required this.creditsUsed,
+    required this.creditsChange,
     required this.referrals,
+    required this.referralsChange,
   });
 
   @override
@@ -68,28 +76,28 @@ class MetricsGrid extends StatelessWidget {
         'color': const Color(0xFF00B8D9),
         'label': 'Total Users',
         'value': totalUsers,
-        'change': 12.3
+        'change': usersChange, // DYNAMIC
       },
       {
         'icon': Icons.article_outlined,
         'color': const Color(0xFF00AB55),
         'label': 'Total Posts',
         'value': totalPosts,
-        'change': 8.7
+        'change': postsChange, // DYNAMIC
       },
       {
         'icon': Icons.credit_card,
         'color': const Color(0xFFFFC107),
         'label': 'Credits Used',
         'value': creditsUsed,
-        'change': -3.1
+        'change': creditsChange, // DYNAMIC (but placeholder for now)
       },
       {
         'icon': Icons.share_outlined,
         'color': const Color(0xFFFF4842),
         'label': 'Referrals',
         'value': referrals,
-        'change': 18.9
+        'change': referralsChange, // DYNAMIC (but placeholder for now)
       },
     ];
 
@@ -118,7 +126,7 @@ class MetricsGrid extends StatelessWidget {
   }
 }
 
-// ... (The rest of the file remains the same)
+// _MetricCard remains the same
 class _MetricCard extends StatelessWidget {
   final Map<String, dynamic> data;
   const _MetricCard({required this.data});
@@ -179,6 +187,7 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
+// ChartGrid remains the same
 class ChartGrid extends StatelessWidget {
   const ChartGrid({super.key});
 
@@ -224,6 +233,7 @@ class ChartGrid extends StatelessWidget {
   }
 }
 
+// _ChartCardHeader remains the same
 class _ChartCardHeader extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -246,8 +256,17 @@ class _ChartCardHeader extends StatelessWidget {
   }
 }
 
-class UserGrowthCard extends StatelessWidget {
+// UserGrowthCard remains the same
+class UserGrowthCard extends StatefulWidget {
   const UserGrowthCard({super.key});
+
+  @override
+  State<UserGrowthCard> createState() => _UserGrowthCardState();
+}
+
+class _UserGrowthCardState extends State<UserGrowthCard> {
+  final AdminService _adminService = AdminService();
+
   @override
   Widget build(BuildContext context) {
     return StyledCard(
@@ -257,37 +276,27 @@ class UserGrowthCard extends StatelessWidget {
               title: 'User Growth Trend', subtitle: 'Members vs Non-Members'),
           const SizedBox(height: 20),
           Expanded(
-            child: SfCartesianChart(
-              primaryXAxis: const CategoryAxis(),
-              legend:
-                  const Legend(isVisible: true, position: LegendPosition.top),
-              trackballBehavior: TrackballBehavior(
-                  enable: true,
-                  activationMode: ActivationMode.singleTap,
-                  tooltipSettings: const InteractiveTooltip(
-                      enable: true, color: Colors.black)),
-              series: <SplineSeries<Map<String, dynamic>, String>>[
-                SplineSeries<Map<String, dynamic>, String>(
-                    name: 'Members',
-                    dataSource: const [
-                      {'x': 'Jan', 'y': 1200},
-                      {'x': 'Feb', 'y': 1800},
-                      {'x': 'Mar', 'y': 2500},
-                      {'x': 'Apr', 'y': 2300}
-                    ],
-                    xValueMapper: (data, _) => data['x'],
-                    yValueMapper: (data, _) => data['y']),
-                SplineSeries<Map<String, dynamic>, String>(
-                    name: 'Non-Members',
-                    dataSource: const [
-                      {'x': 'Jan', 'y': 2200},
-                      {'x': 'Feb', 'y': 2800},
-                      {'x': 'Mar', 'y': 3800},
-                      {'x': 'Apr', 'y': 3500}
-                    ],
-                    xValueMapper: (data, _) => data['x'],
-                    yValueMapper: (data, _) => data['y']),
-              ],
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _adminService.getUserGrowthStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text('No data'));
+                }
+                return SfCartesianChart(
+                  primaryXAxis: const CategoryAxis(),
+                  // 🚀 FIXED: Changed <ChartSeries> to <CartesianSeries>
+                  series: <CartesianSeries>[
+                    ColumnSeries<Map<String, dynamic>, String>(
+                      dataSource: snapshot.data!,
+                      xValueMapper: (data, _) => data['x'],
+                      yValueMapper: (data, _) => data['y'],
+                    )
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -296,8 +305,17 @@ class UserGrowthCard extends StatelessWidget {
   }
 }
 
-class PostCategoriesCard extends StatelessWidget {
+// PostCategoriesCard remains the same
+class PostCategoriesCard extends StatefulWidget {
   const PostCategoriesCard({super.key});
+
+  @override
+  State<PostCategoriesCard> createState() => _PostCategoriesCardState();
+}
+
+class _PostCategoriesCardState extends State<PostCategoriesCard> {
+  final AdminService _adminService = AdminService();
+
   @override
   Widget build(BuildContext context) {
     return StyledCard(
@@ -306,23 +324,29 @@ class PostCategoriesCard extends StatelessWidget {
           const _ChartCardHeader(
               title: 'Post Categories', subtitle: 'Breakdown by content type'),
           Expanded(
-            child: SfCircularChart(
-              legend: const Legend(isVisible: true),
-              series: <DoughnutSeries<Map<String, dynamic>, String>>[
-                DoughnutSeries<Map<String, dynamic>, String>(
-                  dataSource: const [
-                    {'cat': 'Rings', 'val': 45},
-                    {'cat': 'Earrings', 'val': 25},
-                    {'cat': 'Necklaces', 'val': 20},
-                    {'cat': 'Other', 'val': 10}
-                  ],
-                  xValueMapper: (data, _) => data['cat'],
-                  yValueMapper: (data, _) => data['val'],
-                  dataLabelSettings: const DataLabelSettings(isVisible: true),
-                  innerRadius: '60%',
-                )
-              ],
-            ),
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+                stream: _adminService.getPostCategoriesStream(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text('No data'));
+                  }
+                  return SfCircularChart(
+                    legend: const Legend(isVisible: true),
+                    // 🚀 FIXED: This was already correct but ensuring consistency
+                    series: <CircularSeries>[
+                      DoughnutSeries<Map<String, dynamic>, String>(
+                        dataSource: snapshot.data,
+                        xValueMapper: (data, _) => data['cat'],
+                        yValueMapper: (data, _) => data['val'],
+                        dataLabelSettings:
+                            const DataLabelSettings(isVisible: true),
+                      )
+                    ],
+                  );
+                }),
           ),
         ],
       ),
@@ -330,8 +354,16 @@ class PostCategoriesCard extends StatelessWidget {
   }
 }
 
-class DailyUsageCard extends StatelessWidget {
+// DailyUsageCard remains the same
+class DailyUsageCard extends StatefulWidget {
   const DailyUsageCard({super.key});
+
+  @override
+  State<DailyUsageCard> createState() => _DailyUsageCardState();
+}
+
+class _DailyUsageCardState extends State<DailyUsageCard> {
+  final AdminService _adminService = AdminService();
   @override
   Widget build(BuildContext context) {
     return StyledCard(
@@ -342,23 +374,28 @@ class DailyUsageCard extends StatelessWidget {
               subtitle: 'Platform activity by hour'),
           const SizedBox(height: 20),
           Expanded(
-            child: SfCartesianChart(
-              primaryXAxis: const CategoryAxis(),
-              tooltipBehavior: TooltipBehavior(enable: true),
-              series: <CartesianSeries<Map<String, dynamic>, String>>[
-                ColumnSeries<Map<String, dynamic>, String>(
-                    dataSource: const [
-                      {'hour': '0-6h', 'val': 150},
-                      {'hour': '6-12h', 'val': 550},
-                      {'hour': '12-18h', 'val': 900},
-                      {'hour': '18-24h', 'val': 700}
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+                stream: _adminService.getDailyAnalyticsStream(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text('No data'));
+                  }
+                  return SfCartesianChart(
+                    primaryXAxis: const CategoryAxis(),
+                    // 🚀 FIXED: Changed <CartesianSeries<dynamic, dynamic>> to <CartesianSeries>
+                    series: <CartesianSeries>[
+                      ColumnSeries<Map<String, dynamic>, String>(
+                          dataSource: snapshot.data!,
+                          xValueMapper: (data, _) => data['hour'],
+                          yValueMapper: (data, _) => data['val'],
+                          dataLabelSettings:
+                              const DataLabelSettings(isVisible: true))
                     ],
-                    xValueMapper: (data, _) => data['hour'],
-                    yValueMapper: (data, _) => data['val'],
-                    borderRadius: BorderRadius.circular(8),
-                    dataLabelSettings: const DataLabelSettings(isVisible: true))
-              ],
-            ),
+                  );
+                }),
           ),
         ],
       ),
@@ -366,12 +403,19 @@ class DailyUsageCard extends StatelessWidget {
   }
 }
 
-class GoalCompletionCard extends StatelessWidget {
+// GoalCompletionCard remains the same
+class GoalCompletionCard extends StatefulWidget {
   const GoalCompletionCard({super.key});
+
+  @override
+  State<GoalCompletionCard> createState() => _GoalCompletionCardState();
+}
+
+class _GoalCompletionCardState extends State<GoalCompletionCard> {
+  final AdminService _adminService = AdminService();
+
   @override
   Widget build(BuildContext context) {
-    const double goal = 100;
-    const double current = 78;
     return StyledCard(
       child: Column(
         children: [
@@ -379,25 +423,38 @@ class GoalCompletionCard extends StatelessWidget {
               title: 'Conversion Rate',
               subtitle: 'Visitors to Members this month'),
           Expanded(
-            child: SfCircularChart(
-              series: <RadialBarSeries<double, String>>[
-                RadialBarSeries<double, String>(
-                  dataSource: const [current],
-                  xValueMapper: (data, _) => 'Progress',
-                  yValueMapper: (data, _) => data,
-                  maximumValue: goal,
-                  cornerStyle: CornerStyle.bothCurve,
-                  trackOpacity: 0.2,
-                  useSeriesColor: true,
-                  dataLabelSettings: const DataLabelSettings(isVisible: false),
-                )
-              ],
-              annotations: <CircularChartAnnotation>[
-                CircularChartAnnotation(
-                    widget: Text('${current.toInt()}%',
-                        style: GoogleFonts.inter(
-                            fontSize: 24, fontWeight: FontWeight.bold)))
-              ],
+            child: StreamBuilder<double>(
+              stream: _adminService.getConversionRateStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: Text('No data'));
+                }
+                final conversionRate = snapshot.data! * 100;
+                return SfCircularChart(
+                  // 🚀 FIXED: This was already correct but ensuring consistency
+                  series: <CircularSeries>[
+                    RadialBarSeries<double, String>(
+                      dataSource: [conversionRate],
+                      xValueMapper: (data, _) => 'Conversion',
+                      yValueMapper: (data, _) => data,
+                      maximumValue: 100,
+                      cornerStyle: CornerStyle.bothCurve,
+                    )
+                  ],
+                  annotations: <CircularChartAnnotation>[
+                    CircularChartAnnotation(
+                      widget: Text(
+                        '${conversionRate.toStringAsFixed(1)}%',
+                        style: const TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                    )
+                  ],
+                );
+              },
             ),
           ),
         ],

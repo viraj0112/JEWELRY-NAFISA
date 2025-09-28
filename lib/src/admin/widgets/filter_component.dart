@@ -1,3 +1,5 @@
+// lib/src/admin/widgets/filter_component.dart
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart'; // Make sure provider is imported
@@ -6,6 +8,7 @@ import 'package:intl/intl.dart';
 
 // Enum and model for managing filter state
 enum DateRangeType { today, week, month, custom }
+
 class FilterState {
   final DateRangeType dateRangeType;
   final DateTimeRange? customDateRange;
@@ -40,43 +43,23 @@ class _FilterComponentState extends State<FilterComponent> {
 
   // Method to show the custom pop-up calendar
   void _showDatePicker(BuildContext context) {
-    // We get the RenderBox of the button to position the dialog correctly
-    final RenderBox button = context.findRenderObject() as RenderBox;
-    // Corrected: Accessing the overlay's RenderBox correctly
-    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final RelativeRect position = RelativeRect.fromRect(
-      Rect.fromPoints(
-        button.localToGlobal(Offset.zero, ancestor: overlay),
-        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
-      ),
-      Offset.zero & overlay.size,
-    );
-
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return Stack(
-          children: [
-            Positioned(
-              top: position.top + 60, // Position it below the button
-              left: position.left,
-              child: _CustomDatePicker(
-                initialRange: _customDateRange,
-                onDateRangeSelected: (range) {
-                  setState(() {
-                    _customDateRange = range;
-                    _selectedRange = DateRangeType.custom;
-                  });
-                  _updateGlobalFilters();
-                },
-              ),
-            ),
-          ],
+        return _CustomDatePicker(
+          initialRange: _customDateRange,
+          onDateRangeSelected: (range) {
+            setState(() {
+              _customDateRange = range;
+              _selectedRange = DateRangeType.custom;
+            });
+            _updateGlobalFilters();
+          },
         );
       },
     );
   }
-  
+
   // Method to update the global state
   void _updateGlobalFilters() {
     // Corrected: Using Provider.of with listen: false to access the notifier
@@ -101,8 +84,8 @@ class _FilterComponentState extends State<FilterComponent> {
         _buildDropdown(
           'All Category',
           ['All Categories', 'Users', 'Content', 'Revenue', 'Analytics'],
-           _selectedCategory,
-           (val) => setState(() => _selectedCategory = val!),
+          _selectedCategory,
+          (val) => setState(() => _selectedCategory = val!),
         ),
         _buildDropdown(
           'All Status',
@@ -118,7 +101,7 @@ class _FilterComponentState extends State<FilterComponent> {
       ],
     );
   }
-  
+
   // --- UI Builder Methods ---
 
   Widget _buildDateRangeButtons() {
@@ -148,40 +131,58 @@ class _FilterComponentState extends State<FilterComponent> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
+          color:
+              isSelected ? Theme.of(context).primaryColor : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Text(text, style: GoogleFonts.inter(
-          fontWeight: FontWeight.w600,
-          color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color,
-        )),
+        child: Text(text,
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.w600,
+              color: isSelected
+                  ? Colors.white
+                  : Theme.of(context).textTheme.bodyLarge?.color,
+            )),
       ),
     );
   }
 
   Widget _buildDatePickerButton(BuildContext context) {
-    final String label = _customDateRange == null 
+    final String label = _customDateRange == null
         ? 'Pick a date'
         : '${DateFormat.yMMMd().format(_customDateRange!.start)} - ${DateFormat.yMMMd().format(_customDateRange!.end)}';
-    
+
     final bool isCustomSelected = _selectedRange == DateRangeType.custom;
-    
+
     return TextButton.icon(
       onPressed: () => _showDatePicker(context),
-      icon: Icon(Icons.calendar_today_outlined, size: 16, color: isCustomSelected ? Theme.of(context).primaryColor : Colors.grey.shade600),
-      label: Text(label, style: GoogleFonts.inter(color: isCustomSelected ? Theme.of(context).primaryColor : Colors.grey.shade600)),
+      icon: Icon(Icons.calendar_today_outlined,
+          size: 16,
+          color: isCustomSelected
+              ? Theme.of(context).primaryColor
+              : Colors.grey.shade600),
+      label: Text(label,
+          style: GoogleFonts.inter(
+              color: isCustomSelected
+                  ? Theme.of(context).primaryColor
+                  : Colors.grey.shade600)),
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        backgroundColor: isCustomSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : Colors.transparent,
+        backgroundColor: isCustomSelected
+            ? Theme.of(context).primaryColor.withOpacity(0.1)
+            : Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: isCustomSelected ? Theme.of(context).primaryColor : Theme.of(context).dividerColor),
+          side: BorderSide(
+              color: isCustomSelected
+                  ? Theme.of(context).primaryColor
+                  : Theme.of(context).dividerColor),
         ),
       ),
     );
   }
 
-  Widget _buildDropdown(String hint, List<String> items, String value, ValueChanged<String?> onChanged) {
+  Widget _buildDropdown(String hint, List<String> items, String value,
+      ValueChanged<String?> onChanged) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
@@ -210,8 +211,9 @@ class _CustomDatePicker extends StatefulWidget {
   final DateTimeRange? initialRange;
   final Function(DateTimeRange) onDateRangeSelected;
 
-  const _CustomDatePicker({this.initialRange, required this.onDateRangeSelected});
-  
+  const _CustomDatePicker(
+      {this.initialRange, required this.onDateRangeSelected});
+
   @override
   State<_CustomDatePicker> createState() => _CustomDatePickerState();
 }
@@ -224,7 +226,7 @@ class _CustomDatePickerState extends State<_CustomDatePicker> {
   @override
   void initState() {
     super.initState();
-    if(widget.initialRange != null){
+    if (widget.initialRange != null) {
       _rangeStart = widget.initialRange!.start;
       _rangeEnd = widget.initialRange!.end;
     }
@@ -268,7 +270,8 @@ class _CustomDatePickerState extends State<_CustomDatePicker> {
             titleTextStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
           ),
           calendarStyle: CalendarStyle(
-            rangeHighlightColor: Theme.of(context).primaryColor.withOpacity(0.2),
+            rangeHighlightColor:
+                Theme.of(context).primaryColor.withOpacity(0.2),
             todayDecoration: BoxDecoration(
               color: Theme.of(context).disabledColor,
               shape: BoxShape.circle,

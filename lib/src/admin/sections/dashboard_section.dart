@@ -11,18 +11,12 @@ class DashboardSection extends StatefulWidget {
 
 class _DashboardSectionState extends State<DashboardSection> {
   final AdminService _adminService = AdminService();
-  Future<Map<String, dynamic>>? _metricsFuture;
+  late final Stream<Map<String, dynamic>> _metricsStream;
 
   @override
   void initState() {
     super.initState();
-    _metricsFuture = _adminService.getDashboardMetrics();
-  }
-
-  void _refreshData() {
-    setState(() {
-      _metricsFuture = _adminService.getDashboardMetrics();
-    });
+    _metricsStream = _adminService.getDashboardMetricsStream();
   }
 
   @override
@@ -30,23 +24,14 @@ class _DashboardSectionState extends State<DashboardSection> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Dashboard Overview',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            IconButton(
-              onPressed: _refreshData,
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Refresh Data',
-            ),
-          ],
-        ),
+        const Text('Dashboard Overview',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         const SizedBox(height: 24),
-        FutureBuilder<Map<String, dynamic>>(
-          future: _metricsFuture,
+        StreamBuilder<Map<String, dynamic>>(
+          stream: _metricsStream,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
@@ -58,9 +43,13 @@ class _DashboardSectionState extends State<DashboardSection> {
             final metrics = snapshot.data!;
             return MetricsGrid(
               totalUsers: metrics['totalUsers'],
+              usersChange: metrics['usersChange'], 
               totalPosts: metrics['totalPosts'],
+              postsChange: metrics['postsChange'], 
               creditsUsed: metrics['creditsUsed'],
+              creditsChange: metrics['creditsChange'], 
               referrals: metrics['totalReferrals'],
+              referralsChange: metrics['referralsChange'], 
             );
           },
         ),
