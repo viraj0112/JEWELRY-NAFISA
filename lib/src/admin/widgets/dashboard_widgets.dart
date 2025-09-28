@@ -76,51 +76,72 @@ class MetricsGrid extends StatelessWidget {
         'color': const Color(0xFF00B8D9),
         'label': 'Total Users',
         'value': totalUsers,
-        'change': usersChange, // DYNAMIC
+        'change': usersChange,
       },
       {
         'icon': Icons.article_outlined,
         'color': const Color(0xFF00AB55),
         'label': 'Total Posts',
         'value': totalPosts,
-        'change': postsChange, // DYNAMIC
+        'change': postsChange,
       },
       {
         'icon': Icons.credit_card,
         'color': const Color(0xFFFFC107),
         'label': 'Credits Used',
         'value': creditsUsed,
-        'change': creditsChange, // DYNAMIC (but placeholder for now)
+        'change': creditsChange,
       },
       {
         'icon': Icons.share_outlined,
         'color': const Color(0xFFFF4842),
         'label': 'Referrals',
         'value': referrals,
-        'change': referralsChange, // DYNAMIC (but placeholder for now)
+        'change': referralsChange,
       },
     ];
 
     return LayoutBuilder(builder: (context, constraints) {
+      bool isMobile = constraints.maxWidth < 600;
       return AnimationLimiter(
-        child: Wrap(
-          spacing: 24.0,
-          runSpacing: 24.0,
-          alignment: WrapAlignment.center,
-          children: List.generate(metricsData.length, (index) {
-            final metric = metricsData[index];
-            return AnimationConfiguration.staggeredList(
-              position: index,
-              duration: const Duration(milliseconds: 375),
-              child: SlideAnimation(
-                verticalOffset: 50.0,
-                child: FadeInAnimation(
-                  child: _MetricCard(data: metric),
-                ),
+        child: isMobile
+            ? Column(
+                children: List.generate(metricsData.length, (index) {
+                  final metric = metricsData[index];
+                  return AnimationConfiguration.staggeredList(
+                    position: index,
+                    duration: const Duration(milliseconds: 375),
+                    child: SlideAnimation(
+                      verticalOffset: 50.0,
+                      child: FadeInAnimation(
+                        child: _MetricCard(data: metric),
+                      ),
+                    ),
+                  );
+                }),
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: List.generate(metricsData.length, (index) {
+                  final metric = metricsData[index];
+                  return Flexible(
+                    child: AnimationConfiguration.staggeredList(
+                      position: index,
+                      duration: const Duration(milliseconds: 375),
+                      child: SlideAnimation(
+                        verticalOffset: 50.0,
+                        child: FadeInAnimation(
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 12.0),
+                            child: _MetricCard(data: metric),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
               ),
-            );
-          }),
-        ),
       );
     });
   }
