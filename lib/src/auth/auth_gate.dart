@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:jewelry_nafisa/src/admin/admin_shell.dart';
-import 'package:jewelry_nafisa/src/auth/reset_password_screen.dart';
-import 'package:jewelry_nafisa/src/designer/designer_shell.dart';
+import 'package:jewelry_nafisa/src/admin/admin_shell.dart'; // Import the AdminShell
+import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/designer/screens/pending_approval_screen.dart';
-import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
-import 'package:jewelry_nafisa/src/utils/user_profile_utils.dart';
 import 'package:provider/provider.dart';
+import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthGate extends StatelessWidget {
@@ -18,62 +16,58 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
-        if (snapshot.hasData &&
-            snapshot.data?.event == AuthChangeEvent.passwordRecovery) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
-              (route) => false,
-            );
-          });
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
+        // If user is not logged in, show the Welcome screen
         if (!snapshot.hasData || snapshot.data?.session == null) {
           return const WelcomeScreen();
         }
 
-        final userId = snapshot.data!.session!.user.id;
-        return FutureBuilder<UserProfileProvider>(
-          future: _fetchProfileAndGetProvider(context, userId),
-          builder: (context, providerSnapshot) {
-            if (providerSnapshot.connectionState == ConnectionState.waiting) {
+        // If user is logged in, use the UserProfileProvider to determine their role
+        return Consumer<UserProfileProvider>(
+          builder: (context, profileProvider, child) {
+            // If the profile is not loaded yet, and not currently loading, fetch it.
+            if (profileProvider.userProfile == null &&
+                !profileProvider.isLoading) {
+              // fetchProfile will notify listeners and cause this widget to rebuild
+              profileProvider.fetchProfile();
+            }
+
+            // Show a loading indicator while the profile is being fetched
+            if (profileProvider.isLoading) {
               return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
+                  body: Center(child: CircularProgressIndicator()));
             }
 
-            if (providerSnapshot.hasError || !providerSnapshot.hasData) {
-              return const WelcomeScreen();
+            final userProfile = profileProvider.userProfile;
+
+            // If profile fetching fails or there's no profile, direct to login
+            if (userProfile == null) {
+              return const LoginScreen();
             }
 
-            final userProfile = providerSnapshot.data!;
+            // === 🚀 ROLE-BASED ROUTING LOGIC ===
+            final userRole = userProfile['role'];
+            final approvalStatus = userProfile['approval_status'];
 
-            switch (userProfile.role) {
-              case 'admin':
-                return const AdminShell();
-              case 'designer':
-                return userProfile.isApproved
-                    ? const DesignerShell()
-                    : const PendingApprovalScreen();
-              default:
+            // 1. Check for 'admin' role
+            if (userRole == 'admin') {
+              return const AdminShell();
+            }
+
+            // 2. Check for 'designer' role
+            if (userRole == 'designer') {
+              if (approvalStatus == 'approved') {
+                // You can create and return a DesignerShell() here when ready
                 return const MainShell();
+              } else {
+                return const PendingApprovalScreen();
+              }
             }
+
+            // 3. Default route for regular 'member' users
+            return const MainShell();
           },
         );
       },
     );
-  }
-
-  Future<UserProfileProvider> _fetchProfileAndGetProvider(
-    BuildContext context,
-    String userId,
-  ) async {
-    final provider = Provider.of<UserProfileProvider>(context, listen: false);
-    await UserProfileUtils.ensureUserProfile(userId);
-    await provider.fetchProfile();
-    return provider;
   }
 }

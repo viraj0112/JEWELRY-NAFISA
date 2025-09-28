@@ -8,10 +8,8 @@ import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
-// import 'package:jewelry_nafisa/src/admin/screens/admin_dashboard_screen.dart';
-// import 'package:jewelry_nafisa/src/adminNew/providers/app_state.dart';
-// import 'package:jewelry_nafisa/src/adminNew/admin_screen.dart';
 import 'package:jewelry_nafisa/src/admin/admin_shell.dart';
+import 'package:jewelry_nafisa/src/admin/widgets/filter_component.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +45,7 @@ void main() async {
         ChangeNotifierProvider(create: (context) => UserProfileProvider()),
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
         ChangeNotifierProvider(create: (context) => BoardsProvider()),
+        ChangeNotifierProvider(create: (context) => FilterStateNotifier()),
       ],
       child: const MyApp(),
     ),
@@ -67,10 +66,12 @@ class MyApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
 
-      initialRoute: '/',
+      initialRoute: '/', 
+  
       routes: {
         '/': (context) => const AuthGate(),
         '/auth-callback': (context) => const AuthCallbackScreen(),
+        '/admin': (context) => const AdminShell(),
       },
     );
   }

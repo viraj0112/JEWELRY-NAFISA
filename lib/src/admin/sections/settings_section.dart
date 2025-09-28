@@ -1,175 +1,208 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
+import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart';
 
 class SettingsSection extends StatefulWidget {
   const SettingsSection({super.key});
-
   @override
   State<SettingsSection> createState() => _SettingsSectionState();
 }
 
 class _SettingsSectionState extends State<SettingsSection> {
-  bool emailNotifications = true;
-  bool pushNotifications = false;
-  bool twoFactorAuth = true;
-  String selectedTheme = 'light';
-  String selectedLanguage = 'english';
+  final AdminService _adminService = AdminService();
+  Future<Map<String, String>>? _settingsFuture;
+  bool _isLoading = false;
+
+  // Controllers for text fields
+  final _signupBonusController = TextEditingController();
+  final _memberReferralBonusController = TextEditingController();
+  final _nonMemberReferralBonusController = TextEditingController();
+
+  // Variable for time picker
+  TimeOfDay _dailyResetTime = const TimeOfDay(hour: 0, minute: 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  void _loadSettings() {
+    _settingsFuture = _adminService.getSettings();
+    _settingsFuture!.then((settings) {
+      setState(() {
+        _signupBonusController.text = settings['signup_bonus_credits'] ?? '1';
+        _memberReferralBonusController.text = settings['referral_bonus_member'] ?? '3';
+        _nonMemberReferralBonusController.text = settings['referral_bonus_non_member'] ?? '2';
+        
+        final timeParts = (settings['daily_reset_time_utc'] ?? '00:00').split(':');
+        _dailyResetTime = TimeOfDay(hour: int.parse(timeParts[0]), minute: int.parse(timeParts[1]));
+      });
+    });
+  }
+
+  Future<void> _saveSettings() async {
+    setState(() => _isLoading = true);
+    try {
+      // Create a list of futures to run in parallel
+      final List<Future> updateFutures = [];
+
+      updateFutures.add(_adminService.updateSetting('signup_bonus_credits', _signupBonusController.text));
+      updateFutures.add(_adminService.updateSetting('referral_bonus_member', _memberReferralBonusController.text));
+      updateFutures.add(_adminService.updateSetting('referral_bonus_non_member', _nonMemberReferralBonusController.text));
+      
+      final newTime = '${_dailyResetTime.hour.toString().padLeft(2, '0')}:${_dailyResetTime.minute.toString().padLeft(2, '0')}';
+      updateFutures.add(_adminService.updateSetting('daily_reset_time_utc', newTime));
+
+      // Wait for all updates to complete
+      await Future.wait(updateFutures);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Settings saved successfully!'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving settings: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+
+  @override
+  void dispose() {
+    _signupBonusController.dispose();
+    _memberReferralBonusController.dispose();
+    _nonMemberReferralBonusController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    return FutureBuilder<Map<String, String>>(
+      future: _settingsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error loading settings: ${snapshot.error}'));
+        }
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          children: [
+            Text('System Settings', style: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            _buildCreditLogicCard(),
+            const SizedBox(height: 24),
+            _buildUserRolesCard(),
+            const SizedBox(height: 24),
+            _buildScraperSettingsCard(),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCreditLogicCard() {
+    return StyledCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Settings',
-            style: Theme.of(context).textTheme.headlineMedium,
+          Text('Credit Logic Configuration', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 16),
+          _buildTextFieldSetting('Signup Bonus Credits', 'Credits for new users upon signing up.', _signupBonusController),
+          _buildTextFieldSetting('Member Referral Bonus', 'Credits for a member when they refer a new user.', _memberReferralBonusController),
+          _buildTextFieldSetting('Non-Member Referral Bonus', 'Credits for a non-member when they refer a new user.', _nonMemberReferralBonusController),
+          _buildTimePickerSetting(
+            'Daily Reset Time (UTC)',
+            'Time when daily credits for members are reset.',
+            _dailyResetTime,
+            (newTime) {
+              if (newTime != null) setState(() => _dailyResetTime = newTime);
+            },
           ),
-          const SizedBox(height: 24),
-          
-          // General Settings
-          _buildSettingsCard(
-            'General Settings',
-            [
-              _buildSwitchSetting(
-                'Email Notifications',
-                'Receive notifications via email',
-                emailNotifications,
-                (value) => setState(() => emailNotifications = value),
-              ),
-              _buildSwitchSetting(
-                'Push Notifications',
-                'Receive push notifications',
-                pushNotifications,
-                (value) => setState(() => pushNotifications = value),
-              ),
-              _buildDropdownSetting(
-                'Theme',
-                'Choose your preferred theme',
-                selectedTheme,
-                ['light', 'dark', 'auto'],
-                (value) => setState(() => selectedTheme = value!),
-              ),
-              _buildDropdownSetting(
-                'Language',
-                'Select your language',
-                selectedLanguage,
-                ['english', 'spanish', 'french', 'german'],
-                (value) => setState(() => selectedLanguage = value!),
-              ),
-            ],
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _saveSettings,
+              child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save Credit Settings'),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+  
+  // ... (The other _build methods like _buildUserRolesCard can remain the same)
+  Widget _buildUserRolesCard() {
+    final roles = ['Admin', 'Moderator', 'Creator', 'Member', 'Free User'];
+    return StyledCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('User Roles & Permissions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8.0,
+            runSpacing: 4.0,
+            children: roles.map((role) => Chip(label: Text(role))).toList(),
           ),
-          
-          const SizedBox(height: 24),
-          
-          // Security Settings
-          _buildSettingsCard(
-            'Security',
-            [
-              _buildSwitchSetting(
-                'Two-Factor Authentication',
-                'Add an extra layer of security',
-                twoFactorAuth,
-                (value) => setState(() => twoFactorAuth = value),
-              ),
-              _buildActionSetting(
-                'Change Password',
-                'Update your account password',
-                'Change',
-                () {},
-              ),
-              _buildActionSetting(
-                'Download Data',
-                'Export your account data',
-                'Download',
-                () {},
-              ),
-            ],
+           const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton(onPressed: () {}, child: const Text('Manage Roles')),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScraperSettingsCard() {
+     return StyledCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Scraper Settings', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 16),
+          ListTile(
+            leading: const Icon(Icons.public),
+            title: const Text('Scraper Sources'),
+            subtitle: const Text('Manage websites to scrape from.'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {},
           ),
-          
-          const SizedBox(height: 24),
-          
-          // API Settings
-          _buildSettingsCard(
-            'API Configuration',
-            [
-              _buildTextFieldSetting(
-                'API Key',
-                'Your API key for integrations',
-                '••••••••••••••••',
-              ),
-              _buildActionSetting(
-                'Regenerate API Key',
-                'Generate a new API key',
-                'Regenerate',
-                () {},
-              ),
-              _buildTextFieldSetting(
-                'Webhook URL',
-                'URL for webhook notifications',
-                'https://your-domain.com/webhook',
-              ),
-            ],
+           ListTile(
+            leading: const Icon(Icons.timer_outlined),
+            title: const Text('Scraping Frequency'),
+            subtitle: const Text('Set how often the scrapers run.'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {},
           ),
-          
-          const SizedBox(height: 24),
-          
-          // Danger Zone
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Danger Zone',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.red,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.red.shade200),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Delete Account',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.red.shade700,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'This action cannot be undone',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.red.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                          ),
-                          child: const Text('Delete'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextFieldSetting(String title, String subtitle, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+          Text(subtitle, style: GoogleFonts.inter(fontSize: 14, color: Colors.grey.shade600)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
           ),
         ],
@@ -177,156 +210,27 @@ class _SettingsSectionState extends State<SettingsSection> {
     );
   }
 
-  Widget _buildSettingsCard(String title, List<Widget> children) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSwitchSetting(String title, String subtitle, bool value, ValueChanged<bool> onChanged) {
+  Widget _buildTimePickerSetting(String title, String subtitle, TimeOfDay time, Function(TimeOfDay?) onTimeChanged) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDropdownSetting(String title, String subtitle, String value, List<String> options, ValueChanged<String?> onChanged) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          DropdownButton<String>(
-            value: value,
-            onChanged: onChanged,
-            items: options.map((option) {
-              return DropdownMenuItem(
-                value: option,
-                child: Text(option.toUpperCase()),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionSetting(String title, String subtitle, String buttonText, VoidCallback onPressed) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
+                Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
+                Text(subtitle, style: GoogleFonts.inter(fontSize: 14, color: Colors.grey.shade600)),
               ],
             ),
           ),
           OutlinedButton(
-            onPressed: onPressed,
-            child: Text(buttonText),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextFieldSetting(String title, String subtitle, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: TextEditingController(text: value),
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
-            ),
+            onPressed: () async {
+              final newTime = await showTimePicker(context: context, initialTime: time);
+              onTimeChanged(newTime);
+            },
+            child: Text(time.format(context)),
           ),
         ],
       ),
