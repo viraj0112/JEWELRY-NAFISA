@@ -1,5 +1,61 @@
 import 'package:flutter/material.dart';
 
+enum DateRangeType { today, thisWeek, thisMonth, custom }
+
+extension DateRangeTypeExtension on DateRangeType {
+  String get name {
+    switch (this) {
+      case DateRangeType.today:
+        return 'Today';
+      case DateRangeType.thisWeek:
+        return 'This Week';
+      case DateRangeType.thisMonth:
+        return 'This Month';
+      case DateRangeType.custom:
+        return 'Custom';
+    }
+  }
+}
+
+class FilterState {
+  final DateRangeType dateRangeType;
+  final DateTimeRange? customDateRange;
+  final String category;
+  final String status;
+
+  FilterState({
+    required this.dateRangeType,
+    this.customDateRange,
+    required this.category,
+    required this.status,
+  });
+
+  factory FilterState.defaultFilters() {
+    return FilterState(
+      dateRangeType: DateRangeType.thisMonth,
+      category: 'All Categories',
+      status: 'All Status',
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FilterState &&
+          runtimeType == other.runtimeType &&
+          dateRangeType == other.dateRangeType &&
+          customDateRange == other.customDateRange &&
+          category == other.category &&
+          status == other.status;
+
+  @override
+  int get hashCode =>
+      dateRangeType.hashCode ^
+      customDateRange.hashCode ^
+      category.hashCode ^
+      status.hashCode;
+}
+
 class AppUser {
   final String id;
   final String? email;
@@ -9,6 +65,7 @@ class AppUser {
   final bool isMember;
   final DateTime createdAt;
   final String? businessName;
+  final String? avatarUrl;
 
   AppUser({
     required this.id,
@@ -19,6 +76,7 @@ class AppUser {
     this.isMember = false,
     required this.createdAt,
     this.businessName,
+    this.avatarUrl,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -31,6 +89,7 @@ class AppUser {
       isMember: json['is_member'] ?? false,
       createdAt: DateTime.parse(json['created_at']),
       businessName: json['business_name'],
+      avatarUrl: json['avatar_url'],
     );
   }
 

@@ -21,7 +21,7 @@ dependencies:
   material_design_icons_flutter: ^7.0.7296
   font_awesome_flutter: ^10.7.0
   cupertino_icons: ^1.0.8
-  
+
   # Interactive Charts & Calendar (Corrected Versions)
   syncfusion_flutter_charts: ^26.1.35
   syncfusion_flutter_datepicker: ^26.1.35 # <-- THIS IS THE FIX
@@ -46,8 +46,15 @@ dev_dependencies:
   mockito: ^5.4.4
   build_runner: ^2.4.9
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web: true
+  image_path: "assets/icons/ImageDD.png"

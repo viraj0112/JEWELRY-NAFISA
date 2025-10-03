@@ -308,7 +308,6 @@ class _UserGrowthCardState extends State<UserGrowthCard> {
                 }
                 return SfCartesianChart(
                   primaryXAxis: const CategoryAxis(),
-                  // 🚀 FIXED: Changed <ChartSeries> to <CartesianSeries>
                   series: <CartesianSeries>[
                     ColumnSeries<Map<String, dynamic>, String>(
                       dataSource: snapshot.data!,
@@ -356,7 +355,6 @@ class _PostCategoriesCardState extends State<PostCategoriesCard> {
                   }
                   return SfCircularChart(
                     legend: const Legend(isVisible: true),
-                    // 🚀 FIXED: This was already correct but ensuring consistency
                     series: <CircularSeries>[
                       DoughnutSeries<Map<String, dynamic>, String>(
                         dataSource: snapshot.data,
@@ -391,8 +389,8 @@ class _DailyUsageCardState extends State<DailyUsageCard> {
       child: Column(
         children: [
           const _ChartCardHeader(
-              title: 'Daily Usage Pattern',
-              subtitle: 'Platform activity by hour'),
+              title: 'Daily Platform Views',
+              subtitle: 'Views over the last 30 days'),
           const SizedBox(height: 20),
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
@@ -406,11 +404,11 @@ class _DailyUsageCardState extends State<DailyUsageCard> {
                   }
                   return SfCartesianChart(
                     primaryXAxis: const CategoryAxis(),
-                    // 🚀 FIXED: Changed <CartesianSeries<dynamic, dynamic>> to <CartesianSeries>
                     series: <CartesianSeries>[
                       ColumnSeries<Map<String, dynamic>, String>(
                           dataSource: snapshot.data!,
-                          xValueMapper: (data, _) => data['hour'],
+                          xValueMapper: (data, _) => DateFormat.MMMd()
+                              .format(DateTime.parse(data['day'])),
                           yValueMapper: (data, _) => data['val'],
                           dataLabelSettings:
                               const DataLabelSettings(isVisible: true))
@@ -453,22 +451,21 @@ class _GoalCompletionCardState extends State<GoalCompletionCard> {
                 if (!snapshot.hasData) {
                   return const Center(child: Text('No data'));
                 }
-                final conversionRate = snapshot.data! * 100;
+                final conversionRate = snapshot.data!;
                 return SfCircularChart(
-                  // 🚀 FIXED: This was already correct but ensuring consistency
                   series: <CircularSeries>[
                     RadialBarSeries<double, String>(
                       dataSource: [conversionRate],
                       xValueMapper: (data, _) => 'Conversion',
                       yValueMapper: (data, _) => data,
-                      maximumValue: 100,
+                      maximumValue: 1,
                       cornerStyle: CornerStyle.bothCurve,
                     )
                   ],
                   annotations: <CircularChartAnnotation>[
                     CircularChartAnnotation(
                       widget: Text(
-                        '${conversionRate.toStringAsFixed(1)}%',
+                        '${(conversionRate * 100).toStringAsFixed(1)}%',
                         style: const TextStyle(
                             fontSize: 24, fontWeight: FontWeight.bold),
                       ),

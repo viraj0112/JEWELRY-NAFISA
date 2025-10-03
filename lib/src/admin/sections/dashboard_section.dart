@@ -43,13 +43,13 @@ class _DashboardSectionState extends State<DashboardSection> {
             final metrics = snapshot.data!;
             return MetricsGrid(
               totalUsers: metrics['totalUsers'],
-              usersChange: metrics['usersChange'], 
+              usersChange: metrics['usersChange'],
               totalPosts: metrics['totalPosts'],
-              postsChange: metrics['postsChange'], 
+              postsChange: metrics['postsChange'],
               creditsUsed: metrics['creditsUsed'],
-              creditsChange: metrics['creditsChange'], 
+              creditsChange: metrics['creditsChange'],
               referrals: metrics['totalReferrals'],
-              referralsChange: metrics['referralsChange'], 
+              referralsChange: metrics['referralsChange'],
             );
           },
         ),

@@ -110,26 +110,23 @@ class _AnalyticsSectionState extends State<AnalyticsSection>
   }
 
   Widget _buildUserBehavior() {
-    // TODO: Fetch User Behavior data from Supabase
     return const SingleChildScrollView(
       padding: EdgeInsets.symmetric(vertical: 24.0),
-      child: ChartGrid(), // Reusing the main chart grid
+      child: ChartGrid(),
     );
   }
 
   Widget _buildCreditUsage() {
-    // TODO: Fetch Credit Usage data from Supabase
     return const SingleChildScrollView(
       padding: EdgeInsets.symmetric(vertical: 24.0),
-      child: DailyUsageCard(), // Using a specific chart
+      child: DailyUsageCard(),
     );
   }
 
   Widget _buildEngagementSegment() {
-    // TODO: Fetch Engagement Segment data from Supabase
     return const SingleChildScrollView(
       padding: EdgeInsets.symmetric(vertical: 24.0),
-      child: UserGrowthCard(), // Using a specific chart
+      child: UserGrowthCard(),
     );
   }
 }

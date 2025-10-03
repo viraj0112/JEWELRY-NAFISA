@@ -1,31 +1,10 @@
-// lib/src/admin/widgets/filter_component.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart'; // Make sure provider is imported
-import 'package:table_calendar/table_calendar.dart';
+import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
+import 'package:jewelry_nafisa/src/admin/notifiers/filter_state_notifier.dart';
 import 'package:intl/intl.dart';
-
-// Enum and model for managing filter state
-enum DateRangeType { today, week, month, custom }
-
-class FilterState {
-  final DateRangeType dateRangeType;
-  final DateTimeRange? customDateRange;
-  final String category;
-  final String status;
-  FilterState({
-    this.dateRangeType = DateRangeType.month,
-    this.customDateRange,
-    this.category = 'All Categories',
-    this.status = 'All Status',
-  });
-}
-
-// A global notifier for the filter state
-class FilterStateNotifier extends ValueNotifier<FilterState> {
-  FilterStateNotifier() : super(FilterState());
-}
+import 'package:provider/provider.dart';
+import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 
 class FilterComponent extends StatefulWidget {
   const FilterComponent({super.key});
@@ -35,34 +14,45 @@ class FilterComponent extends StatefulWidget {
 }
 
 class _FilterComponentState extends State<FilterComponent> {
-  // Local state for the UI
-  DateRangeType _selectedRange = DateRangeType.month;
+  DateRangeType _selectedRange = DateRangeType.thisMonth;
+  DateTimeRange? _customDateRange;
   String _selectedCategory = 'All Categories';
   String _selectedStatus = 'All Status';
-  DateTimeRange? _customDateRange;
 
-  // Method to show the custom pop-up calendar
-  void _showDatePicker(BuildContext context) {
+  void _showDatePicker() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return _CustomDatePicker(
-          initialRange: _customDateRange,
-          onDateRangeSelected: (range) {
-            setState(() {
-              _customDateRange = range;
-              _selectedRange = DateRangeType.custom;
-            });
-            _updateGlobalFilters();
-          },
-        );
-      },
+      builder: (context) => AlertDialog(
+        content: SizedBox(
+          width: 400,
+          height: 400,
+          child: SfDateRangePicker(
+            onSelectionChanged: (DateRangePickerSelectionChangedArgs args) {
+              if (args.value is PickerDateRange) {
+                final PickerDateRange range = args.value;
+                if (range.startDate != null && range.endDate != null) {
+                  setState(() {
+                    _customDateRange = DateTimeRange(
+                        start: range.startDate!, end: range.endDate!);
+                    _selectedRange = DateRangeType.custom;
+                  });
+                  _updateGlobalFilters();
+                  Navigator.of(context).pop();
+                }
+              }
+            },
+            selectionMode: DateRangePickerSelectionMode.range,
+            initialSelectedRange: _customDateRange != null
+                ? PickerDateRange(
+                    _customDateRange!.start, _customDateRange!.end)
+                : null,
+          ),
+        ),
+      ),
     );
   }
 
-  // Method to update the global state
   void _updateGlobalFilters() {
-    // Corrected: Using Provider.of with listen: false to access the notifier
     final notifier = Provider.of<FilterStateNotifier>(context, listen: false);
     notifier.value = FilterState(
       dateRangeType: _selectedRange,
@@ -74,213 +64,117 @@ class _FilterComponentState extends State<FilterComponent> {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        _buildDateRangeButtons(),
-        _buildDatePickerButton(context),
-        _buildDropdown(
-          'All Category',
-          ['All Categories', 'Users', 'Content', 'Revenue', 'Analytics'],
-          _selectedCategory,
-          (val) => setState(() => _selectedCategory = val!),
-        ),
-        _buildDropdown(
-          'All Status',
-          ['All Status', 'Active', 'Inactive', 'Pending'],
-          _selectedStatus,
-          (val) => setState(() => _selectedStatus = val!),
-        ),
-        OutlinedButton.icon(
-          onPressed: _updateGlobalFilters,
-          icon: const Icon(Icons.filter_list, size: 16),
-          label: const Text('Apply Filters'),
-        ),
-      ],
-    );
-  }
-
-  // --- UI Builder Methods ---
-
-  Widget _buildDateRangeButtons() {
+    final theme = Theme.of(context);
     return Container(
+      padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Theme.of(context).dividerColor),
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 1,
+            blurRadius: 5,
+          ),
+        ],
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _dateButton(DateRangeType.today, 'Today'),
-          _dateButton(DateRangeType.week, '7d'),
-          _dateButton(DateRangeType.month, '30d'),
+          _buildDateRangeFilter(),
+          _buildCategoryFilter(),
+          _buildStatusFilter(),
         ],
       ),
     );
   }
 
-  Widget _dateButton(DateRangeType range, String text) {
-    final isSelected = _selectedRange == range;
-    return InkWell(
-      onTap: () => setState(() => _selectedRange = range),
-      borderRadius: BorderRadius.circular(6),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color:
-              isSelected ? Theme.of(context).primaryColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(text,
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.w600,
-              color: isSelected
-                  ? Colors.white
-                  : Theme.of(context).textTheme.bodyLarge?.color,
-            )),
-      ),
+  Widget _buildDateRangeFilter() {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        ...DateRangeType.values.map((range) {
+          if (range == DateRangeType.custom) {
+            return TextButton.icon(
+              onPressed: _showDatePicker,
+              icon: Icon(Icons.calendar_today,
+                  color: theme.textTheme.bodyLarge?.color?.withOpacity(0.7)),
+              label: Text(
+                _customDateRange != null
+                    ? '${DateFormat.yMMMd().format(_customDateRange!.start)} - ${DateFormat.yMMMd().format(_customDateRange!.end)}'
+                    : 'Pick Date',
+                style:
+                    GoogleFonts.inter(color: theme.textTheme.bodyLarge?.color),
+              ),
+            );
+          }
+          return TextButton(
+            onPressed: () {
+              setState(() => _selectedRange = range);
+              _updateGlobalFilters();
+            },
+            child: Text(
+              range.name,
+              style: GoogleFonts.inter(
+                fontWeight: _selectedRange == range
+                    ? FontWeight.bold
+                    : FontWeight.normal,
+                color: _selectedRange == range
+                    ? theme.colorScheme.primary
+                    : theme.textTheme.bodyLarge?.color?.withOpacity(0.7),
+              ),
+            ),
+          );
+        }).toList(),
+      ],
     );
   }
 
-  Widget _buildDatePickerButton(BuildContext context) {
-    final String label = _customDateRange == null
-        ? 'Pick a date'
-        : '${DateFormat.yMMMd().format(_customDateRange!.start)} - ${DateFormat.yMMMd().format(_customDateRange!.end)}';
+  Widget _buildCategoryFilter() {
+    return _buildDropdown(
+      'All Categories',
+      ['All Categories', 'Users', 'Content', 'Revenue', 'Analytics'],
+      _selectedCategory,
+      (val) {
+        setState(() => _selectedCategory = val!);
+        _updateGlobalFilters();
+      },
+    );
+  }
 
-    final bool isCustomSelected = _selectedRange == DateRangeType.custom;
-
-    return TextButton.icon(
-      onPressed: () => _showDatePicker(context),
-      icon: Icon(Icons.calendar_today_outlined,
-          size: 16,
-          color: isCustomSelected
-              ? Theme.of(context).primaryColor
-              : Colors.grey.shade600),
-      label: Text(label,
-          style: GoogleFonts.inter(
-              color: isCustomSelected
-                  ? Theme.of(context).primaryColor
-                  : Colors.grey.shade600)),
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        backgroundColor: isCustomSelected
-            ? Theme.of(context).primaryColor.withOpacity(0.1)
-            : Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-              color: isCustomSelected
-                  ? Theme.of(context).primaryColor
-                  : Theme.of(context).dividerColor),
-        ),
-      ),
+  Widget _buildStatusFilter() {
+    return _buildDropdown(
+      'All Status',
+      ['All Status', 'Active', 'Inactive', 'Pending'],
+      _selectedStatus,
+      (val) {
+        setState(() => _selectedStatus = val!);
+        _updateGlobalFilters();
+      },
     );
   }
 
   Widget _buildDropdown(String hint, List<String> items, String value,
       ValueChanged<String?> onChanged) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: theme.scaffoldBackgroundColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Theme.of(context).dividerColor),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
           onChanged: onChanged,
+          dropdownColor: theme.cardColor,
           items: items.map<DropdownMenuItem<String>>((String value) {
             return DropdownMenuItem<String>(
               value: value,
               child: Text(value, style: GoogleFonts.inter()),
             );
           }).toList(),
-        ),
-      ),
-    );
-  }
-}
-
-// The custom pop-up calendar widget
-class _CustomDatePicker extends StatefulWidget {
-  final DateTimeRange? initialRange;
-  final Function(DateTimeRange) onDateRangeSelected;
-
-  const _CustomDatePicker(
-      {this.initialRange, required this.onDateRangeSelected});
-
-  @override
-  State<_CustomDatePicker> createState() => _CustomDatePickerState();
-}
-
-class _CustomDatePickerState extends State<_CustomDatePicker> {
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _rangeStart;
-  DateTime? _rangeEnd;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.initialRange != null) {
-      _rangeStart = widget.initialRange!.start;
-      _rangeEnd = widget.initialRange!.end;
-    }
-  }
-
-  void _onRangeSelection(DateTime? start, DateTime? end, DateTime focusedDay) {
-    setState(() {
-      _rangeStart = start;
-      _rangeEnd = end;
-      _focusedDay = focusedDay;
-    });
-
-    if (start != null && end != null) {
-      widget.onDateRangeSelected(DateTimeRange(start: start, end: end));
-      Navigator.of(context).pop();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 8,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 320,
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: TableCalendar(
-          focusedDay: _focusedDay,
-          firstDay: DateTime(2020),
-          lastDay: DateTime(2030),
-          rangeStartDay: _rangeStart,
-          rangeEndDay: _rangeEnd,
-          onRangeSelected: _onRangeSelection,
-          rangeSelectionMode: RangeSelectionMode.toggledOn,
-          headerStyle: HeaderStyle(
-            formatButtonVisible: false,
-            titleCentered: true,
-            titleTextStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
-          ),
-          calendarStyle: CalendarStyle(
-            rangeHighlightColor:
-                Theme.of(context).primaryColor.withOpacity(0.2),
-            todayDecoration: BoxDecoration(
-              color: Theme.of(context).disabledColor,
-              shape: BoxShape.circle,
-            ),
-            selectedDecoration: BoxDecoration(
-              color: Theme.of(context).primaryColor,
-              shape: BoxShape.circle,
-            ),
-          ),
         ),
       ),
     );

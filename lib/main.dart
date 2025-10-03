@@ -5,11 +5,11 @@ import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
+import 'package:jewelry_nafisa/src/admin/notifiers/filter_state_notifier.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 import 'package:jewelry_nafisa/src/admin/admin_shell.dart';
-import 'package:jewelry_nafisa/src/admin/widgets/filter_component.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,15 +23,15 @@ void main() async {
 
   final supabaseUrl =
       const String.fromEnvironment('SUPABASE_URL', defaultValue: '').isNotEmpty
-      ? const String.fromEnvironment('SUPABASE_URL')
-      : dotenv.env['SUPABASE_URL'] ?? '';
+          ? const String.fromEnvironment('SUPABASE_URL')
+          : dotenv.env['SUPABASE_URL'] ?? '';
   final supabaseAnonKey =
       const String.fromEnvironment(
         'SUPABASE_ANON_KEY',
         defaultValue: '',
       ).isNotEmpty
-      ? const String.fromEnvironment('SUPABASE_ANON_KEY')
-      : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+          ? const String.fromEnvironment('SUPABASE_ANON_KEY')
+          : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
     throw Exception('Supabase URL and Anon Key must be provided');
@@ -65,9 +65,8 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
+      initialRoute: '/',
 
-      initialRoute: '/', 
-  
       routes: {
         '/': (context) => const AuthGate(),
         '/auth-callback': (context) => const AuthCallbackScreen(),

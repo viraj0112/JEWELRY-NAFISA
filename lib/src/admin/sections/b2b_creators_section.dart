@@ -63,7 +63,6 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
     );
   }
 
-  // --- TAB 1: Profile Approval Queue ---
   Widget _buildApprovalQueue() {
     return FutureBuilder<List<AppUser>>(
       future: _adminService.getPendingCreators(),
@@ -117,7 +116,7 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Creator status updated to $status.'),
           backgroundColor: Colors.green));
-      setState(() {}); // Re-runs the FutureBuilder to refresh the list
+      setState(() {});
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Failed to update status: $e'),
@@ -125,7 +124,6 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
     }
   }
 
-  // --- TAB 2: Creator Directory ---
   Widget _buildCreatorDirectory() {
     return FutureBuilder<List<AppUser>>(
       future: _adminService.getApprovedCreators(),
@@ -163,7 +161,6 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
     );
   }
 
-  // --- TAB 3: Uploaded Content ---
   Widget _buildUploadedContent() {
     return FutureBuilder<List<Asset>>(
       future: _adminService.getUploadedContent(),
