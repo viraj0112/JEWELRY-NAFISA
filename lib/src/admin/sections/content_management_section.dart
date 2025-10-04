@@ -15,18 +15,21 @@ class ContentManagementSection extends StatefulWidget {
 
 class _ContentManagementSectionState extends State<ContentManagementSection> {
   final AdminService _adminService = AdminService();
-  late Future<List<Asset>> _assetsFuture;
+  // FIX: Changed from Future to Stream
+  late Stream<List<Asset>> _assetsStream;
 
   @override
   void initState() {
     super.initState();
-    _assetsFuture = _adminService.getUploadedContent();
+    // FIX: Assign the stream from the service
+    _assetsStream = _adminService.getUploadedContent();
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Asset>>(
-      future: _assetsFuture,
+    // FIX: Changed from FutureBuilder to StreamBuilder
+    return StreamBuilder<List<Asset>>(
+      stream: _assetsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -36,7 +39,12 @@ class _ContentManagementSectionState extends State<ContentManagementSection> {
         }
         final assets = snapshot.data ?? [];
         if (assets.isEmpty) {
-          return const Center(child: Text('No content uploaded yet.'));
+          return const Center(
+            child: Text(
+              'No content has been uploaded yet.',
+              style: TextStyle(color: Colors.grey),
+            ),
+          );
         }
 
         return StyledCard(
@@ -54,9 +62,20 @@ class _ContentManagementSectionState extends State<ContentManagementSection> {
                     width: 40, height: 40, fit: BoxFit.cover)),
                 DataCell(Text(asset.title)),
                 DataCell(Text(asset.ownerUsername ?? 'N/A')),
-                DataCell(Chip(
-                    label: Text(asset.status),
-                    backgroundColor: Colors.orange.withOpacity(0.1))),
+                DataCell(
+                  Chip(
+                    label: Text(
+                      asset.status,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    // FIX: Added dynamic color based on status
+                    backgroundColor: asset.status == 'approved'
+                        ? Colors.green
+                        : asset.status == 'pending'
+                            ? Colors.orange
+                            : Colors.red,
+                  ),
+                ),
                 DataCell(Text(DateFormat.yMMMd().format(asset.createdAt))),
               ]);
             }).toList(),

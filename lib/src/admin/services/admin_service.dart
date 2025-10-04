@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
-import 'package:flutter/material.dart'; // Import for DateTimeRange
+import 'package:flutter/material.dart';
 
 class AdminService {
   final _supabase = Supabase.instance.client;
@@ -184,87 +184,59 @@ class AdminService {
     }
   }
 
-  Future<List<AppUser>> getUsers(
-      {required String userType, FilterState? filterState}) async {
-    try {
-      var query = _supabase.from('users').select();
-
-      switch (userType) {
-        case 'Members':
-          query = query.eq('is_member', true);
-          break;
-        case 'Non-Members':
-          query = query.eq('is_member', false).eq('role', 'member');
-          break;
-        case 'B2B Creators':
-          query = query.eq('role', 'designer');
-          break;
-      }
-
-      if (filterState != null) {
-        DateTimeRange? range;
-
-        // Determine the date range based on the filter state
-        if (filterState.dateRangeType == DateRangeType.custom &&
-            filterState.customDateRange != null) {
-          range = filterState.customDateRange;
-        } else {
-          final now = DateTime.now();
-          switch (filterState.dateRangeType) {
-            case DateRangeType.today:
-              final startOfDay = DateTime(now.year, now.month, now.day);
-              range = DateTimeRange(start: startOfDay, end: now);
-              break;
-            case DateRangeType.thisWeek:
-              final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-              final startOfDay = DateTime(
-                  startOfWeek.year, startOfWeek.month, startOfWeek.day);
-              range = DateTimeRange(start: startOfDay, end: now);
-              break;
-            case DateRangeType.thisMonth:
-              final startOfMonth = DateTime(now.year, now.month, 1);
-              range = DateTimeRange(start: startOfMonth, end: now);
-              break;
-            case DateRangeType.custom:
-              // No custom range provided, so no date filter is applied.
-              break;
-          }
-        }
-
-        // Apply the date range query if a range was determined
-        if (range != null) {
-          final endOfDay = DateTime(
-              range.end.year, range.end.month, range.end.day, 23, 59, 59);
-          query = query.gte('created_at', range.start.toIso8601String());
-          query = query.lte('created_at', endOfDay.toIso8601String());
-        }
-
-        if (filterState.status != 'All Status') {
-          query = query.eq('approval_status', filterState.status.toLowerCase());
-        }
-      }
-
-      final response = await query.order('created_at', ascending: false);
-      return (response as List).map((data) => AppUser.fromJson(data)).toList();
-    } catch (e) {
-      debugPrint('Error fetching users ($userType): $e');
-      rethrow;
+  Stream<List<AppUser>> getUsers({
+    required String userType,
+    required FilterState filterState,
+  }) {
+    // Start with select query
+    var baseQuery = _supabase.from('users').select();
+    
+    switch (userType) {
+      case 'Members':
+        baseQuery = baseQuery.eq('is_member', true);
+        break;
+      case 'Non-Members':
+        baseQuery = baseQuery.eq('is_member', false);
+        break;
+      case 'B2B Creators':
+        baseQuery = baseQuery.eq('role', 'designer');
+        break;
     }
+
+    final range = filterState.dateRange;
+
+    if (range != null) {
+      final endOfDay =
+          DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59);
+      baseQuery = baseQuery
+          .gte('created_at', range.start.toIso8601String())
+          .lte('created_at', endOfDay.toIso8601String());
+    }
+
+    if (filterState.status != 'All Status') {
+      baseQuery = baseQuery.eq('approval_status', filterState.status.toLowerCase());
+    }
+
+    // Apply stream() at the end with all filters already applied
+    return baseQuery
+        .order('created_at', ascending: false)
+        .asStream()
+        .map((response) => (response as List)
+            .map((map) => AppUser.fromJson(map))
+            .toList());
   }
 
-  Future<List<AppUser>> getPendingCreators() async {
-    try {
-      final response = await _supabase
-          .from('users')
-          .select()
-          .eq('role', 'designer')
-          .eq('approval_status', 'pending')
-          .order('created_at', ascending: true);
-      return (response as List).map((data) => AppUser.fromJson(data)).toList();
-    } catch (e) {
-      debugPrint('Error fetching pending creators: $e');
-      rethrow;
-    }
+  Stream<List<AppUser>> getPendingCreators() {
+    return _supabase
+        .from('users')
+        .select()
+        .eq('role', 'designer')
+        .eq('approval_status', 'pending')
+        .order('created_at', ascending: true)
+        .asStream()
+        .map((response) => (response as List)
+            .map((map) => AppUser.fromJson(map))
+            .toList());
   }
 
   Future<void> updateCreatorStatus(String userId, String newStatus) async {
@@ -302,17 +274,21 @@ class AdminService {
     }
   }
 
-  Future<List<Asset>> getUploadedContent() async {
-    try {
-      final response = await _supabase
-          .from('assets')
-          .select('*, users(username)')
-          .order('created_at', ascending: false);
-      return (response as List).map((data) => Asset.fromJson(data)).toList();
-    } catch (e) {
-      debugPrint('Error fetching uploaded content: $e');
-      rethrow;
-    }
+  Stream<List<Asset>> getUploadedContent() {
+    return _supabase
+        .from('assets')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .map((maps) => maps.map((map) => Asset.fromJson(map)).toList());
+  }
+
+  Stream<List<Notification>> getActivityLogs() {
+    return _supabase
+        .from('notifications')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .limit(100)
+        .map((maps) => maps.map((map) => Notification.fromMap(map)).toList());
   }
 
   Future<List<PostAnalytic>> getPostAnalytics() async {
@@ -364,5 +340,28 @@ class AdminService {
     );
 
     return controller.stream;
+  }
+}
+
+class Notification {
+  final String id;
+  final String message;
+  final bool isRead;
+  final DateTime createdAt;
+
+  Notification({
+    required this.id,
+    required this.message,
+    required this.isRead,
+    required this.createdAt,
+  });
+
+  factory Notification.fromMap(Map<String, dynamic> map) {
+    return Notification(
+      id: map['id'],
+      message: map['message'],
+      isRead: map['is_read'] ?? false,
+      createdAt: DateTime.parse(map['created_at']),
+    );
   }
 }

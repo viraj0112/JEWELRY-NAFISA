@@ -70,7 +70,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const AuthGate(),
         '/auth-callback': (context) => const AuthCallbackScreen(),
-        '/admin': (context) => const AdminShell(),
+        // '/admin': (context) => const AdminShell(),
       },
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
+import 'package:jewelry_nafisa/src/admin/notifiers/filter_state_notifier.dart';
 import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
 import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart';
 import 'package:intl/intl.dart';
@@ -29,6 +30,23 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
     super.dispose();
   }
 
+  Future<void> _updateStatus(String userId, String status) async {
+    try {
+      await _adminService.updateCreatorStatus(userId, status);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Creator status updated to $status.'),
+            backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Failed to update status: $e'),
+            backgroundColor: Colors.red));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -43,7 +61,7 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
           labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
           unselectedLabelStyle: GoogleFonts.inter(),
           tabs: const [
-            Tab(text: 'Profile Approval Queue'),
+            Tab(text: 'Approval Queue'),
             Tab(text: 'Creator Directory'),
             Tab(text: 'Uploaded Content'),
           ],
@@ -64,8 +82,8 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
   }
 
   Widget _buildApprovalQueue() {
-    return FutureBuilder<List<AppUser>>(
-      future: _adminService.getPendingCreators(),
+    return StreamBuilder<List<AppUser>>(
+      stream: _adminService.getPendingCreators(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -75,58 +93,55 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
         }
         final pendingCreators = snapshot.data ?? [];
         if (pendingCreators.isEmpty) {
-          return const Center(child: Text('No pending approvals.'));
+          return const Center(
+              child: Text('No pending approvals.',
+                  style: TextStyle(color: Colors.grey)));
         }
 
-        return StyledCard(
-          child: ListView.separated(
-            itemCount: pendingCreators.length,
-            separatorBuilder: (_, __) => const Divider(),
-            itemBuilder: (context, index) {
-              final creator = pendingCreators[index];
-              return ListTile(
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: pendingCreators.length,
+          itemBuilder: (context, index) {
+            final creator = pendingCreators[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
                 leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-                title: Text(creator.username ?? 'N/A',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(creator.businessName ?? creator.username ?? 'N/A'),
                 subtitle: Text(creator.email ?? 'No Email'),
                 trailing: Wrap(
-                  spacing: 4.0,
+                  spacing: 8.0,
                   children: [
-                    TextButton(
-                        onPressed: () => _updateStatus(creator.id, 'approved'),
-                        child: const Text('Approve')),
-                    TextButton(
+                    ElevatedButton(
+                      onPressed: () => _updateStatus(creator.id, 'approved'),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green),
+                      child: const Text('Approve'),
+                    ),
+                    OutlinedButton(
                       onPressed: () => _updateStatus(creator.id, 'rejected'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      style:
+                          OutlinedButton.styleFrom(foregroundColor: Colors.red),
                       child: const Text('Reject'),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         );
       },
     );
   }
 
-  void _updateStatus(String userId, String status) async {
-    try {
-      await _adminService.updateCreatorStatus(userId, status);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Creator status updated to $status.'),
-          backgroundColor: Colors.green));
-      setState(() {});
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to update status: $e'),
-          backgroundColor: Colors.red));
-    }
-  }
-
   Widget _buildCreatorDirectory() {
-    return FutureBuilder<List<AppUser>>(
-      future: _adminService.getApprovedCreators(),
+    // Note: This now uses a default FilterState. You might want to connect this
+    // to your global filter provider later.
+    return StreamBuilder<List<AppUser>>(
+      stream: _adminService.getUsers(
+        userType: 'B2B Creators',
+        filterState: FilterState.defaultFilters().copyWith(status: 'approved'),
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -136,10 +151,13 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
         }
         final creators = snapshot.data ?? [];
         if (creators.isEmpty) {
-          return const Center(child: Text('No approved creators found.'));
+          return const Center(
+              child: Text('No approved creators found.',
+                  style: TextStyle(color: Colors.grey)));
         }
 
-        return StyledCard(
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
           child: DataTable(
             columns: const [
               DataColumn(label: Text('Username')),
@@ -162,8 +180,8 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
   }
 
   Widget _buildUploadedContent() {
-    return FutureBuilder<List<Asset>>(
-      future: _adminService.getUploadedContent(),
+    return StreamBuilder<List<Asset>>(
+      stream: _adminService.getUploadedContent(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -173,10 +191,13 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
         }
         final assets = snapshot.data ?? [];
         if (assets.isEmpty) {
-          return const Center(child: Text('No content uploaded yet.'));
+          return const Center(
+              child: Text('No content uploaded yet.',
+                  style: TextStyle(color: Colors.grey)));
         }
 
-        return StyledCard(
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
           child: DataTable(
             columns: const [
               DataColumn(label: Text('Thumbnail')),
@@ -191,9 +212,19 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
                     width: 40, height: 40, fit: BoxFit.cover)),
                 DataCell(Text(asset.title)),
                 DataCell(Text(asset.ownerUsername ?? 'N/A')),
-                DataCell(Chip(
-                    label: Text(asset.status),
-                    backgroundColor: Colors.orange.withOpacity(0.1))),
+                DataCell(
+                  Chip(
+                    label: Text(
+                      asset.status,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    backgroundColor: asset.status == 'approved'
+                        ? Colors.green
+                        : asset.status == 'pending'
+                            ? Colors.orange
+                            : Colors.red,
+                  ),
+                ),
                 DataCell(Text(DateFormat.yMMMd().format(asset.createdAt))),
               ]);
             }).toList(),
