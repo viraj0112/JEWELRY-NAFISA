@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -277,7 +278,7 @@ class _ChartCardHeader extends StatelessWidget {
   }
 }
 
-// UserGrowthCard remains the same
+// FIX: Refactored UserGrowthCard to manage stream lifecycle
 class UserGrowthCard extends StatefulWidget {
   const UserGrowthCard({super.key});
 
@@ -287,6 +288,26 @@ class UserGrowthCard extends StatefulWidget {
 
 class _UserGrowthCardState extends State<UserGrowthCard> {
   final AdminService _adminService = AdminService();
+  StreamSubscription? _subscription;
+  List<Map<String, dynamic>>? _data;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscription = _adminService.getUserGrowthStream().listen((data) {
+      if (mounted) {
+        setState(() {
+          _data = data;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -297,27 +318,20 @@ class _UserGrowthCardState extends State<UserGrowthCard> {
               title: 'User Growth Trend', subtitle: 'Members vs Non-Members'),
           const SizedBox(height: 20),
           Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _adminService.getUserGrowthStream(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('No data'));
-                }
-                return SfCartesianChart(
-                  primaryXAxis: const CategoryAxis(),
-                  series: <CartesianSeries>[
-                    ColumnSeries<Map<String, dynamic>, String>(
-                      dataSource: snapshot.data!,
-                      xValueMapper: (data, _) => data['x'],
-                      yValueMapper: (data, _) => data['y'],
-                    )
-                  ],
-                );
-              },
-            ),
+            child: _data == null
+                ? const Center(child: CircularProgressIndicator())
+                : _data!.isEmpty
+                    ? const Center(child: Text('No data'))
+                    : SfCartesianChart(
+                        primaryXAxis: const CategoryAxis(),
+                        series: <CartesianSeries>[
+                          ColumnSeries<Map<String, dynamic>, String>(
+                            dataSource: _data,
+                            xValueMapper: (data, _) => data['x'],
+                            yValueMapper: (data, _) => data['y'],
+                          )
+                        ],
+                      ),
           ),
         ],
       ),
@@ -325,7 +339,7 @@ class _UserGrowthCardState extends State<UserGrowthCard> {
   }
 }
 
-// PostCategoriesCard remains the same
+// FIX: Refactored PostCategoriesCard to manage stream lifecycle
 class PostCategoriesCard extends StatefulWidget {
   const PostCategoriesCard({super.key});
 
@@ -335,6 +349,26 @@ class PostCategoriesCard extends StatefulWidget {
 
 class _PostCategoriesCardState extends State<PostCategoriesCard> {
   final AdminService _adminService = AdminService();
+  StreamSubscription? _subscription;
+  List<Map<String, dynamic>>? _data;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscription = _adminService.getPostCategoriesStream().listen((data) {
+      if (mounted) {
+        setState(() {
+          _data = data;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -344,28 +378,22 @@ class _PostCategoriesCardState extends State<PostCategoriesCard> {
           const _ChartCardHeader(
               title: 'Post Categories', subtitle: 'Breakdown by content type'),
           Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-                stream: _adminService.getPostCategoriesStream(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(child: Text('No data'));
-                  }
-                  return SfCircularChart(
-                    legend: const Legend(isVisible: true),
-                    series: <CircularSeries>[
-                      DoughnutSeries<Map<String, dynamic>, String>(
-                        dataSource: snapshot.data,
-                        xValueMapper: (data, _) => data['cat'],
-                        yValueMapper: (data, _) => data['val'],
-                        dataLabelSettings:
-                            const DataLabelSettings(isVisible: true),
-                      )
-                    ],
-                  );
-                }),
+            child: _data == null
+                ? const Center(child: CircularProgressIndicator())
+                : _data!.isEmpty
+                    ? const Center(child: Text('No data'))
+                    : SfCircularChart(
+                        legend: const Legend(isVisible: true),
+                        series: <CircularSeries>[
+                          DoughnutSeries<Map<String, dynamic>, String>(
+                            dataSource: _data,
+                            xValueMapper: (data, _) => data['cat'],
+                            yValueMapper: (data, _) => data['val'],
+                            dataLabelSettings:
+                                const DataLabelSettings(isVisible: true),
+                          )
+                        ],
+                      ),
           ),
         ],
       ),
@@ -373,7 +401,7 @@ class _PostCategoriesCardState extends State<PostCategoriesCard> {
   }
 }
 
-// DailyUsageCard remains the same
+// FIX: Refactored DailyUsageCard to manage stream lifecycle
 class DailyUsageCard extends StatefulWidget {
   const DailyUsageCard({super.key});
 
@@ -383,6 +411,27 @@ class DailyUsageCard extends StatefulWidget {
 
 class _DailyUsageCardState extends State<DailyUsageCard> {
   final AdminService _adminService = AdminService();
+  StreamSubscription? _subscription;
+  List<Map<String, dynamic>>? _data;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscription = _adminService.getDailyAnalyticsStream().listen((data) {
+      if (mounted) {
+        setState(() {
+          _data = data;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return StyledCard(
@@ -393,28 +442,22 @@ class _DailyUsageCardState extends State<DailyUsageCard> {
               subtitle: 'Views over the last 30 days'),
           const SizedBox(height: 20),
           Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-                stream: _adminService.getDailyAnalyticsStream(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(child: Text('No data'));
-                  }
-                  return SfCartesianChart(
-                    primaryXAxis: const CategoryAxis(),
-                    series: <CartesianSeries>[
-                      ColumnSeries<Map<String, dynamic>, String>(
-                          dataSource: snapshot.data!,
-                          xValueMapper: (data, _) => DateFormat.MMMd()
-                              .format(DateTime.parse(data['day'])),
-                          yValueMapper: (data, _) => data['val'],
-                          dataLabelSettings:
-                              const DataLabelSettings(isVisible: true))
-                    ],
-                  );
-                }),
+            child: _data == null
+                ? const Center(child: CircularProgressIndicator())
+                : _data!.isEmpty
+                    ? const Center(child: Text('No data'))
+                    : SfCartesianChart(
+                        primaryXAxis: const CategoryAxis(),
+                        series: <CartesianSeries>[
+                          ColumnSeries<Map<String, dynamic>, String>(
+                              dataSource: _data!,
+                              xValueMapper: (data, _) => DateFormat.MMMd()
+                                  .format(DateTime.parse(data['day'])),
+                              yValueMapper: (data, _) => data['val'],
+                              dataLabelSettings:
+                                  const DataLabelSettings(isVisible: true))
+                        ],
+                      ),
           ),
         ],
       ),
@@ -422,7 +465,7 @@ class _DailyUsageCardState extends State<DailyUsageCard> {
   }
 }
 
-// GoalCompletionCard remains the same
+// FIX: Refactored GoalCompletionCard to manage stream lifecycle
 class GoalCompletionCard extends StatefulWidget {
   const GoalCompletionCard({super.key});
 
@@ -432,6 +475,26 @@ class GoalCompletionCard extends StatefulWidget {
 
 class _GoalCompletionCardState extends State<GoalCompletionCard> {
   final AdminService _adminService = AdminService();
+  StreamSubscription? _subscription;
+  double? _conversionRate;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscription = _adminService.getConversionRateStream().listen((rate) {
+      if (mounted) {
+        setState(() {
+          _conversionRate = rate;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -442,38 +505,28 @@ class _GoalCompletionCardState extends State<GoalCompletionCard> {
               title: 'Conversion Rate',
               subtitle: 'Visitors to Members this month'),
           Expanded(
-            child: StreamBuilder<double>(
-              stream: _adminService.getConversionRateStream(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: Text('No data'));
-                }
-                final conversionRate = snapshot.data!;
-                return SfCircularChart(
-                  series: <CircularSeries>[
-                    RadialBarSeries<double, String>(
-                      dataSource: [conversionRate],
-                      xValueMapper: (data, _) => 'Conversion',
-                      yValueMapper: (data, _) => data,
-                      maximumValue: 1,
-                      cornerStyle: CornerStyle.bothCurve,
-                    )
-                  ],
-                  annotations: <CircularChartAnnotation>[
-                    CircularChartAnnotation(
-                      widget: Text(
-                        '${(conversionRate * 100).toStringAsFixed(1)}%',
-                        style: const TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.bold),
-                      ),
-                    )
-                  ],
-                );
-              },
-            ),
+            child: _conversionRate == null
+                ? const Center(child: CircularProgressIndicator())
+                : SfCircularChart(
+                    series: <CircularSeries>[
+                      RadialBarSeries<double, String>(
+                        dataSource: [_conversionRate!],
+                        xValueMapper: (data, _) => 'Conversion',
+                        yValueMapper: (data, _) => data,
+                        maximumValue: 1,
+                        cornerStyle: CornerStyle.bothCurve,
+                      )
+                    ],
+                    annotations: <CircularChartAnnotation>[
+                      CircularChartAnnotation(
+                        widget: Text(
+                          '${(_conversionRate! * 100).toStringAsFixed(1)}%',
+                          style: const TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                      )
+                    ],
+                  ),
           ),
         ],
       ),

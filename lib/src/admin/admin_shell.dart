@@ -58,7 +58,8 @@ class _AdminShellState extends State<AdminShell> {
 
   void _onMenuItemSelected(MenuItem item) {
     if (item.screen != null) {
-      if (MediaQuery.of(context).size.width < 800 && Navigator.canPop(context)) {
+      if (MediaQuery.of(context).size.width < 800 &&
+          Navigator.canPop(context)) {
         Navigator.of(context).pop();
       }
       setState(() {
@@ -71,11 +72,12 @@ class _AdminShellState extends State<AdminShell> {
     await SupabaseAuthService().signOut();
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()), (route) => false,
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+        (route) => false,
       );
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -117,7 +119,8 @@ class _AdminShellState extends State<AdminShell> {
   Widget _buildDesktopLayout() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF161C24) : const Color(0xFFF9FAFB),
+      backgroundColor:
+          isDarkMode ? const Color(0xFF161C24) : const Color(0xFFF9FAFB),
       body: Row(
         children: [
           SizedBox(width: 260, child: _buildSidePanel()),
@@ -127,7 +130,8 @@ class _AdminShellState extends State<AdminShell> {
               children: [
                 _buildAdminHeader(),
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
                   child: FilterComponent(),
                 ),
                 Expanded(child: _buildPageContent()),
@@ -153,25 +157,25 @@ class _AdminShellState extends State<AdminShell> {
   Widget _buildAdminHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-      // Using Wrap for better responsiveness on medium screens
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        alignment: WrapAlignment.spaceBetween,
+      // FIX: Changed Wrap to Row and wrapped TextField in Expanded
+      child: Row(
         children: [
-          SizedBox(
-            width: 1000,// Set a max width for the search bar
+          Expanded(
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Search...',
                 prefixIcon: const Icon(Icons.search, size: 20),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
                 fillColor: Theme.of(context).scaffoldBackgroundColor,
                 filled: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
               ),
             ),
           ),
+          const SizedBox(width: 16),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: _buildAppBarActions(),
@@ -181,7 +185,7 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
-    List<Widget> _buildAppBarActions() {
+  List<Widget> _buildAppBarActions() {
     final themeProvider = Provider.of<ThemeProvider>(context);
     return [
       IconButton(
@@ -213,7 +217,8 @@ class _AdminShellState extends State<AdminShell> {
           enabled: false,
           child: ListTile(
             leading: const CircleAvatar(child: Text('A')),
-            title: const Text('Admin', style: TextStyle(fontWeight: FontWeight.bold)),
+            title: const Text('Admin',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(
               'admin@jewelrynafisa.com',
               style: Theme.of(context).textTheme.bodySmall,
@@ -246,7 +251,8 @@ class _AdminShellState extends State<AdminShell> {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(8.0),
-              children: menuItems.map((item) => _buildMenuList(item, theme)).toList(),
+              children:
+                  menuItems.map((item) => _buildMenuList(item, theme)).toList(),
             ),
           ),
         ],
@@ -280,30 +286,42 @@ class _AdminShellState extends State<AdminShell> {
       return _HoverableMenuItem(
         isSelected: isSelected,
         child: ListTile(
-          leading: Icon(item.icon, color: isSelected ? theme.primaryColor : null),
-          title: Text(item.title, style: TextStyle(color: isSelected ? theme.primaryColor : null)),
+          leading:
+              Icon(item.icon, color: isSelected ? theme.primaryColor : null),
+          title: Text(item.title,
+              style: TextStyle(color: isSelected ? theme.primaryColor : null)),
           onTap: () => _onMenuItemSelected(item),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       );
     } else {
-      bool isChildSelected = item.subItems!.any((sub) => sub.title == _selectedMenuItem.title);
+      bool isChildSelected =
+          item.subItems!.any((sub) => sub.title == _selectedMenuItem.title);
       return _HoverableMenuItem(
         isSelected: isChildSelected,
         child: ExpansionTile(
-          leading: Icon(item.icon, color: isChildSelected ? theme.primaryColor : null),
-          title: Text(item.title, style: TextStyle(color: isChildSelected ? theme.primaryColor : null)),
+          leading: Icon(item.icon,
+              color: isChildSelected ? theme.primaryColor : null),
+          title: Text(item.title,
+              style: TextStyle(
+                  color: isChildSelected ? theme.primaryColor : null)),
           initiallyExpanded: isChildSelected,
           childrenPadding: const EdgeInsets.only(left: 20.0),
           children: item.subItems!.map((subItem) {
-            final bool isSubItemSelected = _selectedMenuItem.title == subItem.title;
+            final bool isSubItemSelected =
+                _selectedMenuItem.title == subItem.title;
             return _HoverableMenuItem(
               isSelected: isSubItemSelected,
               child: ListTile(
-                title: Text(subItem.title, style: TextStyle(color: isSubItemSelected ? theme.primaryColor : null)),
-                leading: Icon(subItem.icon, size: 20, color: isSubItemSelected ? theme.primaryColor : null),
+                title: Text(subItem.title,
+                    style: TextStyle(
+                        color: isSubItemSelected ? theme.primaryColor : null)),
+                leading: Icon(subItem.icon,
+                    size: 20,
+                    color: isSubItemSelected ? theme.primaryColor : null),
                 onTap: () => _onMenuItemSelected(subItem),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
             );
           }).toList(),

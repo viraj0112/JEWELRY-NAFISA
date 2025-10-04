@@ -81,7 +81,8 @@ class _FilterComponentState extends State<FilterComponent> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _buildDateRangeFilter(),
+          // FIX: Expanded to allow the date range filter to take available space
+          Expanded(child: _buildDateRangeFilter()),
           _buildCategoryFilter(),
           _buildStatusFilter(),
         ],
@@ -91,42 +92,46 @@ class _FilterComponentState extends State<FilterComponent> {
 
   Widget _buildDateRangeFilter() {
     final theme = Theme.of(context);
-    return Row(
-      children: [
-        ...DateRangeType.values.map((range) {
-          if (range == DateRangeType.custom) {
-            return TextButton.icon(
-              onPressed: _showDatePicker,
-              icon: Icon(Icons.calendar_today,
-                  color: theme.textTheme.bodyLarge?.color?.withOpacity(0.7)),
-              label: Text(
-                _customDateRange != null
-                    ? '${DateFormat.yMMMd().format(_customDateRange!.start)} - ${DateFormat.yMMMd().format(_customDateRange!.end)}'
-                    : 'Pick Date',
-                style:
-                    GoogleFonts.inter(color: theme.textTheme.bodyLarge?.color),
+    // FIX: Wrapped the Row in a SingleChildScrollView for horizontal scrolling
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          ...DateRangeType.values.map((range) {
+            if (range == DateRangeType.custom) {
+              return TextButton.icon(
+                onPressed: _showDatePicker,
+                icon: Icon(Icons.calendar_today,
+                    color: theme.textTheme.bodyLarge?.color?.withOpacity(0.7)),
+                label: Text(
+                  _customDateRange != null
+                      ? '${DateFormat.yMMMd().format(_customDateRange!.start)} - ${DateFormat.yMMMd().format(_customDateRange!.end)}'
+                      : 'Pick Date',
+                  style: GoogleFonts.inter(
+                      color: theme.textTheme.bodyLarge?.color),
+                ),
+              );
+            }
+            return TextButton(
+              onPressed: () {
+                setState(() => _selectedRange = range);
+                _updateGlobalFilters();
+              },
+              child: Text(
+                range.name,
+                style: GoogleFonts.inter(
+                  fontWeight: _selectedRange == range
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                  color: _selectedRange == range
+                      ? theme.colorScheme.primary
+                      : theme.textTheme.bodyLarge?.color?.withOpacity(0.7),
+                ),
               ),
             );
-          }
-          return TextButton(
-            onPressed: () {
-              setState(() => _selectedRange = range);
-              _updateGlobalFilters();
-            },
-            child: Text(
-              range.name,
-              style: GoogleFonts.inter(
-                fontWeight: _selectedRange == range
-                    ? FontWeight.bold
-                    : FontWeight.normal,
-                color: _selectedRange == range
-                    ? theme.colorScheme.primary
-                    : theme.textTheme.bodyLarge?.color?.withOpacity(0.7),
-              ),
-            ),
-          );
-        }).toList(),
-      ],
+          }).toList(),
+        ],
+      ),
     );
   }
 
