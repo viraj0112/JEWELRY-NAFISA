@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 enum DateRangeType { today, thisWeek, thisMonth, custom }
@@ -30,11 +31,45 @@ class FilterState {
     required this.status,
   });
 
+  /// **FIX ADDED**: A getter to compute the effective date range.
+  DateTimeRange? get dateRange {
+    final now = DateTime.now();
+    switch (dateRangeType) {
+      case DateRangeType.today:
+        final startOfDay = DateTime(now.year, now.month, now.day);
+        return DateTimeRange(start: startOfDay, end: now);
+      case DateRangeType.thisWeek:
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        final startOfDay =
+            DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+        return DateTimeRange(start: startOfDay, end: now);
+      case DateRangeType.thisMonth:
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        return DateTimeRange(start: startOfMonth, end: now);
+      case DateRangeType.custom:
+        return customDateRange;
+    }
+  }
+
   factory FilterState.defaultFilters() {
     return FilterState(
       dateRangeType: DateRangeType.thisMonth,
       category: 'All Categories',
       status: 'All Status',
+    );
+  }
+
+  FilterState copyWith({
+    DateRangeType? dateRangeType,
+    DateTimeRange? customDateRange,
+    String? category,
+    String? status,
+  }) {
+    return FilterState(
+      dateRangeType: dateRangeType ?? this.dateRangeType,
+      customDateRange: customDateRange ?? this.customDateRange,
+      category: category ?? this.category,
+      status: status ?? this.status,
     );
   }
 
