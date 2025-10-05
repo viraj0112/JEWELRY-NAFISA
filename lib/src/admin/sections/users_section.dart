@@ -29,9 +29,85 @@ class _UsersSectionState extends State<UsersSection>
     super.dispose();
   }
 
+  void _showUserDetails(BuildContext context, AppUser user) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(user.username ?? 'User Details'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Email: ${user.email}'),
+                Text('Role: ${user.role}'),
+                Text('Member: ${user.isMember}'),
+                const SizedBox(height: 20),
+                const Text('Credit History:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                FutureBuilder<List<CreditHistory>>(
+                  future: _adminService.getUserCreditHistory(user.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final history = snapshot.data ?? [];
+                    return DataTable(
+                      columns: const [
+                        DataColumn(label: Text('Date')),
+                        DataColumn(label: Text('Added')),
+                        DataColumn(label: Text('Spent')),
+                      ],
+                      rows: history
+                          .map((e) => DataRow(cells: [
+                                DataCell(Text(
+                                    DateFormat.yMMMd().format(e.entryDate))),
+                                DataCell(Text(e.creditsAdded.toString())),
+                                DataCell(Text(e.creditsSpent.toString())),
+                              ]))
+                          .toList(),
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                const Text('Referral Tree:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                FutureBuilder<List<ReferralNode>>(
+                  future: _adminService.getReferralTree(user.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final tree = snapshot.data ?? [];
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: tree
+                          .map((node) => Padding(
+                                padding:
+                                    EdgeInsets.only(left: (node.level * 20.0)),
+                                child: Text(
+                                    '${node.username} (Level ${node.level})'),
+                              ))
+                          .toList(),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Consumer widget listens for changes in FilterStateNotifier
     return Consumer<FilterStateNotifier>(
       builder: (context, filterNotifier, child) {
         final filterState = filterNotifier.value;
@@ -99,13 +175,14 @@ class _UsersSectionState extends State<UsersSection>
                           ? NetworkImage(user.avatarUrl!)
                           : null,
                   child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
-                      ? Text(user.username?.substring(0, 1).toUpperCase() ??
-                          'U')
+                      ? Text(
+                          user.username?.substring(0, 1).toUpperCase() ?? 'U')
                       : null,
                 ),
                 title: Text(user.username ?? 'No Username'),
                 subtitle: Text(user.email ?? 'No Email'),
                 trailing: Text(DateFormat.yMMMd().format(user.createdAt)),
+                onTap: () => _showUserDetails(context, user),
               ),
             );
           },

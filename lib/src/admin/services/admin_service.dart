@@ -184,13 +184,49 @@ class AdminService {
     }
   }
 
+  Future<List<CreditHistory>> getUserCreditHistory(String userId) async {
+    final response = await _supabase
+        .rpc('get_user_credit_history', params: {'p_user_id': userId});
+    return (response as List).map((e) => CreditHistory.fromJson(e)).toList();
+  }
+
+  Future<List<ReferralNode>> getReferralTree(String userId) async {
+    final response =
+        await _supabase.rpc('get_referral_tree', params: {'p_user_id': userId});
+    return (response as List).map((e) => ReferralNode.fromJson(e)).toList();
+  }
+
+  Stream<List<Asset>> getScrapedContent() {
+    return _supabase
+        .from('assets')
+        .stream(primaryKey: ['id'])
+        .eq('source', 'scraped')
+        .order('created_at', ascending: false)
+        .map((maps) => maps.map((map) => Asset.fromJson(map)).toList());
+  }
+
+  Stream<List<Board>> getBoards() {
+    return _supabase
+        .from('boards')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .map((maps) => maps.map((map) => Board.fromJson(map)).toList());
+  }
+
+  Future<CreatorDashboard> getCreatorDashboard(String creatorId) async {
+    final response = await _supabase.rpc('get_creator_dashboard', params: {'p_creator_id': creatorId});
+    return CreatorDashboard.fromJson(response);
+  }
+
+
+
   Stream<List<AppUser>> getUsers({
     required String userType,
     required FilterState filterState,
   }) {
     // Start with select query
     var baseQuery = _supabase.from('users').select();
-    
+
     switch (userType) {
       case 'Members':
         baseQuery = baseQuery.eq('is_member', true);
@@ -214,16 +250,14 @@ class AdminService {
     }
 
     if (filterState.status != 'All Status') {
-      baseQuery = baseQuery.eq('approval_status', filterState.status.toLowerCase());
+      baseQuery =
+          baseQuery.eq('approval_status', filterState.status.toLowerCase());
     }
 
     // Apply stream() at the end with all filters already applied
-    return baseQuery
-        .order('created_at', ascending: false)
-        .asStream()
-        .map((response) => (response as List)
-            .map((map) => AppUser.fromJson(map))
-            .toList());
+    return baseQuery.order('created_at', ascending: false).asStream().map(
+        (response) =>
+            (response as List).map((map) => AppUser.fromJson(map)).toList());
   }
 
   Stream<List<AppUser>> getPendingCreators() {
@@ -234,9 +268,8 @@ class AdminService {
         .eq('approval_status', 'pending')
         .order('created_at', ascending: true)
         .asStream()
-        .map((response) => (response as List)
-            .map((map) => AppUser.fromJson(map))
-            .toList());
+        .map((response) =>
+            (response as List).map((map) => AppUser.fromJson(map)).toList());
   }
 
   Future<void> updateCreatorStatus(String userId, String newStatus) async {

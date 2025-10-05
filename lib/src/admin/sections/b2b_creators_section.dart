@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
 import 'package:jewelry_nafisa/src/admin/notifiers/filter_state_notifier.dart';
+import 'package:jewelry_nafisa/src/admin/screens/creator_analytics_screen.dart';
 import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
 import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart';
-import 'package:intl/intl.dart';
 
 class B2BCreatorsSection extends StatefulWidget {
   const B2BCreatorsSection({super.key});
@@ -135,8 +136,6 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
   }
 
   Widget _buildCreatorDirectory() {
-    // Note: This now uses a default FilterState. You might want to connect this
-    // to your global filter provider later.
     return StreamBuilder<List<AppUser>>(
       stream: _adminService.getUsers(
         userType: 'B2B Creators',
@@ -161,16 +160,32 @@ class _B2BCreatorsSectionState extends State<B2BCreatorsSection>
           child: DataTable(
             columns: const [
               DataColumn(label: Text('Username')),
-              DataColumn(label: Text('Email')),
               DataColumn(label: Text('Business Name')),
               DataColumn(label: Text('Joined Date')),
+              DataColumn(label: Text('Actions')), // New column
             ],
             rows: creators.map((creator) {
               return DataRow(cells: [
                 DataCell(Text(creator.username ?? 'N/A')),
-                DataCell(Text(creator.email ?? 'No Email')),
                 DataCell(Text(creator.businessName ?? 'N/A')),
                 DataCell(Text(DateFormat.yMMMd().format(creator.createdAt))),
+                // New cell with navigation button
+                DataCell(
+                  IconButton(
+                    icon: const Icon(Icons.analytics_outlined),
+                    tooltip: 'View Analytics',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => CreatorAnalyticsScreen(
+                            creatorId: creator.id,
+                            creatorName: creator.username,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ]);
             }).toList(),
           ),

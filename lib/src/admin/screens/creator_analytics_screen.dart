@@ -2,13 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/admin/sections/creator_analytics_section.dart';
 
 class CreatorAnalyticsScreen extends StatelessWidget {
-  const CreatorAnalyticsScreen({super.key});
+  final String creatorId;
+  final String? creatorName; 
+
+  const CreatorAnalyticsScreen({
+    super.key,
+    required this.creatorId,
+    this.creatorName,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(24.0),
-      child: CreatorAnalyticsSection(),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(creatorName ?? 'Creator Analytics'),
+        elevation: 1,
+        shadowColor: Colors.black,
+      ),
+      body: CreatorAnalyticsSection(
+        creatorId: creatorId,
+      ),
     );
   }
 }
