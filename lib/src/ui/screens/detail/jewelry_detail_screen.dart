@@ -1,5 +1,3 @@
-// jewelry_detail_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
@@ -180,8 +178,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
   Future<void> _shareItem() async {
     final shareText =
-        'Check out this beautiful ${widget.jewelryItem.name} from AKD Designs!';
-    await Share.share(shareText, subject: 'Beautiful Jewelry from AKD');
+        'Check out this beautiful ${widget.jewelryItem.name} from Dagina Designs!';
+    await Share.share(shareText, subject: 'Beautiful Jewelry from Dagina Designs');
   }
 
   void _onGetQuotePressed(BuildContext context) async {

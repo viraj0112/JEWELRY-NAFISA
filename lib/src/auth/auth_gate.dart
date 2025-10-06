@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/admin/admin_shell.dart'; // Import the AdminShell
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
+import 'package:jewelry_nafisa/src/designer/designer_shell.dart';
 import 'package:jewelry_nafisa/src/designer/screens/pending_approval_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
@@ -56,8 +57,7 @@ class AuthGate extends StatelessWidget {
             // 2. Check for 'designer' role
             if (userRole == 'designer') {
               if (approvalStatus == 'approved') {
-                // You can create and return a DesignerShell() here when ready
-                return const MainShell();
+                return const DesignerShell();
               } else {
                 return const PendingApprovalScreen();
               }

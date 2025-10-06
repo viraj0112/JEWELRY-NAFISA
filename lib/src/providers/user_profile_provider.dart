@@ -66,7 +66,7 @@ class UserProfileProvider with ChangeNotifier {
           if (data.isNotEmpty) {
             _updateFromData(data.first);
             final currentCode = data.first['referral_code'] as String?;
-            if (currentCode == null || !currentCode.startsWith('AKD-')) {
+            if (currentCode == null || !currentCode.startsWith('DD-')) {
               generateAndSaveReferralCode();
             }
           }
@@ -85,7 +85,7 @@ class UserProfileProvider with ChangeNotifier {
         (_) => chars.codeUnitAt(random.nextInt(chars.length)),
       ),
     );
-    final newCode = 'AKD-$randomPart';
+    final newCode = 'DD-$randomPart';
 
     try {
       await _supabaseClient
