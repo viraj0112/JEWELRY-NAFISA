@@ -184,13 +184,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             const SizedBox(height: 10),
             Text(
-              'AKD',
+              'Dagina Designs',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 24),
             Text(
-              "Welcome to AKD Designs",
+              "Welcome to Dagina Designs",
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),

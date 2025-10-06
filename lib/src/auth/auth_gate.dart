@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/admin/admin_shell.dart'; // Import the AdminShell
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
+import 'package:jewelry_nafisa/src/designer/designer_shell.dart';
 import 'package:jewelry_nafisa/src/designer/screens/pending_approval_screen.dart';
 import 'package:jewelry_nafisa/src/designer/designer_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
