@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/models/board.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
@@ -24,7 +23,7 @@ class BoardsProvider extends ChangeNotifier {
       for (var boardData in response) {
         _boards.add(
           Board(
-            id: boardData['id'], 
+            id: boardData['id'],
             name: boardData['name'],
           ),
         );
@@ -47,7 +46,7 @@ class BoardsProvider extends ChangeNotifier {
           .single();
 
       final newBoard = Board(
-        id: newBoardData['id'], 
+        id: newBoardData['id'],
         name: newBoardData['name'],
       );
       _boards.add(newBoard);
@@ -62,11 +61,11 @@ class BoardsProvider extends ChangeNotifier {
     if (userId == null) return;
 
     try {
-
       final existingPin = await _supabase
           .from('pins')
           .select('id')
-          .eq('image_url', item.imageUrl)
+          // FIX: Changed item.imageUrl to item.image
+          .eq('image_url', item.image)
           .maybeSingle();
 
       String pinId;
@@ -78,8 +77,10 @@ class BoardsProvider extends ChangeNotifier {
             .from('pins')
             .insert({
               'owner_id': userId,
-              'title': item.name,
-              'image_url': item.imageUrl,
+              // FIX: Changed item.name to item.title
+              'title': item.title,
+              // FIX: Changed item.imageUrl to item.image
+              'image_url': item.image,
               'description': item.description,
             })
             .select('id')

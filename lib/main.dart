@@ -25,13 +25,12 @@ void main() async {
       const String.fromEnvironment('SUPABASE_URL', defaultValue: '').isNotEmpty
           ? const String.fromEnvironment('SUPABASE_URL')
           : dotenv.env['SUPABASE_URL'] ?? '';
-  final supabaseAnonKey =
-      const String.fromEnvironment(
-        'SUPABASE_ANON_KEY',
-        defaultValue: '',
-      ).isNotEmpty
-          ? const String.fromEnvironment('SUPABASE_ANON_KEY')
-          : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  final supabaseAnonKey = const String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: '',
+  ).isNotEmpty
+      ? const String.fromEnvironment('SUPABASE_ANON_KEY')
+      : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
     throw Exception('Supabase URL and Anon Key must be provided');
@@ -60,13 +59,12 @@ class MyApp extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
-      title: 'Designs by AKD',
+      title: 'Dagina Designs',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
       initialRoute: '/',
-
       routes: {
         '/': (context) => const AuthGate(),
         '/auth-callback': (context) => const AuthCallbackScreen(),

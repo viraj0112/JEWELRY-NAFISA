@@ -28,9 +28,11 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedCategory = 'All';
   final List<String> _categories = ['All'];
 
-  String? _hoveredItemId;
-  String? _tappedItemId;
-  final Set<String> _itemsBeingLiked = {};
+  // FIX: Changed types from String? to int?
+  int? _hoveredItemId;
+  int? _tappedItemId;
+  // FIX: Changed Set type from String to int
+  final Set<int> _itemsBeingLiked = {};
 
   @override
   void initState() {
@@ -55,7 +57,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final seenImageUrls = <String>{};
       final uniqueItems = <JewelryItem>[];
       for (final item in allItems) {
-        if (seenImageUrls.add(item.imageUrl)) {
+        // FIX: Changed item.imageUrl to item.image
+        if (seenImageUrls.add(item.image)) {
           uniqueItems.add(item);
         }
       }
@@ -103,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _likeItem(JewelryItem item) async {
-    if (_itemsBeingLiked.contains(item.id)) return; // Prevent multiple clicks
+    if (_itemsBeingLiked.contains(item.id)) return;
 
     setState(() {
       _itemsBeingLiked.add(item.id);
@@ -122,7 +125,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final pinData = await _supabase
           .from('pins')
           .select('id')
-          .eq('image_url', item.imageUrl)
+          // FIX: Changed item.imageUrl to item.image
+          .eq('image_url', item.image)
           .maybeSingle();
 
       String pinId;
@@ -133,8 +137,10 @@ class _HomeScreenState extends State<HomeScreen> {
             .from('pins')
             .insert({
               'owner_id': uid,
-              'title': item.name,
-              'image_url': item.imageUrl,
+              // FIX: Changed item.name to item.title
+              'title': item.title,
+              // FIX: Changed item.imageUrl to item.image
+              'image_url': item.image,
               'description': item.description,
             })
             .select('id')
@@ -150,7 +156,6 @@ class _HomeScreenState extends State<HomeScreen> {
         await _supabase.rpc('increment_like_count',
             params: {'pin_id_to_update': pinId, 'delta': -1});
       } else {
-        // --- Like ---
         await _supabase
             .from('user_likes')
             .insert({'user_id': uid, 'pin_id': pinId});
@@ -158,7 +163,6 @@ class _HomeScreenState extends State<HomeScreen> {
             params: {'pin_id_to_update': pinId, 'delta': 1});
       }
 
-      // Update the UI state
       if (mounted) {
         setState(() => item.isFavorite = !item.isFavorite);
       }
@@ -175,8 +179,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _shareItem(JewelryItem item) {
+    // FIX: Changed item.name to item.title
     Share.share(
-        'Check out this beautiful ${item.name} from Nafisa Jewellers!');
+        'Check out this beautiful ${item.title} from Nafisa Jewellers!');
   }
 
   void _saveToBoard(JewelryItem item) {
@@ -188,6 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // ... (build methods are long, pasting them below, but they also have fixes)
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -202,10 +208,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: MasonryGridView.count(
                       controller: _scrollController,
                       padding: const EdgeInsets.all(8.0),
-                      crossAxisCount:
-                          (MediaQuery.of(context).size.width / 200)
-                              .floor()
-                              .clamp(2, 6),
+                      crossAxisCount: (MediaQuery.of(context).size.width / 200)
+                          .floor()
+                          .clamp(2, 6),
                       itemCount: _filteredItems.length,
                       itemBuilder: (context, index) {
                         return _buildImageCard(context, _filteredItems[index]);
@@ -277,12 +282,12 @@ class _HomeScreenState extends State<HomeScreen> {
             alignment: Alignment.bottomCenter,
             children: [
               Image.network(
-                item.imageUrl,
+                // FIX: Changed item.imageUrl to item.image
+                item.image,
                 fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) =>
-                    progress == null
-                        ? child
-                        : const Center(child: CircularProgressIndicator.adaptive()),
+                loadingBuilder: (context, child, progress) => progress == null
+                    ? child
+                    : const Center(child: CircularProgressIndicator.adaptive()),
                 errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.error_outline, color: Colors.grey),
               ),
@@ -306,7 +311,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         if (isMember)
                           Expanded(
                             child: Text(
-                              item.name,
+                              // FIX: Changed item.name to item.title
+                              item.title,
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
@@ -338,7 +344,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               onPressed: () => _likeItem(item),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.share, color: Colors.white),
+                              icon:
+                                  const Icon(Icons.share, color: Colors.white),
                               onPressed: () => _shareItem(item),
                             ),
                             IconButton(

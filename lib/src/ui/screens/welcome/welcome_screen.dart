@@ -33,16 +33,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       final jewelryService = JewelryService(Supabase.instance.client);
       final products = await jewelryService.getProducts(limit: 100);
 
-      final imageUrls = products.map((item) => item.imageUrl).toList();
-      
+      // FIX: Changed item.imageUrl to item.image
+      final imageUrls = products.map((item) => item.image).toList();
+
       final uniqueImageUrls = imageUrls.toSet().toList();
 
-      uniqueImageUrls.shuffle(); 
+      uniqueImageUrls.shuffle();
 
       if (mounted) {
         setState(() {
           _imageUrls.clear();
-          _imageUrls.addAll(uniqueImageUrls); 
+          // FIX: Ensured the list is of type String
+          _imageUrls.addAll(List<String>.from(uniqueImageUrls));
           _isLoading = false;
         });
       }
@@ -81,6 +83,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
     );
   }
+
+  // ... The rest of the file remains the same, no changes needed below this line
+  // ... (Omitting the rest of the build methods for brevity as they are unchanged)
 
   Widget _buildWideLayout() {
     return Scaffold(
@@ -316,9 +321,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         SliverPadding(
           padding: const EdgeInsets.all(8.0),
           sliver: SliverMasonryGrid.count(
-            crossAxisCount: (MediaQuery.of(context).size.width / 200)
-                .floor()
-                .clamp(2, 8),
+            crossAxisCount:
+                (MediaQuery.of(context).size.width / 200).floor().clamp(2, 8),
             childCount: _imageUrls.length,
             itemBuilder: (context, index) {
               return GestureDetector(

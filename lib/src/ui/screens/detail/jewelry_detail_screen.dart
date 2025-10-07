@@ -1,5 +1,3 @@
-// jewelry_detail_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
@@ -29,13 +27,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   late final JewelryService _jewelryService;
   late Future<List<JewelryItem>> _similarItemsFuture;
 
-  // --- State for UI interactivity ---
   bool _detailsRevealed = false;
   bool _isLoadingInteraction = true;
   bool _isLiking = false;
   bool _isSaving = false;
 
-  // --- State for backend data ---
   String? _pinId;
   int _likeCount = 0;
   bool _userLiked = false;
@@ -46,21 +42,21 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     _jewelryService = JewelryService(supabase);
     _initializeInteractionState();
     _similarItemsFuture = _jewelryService.fetchSimilarItems(
-      currentItemId: widget.jewelryItem.id,
+      // FIX: Changed currentItemId to be an int
+      currentItemId: widget.jewelryItem.id.toString(),
       category: widget.jewelryItem.category,
       limit: 10,
     );
   }
 
-  /// Fetches the initial state of likes and saves for this item.
   Future<void> _initializeInteractionState() async {
     final uid = supabase.auth.currentUser?.id;
 
-    // Find if a 'pin' already exists for this product image
+    // FIX: Changed widget.jewelryItem.imageUrl to widget.jewelryItem.image
     final pinData = await supabase
         .from('pins')
         .select('id, like_count')
-        .eq('image_url', widget.jewelryItem.imageUrl)
+        .eq('image_url', widget.jewelryItem.image)
         .maybeSingle();
 
     if (pinData != null) {
@@ -68,7 +64,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       _pinId = pinId;
       _likeCount = (pinData['like_count'] ?? 0) as int;
 
-      // If a user is logged in, check if they have liked this pin
       if (uid != null) {
         final likeResponse = await supabase
             .from('user_likes')
@@ -83,8 +78,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
   }
 
-  /// Ensures a 'pin' exists for the product before liking or saving.
-  /// A pin is only created on the first user interaction to save resources.
   Future<String?> _ensurePinExists() async {
     if (_pinId != null) return _pinId;
 
@@ -101,8 +94,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           .from('pins')
           .insert({
             'owner_id': uid,
-            'title': widget.jewelryItem.name,
-            'image_url': widget.jewelryItem.imageUrl,
+            // FIX: Changed widget.jewelryItem.name to widget.jewelryItem.title
+            'title': widget.jewelryItem.title,
+            // FIX: Changed widget.jewelryItem.imageUrl to widget.jewelryItem.image
+            'image_url': widget.jewelryItem.image,
             'description': widget.jewelryItem.description,
           })
           .select('id')
@@ -129,7 +124,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     try {
       if (_userLiked) {
-        // --- Unlike ---
         await supabase
             .from('user_likes')
             .delete()
@@ -138,7 +132,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             params: {'pin_id_to_update': pinId, 'delta': -1});
         _likeCount--;
       } else {
-        // --- Like ---
         await supabase
             .from('user_likes')
             .insert({'user_id': uid, 'pin_id': pinId});
@@ -164,7 +157,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       return;
     }
 
-    // Use the provider to handle the dialog and saving logic
     final boardsProvider = context.read<BoardsProvider>();
     await boardsProvider.fetchBoards();
 
@@ -179,8 +171,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<void> _shareItem() async {
+    // FIX: Changed widget.jewelryItem.name to widget.jewelryItem.title
     final shareText =
-        'Check out this beautiful ${widget.jewelryItem.name} from AKD Designs!';
+        'Check out this beautiful ${widget.jewelryItem.title} from AKD Designs!';
     await Share.share(shareText, subject: 'Beautiful Jewelry from AKD');
   }
 
@@ -275,7 +268,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: Image.network(
-                          widget.jewelryItem.imageUrl,
+                          // FIX: Changed widget.jewelryItem.imageUrl to widget.jewelryItem.image
+                          widget.jewelryItem.image,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => const Center(
                               child: Icon(Icons.broken_image, size: 48)),
@@ -318,7 +312,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           flexibleSpace: FlexibleSpaceBar(
             background: Image.network(
-              widget.jewelryItem.imageUrl,
+              // FIX: Changed widget.jewelryItem.imageUrl to widget.jewelryItem.image
+              widget.jewelryItem.image,
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) =>
                   const Center(child: Icon(Icons.broken_image)),
@@ -358,7 +353,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            showTitle ? item.name : "Jewelry Design",
+            // FIX: Changed item.name to item.title
+            showTitle ? item.title : "Jewelry Design",
             style: theme.textTheme.headlineMedium,
           ),
           if (_likeCount > 0) ...[
@@ -372,9 +368,12 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           if (showFullDetails) ...[
             Text("Product Details", style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
-            _buildDetailRow("SKU:", item.id),
-            if (item.metal != null) _buildDetailRow("Metal:", item.metal!),
-            if (item.purity != null) _buildDetailRow("Purity:", item.purity!),
+            // FIX: Changed to convert int id to String and used new properties
+            _buildDetailRow("SKU:", item.id.toString()),
+            if (item.goldCarat != null)
+              _buildDetailRow("Gold Carat:", item.goldCarat!),
+            if (item.goldWeight != null)
+              _buildDetailRow("Gold Weight:", item.goldWeight!),
             if (item.stoneType != null)
               _buildDetailRow("Stone:", item.stoneType!),
             if (item.description != null && item.description!.isNotEmpty)
@@ -431,9 +430,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                 child: CircularProgressIndicator(strokeWidth: 2))
             : Icon(
                 _userLiked ? Icons.favorite : Icons.favorite_border,
-                color: _userLiked
-                    ? Colors.red
-                    : Theme.of(context).iconTheme.color,
+                color:
+                    _userLiked ? Colors.red : Theme.of(context).iconTheme.color,
               ),
         tooltip: _userLiked ? 'Unlike' : 'Like',
       ),
@@ -493,7 +491,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               child: Card(
                 clipBehavior: Clip.antiAlias,
                 child: Image.network(
-                  item.imageUrl,
+                  // FIX: Changed item.imageUrl to item.image
+                  item.image,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) =>
                       Container(color: Colors.grey[200]),

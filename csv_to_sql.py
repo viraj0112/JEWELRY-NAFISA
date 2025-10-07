@@ -1,82 +1,64 @@
-import csv
+import json
 
-def normalize_int(value):
+def generate_sql_from_json(json_file_path, table_name):
     """
-    Converts CSV value to integer or NULL for SQL.
+    Reads a JSON file and generates a complete SQL script to truncate
+    the table and insert new data.
     """
-    if not value or value.strip().lower() in ("null", "none", "na", "n/a"):
-        return "NULL"
     try:
-        # handle numbers that might be formatted as floats like "12.0"
-        return str(int(float(value)))
-    except (ValueError, TypeError):
-        return "NULL"
-
-def create_sql_insert_from_csv(csv_filepath, table_name):
-    """
-    Reads a cleaned CSV file and generates SQL INSERT statements for the 'products' table.
-    """
-    sql_statements = []
-    
-    with open(csv_filepath, mode='r', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        
-        for row in reader:
-            # Escape single quotes for all text fields
-            title = row.get('title', '').replace("'", "''")
-            description = row.get('description', '').replace("'", "''")
-            image_url = row.get('image_url', '')
-            category = row.get('category', '').replace("'", "''")
-            sub_category = row.get('sub_category', '').replace("'", "''")
-            metal = row.get('metal', '').replace("'", "''")
-            purity = row.get('purity', '').replace("'", "''")
-            stone_type = row.get('stone_type', '').replace("'", "''")
-            dimensions = row.get('dimensions', '').replace("'", "''")
-
-            # --- NUMERIC FIELDS ---
-            # Remove commas from price and normalize
-            price_str = row.get('price', '').replace(',', '')
-            price = normalize_int(price_str)
-
-            # Normalize weight fields
-            gold_weight = normalize_int(row.get('gold_weight'))
-            stone_weight = normalize_int(row.get('stone_weight'))
-
-            # --- TAGS FIELD (THE FIX) ---
-            # Get tags and escape single quotes
-            tags_str = row.get('tags', '').replace("'", "''")
-            
-            # --- CONSTRUCT SQL TUPLE ---
-            # The line `tags = f"'{tags_str}'"` has been removed.
-            # The 'tags_str' variable is now correctly quoted directly within the f-string.
-            sql = (
-                f"('{title}', '{description}', {price}, '{image_url}', "
-                f"'{tags_str}', '{category}', '{sub_category}', '{metal}', '{purity}', "
-                f"'{stone_type}', '{dimensions}', {gold_weight}, {stone_weight})"
-            )
-            sql_statements.append(sql)
-
-    if not sql_statements:
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error reading {json_file_path}: {e}")
         return ""
 
-    # --- FINAL SQL STATEMENT ---
+    if not data or not isinstance(data, list):
+        return ""
+
+    # Get column names from the first item, excluding 'id'
+    first_item_keys = [key for key in data[0].keys() if key != 'id']
+    columns_str = ', '.join(f'"{key}"' for key in first_item_keys)
+
+    insert_values = []
+    for item in data:
+        values = []
+        for key in first_item_keys:
+            value = item.get(key)
+            if value is None:
+                values.append("NULL")
+            elif isinstance(value, str):
+                escaped_value = value.replace("'", "''")
+                values.append(f"'{escaped_value}'")
+            elif isinstance(value, list):
+                # Correctly format the list as a PostgreSQL array literal
+                escaped_items = [str(v).replace("'", "''") for v in value]
+                array_literal = "ARRAY['" + "','".join(escaped_items) + "']"
+                values.append(array_literal)
+            else:
+                values.append(str(value))
+        
+        values_str = ', '.join(values)
+        insert_values.append(f"({values_str})")
+
+    if not insert_values:
+        return ""
+
+    # Using TRUNCATE is efficient and resets the auto-incrementing ID
     full_sql_statement = (
-        f"INSERT INTO public.{table_name} "
-        f"(title, description, price, image_url, tags, category, sub_category, metal, purity, stone_type, dimensions, gold_weight, stone_weight) VALUES\n"
-        + ",\n".join(sql_statements)
+        f"TRUNCATE public.{table_name} RESTART IDENTITY CASCADE;\n\n"
+        f"INSERT INTO public.{table_name} ({columns_str}) VALUES\n"
+        + ",\n".join(insert_values)
         + ";\n"
     )
     return full_sql_statement
 
+if __name__ == "__main__":
+    json_file = 'C:/Users/Viraj Sawant/Desktop/_Flutter_/scraped_jewelry_data.json'
+    table = 'products'
+    sql_script = generate_sql_from_json(json_file, table)
 
-# --- SCRIPT EXECUTION ---
-CSV_FILE = 'Jewelry-data.csv' 
-TABLE_NAME = 'products'
-OUTPUT_FILE = 'seed.sql'
-
-sql_output = create_sql_insert_from_csv(CSV_FILE, TABLE_NAME)
-
-with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-    f.write(sql_output)
-
-print(f"✅ Successfully generated '{OUTPUT_FILE}'. You can now move this file to your 'supabase' directory.")
+    if sql_script:
+        output_file = 'supabase/seed.sql'
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(sql_script)
+        print(f"✅ Successfully generated {output_file}")
