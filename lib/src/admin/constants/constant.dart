@@ -9,7 +9,7 @@ import 'package:jewelry_nafisa/src/admin/screens/referrals_screen.dart';
 import 'package:jewelry_nafisa/src/admin/screens/settings_screen.dart';
 import 'package:jewelry_nafisa/src/admin/screens/activity_logs_screen.dart';
 import 'package:jewelry_nafisa/src/admin/screens/content_management_screen.dart';
-
+import 'package:jewelry_nafisa/src/admin/screens/product_upload_screen.dart';
 final List<MenuItem> menuItems = [
   MenuItem(
     title: 'Dashboard',
@@ -30,6 +30,11 @@ final List<MenuItem> menuItems = [
     title: 'Content Management',
     icon: Icons.folder_copy_outlined,
     screen: const ContentManagementScreen(),
+  ),
+  MenuItem(
+    title: 'Product Upload',
+    icon: Icons.upload_file_outlined,
+    screen: const ProductUploadScreen(),
   ),
   MenuItem(
     title: 'Analytics',

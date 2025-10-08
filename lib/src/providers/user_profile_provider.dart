@@ -9,6 +9,7 @@ class UserProfileProvider with ChangeNotifier {
   StreamSubscription<List<Map<String, dynamic>>>? _profileSubscription;
   Map<String, dynamic>? _userProfile;
   bool _isLoading = false;
+  bool _isProfileLoaded = false;
   String _username = 'Guest';
   bool _isMember = false;
   int _creditsRemaining = 0;
@@ -21,6 +22,7 @@ class UserProfileProvider with ChangeNotifier {
 
   Map<String, dynamic>? get userProfile => _userProfile;
   bool get isLoading => _isLoading;
+  bool get isProfileLoaded => _isProfileLoaded;
   String get username => _username;
   String get role => _role;
   String get approvalStatus => _approvalStatus;
@@ -45,10 +47,14 @@ class UserProfileProvider with ChangeNotifier {
     _referralCode = data['referral_code'];
     _usedReferralCode = data['referred_by'];
     _isLoading = false;
+    _isProfileLoaded = true;
     notifyListeners();
   }
 
   Future<void> fetchProfile() async {
+    _isLoading = true;
+    notifyListeners();
+
     final userId = _supabaseClient.auth.currentUser?.id;
     if (userId == null) {
       _isLoading = false;
@@ -69,6 +75,10 @@ class UserProfileProvider with ChangeNotifier {
             if (currentCode == null || !currentCode.startsWith('DD-')) {
               generateAndSaveReferralCode();
             }
+          } else {
+            _isLoading = false;
+            _isProfileLoaded = true;
+            notifyListeners();
           }
         });
   }
@@ -90,8 +100,7 @@ class UserProfileProvider with ChangeNotifier {
     try {
       await _supabaseClient
           .from('users')
-          .update({'referral_code': newCode})
-          .eq('id', userId);
+          .update({'referral_code': newCode}).eq('id', userId);
       _referralCode = newCode;
       notifyListeners();
     } catch (e) {
@@ -106,9 +115,7 @@ class UserProfileProvider with ChangeNotifier {
     final filePath = '$userId/$fileName';
     try {
       final bytes = await avatarFile.readAsBytes();
-      await _supabaseClient.storage
-          .from('avatars')
-          .uploadBinary(
+      await _supabaseClient.storage.from('avatars').uploadBinary(
             filePath,
             bytes,
             fileOptions: FileOptions(
@@ -156,6 +163,7 @@ class UserProfileProvider with ChangeNotifier {
     _username = 'Guest';
     _creditsRemaining = 0;
     _isLoading = false;
+    _isProfileLoaded = false;
     _role = 'member';
     _approvalStatus = 'pending';
     _referralCode = null;

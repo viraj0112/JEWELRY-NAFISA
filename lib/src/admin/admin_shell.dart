@@ -6,6 +6,7 @@ import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/admin/widgets/filter_component.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; 
 
 class _HoverableMenuItem extends StatefulWidget {
   final Widget child;
@@ -204,6 +205,9 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   Widget _buildAdminProfileMenu() {
+    // Get the current user from Supabase
+    final adminUser = Supabase.instance.client.auth.currentUser;
+
     return PopupMenuButton<String>(
       tooltip: 'Profile Menu',
       offset: const Offset(0, 50),
@@ -220,7 +224,8 @@ class _AdminShellState extends State<AdminShell> {
             title: const Text('Admin',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(
-              'admin@jewelrynafisa.com',
+              // Use the user's email, or a fallback text if not available
+              adminUser?.email ?? 'Not logged in',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

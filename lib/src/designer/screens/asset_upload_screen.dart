@@ -44,8 +44,7 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
             '${DateTime.now().millisecondsSinceEpoch}-${_imageFile!.name}';
         await supabase.storage.from('assets').uploadBinary(fileName, fileBytes);
 
-        final imageUrl =
-            supabase.storage.from('assets').getPublicUrl(fileName);
+        final imageUrl = supabase.storage.from('assets').getPublicUrl(fileName);
 
         await supabase.from('assets').insert({
           'owner_id': userId,
@@ -137,8 +136,8 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _tagsController,
-                    decoration:
-                        const InputDecoration(labelText: "Tags (comma-separated)"),
+                    decoration: const InputDecoration(
+                        labelText: "Tags (comma-separated)"),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
