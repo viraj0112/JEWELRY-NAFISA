@@ -18,48 +18,46 @@ class AuthGate extends StatelessWidget {
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
         if (!snapshot.hasData || snapshot.data?.session == null) {
           context.read<UserProfileProvider>().reset();
           return const WelcomeScreen();
         }
-        return Consumer<UserProfileProvider>(
-          builder: (context, profileProvider, child) {
-            return FutureBuilder(
-              future: profileProvider.isProfileLoaded
-                  ? Future.value()
-                  : profileProvider.fetchProfile(),
-              builder: (context, profileSnapshot) {
-                if (profileSnapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()));
-                }
 
-                final userProfile = profileProvider.userProfile;
-                if (userProfile == null) {
-                  return const LoginScreen();
-                }
+        return FutureBuilder(
+          future: Provider.of<UserProfileProvider>(context, listen: false).fetchProfile(),
+          builder: (context, profileSnapshot) {
+            if (profileSnapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            }
 
-                final userRole = userProfile['role'];
-                final approvalStatus = userProfile['approval_status'];
+            final userProfile = Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+  
+            if (userProfile == null) {
+        
+              return FutureBuilder(
+                future: Supabase.instance.client.auth.signOut(),
+                builder: (context, signOutSnapshot) {
+                  return const WelcomeScreen();
+                },
+              );
+            }
 
-                if (userRole == 'admin') {
-                  return const AdminShell();
-                }
+            final userRole = userProfile['role'];
+            final approvalStatus = userProfile['approval_status'];
 
-                if (userRole == 'designer') {
-                  return approvalStatus == 'approved'
-                      ? const DesignerShell()
-                      : const PendingApprovalScreen();
-                }
+            if (userRole == 'admin') {
+              return const AdminShell();
+            }
 
-                return const MainShell();
-              },
-            );
+            if (userRole == 'designer') {
+              return approvalStatus == 'approved'
+                  ? const DesignerShell()
+                  : const PendingApprovalScreen();
+            }
+            return const MainShell();
           },
         );
       },
