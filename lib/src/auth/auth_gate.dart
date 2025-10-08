@@ -23,22 +23,21 @@ class AuthGate extends StatelessWidget {
         }
 
         return Consumer<UserProfileProvider>(
-          builder: (context, profileProvider, child) {
-            if (!profileProvider.isProfileLoaded &&
-                !profileProvider.isLoading) {
-              profileProvider.fetchProfile();
-            }
-            if (!profileProvider.isProfileLoaded || profileProvider.isLoading) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            }
+  builder: (context, profileProvider, child) {
+    if (!profileProvider.isProfileLoaded && !profileProvider.isLoading) {
+      profileProvider.fetchProfile();
+    }
+    if (!profileProvider.isProfileLoaded || profileProvider.isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-            final userProfile = profileProvider.userProfile;
+    final userProfile = profileProvider.userProfile;
 
-            if (userProfile == null) {
-              return const LoginScreen();
-            }
+    if (userProfile == null) {
+      return const LoginScreen();
+    }
 
             final userRole = userProfile['role'];
             final approvalStatus = userProfile['approval_status'];
