@@ -17,43 +17,49 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
+        }
+
         if (!snapshot.hasData || snapshot.data?.session == null) {
           context.read<UserProfileProvider>().reset();
           return const WelcomeScreen();
         }
-
         return Consumer<UserProfileProvider>(
-  builder: (context, profileProvider, child) {
-    if (!profileProvider.isProfileLoaded && !profileProvider.isLoading) {
-      profileProvider.fetchProfile();
-    }
-    if (!profileProvider.isProfileLoaded || profileProvider.isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
+          builder: (context, profileProvider, child) {
+            return FutureBuilder(
+              future: profileProvider.isProfileLoaded
+                  ? Future.value()
+                  : profileProvider.fetchProfile(),
+              builder: (context, profileSnapshot) {
+                if (profileSnapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()));
+                }
 
-    final userProfile = profileProvider.userProfile;
+                final userProfile = profileProvider.userProfile;
+                if (userProfile == null) {
+                  return const LoginScreen();
+                }
 
-    if (userProfile == null) {
-      return const LoginScreen();
-    }
+                final userRole = userProfile['role'];
+                final approvalStatus = userProfile['approval_status'];
 
-            final userRole = userProfile['role'];
-            final approvalStatus = userProfile['approval_status'];
+                if (userRole == 'admin') {
+                  return const AdminShell();
+                }
 
-            if (userRole == 'admin') {
-              return const AdminShell();
-            }
+                if (userRole == 'designer') {
+                  return approvalStatus == 'approved'
+                      ? const DesignerShell()
+                      : const PendingApprovalScreen();
+                }
 
-            if (userRole == 'designer') {
-              if (approvalStatus == 'approved') {
-                return const DesignerShell();
-              } else {
-                return const PendingApprovalScreen();
-              }
-            }
-            return const MainShell();
+                return const MainShell();
+              },
+            );
           },
         );
       },
