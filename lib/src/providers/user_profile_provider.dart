@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:jewelry_nafisa/src/utils/user_profile_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserProfileProvider with ChangeNotifier {
@@ -51,36 +52,50 @@ class UserProfileProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // UPDATED METHOD
   Future<void> fetchProfile() async {
     _isLoading = true;
     notifyListeners();
 
     final userId = _supabaseClient.auth.currentUser?.id;
     if (userId == null) {
-      _isLoading = false;
-      notifyListeners();
+      reset(); // Use reset to also cancel any lingering subscriptions
       return;
     }
 
-    await _profileSubscription?.cancel();
+    try {
+      // Step 1: Ensure profile exists (your existing good practice).
+      await UserProfileUtils.ensureUserProfile(userId);
 
-    _profileSubscription = _supabaseClient
-        .from('users')
-        .stream(primaryKey: ['id'])
-        .eq('id', userId)
-        .listen((data) {
-          if (data.isNotEmpty) {
-            _updateFromData(data.first);
-            final currentCode = data.first['referral_code'] as String?;
-            if (currentCode == null || !currentCode.startsWith('DD-')) {
-              generateAndSaveReferralCode();
+      // Step 2: Perform a one-time fetch for immediate data.
+      final response = await _supabaseClient
+          .from('users')
+          .select()
+          .eq('id', userId)
+          .single();
+
+      // Step 3: Update state with this initial data. This is the key fix.
+      _updateFromData(response);
+
+      // Step 4: Now, listen for any future real-time changes.
+      await _profileSubscription?.cancel();
+      _profileSubscription = _supabaseClient
+          .from('users')
+          .stream(primaryKey: ['id'])
+          .eq('id', userId)
+          .listen((data) {
+            if (data.isNotEmpty) {
+              _updateFromData(data.first);
+              final currentCode = data.first['referral_code'] as String?;
+              if (currentCode == null || !currentCode.startsWith('DD-')) {
+                generateAndSaveReferralCode();
+              }
             }
-          } else {
-            _isLoading = false;
-            _isProfileLoaded = true;
-            notifyListeners();
-          }
-        });
+          });
+    } catch (e) {
+      debugPrint("Error fetching profile, resetting state: $e");
+      reset();
+    }
   }
 
   Future<void> generateAndSaveReferralCode() async {

@@ -18,7 +18,8 @@ class AuthGate extends StatelessWidget {
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         }
 
         if (!snapshot.hasData || snapshot.data?.session == null) {
@@ -27,21 +28,32 @@ class AuthGate extends StatelessWidget {
         }
 
         return FutureBuilder(
-          future: Provider.of<UserProfileProvider>(context, listen: false).fetchProfile(),
+          future: Provider.of<UserProfileProvider>(context, listen: false)
+              .fetchProfile(),
           builder: (context, profileSnapshot) {
             if (profileSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()));
             }
 
-            final userProfile = Provider.of<UserProfileProvider>(context, listen: false).userProfile;
-  
+            final userProfile =
+                Provider.of<UserProfileProvider>(context, listen: false)
+                    .userProfile;
+
             if (userProfile == null) {
-        
-              return FutureBuilder(
-                future: Supabase.instance.client.auth.signOut(),
-                builder: (context, signOutSnapshot) {
-                  return const WelcomeScreen();
-                },
+              // Instead of signing out, show a loading indicator while the profile is created.
+              // This is a common scenario for new users.
+              return const Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Setting up your account...'),
+                    ],
+                  ),
+                ),
               );
             }
 

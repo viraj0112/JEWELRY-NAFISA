@@ -6,11 +6,8 @@ class UserProfileUtils {
 
   static Future<bool> ensureUserProfile(String userId) async {
     try {
-      final userProfile = await _supabase
-          .from('users')
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
+      final userProfile =
+          await _supabase.from('users').select().eq('id', userId).maybeSingle();
 
       if (userProfile != null) {
         debugPrint('User profile already exists');
@@ -23,14 +20,13 @@ class UserProfileUtils {
       await _supabase.from('users').insert({
         'id': userId,
         'email': currentUser.email,
-        'username':
-            currentUser.userMetadata?['username'] ??
+        'username': currentUser.userMetadata?['username'] ??
             currentUser.email?.split('@')[0] ??
             'User',
         'membership_plan': 'free',
         'is_member': false,
         'credits_remaining': 1,
-        'role': currentUser.userMetadata?['role'] ?? 'member', 
+        'role': currentUser.userMetadata?['role'] ?? 'member',
       });
       debugPrint('Created new user profile with correct role.');
       return true;
