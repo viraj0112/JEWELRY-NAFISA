@@ -22,10 +22,8 @@ class _ImageUploadSectionState extends State<ImageUploadSection> {
 
     try {
       final result = await FilePicker.platform.pickFiles(
-        // --- THIS IS THE CHANGE ---
         type: FileType.custom,
         allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
-        // --------------------------
         allowMultiple: allowMultiple,
         withData: kIsWeb,
       );
@@ -60,15 +58,23 @@ class _ImageUploadSectionState extends State<ImageUploadSection> {
     for (final file in files) {
       final imageName = file.name;
       final productTitle = imageName.split('.').first;
+      print('Image Name: $imageName');
+      print('Product Title: $productTitle');
 
+      // --- THIS IS THE FIX ---
       await _supabase.storage.from('product-images').uploadBinary(
             imageName,
-            file.bytes!,
-            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+            file.bytes!, // Use file.bytes! here
+            fileOptions: const FileOptions(
+              cacheControl: '3600',
+              upsert: true,
+            ),
           );
+      // --------------------
 
       final imageUrl =
           _supabase.storage.from('product-images').getPublicUrl(imageName);
+      print('Image URL: $imageUrl');
 
       await _supabase
           .from('products')
@@ -81,11 +87,16 @@ class _ImageUploadSectionState extends State<ImageUploadSection> {
       final imageName = file.path.split(Platform.pathSeparator).last;
       final productTitle = imageName.split('.').first;
 
+      // --- THIS IS THE FIX ---
       await _supabase.storage.from('product-images').upload(
             imageName,
             file,
-            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+            fileOptions: const FileOptions(
+              cacheControl: '3600',
+              upsert: true, // This should be true
+            ),
           );
+      // --------------------
 
       final imageUrl =
           _supabase.storage.from('product-images').getPublicUrl(imageName);
