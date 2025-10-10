@@ -10,6 +10,8 @@ import 'package:jewelry_nafisa/src/admin/screens/settings_screen.dart';
 import 'package:jewelry_nafisa/src/admin/screens/activity_logs_screen.dart';
 import 'package:jewelry_nafisa/src/admin/screens/content_management_screen.dart';
 import 'package:jewelry_nafisa/src/admin/screens/product_upload_screen.dart';
+import 'package:jewelry_nafisa/src/admin/screens/image_upload_screen.dart';
+
 final List<MenuItem> menuItems = [
   MenuItem(
     title: 'Dashboard',
@@ -60,5 +62,10 @@ final List<MenuItem> menuItems = [
     title: 'Settings',
     icon: Icons.settings_outlined,
     screen: const SettingsScreen(),
+  ),
+  MenuItem(
+    title: 'Image Upload',
+    icon: Icons.image_outlined,
+    screen: const ImageUploadScreen(), // Add your new screen here
   ),
 ];
