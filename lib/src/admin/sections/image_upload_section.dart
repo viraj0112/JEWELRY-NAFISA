@@ -22,8 +22,10 @@ class _ImageUploadSectionState extends State<ImageUploadSection> {
 
     try {
       final result = await FilePicker.platform.pickFiles(
+        // --- THIS IS THE CHANGE ---
         type: FileType.custom,
         allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+        // --------------------------
         allowMultiple: allowMultiple,
         withData: kIsWeb,
       );
@@ -33,22 +35,16 @@ class _ImageUploadSectionState extends State<ImageUploadSection> {
         return;
       }
 
-      int skippedFiles = 0;
       if (kIsWeb) {
-        skippedFiles = await _uploadForWeb(result.files);
+        await _uploadForWeb(result.files);
       } else {
-        skippedFiles = await _uploadForMobile(result.paths.map((path) => File(path!)).toList());
-      }
-      
-      String message = 'Images uploaded successfully!';
-      if (skippedFiles > 0) {
-        message += ' ($skippedFiles invalid files were skipped).';
+        await _uploadForMobile(
+            result.paths.map((path) => File(path!)).toList());
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+        const SnackBar(content: Text('Images uploaded successfully!')),
       );
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error uploading images: $e')),
@@ -60,23 +56,10 @@ class _ImageUploadSectionState extends State<ImageUploadSection> {
     }
   }
 
-  // Returns the number of skipped files
-  Future<int> _uploadForWeb(List<PlatformFile> files) async {
-    int skippedCount = 0;
+  Future<void> _uploadForWeb(List<PlatformFile> files) async {
     for (final file in files) {
       final imageName = file.name;
-
-      // --- ROBUST TITLE EXTRACTION ---
-      final lastDot = imageName.lastIndexOf('.');
-      final productTitle = (lastDot == -1) ? imageName : imageName.substring(0, lastDot);
-      
-      // Skip invalid files (like .DS_Store)
-      if (productTitle.isEmpty) {
-        debugPrint('Skipping invalid file: $imageName');
-        skippedCount++;
-        continue;
-      }
-      // --------------------------------
+      final productTitle = imageName.split('.').first;
 
       await _supabase.storage.from('product-images').uploadBinary(
             imageName,
@@ -89,29 +72,14 @@ class _ImageUploadSectionState extends State<ImageUploadSection> {
 
       await _supabase
           .from('products')
-          .update({'image': imageUrl})
-          .eq('title', productTitle);
+          .update({'image': imageUrl}).eq('title', productTitle);
     }
-    return skippedCount;
   }
 
-  // Returns the number of skipped files
-  Future<int> _uploadForMobile(List<File> files) async {
-    int skippedCount = 0;
+  Future<void> _uploadForMobile(List<File> files) async {
     for (final file in files) {
       final imageName = file.path.split(Platform.pathSeparator).last;
-
-      // --- ROBUST TITLE EXTRACTION ---
-      final lastDot = imageName.lastIndexOf('.');
-      final productTitle = (lastDot == -1) ? imageName : imageName.substring(0, lastDot);
-      
-      // Skip invalid files
-      if (productTitle.isEmpty) {
-        debugPrint('Skipping invalid file: $imageName');
-        skippedCount++;
-        continue;
-      }
-      // --------------------------------
+      final productTitle = imageName.split('.').first;
 
       await _supabase.storage.from('product-images').upload(
             imageName,
@@ -124,15 +92,12 @@ class _ImageUploadSectionState extends State<ImageUploadSection> {
 
       await _supabase
           .from('products')
-          .update({'image': imageUrl})
-          .eq('title', productTitle);
+          .update({'image': imageUrl}).eq('title', productTitle);
     }
-    return skippedCount;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Build method remains the same
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
