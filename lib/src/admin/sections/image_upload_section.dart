@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -15,36 +15,36 @@ class _ImageUploadSectionState extends State<ImageUploadSection> {
   final _supabase = Supabase.instance.client;
   bool _isLoading = false;
 
-  Future<void> _uploadImages(List<File> images) async {
+  Future<void> _pickAndUploadImages({bool allowMultiple = false}) async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      for (final image in images) {
-        final imageName = image.path.split('/').last;
-        final productTitle = imageName.split('.').first;
-
-        // Upload image to Supabase Storage
-        await _supabase.storage.from('product-images').upload(
-              imageName,
-              image,
-              fileOptions:
-                  const FileOptions(cacheControl: '3600', upsert: false),
-            );
-
-        // Get public URL
-        final imageUrl =
-            _supabase.storage.from('product-images').getPublicUrl(imageName);
-
-        // Update product table
-        await _supabase
-            .from('products')
-            .update({'image': imageUrl}).eq('title', productTitle);
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Images uploaded successfully')),
+      final result = await FilePicker.platform.pickFiles(
+        // --- THIS IS THE CHANGE ---
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'], 
+        // --------------------------
+        allowMultiple: allowMultiple,
+        withData: kIsWeb,
       );
+
+      if (result == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      if (kIsWeb) {
+        await _uploadForWeb(result.files);
+      } else {
+        await _uploadForMobile(result.paths.map((path) => File(path!)).toList());
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Images uploaded successfully!')),
+      );
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error uploading images: $e')),
@@ -56,15 +56,45 @@ class _ImageUploadSectionState extends State<ImageUploadSection> {
     }
   }
 
-  Future<void> _pickAndUploadImages({bool allowMultiple = false}) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: allowMultiple,
-    );
+  Future<void> _uploadForWeb(List<PlatformFile> files) async {
+    for (final file in files) {
+      final imageName = file.name;
+      final productTitle = imageName.split('.').first;
 
-    if (result != null) {
-      final files = result.paths.map((path) => File(path!)).toList();
-      await _uploadImages(files);
+      await _supabase.storage.from('product-images').uploadBinary(
+            imageName,
+            file.bytes!,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          );
+
+      final imageUrl =
+          _supabase.storage.from('product-images').getPublicUrl(imageName);
+
+      await _supabase
+          .from('products')
+          .update({'image': imageUrl})
+          .eq('title', productTitle);
+    }
+  }
+
+  Future<void> _uploadForMobile(List<File> files) async {
+    for (final file in files) {
+      final imageName = file.path.split(Platform.pathSeparator).last;
+      final productTitle = imageName.split('.').first;
+
+      await _supabase.storage.from('product-images').upload(
+            imageName,
+            file,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          );
+
+      final imageUrl =
+          _supabase.storage.from('product-images').getPublicUrl(imageName);
+
+      await _supabase
+          .from('products')
+          .update({'image': imageUrl})
+          .eq('title', productTitle);
     }
   }
 
