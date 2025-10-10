@@ -15,7 +15,6 @@ class ProductUploadSection extends StatefulWidget {
 class _ProductUploadSectionState extends State<ProductUploadSection> {
   bool _isLoading = false;
   String? _fileName;
-  // **FIX 1**: Changed 'late' back to nullable. This is safer.
   List<List<dynamic>>? _csvData;
 
   void _pickFile() async {
@@ -55,14 +54,28 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
     try {
       final headers = _csvData![0].map((e) => e.toString().trim()).toList();
       final rows = _csvData!.sublist(1);
+      final titleIndex = headers.indexOf('title');
+
+      if (titleIndex == -1) {
+        _showErrorSnackBar('CSV must contain a "title" column.');
+        setState(() => _isLoading = false);
+        return;
+      }
 
       final List<Map<String, dynamic>> productList = [];
       for (final row in rows) {
         final product = <String, dynamic>{};
+        String? productTitle;
+
         for (int i = 0; i < headers.length; i++) {
           if (i < row.length) {
             final String header = headers[i];
-            final dynamic value = row[i];
+            dynamic value = row[i];
+
+            if (header == 'title') {
+              productTitle = value.toString();
+            }
+
             if (header == 'tags' && value is String) {
               product[header] = value.split(',').map((t) => t.trim()).toList();
             } else if (header == 'price' && value is String) {
@@ -74,6 +87,26 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
             }
           }
         }
+
+        if (productTitle != null && productTitle.isNotEmpty) {
+          final files = await Supabase.instance.client.storage
+              .from('product-images')
+              .list();
+          final matchingFiles =
+              files.where((file) => file.name.startsWith(productTitle!)).toList();
+
+          if (matchingFiles.isNotEmpty) {
+            final imageName = matchingFiles.first.name;
+            final imageUrl = Supabase.instance.client.storage
+                .from('product-images')
+                .getPublicUrl(imageName);
+            product['image'] = imageUrl;
+          } else {
+            _showErrorSnackBar('Image not found for product: $productTitle');
+            product['image'] = null;
+          }
+        }
+
         productList.add(product);
       }
       await Supabase.instance.client.from('products').upsert(productList);
@@ -131,8 +164,6 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
               ),
               const SizedBox(height: 24),
               _buildFilePickerCard(),
-              // **FIX 2**: The condition MUST check _csvData, not just the file name.
-              // This is the key to preventing the crash.
               if (_csvData != null) ...[
                 const SizedBox(height: 24),
                 _buildPreviewCard(),
@@ -206,8 +237,6 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
             ),
             const SizedBox(height: 8),
             Text('File: $_fileName'),
-            // **FIX 3**: Using '!' is now safe because the parent build method
-            // already checked that _csvData is not null.
             Text('Rows to upload: ${_csvData!.length - 1}'),
             const SizedBox(height: 16),
             _buildDataTable(),
@@ -242,7 +271,6 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
   }
 
   Widget _buildDataTable() {
-    // This check is good practice, but the parent build method already protects it.
     if (_csvData == null || _csvData!.isEmpty) {
       return const Text('No data to display.');
     }

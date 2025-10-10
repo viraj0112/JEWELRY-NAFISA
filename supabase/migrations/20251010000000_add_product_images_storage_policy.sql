@@ -1,6 +1,8 @@
-CREATE POLICY "Allow admins to upload to product-images"
-ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (
-  bucket_id = 'product-images' AND
-  (SELECT role FROM public.users WHERE id = auth.uid()) = 'admin'
-);
+--
+-- RLS policy for product-images bucket
+--
+CREATE POLICY "Allow public read access to product-images" ON storage.objects FOR
+SELECT
+  USING (bucket_id = 'product-images');
+
+CREATE POLICY "Allow authenticated uploads to product-images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'product-images');
