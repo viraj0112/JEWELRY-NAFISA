@@ -104,6 +104,19 @@ class AdminService {
     });
   }
 
+  Stream<List<Asset>> getB2BProducts() {
+    return _supabase
+        .from('assets')
+        .stream(primaryKey: ['id'])
+        .eq('source', 'b2b_upload')
+        .order('created_at', ascending: false)
+        .map((maps) => maps.map((map) => Asset.fromJson(map)).toList());
+  }
+
+  Future<void> updateAssetStatus(String assetId, String status) async {
+    await _supabase.from('assets').update({'status': status}).eq('id', assetId);
+  }
+
   Stream<List<Map<String, dynamic>>> getPostCategoriesStream() {
     return _supabase
         .from('assets')
@@ -214,11 +227,10 @@ class AdminService {
   }
 
   Future<CreatorDashboard> getCreatorDashboard(String creatorId) async {
-    final response = await _supabase.rpc('get_creator_dashboard', params: {'p_creator_id': creatorId});
+    final response = await _supabase
+        .rpc('get_creator_dashboard', params: {'p_creator_id': creatorId});
     return CreatorDashboard.fromJson(response);
   }
-
-
 
   Stream<List<AppUser>> getUsers({
     required String userType,

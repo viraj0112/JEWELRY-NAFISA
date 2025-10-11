@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/designer/screens/analytics_screen.dart';
-import 'package:jewelry_nafisa/src/designer/screens/asset_upload_screen.dart';
+import 'package:jewelry_nafisa/src/designer/screens/b2b_upload_screen.dart'; 
 import 'package:jewelry_nafisa/src/designer/screens/manage_uploads_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 
@@ -16,7 +16,7 @@ class _DesignerShellState extends State<DesignerShell> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    const AssetUploadScreen(),
+    const B2BProductUploadScreen(), 
     const ManageUploadsScreen(),
     const AnalyticsScreen(),
   ];

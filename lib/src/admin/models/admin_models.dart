@@ -172,7 +172,8 @@ class Asset {
   final String status;
   final DateTime createdAt;
   final String? ownerUsername;
-  final String? source; 
+  final String? ownerEmail;
+  final String? source;
 
   Asset({
     required this.id,
@@ -182,7 +183,8 @@ class Asset {
     required this.status,
     required this.createdAt,
     this.ownerUsername,
-    this.source, 
+    this.ownerEmail,
+    this.source,
   });
 
   factory Asset.fromJson(Map<String, dynamic> json) {
@@ -200,11 +202,11 @@ class Asset {
       status: json['status'],
       createdAt: DateTime.parse(json['created_at']),
       ownerUsername: username,
+      ownerEmail: json['owner_email'], 
       source: json['source'],
     );
   }
 }
-
 
 class PostAnalytic {
   final String assetId;
