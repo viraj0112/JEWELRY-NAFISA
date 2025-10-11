@@ -24,7 +24,7 @@ serve(async (req) => {
     `;
 
     const emailPayload = {
-      from: "sawantviraj465@gmail.com",
+      from: "adminuser0112@gmail.com",
       to: newUser.email,
       subject: "Welcome to Dagina Designs! We've received your application.",
       html: emailHtml,
