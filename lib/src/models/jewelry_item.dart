@@ -69,52 +69,65 @@ class JewelryItem {
     this.isFavorite = false,
   });
 
-  // Helper function to safely parse a double from a formatted string
   static double? _parseDouble(dynamic value) {
-    if (value is num) {
-      return value.toDouble();
-    }
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
     if (value is String) {
       final cleanedString = value.replaceAll('₹', '').replaceAll(',', '').trim();
       return double.tryParse(cleanedString);
     }
     return null;
   }
+  
+  // Helper function to handle different tag formats
+  static List<String>? _parseTags(dynamic tags) {
+    if (tags is List) {
+      return tags.cast<String>().toList();
+    } else if (tags is String) {
+      return tags.split(',').map((t) => t.trim()).toList();
+    }
+    return null;
+  }
 
+
+  // The corrected fromJson factory
   factory JewelryItem.fromJson(Map<String, dynamic> json) {
     return JewelryItem(
       id: json['id'].toString(),
-      productTitle: json['Product Title'] ?? '',
-      image: json['Image'] ?? '',
-      description: json['Description'] ?? '',
-      price: _parseDouble(json['Price']),
-      tags: (json['Product Tags'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList(),
-      goldWeight: json['Gold Weight'],
-      metalPurity: json['Metal Purity'],
-      metalFinish: json['Metal Finish'],
-      stoneWeight: json['Stone Weight'],
-      stoneType: json['Stone Type'],
-      stoneUsed: json['Stone Used'],
-      stoneSetting: json['Stone Setting'],
-      stoneCount: json['Stone Count'],
-      scrapedUrl: json['Scraped URL'],
-      collectionName: json['Collection Name'],
-      productType: json['Product Type'],
-      gender: json['Gender'],
-      theme: json['Theme'],
-      metalType: json['Metal Type'],
-      metalColor: json['Metal Color'],
-      netWeight: _parseDouble(json['NET WEIGHT']),
-      stoneColor: json['Stone Color'],
-      stoneCut: json['Stone Cut'],
-      dimension: json['Dimension'],
-      designType: json['Design Type'],
-      artForm: json['Art Form'],
-      plating: json['Plating'],
-      enamelWork: json['Enamel Work'],
-      customizable: json['Customizable'] == 'Yes',
+      productTitle: json['title'] ?? json['Product Title'] ?? '',
+      image: json['image'] ?? json['Image'] ?? '',
+      description: json['description'] ?? json['Description'] ?? '',
+      
+      price: _parseDouble(json['price'] ?? json['Price']),
+      
+      tags: _parseTags(json['tags'] ?? json['Product Tags']),
+      
+      goldWeight: json['gold_weight'] ?? json['Gold Weight'],
+      metalPurity: json['metal_purity'] ?? json['Metal Purity'],
+      metalFinish: json['metal_finish'] ?? json['Metal Finish'],
+      stoneWeight: json['stone_weight'] ?? json['Stone Weight'],
+      stoneType: json['stone_type'] ?? json['Stone Type'],
+      stoneUsed: json['stone_used'] ?? json['Stone Used'],
+      stoneSetting: json['stone_setting'] ?? json['Stone Setting'],
+      stoneCount: json['stone_count'] ?? json['Stone Count'],
+      scrapedUrl: json['scraped_url'] ?? json['Scraped URL'],
+      collectionName: json['sub_category'] ?? json['Collection Name'],
+      productType: json['category'] ?? json['Product Type'],
+      gender: json['gender'] ?? json['Gender'],
+      theme: json['occasions'] ?? json['Theme'],
+      metalType: json['metal_type'] ?? json['Metal Type'],
+      metalColor: json['metal_color'] ?? json['Metal Color'],
+      netWeight: _parseDouble(json['net_weight'] ?? json['NET WEIGHT']),
+      stoneColor: json['stone_color'] ?? json['Stone Color'],
+      stoneCut: json['stone_cut'] ?? json['Stone Cut'],
+      dimension: json['size'] ?? json['Dimension'],
+      designType: json['style'] ?? json['Design Type'],
+      artForm: json['art_form'] ?? json['Art Form'],
+      plating: json['plating'] ?? json['Plating'],
+      enamelWork: json['enamel_work'] ?? json['Enamel Work'],
+      customizable: (json['customizable'] is bool)
+          ? json['customizable']
+          : (json['Customizable'] == 'Yes'),
     );
   }
 }
