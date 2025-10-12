@@ -1,3 +1,5 @@
+// lib/src/designer/screens/b2b_upload_screen.dart
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -11,71 +13,60 @@ import 'package:csv/csv.dart';
 class ProductEntry {
   final int id;
   XFile? imageFile;
-  final TextEditingController productNameController = TextEditingController();
+  final TextEditingController productTitleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
-  final TextEditingController skuController = TextEditingController();
-  final TextEditingController collectionController = TextEditingController();
+  final TextEditingController priceController = TextEditingController();
+  final TextEditingController productTagsController = TextEditingController();
+  final TextEditingController goldWeightController = TextEditingController();
+  final TextEditingController metalPurityController = TextEditingController();
+  final TextEditingController metalFinishController = TextEditingController();
+  final TextEditingController stoneWeightController = TextEditingController();
+  final TextEditingController stoneTypeController = TextEditingController();
+  String? stoneUsed;
+  final TextEditingController stoneSettingController = TextEditingController();
+  final TextEditingController stoneCountController = TextEditingController();
+  final TextEditingController collectionNameController = TextEditingController();
   final TextEditingController productTypeController = TextEditingController();
   String? gender;
-  final TextEditingController occasionController = TextEditingController();
-  final TextEditingController styleController = TextEditingController();
   final TextEditingController themeController = TextEditingController();
   final TextEditingController metalTypeController = TextEditingController();
   final TextEditingController metalColorController = TextEditingController();
-  final TextEditingController metalPurityController = TextEditingController();
-  final TextEditingController metalFinishController = TextEditingController();
-  final TextEditingController goldWeightController = TextEditingController();
-  final TextEditingController totalWeightController = TextEditingController();
-  final TextEditingController stoneTypeController = TextEditingController();
-  String? stoneUsed;
+  final TextEditingController netWeightController = TextEditingController();
   final TextEditingController stoneColorController = TextEditingController();
-  final TextEditingController stoneShapeController = TextEditingController();
-  final TextEditingController stoneWeightController = TextEditingController();
-  final TextEditingController stoneCountController = TextEditingController();
-  final TextEditingController stoneSettingController = TextEditingController();
-  final TextEditingController dimensionsController = TextEditingController();
-  final TextEditingController ringSizeController = TextEditingController();
+  final TextEditingController stoneCutController = TextEditingController();
+  final TextEditingController dimensionController = TextEditingController();
   String? designType;
   final TextEditingController artFormController = TextEditingController();
   final TextEditingController platingController = TextEditingController();
   final TextEditingController enamelWorkController = TextEditingController();
   String? customizable;
-  final TextEditingController categoryController = TextEditingController();
-  final TextEditingController subCategoryController = TextEditingController();
-  final TextEditingController productTagsController = TextEditingController();
 
   ProductEntry({required this.id});
 
-  // Dispose of all controllers to prevent memory leaks.
   void dispose() {
-    productNameController.dispose();
+    productTitleController.dispose();
     descriptionController.dispose();
-    skuController.dispose();
-    collectionController.dispose();
+    priceController.dispose();
+    productTagsController.dispose();
+    goldWeightController.dispose();
+    metalPurityController.dispose();
+    metalFinishController.dispose();
+    stoneWeightController.dispose();
+    stoneTypeController.dispose();
+    stoneSettingController.dispose();
+    stoneCountController.dispose();
+    collectionNameController.dispose();
     productTypeController.dispose();
-    occasionController.dispose();
-    styleController.dispose();
     themeController.dispose();
     metalTypeController.dispose();
     metalColorController.dispose();
-    metalPurityController.dispose();
-    metalFinishController.dispose();
-    goldWeightController.dispose();
-    totalWeightController.dispose();
-    stoneTypeController.dispose();
+    netWeightController.dispose();
     stoneColorController.dispose();
-    stoneShapeController.dispose();
-    stoneWeightController.dispose();
-    stoneCountController.dispose();
-    stoneSettingController.dispose();
-    dimensionsController.dispose();
-    ringSizeController.dispose();
+    stoneCutController.dispose();
+    dimensionController.dispose();
     artFormController.dispose();
     platingController.dispose();
     enamelWorkController.dispose();
-    categoryController.dispose();
-    subCategoryController.dispose();
-    productTagsController.dispose();
   }
 }
 
@@ -190,9 +181,8 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
 
     try {
       for (final entry in _productEntries) {
-        if (entry.imageFile == null) continue; // Skip entries without images
+        if (entry.imageFile == null) continue;
 
-        // Upload to the 'designer-files' bucket
         final fileBytes = await entry.imageFile!.readAsBytes();
         final fileName =
             '${DateTime.now().millisecondsSinceEpoch}-${entry.imageFile!.name}';
@@ -202,49 +192,40 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
         final imageUrl =
             supabase.storage.from('designer-files').getPublicUrl(fileName);
 
-        // Insert into the 'assets' table with 'pending' status
         await supabase.from('assets').insert({
           'owner_id': userId,
-          'title': entry.productNameController.text,
+          'title': entry.productTitleController.text,
           'description': entry.descriptionController.text,
-          'sku': entry.skuController.text,
           'media_url': imageUrl,
           'status': 'pending',
           'source': 'b2b_upload',
           'attributes': {
-            'collection': entry.collectionController.text,
-            'product_type': entry.productTypeController.text,
-            'gender': entry.gender,
-            'occasion': entry.occasionController.text,
-            'style': entry.styleController.text,
-            'theme': entry.themeController.text,
-            'metal_type': entry.metalTypeController.text,
-            'metal_color': entry.metalColorController.text,
-            'metal_purity': entry.metalPurityController.text,
-            'metal_finish': entry.metalFinishController.text,
-            'gold_weight': entry.goldWeightController.text,
-            'total_weight': entry.totalWeightController.text,
-            'stone_type': entry.stoneTypeController.text,
-            'stone_used': entry.stoneUsed,
-            'stone_color': entry.stoneColorController.text,
-            'stone_shape': entry.stoneShapeController.text,
-            'stone_weight': entry.stoneWeightController.text,
-            'stone_count': entry.stoneCountController.text,
-            'stone_setting': entry.stoneSettingController.text,
-            'dimensions': entry.dimensionsController.text,
-            'ring_size': entry.ringSizeController.text,
-            'design_type': entry.designType,
-            'art_form': entry.artFormController.text,
-            'plating': entry.platingController.text,
-            'enamel_work': entry.enamelWorkController.text,
-            'customizable': entry.customizable,
+            'Price': entry.priceController.text,
+            'Product Tags': entry.productTagsController.text,
+            'Gold Weight': entry.goldWeightController.text,
+            'Metal Purity': entry.metalPurityController.text,
+            'Metal Finish': entry.metalFinishController.text,
+            'Stone Weight': entry.stoneWeightController.text,
+            'Stone Type': entry.stoneTypeController.text,
+            'Stone Used': entry.stoneUsed,
+            'Stone Setting': entry.stoneSettingController.text,
+            'Stone Count': entry.stoneCountController.text,
+            'Collection Name': entry.collectionNameController.text,
+            'Product Type': entry.productTypeController.text,
+            'Gender': entry.gender,
+            'Theme': entry.themeController.text,
+            'Metal Type': entry.metalTypeController.text,
+            'Metal Color': entry.metalColorController.text,
+            'NET WEIGHT': entry.netWeightController.text,
+            'Stone Color': entry.stoneColorController.text,
+            'Stone Cut': entry.stoneCutController.text,
+            'Dimension': entry.dimensionController.text,
+            'Design Type': entry.designType,
+            'Art Form': entry.artFormController.text,
+            'Plating': entry.platingController.text,
+            'Enamel Work': entry.enamelWorkController.text,
+            'Customizable': entry.customizable,
           },
-          'category': entry.categoryController.text,
-          'sub_category': entry.subCategoryController.text,
-          'tags': entry.productTagsController.text
-              .split(',')
-              .map((e) => e.trim())
-              .toList(),
         });
       }
 
@@ -336,38 +317,35 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
 
   void _downloadSampleCsv() {
     final List<String> headers = [
-      'Product Name / Title',
+      'Product Title',
+      'Image',
       'Description',
-      'SKU / Product Code',
-      'Collection / Series Name',
+      'Price',
+      'Product Tags',
+      'Gold Weight',
+      'Metal Purity',
+      'Metal Finish',
+      'Stone Weight',
+      'Stone Type',
+      'Stone Used',
+      'Stone Setting',
+      'Stone Count',
+      'Scraped URL',
+      'Collection Name',
       'Product Type',
       'Gender',
-      'Occasion',
-      'Style',
       'Theme',
       'Metal Type',
       'Metal Color',
-      'Metal Purity / Carat',
-      'Metal Finish / Texture',
-      'Gold Weight / Net Gold Weight',
-      'Total Product Weight',
-      'Stone Type',
-      'Stone Used',
+      'NET WEIGHT',
       'Stone Color',
-      'Stone Shape / Cut',
-      'Stone Weight (Carat / ct)',
-      'Stone Count',
-      'Stone Setting',
-      'Dimensions',
-      'Ring Size / Bangle Size / Chain Length',
+      'Stone Cut',
+      'Dimension',
       'Design Type',
       'Art Form',
       'Plating',
-      'Enamel Work / Embellishment',
-      'Customizable',
-      'Category',
-      'Sub Category',
-      'Product Tags'
+      'Enamel Work',
+      'Customizable'
     ];
 
     final String csvContent = const ListToCsvConverter().convert([headers]);
@@ -420,18 +398,16 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
     try {
       final input = utf8.decode(_csvFiles!.first.bytes!);
       final fields = const CsvToListConverter().convert(input);
+      final headers = fields[0].map((e) => e.toString().trim()).toList();
 
       for (int i = 1; i < fields.length; i++) {
-        // Start from 1 to skip header row
         final row = fields[i];
-        final title = row[0];
+        final title = row[headers.indexOf('Product Title')];
 
-        // Find the corresponding image
         final imageFile = _imageFiles!.firstWhere(
           (file) => file.name.split('.').first == title,
         );
 
-        // Upload image
         final fileName = '${DateTime.now().millisecondsSinceEpoch}-$title';
         await supabase.storage
             .from('designer-files')
@@ -439,18 +415,39 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
         final imageUrl =
             supabase.storage.from('designer-files').getPublicUrl(fileName);
 
-        // Insert data
         await supabase.from('assets').insert({
           'owner_id': userId,
           'title': title,
-          'description': row[1],
-          'sku': row[2],
+          'description': row[headers.indexOf('Description')],
           'media_url': imageUrl,
           'status': 'pending',
           'source': 'b2b_bulk_upload',
           'attributes': {
-            'collection': row[3],
-            // ... map the rest of the CSV columns to the attributes
+            'Price': row[headers.indexOf('Price')],
+            'Product Tags': row[headers.indexOf('Product Tags')],
+            'Gold Weight': row[headers.indexOf('Gold Weight')],
+            'Metal Purity': row[headers.indexOf('Metal Purity')],
+            'Metal Finish': row[headers.indexOf('Metal Finish')],
+            'Stone Weight': row[headers.indexOf('Stone Weight')],
+            'Stone Type': row[headers.indexOf('Stone Type')],
+            'Stone Used': row[headers.indexOf('Stone Used')],
+            'Stone Setting': row[headers.indexOf('Stone Setting')],
+            'Stone Count': row[headers.indexOf('Stone Count')],
+            'Collection Name': row[headers.indexOf('Collection Name')],
+            'Product Type': row[headers.indexOf('Product Type')],
+            'Gender': row[headers.indexOf('Gender')],
+            'Theme': row[headers.indexOf('Theme')],
+            'Metal Type': row[headers.indexOf('Metal Type')],
+            'Metal Color': row[headers.indexOf('Metal Color')],
+            'NET WEIGHT': row[headers.indexOf('NET WEIGHT')],
+            'Stone Color': row[headers.indexOf('Stone Color')],
+            'Stone Cut': row[headers.indexOf('Stone Cut')],
+            'Dimension': row[headers.indexOf('Dimension')],
+            'Design Type': row[headers.indexOf('Design Type')],
+            'Art Form': row[headers.indexOf('Art Form')],
+            'Plating': row[headers.indexOf('Plating')],
+            'Enamel Work': row[headers.indexOf('Enamel Work')],
+            'Customizable': row[headers.indexOf('Customizable')],
           },
         });
       }
@@ -497,12 +494,11 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
                       const Icon(Icons.info_outline, color: Colors.blue),
                       const SizedBox(height: 8),
                       const Text(
-                        "Image names must be the same as the 'Product Name / Title' in your CSV file (without the file extension).",
+                        "Image names must be the same as the 'Product Title' in your CSV file (without the file extension).",
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
                       TextButton(
-                        // onPressed is now connected to the new method
                         onPressed: _downloadSampleCsv,
                         child: const Text("Download Sample CSV"),
                       ),
@@ -595,13 +591,11 @@ class _ProductFormCardState extends State<ProductFormCard> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Left side for image upload
                 Expanded(
                   flex: 2,
                   child: _buildImagePicker(),
                 ),
                 const SizedBox(width: 24),
-                // Right side for the form
                 Expanded(
                   flex: 3,
                   child: _buildFormFields(),
@@ -674,9 +668,9 @@ class _ProductFormCardState extends State<ProductFormCard> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextFormField(
-          controller: widget.entry.productNameController,
-          decoration: const InputDecoration(labelText: "Product Name / Title"),
-          validator: (v) => v!.isEmpty ? "Product Name is required" : null,
+          controller: widget.entry.productTitleController,
+          decoration: const InputDecoration(labelText: "Product Title"),
+          validator: (v) => v!.isEmpty ? "Product Title is required" : null,
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -686,87 +680,34 @@ class _ProductFormCardState extends State<ProductFormCard> {
         ),
         const SizedBox(height: 16),
         TextFormField(
-          controller: widget.entry.skuController,
-          decoration: const InputDecoration(labelText: "SKU / Product Code"),
+          controller: widget.entry.priceController,
+          decoration: const InputDecoration(labelText: "Price"),
+          keyboardType: TextInputType.number,
         ),
         const SizedBox(height: 16),
         TextFormField(
-          controller: widget.entry.collectionController,
-          decoration:
-              const InputDecoration(labelText: "Collection / Series Name"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.productTypeController,
-          decoration: const InputDecoration(labelText: "Product Type"),
-        ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          value: widget.entry.gender,
-          decoration: const InputDecoration(labelText: "Gender"),
-          items: ['Women', 'Men', 'Unisex', 'Kids']
-              .map(
-                  (label) => DropdownMenuItem(value: label, child: Text(label)))
-              .toList(),
-          onChanged: (value) {
-            setState(() {
-              widget.entry.gender = value;
-            });
-          },
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.occasionController,
-          decoration: const InputDecoration(
-              labelText: "Occasion (Wedding, Daily Wear, etc.)"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.styleController,
-          decoration: const InputDecoration(
-              labelText: "Style (Minimal, Statement, etc.)"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.themeController,
-          decoration:
-              const InputDecoration(labelText: "Theme (Floral, Heart, etc.)"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.metalTypeController,
-          decoration:
-              const InputDecoration(labelText: "Metal Type (For Display)"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.metalColorController,
-          decoration:
-              const InputDecoration(labelText: "Metal Color (For Display)"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.metalPurityController,
-          decoration: const InputDecoration(
-              labelText: "Metal Purity / Carat (For Display)"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.metalFinishController,
-          decoration: const InputDecoration(
-              labelText: "Metal Finish / Texture (For Display)"),
+          controller: widget.entry.productTagsController,
+          decoration: const InputDecoration(labelText: "Product Tags (comma-separated)"),
         ),
         const SizedBox(height: 16),
         TextFormField(
           controller: widget.entry.goldWeightController,
-          decoration: const InputDecoration(
-              labelText: "Gold Weight / Net Gold Weight (For Display)"),
+          decoration: const InputDecoration(labelText: "Gold Weight"),
         ),
         const SizedBox(height: 16),
         TextFormField(
-          controller: widget.entry.totalWeightController,
-          decoration: const InputDecoration(
-              labelText: "Total Product Weight (For Display)"),
+          controller: widget.entry.metalPurityController,
+          decoration: const InputDecoration(labelText: "Metal Purity"),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: widget.entry.metalFinishController,
+          decoration: const InputDecoration(labelText: "Metal Finish"),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: widget.entry.stoneWeightController,
+          decoration: const InputDecoration(labelText: "Stone Weight"),
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -789,19 +730,8 @@ class _ProductFormCardState extends State<ProductFormCard> {
         ),
         const SizedBox(height: 16),
         TextFormField(
-          controller: widget.entry.stoneColorController,
-          decoration: const InputDecoration(labelText: "Stone Color"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.stoneShapeController,
-          decoration: const InputDecoration(labelText: "Stone Shape / Cut"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.stoneWeightController,
-          decoration: const InputDecoration(
-              labelText: "Stone Weight (Carat / ct) (For Display)"),
+          controller: widget.entry.stoneSettingController,
+          decoration: const InputDecoration(labelText: "Stone Setting"),
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -810,22 +740,68 @@ class _ProductFormCardState extends State<ProductFormCard> {
         ),
         const SizedBox(height: 16),
         TextFormField(
-          controller: widget.entry.stoneSettingController,
-          decoration: const InputDecoration(labelText: "Stone Setting"),
+          controller: widget.entry.collectionNameController,
+          decoration:
+              const InputDecoration(labelText: "Collection Name"),
         ),
         const SizedBox(height: 16),
         TextFormField(
-          controller: widget.entry.dimensionsController,
-          decoration: const InputDecoration(
-              labelText:
-                  "Dimensions (Length, Width, Height in mm/cm) (For Display)"),
+          controller: widget.entry.productTypeController,
+          decoration: const InputDecoration(labelText: "Product Type"),
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          value: widget.entry.gender,
+          decoration: const InputDecoration(labelText: "Gender"),
+          items: ['Women', 'Men', 'Unisex', 'Kids']
+              .map(
+                  (label) => DropdownMenuItem(value: label, child: Text(label)))
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              widget.entry.gender = value;
+            });
+          },
         ),
         const SizedBox(height: 16),
         TextFormField(
-          controller: widget.entry.ringSizeController,
+          controller: widget.entry.themeController,
+          decoration:
+              const InputDecoration(labelText: "Theme"),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: widget.entry.metalTypeController,
+          decoration:
+              const InputDecoration(labelText: "Metal Type"),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: widget.entry.metalColorController,
+          decoration:
+              const InputDecoration(labelText: "Metal Color"),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: widget.entry.netWeightController,
           decoration: const InputDecoration(
-              labelText:
-                  "Ring Size / Bangle Size / Chain Length (For Display)"),
+              labelText: "NET WEIGHT"),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: widget.entry.stoneColorController,
+          decoration: const InputDecoration(labelText: "Stone Color"),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: widget.entry.stoneCutController,
+          decoration: const InputDecoration(labelText: "Stone Cut"),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: widget.entry.dimensionController,
+          decoration: const InputDecoration(
+              labelText: "Dimension"),
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
@@ -855,7 +831,7 @@ class _ProductFormCardState extends State<ProductFormCard> {
         TextFormField(
           controller: widget.entry.enamelWorkController,
           decoration:
-              const InputDecoration(labelText: "Enamel Work / Embellishment"),
+              const InputDecoration(labelText: "Enamel Work"),
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
@@ -870,22 +846,6 @@ class _ProductFormCardState extends State<ProductFormCard> {
               widget.entry.customizable = value;
             });
           },
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.categoryController,
-          decoration: const InputDecoration(labelText: "Category"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.subCategoryController,
-          decoration: const InputDecoration(labelText: "Sub Category"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.productTagsController,
-          decoration: const InputDecoration(
-              labelText: "Product Tags (comma-separated)"),
         ),
       ],
     );

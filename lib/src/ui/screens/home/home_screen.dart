@@ -27,12 +27,10 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = false;
   String _selectedCategory = 'All';
   final List<String> _categories = ['All'];
-
-  // FIX: Changed types from String? to int?
-  int? _hoveredItemId;
-  int? _tappedItemId;
-  // FIX: Changed Set type from String to int
-  final Set<int> _itemsBeingLiked = {};
+  
+  String? _hoveredItemId;
+  String? _tappedItemId;
+  final Set<String> _itemsBeingLiked = {};
 
   @override
   void initState() {
@@ -57,7 +55,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final seenImageUrls = <String>{};
       final uniqueItems = <JewelryItem>[];
       for (final item in allItems) {
-        // FIX: Changed item.imageUrl to item.image
         if (seenImageUrls.add(item.image)) {
           uniqueItems.add(item);
         }
@@ -65,8 +62,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final Set<String> allCategories = {'All'};
       for (var item in uniqueItems) {
-        if (item.category != null && item.category!.isNotEmpty) {
-          allCategories.add(item.category!);
+        if (item.productType != null && item.productType!.isNotEmpty) {
+          allCategories.add(item.productType!);
         }
       }
 
@@ -100,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _filteredItems = _items;
       } else {
         _filteredItems =
-            _items.where((item) => item.category == category).toList();
+            _items.where((item) => item.productType == category).toList();
       }
     });
   }
@@ -125,7 +122,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final pinData = await _supabase
           .from('pins')
           .select('id')
-          // FIX: Changed item.imageUrl to item.image
           .eq('image_url', item.image)
           .maybeSingle();
 
@@ -137,9 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
             .from('pins')
             .insert({
               'owner_id': uid,
-              // FIX: Changed item.name to item.title
-              'title': item.title,
-              // FIX: Changed item.imageUrl to item.image
+              'title': item.productTitle,
               'image_url': item.image,
               'description': item.description,
             })
@@ -179,9 +173,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _shareItem(JewelryItem item) {
-    // FIX: Changed item.name to item.title
     Share.share(
-        'Check out this beautiful ${item.title} from Nafisa Jewellers!');
+        'Check out this beautiful ${item.productTitle} from Dagina Designs!');
   }
 
   void _saveToBoard(JewelryItem item) {
@@ -193,7 +186,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // ... (build methods are long, pasting them below, but they also have fixes)
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -282,7 +274,6 @@ class _HomeScreenState extends State<HomeScreen> {
             alignment: Alignment.bottomCenter,
             children: [
               Image.network(
-                // FIX: Changed item.imageUrl to item.image
                 item.image,
                 fit: BoxFit.cover,
                 loadingBuilder: (context, child, progress) => progress == null
@@ -311,8 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         if (isMember)
                           Expanded(
                             child: Text(
-                              // FIX: Changed item.name to item.title
-                              item.title,
+                              item.productTitle,
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
