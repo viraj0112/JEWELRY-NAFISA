@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
 
+  go_router: ^14.2.1
   # Supabase
   supabase_flutter: ^2.5.0
 
