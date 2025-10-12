@@ -42,9 +42,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     _jewelryService = JewelryService(supabase);
     _initializeInteractionState();
     _similarItemsFuture = _jewelryService.fetchSimilarItems(
-      // FIX: Changed currentItemId to be an int
       currentItemId: widget.jewelryItem.id.toString(),
-      category: widget.jewelryItem.category,
+      category: widget.jewelryItem.productType,
       limit: 10,
     );
   }
@@ -52,7 +51,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   Future<void> _initializeInteractionState() async {
     final uid = supabase.auth.currentUser?.id;
 
-    // FIX: Changed widget.jewelryItem.imageUrl to widget.jewelryItem.image
     final pinData = await supabase
         .from('pins')
         .select('id, like_count')
@@ -94,9 +92,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           .from('pins')
           .insert({
             'owner_id': uid,
-            // FIX: Changed widget.jewelryItem.name to widget.jewelryItem.title
-            'title': widget.jewelryItem.title,
-            // FIX: Changed widget.jewelryItem.imageUrl to widget.jewelryItem.image
+            'title': widget.jewelryItem.productTitle,
             'image_url': widget.jewelryItem.image,
             'description': widget.jewelryItem.description,
           })
@@ -171,9 +167,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<void> _shareItem() async {
-    // FIX: Changed widget.jewelryItem.name to widget.jewelryItem.title
     final shareText =
-        'Check out this beautiful ${widget.jewelryItem.title} from AKD Designs!';
+        'Check out this beautiful ${widget.jewelryItem.productTitle} from AKD Designs!';
     await Share.share(shareText, subject: 'Beautiful Jewelry from AKD');
   }
 
@@ -268,7 +263,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: Image.network(
-                          // FIX: Changed widget.jewelryItem.imageUrl to widget.jewelryItem.image
                           widget.jewelryItem.image,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => const Center(
@@ -312,7 +306,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           flexibleSpace: FlexibleSpaceBar(
             background: Image.network(
-              // FIX: Changed widget.jewelryItem.imageUrl to widget.jewelryItem.image
               widget.jewelryItem.image,
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) =>
@@ -353,8 +346,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            // FIX: Changed item.name to item.title
-            showTitle ? item.title : "Jewelry Design",
+            showTitle ? item.productTitle : "Jewelry Design",
             style: theme.textTheme.headlineMedium,
           ),
           if (_likeCount > 0) ...[
@@ -368,19 +360,16 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           if (showFullDetails) ...[
             Text("Product Details", style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
-            // FIX: Changed to convert int id to String and used new properties
-            _buildDetailRow("SKU:", item.id.toString()),
-            if (item.goldCarat != null)
-              _buildDetailRow("Gold Carat:", item.goldCarat!),
-            if (item.goldWeight != null)
-              _buildDetailRow("Gold Weight:", item.goldWeight!),
-            if (item.stoneType != null)
-              _buildDetailRow("Stone:", item.stoneType!),
-            if (item.description != null && item.description!.isNotEmpty)
+            _buildDetailRow("Collection:", item.collectionName ?? 'N/A'),
+            _buildDetailRow("Gender:", item.gender ?? 'N/A'),
+            _buildDetailRow("Metal:", item.metalType ?? 'N/A'),
+            _buildDetailRow("Metal Purity:", item.metalPurity ?? 'N/A'),
+            _buildDetailRow("Gold Weight:", item.goldWeight ?? 'N/A'),
+            _buildDetailRow("Stone:", item.stoneType ?? 'N/A'),
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Text(
-                  item.description!,
+                  item.description,
                   style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
                 ),
               ),
@@ -491,7 +480,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               child: Card(
                 clipBehavior: Clip.antiAlias,
                 child: Image.network(
-                  // FIX: Changed item.imageUrl to item.image
                   item.image,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) =>

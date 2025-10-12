@@ -54,10 +54,10 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
     try {
       final headers = _csvData![0].map((e) => e.toString().trim()).toList();
       final rows = _csvData!.sublist(1);
-      final titleIndex = headers.indexOf('title');
+      final titleIndex = headers.indexOf('Product Title');
 
       if (titleIndex == -1) {
-        _showErrorSnackBar('CSV must contain a "title" column.');
+        _showErrorSnackBar('CSV must contain a "Product Title" column.');
         setState(() => _isLoading = false);
         return;
       }
@@ -72,13 +72,13 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
             final String header = headers[i];
             dynamic value = row[i];
 
-            if (header == 'title') {
+            if (header == 'Product Title') {
               productTitle = value.toString();
             }
 
-            if (header == 'tags' && value is String) {
+            if (header == 'Product Tags' && value is String) {
               product[header] = value.split(',').map((t) => t.trim()).toList();
-            } else if (header == 'price' && value is String) {
+            } else if (header == 'Price' && value is String) {
               final cleanedPriceString =
                   value.replaceAll('₹', '').replaceAll(',', '').trim();
               product[header] = double.tryParse(cleanedPriceString);
@@ -100,10 +100,10 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
             final imageUrl = Supabase.instance.client.storage
                 .from('product-images')
                 .getPublicUrl(imageName);
-            product['image'] = imageUrl;
+            product['Image'] = imageUrl;
           } else {
             _showErrorSnackBar('Image not found for product: $productTitle');
-            product['image'] = null;
+            product['Image'] = null;
           }
         }
 

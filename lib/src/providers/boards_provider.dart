@@ -77,9 +77,7 @@ class BoardsProvider extends ChangeNotifier {
             .from('pins')
             .insert({
               'owner_id': userId,
-              // FIX: Changed item.name to item.title
-              'title': item.title,
-              // FIX: Changed item.imageUrl to item.image
+              'title': item.productTitle,
               'image_url': item.image,
               'description': item.description,
             })
