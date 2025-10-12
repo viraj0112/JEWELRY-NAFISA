@@ -4,6 +4,7 @@ import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
 import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
 import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ContentManagementSection extends StatefulWidget {
   const ContentManagementSection({super.key});
@@ -31,14 +32,33 @@ class _ContentManagementSectionState extends State<ContentManagementSection>
   }
 
   Future<void> _updateStatus(String assetId, String status) async {
-    // Implement the logic to update the asset status in your AdminService
-    // For example: await _adminService.updateAssetStatus(assetId, status);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Product status updated to $status'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    if (status == 'approved') {
+      try {
+        await Supabase.instance.client.functions.invoke('approve-product', body: {'assetId': assetId});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Product approved and moved to designer products.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to approve product: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else {
+      // Handle rejection
+      await _adminService.updateAssetStatus(assetId, status);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Product status updated to rejected'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   @override

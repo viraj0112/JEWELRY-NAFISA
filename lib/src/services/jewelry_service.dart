@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/jewelry_item.dart';
@@ -8,16 +7,29 @@ class JewelryService {
 
   JewelryService(this._supabaseClient);
 
-  Future<List<JewelryItem>> getProducts({int limit = 50, int offset = 0}) async {
+  Future<List<JewelryItem>> getProducts(
+      {int limit = 50, int offset = 0}) async {
     try {
-      final response = await _supabaseClient
-          .from('products')
-          .select()
-          .limit(limit)
-          .range(offset, offset + limit - 1); 
+      // Fetch from both tables in parallel
+      final responses = await Future.wait([
+        _supabaseClient
+            .from('products')
+            .select()
+            .limit(limit)
+            .range(offset, offset + limit - 1),
+        _supabaseClient
+            .from('designerproducts')
+            .select()
+            .limit(limit)
+            .range(offset, offset + limit - 1)
+      ]);
 
-      final List<dynamic> data = response as List<dynamic>;
-      return data
+      final List<dynamic> productsData = responses[0] as List<dynamic>;
+      final List<dynamic> designerProductsData = responses[1] as List<dynamic>;
+
+      final allProducts = [...productsData, ...designerProductsData];
+
+      return allProducts
           .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
@@ -35,7 +47,7 @@ class JewelryService {
       var query = _supabaseClient
           .from('products')
           .select()
-          .not('id', 'eq', currentItemId); 
+          .not('id', 'eq', currentItemId);
 
       if (category != null && category.isNotEmpty) {
         query = query.eq('category', category);
@@ -55,11 +67,8 @@ class JewelryService {
 
   Future<JewelryItem?> getJewelryItem(String id) async {
     try {
-      final response = await _supabaseClient
-          .from('products')
-          .select()
-          .eq('id', id)
-          .single();
+      final response =
+          await _supabaseClient.from('products').select().eq('id', id).single();
       return JewelryItem.fromJson(response);
     } catch (e) {
       debugPrint('Error fetching single product: $e');

@@ -1,5 +1,3 @@
-// lib/src/designer/screens/b2b_upload_screen.dart
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -25,7 +23,8 @@ class ProductEntry {
   String? stoneUsed;
   final TextEditingController stoneSettingController = TextEditingController();
   final TextEditingController stoneCountController = TextEditingController();
-  final TextEditingController collectionNameController = TextEditingController();
+  final TextEditingController collectionNameController =
+      TextEditingController();
   final TextEditingController productTypeController = TextEditingController();
   String? gender;
   final TextEditingController themeController = TextEditingController();
@@ -687,7 +686,8 @@ class _ProductFormCardState extends State<ProductFormCard> {
         const SizedBox(height: 16),
         TextFormField(
           controller: widget.entry.productTagsController,
-          decoration: const InputDecoration(labelText: "Product Tags (comma-separated)"),
+          decoration:
+              const InputDecoration(labelText: "Product Tags (comma-separated)"),
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -741,8 +741,7 @@ class _ProductFormCardState extends State<ProductFormCard> {
         const SizedBox(height: 16),
         TextFormField(
           controller: widget.entry.collectionNameController,
-          decoration:
-              const InputDecoration(labelText: "Collection Name"),
+          decoration: const InputDecoration(labelText: "Collection Name"),
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -766,26 +765,22 @@ class _ProductFormCardState extends State<ProductFormCard> {
         const SizedBox(height: 16),
         TextFormField(
           controller: widget.entry.themeController,
-          decoration:
-              const InputDecoration(labelText: "Theme"),
+          decoration: const InputDecoration(labelText: "Theme"),
         ),
         const SizedBox(height: 16),
         TextFormField(
           controller: widget.entry.metalTypeController,
-          decoration:
-              const InputDecoration(labelText: "Metal Type"),
+          decoration: const InputDecoration(labelText: "Metal Type"),
         ),
         const SizedBox(height: 16),
         TextFormField(
           controller: widget.entry.metalColorController,
-          decoration:
-              const InputDecoration(labelText: "Metal Color"),
+          decoration: const InputDecoration(labelText: "Metal Color"),
         ),
         const SizedBox(height: 16),
         TextFormField(
           controller: widget.entry.netWeightController,
-          decoration: const InputDecoration(
-              labelText: "NET WEIGHT"),
+          decoration: const InputDecoration(labelText: "NET WEIGHT"),
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -800,8 +795,7 @@ class _ProductFormCardState extends State<ProductFormCard> {
         const SizedBox(height: 16),
         TextFormField(
           controller: widget.entry.dimensionController,
-          decoration: const InputDecoration(
-              labelText: "Dimension"),
+          decoration: const InputDecoration(labelText: "Dimension"),
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
@@ -830,8 +824,7 @@ class _ProductFormCardState extends State<ProductFormCard> {
         const SizedBox(height: 16),
         TextFormField(
           controller: widget.entry.enamelWorkController,
-          decoration:
-              const InputDecoration(labelText: "Enamel Work"),
+          decoration: const InputDecoration(labelText: "Enamel Work"),
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
