@@ -8,46 +8,50 @@ class CreditInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userProfile = context.watch<UserProfileProvider>();
-    final theme = Theme.of(context);
+    // Use a Consumer to listen for changes in UserProfileProvider
+    return Consumer<UserProfileProvider>(
+      builder: (context, userProfile, child) {
+        final theme = Theme.of(context);
+        final totalCredits = userProfile.isMember ? 3 : 1;
 
-    // Determine total credits based on membership status
-    final totalCredits = userProfile.isMember ? 3 : 1;
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Credits Left For Your Account',
-                    style: theme.textTheme.titleMedium,
+        return Card(
+          elevation: 2,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Credits Left For Your Account',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      // Display the referral code from the provider
+                      Text(
+                        'Referral Code: ${userProfile.referralCode ?? "Generating..."}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Referral Code- ${userProfile.referralCode ?? "N/A"}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 16),
+                AnimatedCreditIndicator(
+                  currentCredits: userProfile.creditsRemaining,
+                  totalCredits: totalCredits,
+                ),
+              ],
             ),
-            const SizedBox(width: 16),
-            AnimatedCreditIndicator(
-              currentCredits: userProfile.creditsRemaining,
-              totalCredits: totalCredits,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

@@ -14,12 +14,16 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  // Future to hold quote statistics
+  late Future<Map<String, int>> _quoteStatsFuture;
 
   @override
   void initState() {
     super.initState();
-    // MODIFIED: Reduced tab controller length to 2
     _tabController = TabController(length: 2, vsync: this);
+    // Fetch the quote statistics when the widget is initialized
+    _quoteStatsFuture =
+        context.read<UserProfileProvider>().getQuoteStatistics();
   }
 
   @override
@@ -42,7 +46,6 @@ class _ProfileScreenState extends State<ProfileScreen>
               delegate: _SliverTabBarDelegate(
                 TabBar(
                   controller: _tabController,
-                  // MODIFIED: Removed the 'My Boards' tab
                   tabs: const [
                     Tab(text: 'My Account'),
                     Tab(text: 'My Credits'),
@@ -53,7 +56,6 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ];
         },
-        // MODIFIED: Removed the 'My Boards' tab view
         body: TabBarView(
           controller: _tabController,
           children: [
@@ -162,34 +164,60 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  // UPDATED WIDGET: Uses a FutureBuilder to display quote stats
   Widget _buildQuotesCard(
       BuildContext context, UserProfileProvider userProfile) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return FutureBuilder<Map<String, int>>(
+      future: _quoteStatsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(child: Text('Could not load quotes')),
+            ),
+          );
+        }
+
+        final stats = snapshot.data ?? {'total': 0, 'valid': 0, 'expired': 0};
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('My Quotes', style: theme.textTheme.titleLarge),
-                TextButton(
-                  onPressed: () {
-                    /* TODO: Navigate to Quote History */
-                  },
-                  child: const Text('View Detail History'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('My Quotes', style: theme.textTheme.titleLarge),
+                    TextButton(
+                      onPressed: () {
+                        /* TODO: Navigate to Quote History */
+                      },
+                      child: const Text('View Detail History'),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 8),
+                _buildStatRow('Total Quotes:', stats['total'].toString()),
+                _buildStatRow('Expired:', stats['expired'].toString()),
+                _buildStatRow('Valid:', stats['valid'].toString()),
               ],
             ),
-            const SizedBox(height: 8),
-            _buildStatRow('Total Quotes:', '6'),
-            _buildStatRow('Expired:', '5'),
-            _buildStatRow('Valid:', '1'),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -242,8 +270,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 }
-
-// REMOVED all board-related widgets and logic from here
 
 class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverTabBarDelegate(this._tabBar);

@@ -44,18 +44,12 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text.trim(),
       );
 
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-
-      if (user == null) {
+      // If the sign-in fails, show an error.
+      // If successful, the AuthGate will handle navigation automatically.
+      if (user == null && mounted) {
+        setState(() => _isLoading = false);
         _showErrorSnackbar('Login failed. Please check your credentials.');
-        return;
       }
-
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MainShell()),
-        (route) => false,
-      );
     }
   }
 

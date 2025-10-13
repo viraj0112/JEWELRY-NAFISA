@@ -64,8 +64,9 @@ class UserProfileProvider with ChangeNotifier {
     }
 
     try {
-      // Step 1: Ensure profile exists (your existing good practice).
-      await UserProfileUtils.ensureUserProfile(userId);
+      // *** FIX: Changed to call the renamed function ***
+      // This will now check if the profile exists, relying on the DB trigger for creation.
+      await UserProfileUtils.checkUserProfileExists(userId);
 
       // Step 2: Perform a one-time fetch for immediate data.
       final response = await _supabaseClient
@@ -74,7 +75,7 @@ class UserProfileProvider with ChangeNotifier {
           .eq('id', userId)
           .single();
 
-      // Step 3: Update state with this initial data. This is the key fix.
+      // Step 3: Update state with this initial data.
       _updateFromData(response);
 
       // Step 4: Now, listen for any future real-time changes.
@@ -142,6 +143,31 @@ class UserProfileProvider with ChangeNotifier {
     } catch (e) {
       debugPrint("Error uploading avatar: $e");
       return null;
+    }
+  }
+
+  Future<Map<String, int>> getQuoteStatistics() async {
+    final userId = _supabaseClient.auth.currentUser?.id;
+    if (userId == null) {
+      return {'total': 0, 'valid': 0, 'expired': 0};
+    }
+    try {
+      // This assumes an RPC function 'get_user_quote_stats' exists in Supabase.
+      // You will need to create this function in your Supabase project's SQL editor.
+      final result = await _supabaseClient.rpc(
+        'get_user_quote_stats',
+        params: {'p_user_id': userId},
+      );
+
+      return {
+        'total': (result['total'] as int? ?? 0),
+        'valid': (result['valid'] as int? ?? 0),
+        'expired': (result['expired'] as int? ?? 0),
+      };
+    } catch (e) {
+      debugPrint("Error fetching quote statistics: $e");
+      // Return zeroed data on error to prevent the UI from crashing
+      return {'total': 0, 'valid': 0, 'expired': 0};
     }
   }
 

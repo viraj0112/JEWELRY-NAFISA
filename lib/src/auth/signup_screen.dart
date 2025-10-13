@@ -59,13 +59,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _passwordController.text.trim(),
       _usernameController.text.trim(),
       _birthdateController.text.trim(),
-      _referralCodeController.text
-          .trim(), // Corrected: Pass the referral code here instead of context
+      _referralCodeController.text.trim(),
     );
-    if (mounted) setState(() => _isLoading = false);
 
     if (user == null) {
-      _showErrorSnackbar('Sign up failed. The email might already be in use.');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showErrorSnackbar('Sign up failed. The email might already be in use.');
+      }
     } else {
       // Sign out immediately after signup to force the user to log in
       await _authService.signOut();
@@ -78,7 +79,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.of(context).pop();
+        // The AuthGate will handle navigation after signOut, so we remove Navigator.pop().
       }
     }
   }

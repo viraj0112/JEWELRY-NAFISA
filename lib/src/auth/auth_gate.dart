@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
-import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthGate extends StatefulWidget {
@@ -30,6 +28,9 @@ class _AuthGateState extends State<AuthGate> {
     if (initialSession == null) {
       // If there's no session at all, go to welcome immediately.
       context.go('/welcome');
+    } else {
+      // If a session exists, redirect based on that session.
+      _redirect(initialSession);
     }
   }
 
@@ -50,32 +51,37 @@ class _AuthGateState extends State<AuthGate> {
       return;
     }
 
-    // When a session is active, fetch the user's profile.
-    final userProfileProvider =
-        Provider.of<UserProfileProvider>(context, listen: false);
-
     // Use a try-catch to handle cases where the profile might not exist yet
     try {
       // A one-time fetch to get the user's role
+      // FIX: Changed .single() to .maybeSingle() to prevent errors on first login
       final profile = await Supabase.instance.client
           .from('users')
           .select('role, approval_status')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
+
+      // FIX: Handle the case where the profile isn't created yet by the database trigger
+      if (profile == null) {
+        // This can happen on first-time login due to a slight delay.
+        // Redirect to a safe default page. The UserProfileProvider will fetch the
+        // full profile once it's available.
+        debugPrint(
+            "AuthGate: Profile not found yet. Redirecting to /home to allow profile creation.");
+        context.go('/home');
+        return;
+      }
 
       final userRole = profile['role'] as String?;
       final approvalStatus = profile['approval_status'] as String?;
 
       // Perform redirection based on the role and status
       if (userRole == 'designer') {
-        // If the user is a designer and approved, go to /b2b
         if (approvalStatus == 'approved') {
           context.go('/b2b');
         } else {
-          // If pending, you could have a dedicated pending screen
-          // For now, we'll keep them on a safe route like home.
-          // Or create a '/pending-approval' route.
-          context.go('/home'); // Or a dedicated pending page
+          // Redirect pending or rejected designers to a dedicated screen
+          context.go('/pending-approval');
         }
       } else if (userRole == 'admin') {
         context.go('/admin'); // Redirect admin users
@@ -83,7 +89,7 @@ class _AuthGateState extends State<AuthGate> {
         context.go('/home'); // Redirect all other users to home
       }
     } catch (e) {
-      // If fetching the profile fails, redirect to a safe default.
+      // If any other error occurs, redirect to a safe default.
       debugPrint("AuthGate redirect error: $e");
       context.go('/home');
     }

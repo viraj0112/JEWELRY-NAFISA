@@ -33,21 +33,18 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         _passwordController.text.trim(),
       );
 
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+      // AuthGate will handle navigation because updateUserPassword calls signOut.
 
-      if (success) {
+      if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Your password has been updated successfully! Please log in.'),
+            content: Text(
+                'Your password has been updated successfully! Please log in.'),
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
-      } else {
+      } else if (!success && mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Failed to update password. Please try again.'),
