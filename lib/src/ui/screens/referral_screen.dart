@@ -6,8 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import "package:intl/intl.dart";
 import "package:supabase_flutter/supabase_flutter.dart";
 
-
-class Referral{
+class Referral {
   final String username;
   final DateTime date;
   final int creditsEarned;
@@ -18,7 +17,6 @@ class Referral{
     required this.creditsEarned,
   });
 }
-
 
 class ReferralScreen extends StatefulWidget {
   const ReferralScreen({super.key});
@@ -54,7 +52,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
       if (response is! List || response.isEmpty) {
         return [];
       }
-      
+
       return response.map((item) {
         return Referral(
           username: item['referred']?['username'] ?? 'A user',
@@ -73,11 +71,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final userProfile = context.watch<UserProfileProvider>();
-    final referralCode = userProfile.referralCode ?? 'Generating...';
+    final referralCode = userProfile.referralCode;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -90,7 +87,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
     );
   }
 
-  Widget _buildMobileLayout(BuildContext context, String referralCode) {
+  Widget _buildMobileLayout(BuildContext context, String? referralCode) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -104,7 +101,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
     );
   }
 
-  Widget _buildDesktopLayout(BuildContext context, String referralCode) {
+  Widget _buildDesktopLayout(BuildContext context, String? referralCode) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(32.0),
       child: Row(
@@ -118,7 +115,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
     );
   }
 
-  Widget _buildReferralCard(BuildContext context, String referralCode) {
+  Widget _buildReferralCard(BuildContext context, String? referralCode) {
     final theme = Theme.of(context);
     return Card(
       elevation: 4,
@@ -143,10 +140,12 @@ class _ReferralScreenState extends State<ReferralScreen> {
             const SizedBox(height: 8),
             GestureDetector(
               onTap: () {
-                Clipboard.setData(ClipboardData(text: referralCode));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Referral code copied!')),
-                );
+                if (referralCode != null) {
+                  Clipboard.setData(ClipboardData(text: referralCode));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Referral code copied!')),
+                  );
+                }
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -159,7 +158,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                   border: Border.all(color: theme.colorScheme.secondary),
                 ),
                 child: Text(
-                  referralCode,
+                  referralCode ?? 'Generating...',
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     letterSpacing: 2,
@@ -169,11 +168,13 @@ class _ReferralScreenState extends State<ReferralScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () {
-                Share.share(
-                  'Join using my referral code to get exclusive benefits: $referralCode',
-                );
-              },
+              onPressed: referralCode != null
+                  ? () {
+                      Share.share(
+                        'Join using my referral code to get exclusive benefits: $referralCode',
+                      );
+                    }
+                  : null,
               icon: const Icon(Icons.share),
               label: const Text('Share My Code'),
               style: ElevatedButton.styleFrom(

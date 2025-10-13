@@ -1,53 +1,92 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
+
+// Add this interface
+interface UserMetadata {
+  referral_code?: string;
+}
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
   try {
-    const { referral_code, new_user_id } = await req.json();
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      {
+        global: {
+          headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+        },
+      }
     );
 
-    const { data: referrer, error: referrerError } = await supabase
-      .from("users")
-      .select("id, is_member")
-      .eq("referral_code", referral_code)
-      .single();
+    const { record: newUser } = await req.json();
 
-    if (referrerError) throw new Error("Invalid referral code.");
+    if (!newUser) {
+      console.error("No user data received.");
+      return new Response("No user data received.", { status: 400 });
+    }
 
-    const creditsForReferrer = referrer.is_member ? 3 : 2;
+    // Correctly access referral_code from user_metadata
+    const metadata = newUser.user_metadata as UserMetadata;
+    const referralCode = metadata?.referral_code;
 
-    await supabase.rpc("increment_user_credits", {
-      user_id_to_update: referrer.id,
-      credits_to_add: creditsForReferrer,
-    });
+    if (referralCode) {
+      const { data: referringUser, error: referringUserError } = await supabase
+        .from("users")
+        .select("id, is_member")
+        .eq("referral_code", referralCode)
+        .single();
 
-    await supabase.rpc("increment_user_credits", {
-      user_id_to_update: new_user_id,
-      credits_to_add: 1,
-    });
+      if (referringUserError) {
+        console.error("Error finding referring user:", referringUserError);
+        return new Response("Error finding referring user.", { status: 500 });
+      }
 
-    await supabase.from("referrals").insert({
-      referrer_id: referrer.id,
-      referred_id: new_user_id,
-      credits_awarded: creditsForReferrer,
-    });
+      if (referringUser) {
+        // Get credit settings
+        const { data: settings, error: settingsError } = await supabase
+          .from("admin_settings")
+          .select("referral_credits_member, referral_credits_non_member, new_user_credits_on_referral")
+          .single();
+
+        if (settingsError) {
+          console.error("Error fetching admin settings:", settingsError);
+          return new Response("Error fetching admin settings.", { status: 500 });
+        }
+
+        const creditsForReferrer = referringUser.is_member
+          ? settings.referral_credits_member
+          : settings.referral_credits_non_member;
+
+        const { error: referrerUpdateError } = await supabase.rpc(
+          "increment_user_credits",
+          {
+            user_id: referringUser.id,
+            credits_to_add: creditsForReferrer,
+          }
+        );
+        if (referrerUpdateError) {
+          console.error("Error updating referrer credits:", referrerUpdateError);
+        }
+
+        const { error: newUserUpdateError } = await supabase.rpc(
+          "increment_user_credits",
+          {
+            user_id: newUser.id,
+            credits_to_add: settings.new_user_credits_on_referral,
+          }
+        );
+
+        if (newUserUpdateError) {
+          console.error("Error updating new user credits:", newUserUpdateError);
+        }
+      }
+    }
 
     return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("An unexpected error occurred:", error);
+    return new Response("Internal Server Error", { status: 500 });
   }
 });
