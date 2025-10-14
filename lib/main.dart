@@ -1,5 +1,3 @@
-// lib/main.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
@@ -7,19 +5,18 @@ import 'package:jewelry_nafisa/src/admin/admin_shell.dart';
 import 'package:jewelry_nafisa/src/auth/auth_callback_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
 import 'package:jewelry_nafisa/src/designer/designer_shell.dart';
-import 'package:jewelry_nafisa/src/designer/screens/pending_approval_screen.dart'; 
+import 'package:jewelry_nafisa/src/designer/screens/pending_approval_screen.dart';
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/admin/notifiers/filter_state_notifier.dart';
-import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 
-// 1. Define the updated router configuration
+// Define the router configuration
 final _router = GoRouter(
   initialLocation: '/',
   routes: [
@@ -36,23 +33,23 @@ final _router = GoRouter(
       builder: (context, state) => const MainShell(),
     ),
     GoRoute(
-      path: '/b2b', // The route for designers
+      path: '/b2b',
       builder: (context, state) => const DesignerShell(),
     ),
     GoRoute(
-      path: '/admin', // An example route for admins
+      path: '/admin',
       builder: (context, state) => const AdminShell(),
     ),
+    // --- START OF FIX: Add the missing auth-callback route ---
     GoRoute(
       path: '/auth-callback',
       builder: (context, state) => const AuthCallbackScreen(),
     ),
-    // --- START OF FIX: Added the missing route ---
+    // --- END OF FIX ---
     GoRoute(
       path: '/pending-approval',
       builder: (context, state) => const PendingApprovalScreen(),
     ),
-    // --- END OF FIX ---
   ],
 );
 
@@ -102,15 +99,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-
-    // 2. Use MaterialApp.router
+    
     return MaterialApp.router(
       title: 'Dagina Designs',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
-      routerConfig: _router, // Pass the router configuration
+      routerConfig: _router, // Use the router configuration
     );
   }
 }

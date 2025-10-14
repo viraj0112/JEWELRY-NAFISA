@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
-import 'package:jewelry_nafisa/src/ui/screens/boards_screen.dart'; // Import the new screen
+import 'package:jewelry_nafisa/src/ui/screens/boards_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/notifications_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart';
@@ -29,6 +30,7 @@ class _MainShellState extends State<MainShell> {
     BoardsScreen(), // Add the new screen here
     NotificationsScreen(),
     ProfileScreen(),
+    WelcomeScreen()
   ];
 
   void _onItemTapped(int index) {
@@ -37,16 +39,25 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
+  // --- START OF FIX: Use GoRouter for navigation after sign out ---
   Future<void> _signOut() async {
-    await SupabaseAuthService().signOut();
-    if (mounted) {
-      Provider.of<UserProfileProvider>(context, listen: false).reset();
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-        (route) => false,
-      );
+    try {
+      await SupabaseAuthService().signOut();
+      if (mounted) {
+        Provider.of<UserProfileProvider>(context, listen: false).reset();
+        
+        context.go('/welcome');
+
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Logout failed: ${e.toString()}')),
+        );
+      }
     }
   }
+  // --- END OF FIX ---
 
   @override
   Widget build(BuildContext context) {
