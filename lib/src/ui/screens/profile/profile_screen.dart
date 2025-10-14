@@ -14,14 +14,12 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  // Future to hold quote statistics
   late Future<Map<String, int>> _quoteStatsFuture;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    // Fetch the quote statistics when the widget is initialized
     _quoteStatsFuture =
         context.read<UserProfileProvider>().getQuoteStatistics();
   }
@@ -69,8 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildProfileHeader(BuildContext context, UserProfileProvider user) {
     final theme = Theme.of(context);
-    final userProfileData = user.userProfile;
-    final avatarUrl = userProfileData?['avatar_url'] as String?;
+    final avatarUrl = user.userProfile?.avatarUrl;
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -126,8 +123,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           children: [
                             Icon(Icons.star_rounded,
                                 color: Colors.grey[400], size: 32),
-                            Icon(Icons.lock,
-                                color: Colors.grey[600], size: 14),
+                            Icon(Icons.lock, color: Colors.grey[600], size: 14),
                           ],
                         ),
                       ),
@@ -137,7 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           const SizedBox(height: 24),
           Text(user.username, style: theme.textTheme.headlineMedium),
           Text(
-            userProfileData?['email'] ?? '',
+            user.userProfile?.email ?? '',
             style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
           ),
           const SizedBox(height: 24),
@@ -164,7 +160,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // UPDATED WIDGET: Uses a FutureBuilder to display quote stats
   Widget _buildQuotesCard(
       BuildContext context, UserProfileProvider userProfile) {
     final theme = Theme.of(context);

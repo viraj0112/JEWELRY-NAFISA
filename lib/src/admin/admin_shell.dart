@@ -4,9 +4,11 @@ import 'package:jewelry_nafisa/src/admin/models/menu_item.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
+import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/admin/widgets/filter_component.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; 
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:go_router/go_router.dart';
 
 class _HoverableMenuItem extends StatefulWidget {
   final Widget child;
@@ -70,14 +72,22 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   Future<void> _signOut() async {
+  try {
     await SupabaseAuthService().signOut();
     if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-        (route) => false,
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Provider.of<UserProfileProvider>(context, listen: false).reset();
+      });
+      context.go('/welcome');
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Logout failed: ${e.toString()}')),
       );
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {

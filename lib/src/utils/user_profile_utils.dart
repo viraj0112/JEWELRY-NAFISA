@@ -18,7 +18,8 @@ class UserProfileUtils {
         debugPrint('User profile found.');
         return true;
       } else {
-        debugPrint('User profile not found yet. The database trigger will handle it.');
+        debugPrint(
+            'User profile not found yet. The database trigger will handle it.');
         return false;
       }
     } catch (e) {

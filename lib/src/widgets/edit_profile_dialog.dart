@@ -2,10 +2,10 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
-
+import 'package:jewelry_nafisa/src/models/user_profile.dart';
 
 class EditProfileDialog extends StatefulWidget {
   const EditProfileDialog({super.key});
@@ -27,15 +27,15 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   void initState() {
     super.initState();
     final user = context.read<UserProfileProvider>().userProfile;
-    _nameController = TextEditingController(text: user?['username'] ?? '');
-    _phoneController = TextEditingController(text: user?['phone'] ?? '');
-    _birthdateController = TextEditingController(text: user?['birthdate'] ?? '');
-    _gender = user?['gender'];
+    _nameController = TextEditingController(text: user?.username ?? '');
+    _phoneController = TextEditingController(text: user?.phone ?? '');
+    _birthdateController = TextEditingController(text: user?.birthdate ?? '');
+    _gender = user?.gender;
   }
 
   Future<void> _selectDate(BuildContext context) async {
     final userProfile = context.read<UserProfileProvider>().userProfile;
-    final initialDateStr = userProfile?['birthdate'] as String?;
+    final initialDateStr = userProfile?.birthdate;
     DateTime initialDate = DateTime.now().subtract(const Duration(days: 365 * 18));
     if (initialDateStr != null && initialDateStr.isNotEmpty) {
       initialDate = DateTime.tryParse(initialDateStr) ?? initialDate;
@@ -176,7 +176,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     );
   }
 
-  Widget _buildAvatar(Map<String, dynamic>? user, ThemeData theme) {
+  Widget _buildAvatar(UserProfile? user, ThemeData theme) {
     ImageProvider? backgroundImage;
     if (_avatarFile != null) {
       if (kIsWeb) {
@@ -184,8 +184,8 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
       } else {
         backgroundImage = FileImage(File(_avatarFile!.path));
       }
-    } else if (user?['avatar_url'] != null) {
-      backgroundImage = NetworkImage(user!['avatar_url']);
+    } else if (user?.avatarUrl != null) {
+      backgroundImage = NetworkImage(user!.avatarUrl!);
     }
 
     return Center(

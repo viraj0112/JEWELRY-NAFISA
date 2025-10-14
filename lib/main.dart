@@ -16,7 +16,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 
-// Define the router configuration
 final _router = GoRouter(
   initialLocation: '/',
   routes: [
@@ -40,12 +39,10 @@ final _router = GoRouter(
       path: '/admin',
       builder: (context, state) => const AdminShell(),
     ),
-    // --- START OF FIX: Add the missing auth-callback route ---
     GoRoute(
       path: '/auth-callback',
       builder: (context, state) => const AuthCallbackScreen(),
     ),
-    // --- END OF FIX ---
     GoRoute(
       path: '/pending-approval',
       builder: (context, state) => const PendingApprovalScreen(),
@@ -106,7 +103,7 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
-      routerConfig: _router, // Use the router configuration
+      routerConfig: _router, 
     );
   }
 }

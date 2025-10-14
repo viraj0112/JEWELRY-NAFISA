@@ -33,8 +33,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         _passwordController.text.trim(),
       );
 
-      // AuthGate will handle navigation because updateUserPassword calls signOut.
-
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

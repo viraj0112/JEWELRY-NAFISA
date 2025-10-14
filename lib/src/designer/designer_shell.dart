@@ -4,6 +4,9 @@ import 'package:jewelry_nafisa/src/designer/screens/analytics_screen.dart';
 import 'package:jewelry_nafisa/src/designer/screens/b2b_upload_screen.dart'; 
 import 'package:jewelry_nafisa/src/designer/screens/manage_uploads_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
+import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 
 class DesignerShell extends StatefulWidget {
   const DesignerShell({super.key});
@@ -22,12 +25,18 @@ class _DesignerShellState extends State<DesignerShell> {
   ];
 
   Future<void> _signOut() async {
-    await SupabaseAuthService().signOut();
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-        (route) => false,
-      );
+     try {
+      await SupabaseAuthService().signOut();
+      if (mounted) {
+        Provider.of<UserProfileProvider>(context, listen: false).reset();
+        context.go('/welcome');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Logout failed: ${e.toString()}')),
+        );
+      }
     }
   }
 
