@@ -43,9 +43,6 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailOrUsernameController.text.trim(),
         _passwordController.text.trim(),
       );
-
-      // If the sign-in fails, show an error.
-      // If successful, the AuthGate will handle navigation automatically.
       if (user == null && mounted) {
         setState(() => _isLoading = false);
         _showErrorSnackbar('Login failed. Please check your credentials.');
@@ -213,8 +210,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            validator: (value) =>
-                (value == null || value.isEmpty) ? 'This field is required' : null,
+            validator: (value) => (value == null || value.isEmpty)
+                ? 'This field is required'
+                : null,
           ),
           const SizedBox(height: 16),
           TextFormField(
@@ -236,6 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
             validator: (value) => (value == null || value.length < 6)
                 ? 'Password must be at least 6 characters'
                 : null,
+                // onEditingComplete: _signIn,
           ),
           Align(
             alignment: Alignment.centerRight,

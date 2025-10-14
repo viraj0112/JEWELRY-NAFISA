@@ -8,10 +8,8 @@ import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/notifications_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/search_screen.dart';
-import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:jewelry_nafisa/src/widgets/edit_profile_dialog.dart';
 import 'package:provider/provider.dart';
-import 'dart:ui';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -23,14 +21,12 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
 
-  // MODIFIED: Updated the list of pages
   static const List<Widget> _pages = <Widget>[
     HomeScreen(),
     SearchScreen(),
-    BoardsScreen(), // Add the new screen here
+    BoardsScreen(),
     NotificationsScreen(),
     ProfileScreen(),
-    WelcomeScreen()
   ];
 
   void _onItemTapped(int index) {
@@ -39,15 +35,14 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
-  // --- START OF FIX: Use GoRouter for navigation after sign out ---
   Future<void> _signOut() async {
     try {
       await SupabaseAuthService().signOut();
       if (mounted) {
-        Provider.of<UserProfileProvider>(context, listen: false).reset();
-        
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Provider.of<UserProfileProvider>(context, listen: false).reset();
+        });
         context.go('/welcome');
-
       }
     } catch (e) {
       if (mounted) {
@@ -57,7 +52,6 @@ class _MainShellState extends State<MainShell> {
       }
     }
   }
-  // --- END OF FIX ---
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +93,6 @@ class _MainShellState extends State<MainShell> {
                 fontWeight: FontWeight.normal,
                 color: theme.colorScheme.onSurface.withOpacity(0.6),
               ),
-              // MODIFIED: Added the Boards destination
               destinations: const [
                 NavigationRailDestination(
                   icon: Icon(Icons.home_outlined),
@@ -283,10 +276,9 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildClickableProfileAvatar(UserProfileProvider user) {
-    final avatarUrl = user.userProfile?['avatar_url'] as String?;
+    final avatarUrl = user.userProfile?.avatarUrl;
     return GestureDetector(
       onTap: () {
-        // Navigate to profile screen (index 4)
         _onItemTapped(4);
       },
       child: CircleAvatar(
@@ -317,7 +309,7 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildProfileDropdown(UserProfileProvider user) {
-    final avatarUrl = user.userProfile?['avatar_url'] as String?;
+    final avatarUrl = user.userProfile?.avatarUrl;
     return PopupMenuButton<String>(
       tooltip: 'Profile Menu',
       offset: const Offset(0, 50),

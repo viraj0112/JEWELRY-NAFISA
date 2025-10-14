@@ -1,222 +1,112 @@
-import 'dart:async';
-import 'dart:math';
-import 'package:flutter/foundation.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:jewelry_nafisa/src/utils/user_profile_utils.dart';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 
 class UserProfileProvider with ChangeNotifier {
-  final SupabaseClient _supabaseClient;
-  StreamSubscription<List<Map<String, dynamic>>>? _profileSubscription;
-  Map<String, dynamic>? _userProfile;
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  UserProfile? _userProfile;
+  UserProfile? get userProfile => _userProfile;
+
   bool _isLoading = false;
-  bool _isProfileLoaded = false;
-  String _username = 'Guest';
-  bool _isMember = false;
-  int _creditsRemaining = 0;
-  String _role = 'member';
-  String _approvalStatus = 'pending';
-  String? _referralCode;
-  String? _usedReferralCode;
-
-  UserProfileProvider() : _supabaseClient = Supabase.instance.client;
-
-  Map<String, dynamic>? get userProfile => _userProfile;
   bool get isLoading => _isLoading;
-  bool get isProfileLoaded => _isProfileLoaded;
-  String get username => _username;
-  String get role => _role;
-  String get approvalStatus => _approvalStatus;
-  String? get referralCode => _referralCode;
-  String? get usedReferralCode => _usedReferralCode;
-  bool get isDesigner => _role == 'designer';
-  bool get isApproved => _approvalStatus == 'approved';
-  int get creditsRemaining => _creditsRemaining;
-  bool get isMember => _isMember;
 
-  void _updateFromData(Map<String, dynamic>? data) {
-    if (data == null) {
-      reset();
-      return;
-    }
-    _userProfile = data;
-    _username = data['username'] ?? 'No Name';
-    _isMember = data['is_member'] ?? false;
-    _creditsRemaining = data['credits_remaining'] ?? 0;
-    _role = data['role'] ?? 'member';
-    _approvalStatus = data['approval_status'] ?? 'pending';
-    _referralCode = data['referral_code'];
-    _usedReferralCode = data['referred_by'];
-    _isLoading = false;
-    _isProfileLoaded = true;
-    notifyListeners();
-  }
+  String get username => _userProfile?.username ?? '';
+  bool get isMember => _userProfile?.isMember ?? false;
+  int get creditsRemaining => _userProfile?.credits ?? 0;
+  String? get referralCode => _userProfile?.referralCode;
 
-  // UPDATED METHOD
-  Future<void> fetchProfile() async {
+  Future<void> loadUserProfile() async {
+    if (_supabase.auth.currentUser == null) return;
+
     _isLoading = true;
     notifyListeners();
 
-    final userId = _supabaseClient.auth.currentUser?.id;
-    if (userId == null) {
-      reset(); // Use reset to also cancel any lingering subscriptions
-      return;
-    }
-
     try {
-      // *** FIX: Changed to call the renamed function ***
-      // This will now check if the profile exists, relying on the DB trigger for creation.
-      await UserProfileUtils.checkUserProfileExists(userId);
-
-      // Step 2: Perform a one-time fetch for immediate data.
-      final response = await _supabaseClient
-          .from('users')
-          .select()
-          .eq('id', userId)
-          .single();
-
-      // Step 3: Update state with this initial data.
-      _updateFromData(response);
-
-      // Step 4: Now, listen for any future real-time changes.
-      await _profileSubscription?.cancel();
-      _profileSubscription = _supabaseClient
-          .from('users')
-          .stream(primaryKey: ['id'])
-          .eq('id', userId)
-          .listen((data) {
-            if (data.isNotEmpty) {
-              _updateFromData(data.first);
-              final currentCode = data.first['referral_code'] as String?;
-              if (currentCode == null || !currentCode.startsWith('DD-')) {
-                generateAndSaveReferralCode();
-              }
-            }
-          });
+      final userId = _supabase.auth.currentUser!.id;
+      final data =
+          await _supabase.from('users').select().eq('id', userId).single();
+      _userProfile = UserProfile.fromMap(data);
     } catch (e) {
-      debugPrint("Error fetching profile, resetting state: $e");
-      reset();
-    }
-  }
-
-  Future<void> generateAndSaveReferralCode() async {
-    final userId = _supabaseClient.auth.currentUser?.id;
-    if (userId == null || _referralCode != null) return;
-
-    final random = Random();
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final randomPart = String.fromCharCodes(
-      Iterable.generate(
-        6,
-        (_) => chars.codeUnitAt(random.nextInt(chars.length)),
-      ),
-    );
-    final newCode = 'DD-$randomPart';
-
-    try {
-      await _supabaseClient
-          .from('users')
-          .update({'referral_code': newCode}).eq('id', userId);
-      _referralCode = newCode;
+      debugPrint("Error loading user profile: $e");
+      _userProfile = null;
+    } finally {
+      _isLoading = false;
       notifyListeners();
-    } catch (e) {
-      debugPrint("Error saving referral code: $e");
     }
   }
 
-  Future<String?> _uploadAvatar(XFile avatarFile) async {
-    final userId = _supabaseClient.auth.currentUser!.id;
-    final fileExt = avatarFile.path.split('.').last;
-    final fileName = '$userId.${DateTime.now().toIso8601String()}.$fileExt';
-    final filePath = '$userId/$fileName';
-    try {
-      final bytes = await avatarFile.readAsBytes();
-      await _supabaseClient.storage.from('avatars').uploadBinary(
-            filePath,
-            bytes,
-            fileOptions: FileOptions(
-              upsert: true,
-              contentType: avatarFile.mimeType,
-            ),
-          );
-      return _supabaseClient.storage.from('avatars').getPublicUrl(filePath);
-    } catch (e) {
-      debugPrint("Error uploading avatar: $e");
-      return null;
-    }
-  }
-
-  Future<Map<String, int>> getQuoteStatistics() async {
-    final userId = _supabaseClient.auth.currentUser?.id;
-    if (userId == null) {
-      return {'total': 0, 'valid': 0, 'expired': 0};
-    }
-    try {
-      // This assumes an RPC function 'get_user_quote_stats' exists in Supabase.
-      // You will need to create this function in your Supabase project's SQL editor.
-      final result = await _supabaseClient.rpc(
-        'get_user_quote_stats',
-        params: {'p_user_id': userId},
+  void decrementCredit() {
+    if (_userProfile != null && _userProfile!.credits > 0) {
+      _userProfile = UserProfile(
+        id: _userProfile!.id,
+        email: _userProfile!.email,
+        username: _userProfile!.username,
+        role: _userProfile!.role,
+        isApproved: _userProfile!.isApproved,
+        credits: _userProfile!.credits - 1,
+        referralCode: _userProfile!.referralCode,
+        avatarUrl: _userProfile!.avatarUrl,
+        isMember: _userProfile!.isMember,
       );
-
-      return {
-        'total': (result['total'] as int? ?? 0),
-        'valid': (result['valid'] as int? ?? 0),
-        'expired': (result['expired'] as int? ?? 0),
-      };
-    } catch (e) {
-      debugPrint("Error fetching quote statistics: $e");
-      // Return zeroed data on error to prevent the UI from crashing
-      return {'total': 0, 'valid': 0, 'expired': 0};
+      notifyListeners();
     }
   }
 
   Future<void> updateUserProfile({
     required String name,
     required String phone,
-    String? birthdate,
+    required String birthdate,
     String? gender,
     XFile? avatarFile,
   }) async {
-    final userId = _supabaseClient.auth.currentUser!.id;
+    final userId = _supabase.auth.currentUser!.id;
+    String? avatarUrl;
+
+    if (avatarFile != null) {
+      final bytes = await avatarFile.readAsBytes();
+      final fileExt = avatarFile.path.split('.').last;
+      final fileName = '$userId/avatar.$fileExt';
+      await _supabase.storage.from('avatars').uploadBinary(
+            fileName,
+            bytes,
+            fileOptions: const FileOptions(upsert: true),
+          );
+      avatarUrl = _supabase.storage.from('avatars').getPublicUrl(fileName);
+    }
+
+    final updates = {
+      'username': name,
+      'phone': phone,
+      'birthdate': birthdate,
+      'gender': gender,
+      if (avatarUrl != null) 'avatar_url': avatarUrl,
+    };
+
+    await _supabase.from('users').update(updates).eq('id', userId);
+    await loadUserProfile();
+  }
+
+  Future<Map<String, int>> getQuoteStatistics() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      return {'total': 0, 'valid': 0, 'expired': 0};
+    }
     try {
-      String? avatarUrl;
-      if (avatarFile != null) {
-        avatarUrl = await _uploadAvatar(avatarFile);
-      }
-      final updates = {
-        'username': name,
-        'phone': phone,
-        'birthdate': birthdate?.isNotEmpty == true ? birthdate : null,
-        'gender': gender,
-        if (avatarUrl != null) 'avatar_url': avatarUrl,
-      };
-      await _supabaseClient.from('users').update(updates).eq('id', userId);
-    } catch (error) {
-      if (kDebugMode) {
-        print(error);
-      }
+      final response = await _supabase
+          .rpc('get_user_quote_statistics', params: {'p_user_id': userId});
+      final data = response[0];
+      return Map<String, int>.from(data);
+    } catch (e) {
+      debugPrint('Error fetching quote statistics: $e');
+      return {'total': 0, 'valid': 0, 'expired': 0};
     }
   }
 
   void reset() {
     _userProfile = null;
-    _username = 'Guest';
-    _creditsRemaining = 0;
-    _isLoading = false;
-    _isProfileLoaded = false;
-    _role = 'member';
-    _approvalStatus = 'pending';
-    _referralCode = null;
-    _isMember = false;
-    _profileSubscription?.cancel();
     notifyListeners();
-  }
-
-  void decrementCredit() {
-    if (_creditsRemaining > 0) {
-      _creditsRemaining--;
-      notifyListeners();
-    }
   }
 }

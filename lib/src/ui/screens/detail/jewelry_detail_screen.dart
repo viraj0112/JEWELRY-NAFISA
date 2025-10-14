@@ -199,6 +199,15 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     try {
       await supabase.rpc('decrement_credit');
       profile.decrementCredit();
+
+      final expiration = DateTime.now()
+          .add(const Duration(days: 30)); 
+      await supabase.from('quotes').insert({
+        'user_id': supabase.auth.currentUser!.id,
+        'product_id': widget.jewelryItem.id,
+        'expires_at': expiration.toIso8601String(),
+      });
+
       if (mounted) {
         scaffoldMessenger.showSnackBar(
           const SnackBar(
@@ -366,13 +375,13 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             _buildDetailRow("Metal Purity:", item.metalPurity ?? 'N/A'),
             _buildDetailRow("Gold Weight:", item.goldWeight ?? 'N/A'),
             _buildDetailRow("Stone:", item.stoneType ?? 'N/A'),
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  item.description,
-                  style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-                ),
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                item.description,
+                style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
               ),
+            ),
             const SizedBox(height: 24),
           ] else ...[
             Text("Description", style: theme.textTheme.titleLarge),
