@@ -1,38 +1,33 @@
--- Drop the existing trigger and function to apply the unified version
+-- Drop the existing trigger and function to apply a safer version
+-- Drop the existing trigger and function to apply the final, unified version
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
 
--- Create a unified function to handle all user sign-up scenarios
+-- Create a robust function that handles essential user creation,
+-- including credits and referral code, without crashing.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
-DECLARE
-  signup_credits INT;
 BEGIN
-  -- Get the default sign-up credits from the settings table
-  SELECT value::INT INTO signup_credits FROM public.settings WHERE key = 'signup_bonus_credits';
-
-  -- Insert the new user into the public.users table
+  -- Insert essential data, plus credits and a new referral code
   INSERT INTO public.users (
-    id, email, username, full_name, birthdate, role,
-    business_name, business_type, phone, credits_remaining, avatar_url
+    id,
+    email,
+    username,
+    role,
+    credits_remaining,
+    referral_code
   )
   VALUES (
     NEW.id,
     NEW.email,
-    -- Prioritize username from form, then full_name from OAuth, then business_name
-    COALESCE(
-      NEW.raw_user_meta_data ->> 'username',
-      NEW.raw_user_meta_data ->> 'full_name',
-      NEW.raw_user_meta_data ->> 'business_name'
-    ),
-    NEW.raw_user_meta_data ->> 'full_name', -- Store full name if available
-    (NEW.raw_user_meta_data ->> 'birthdate')::date,
-    COALESCE((NEW.raw_user_meta_data ->> 'role')::user_role, 'member'),
-    NEW.raw_user_meta_data ->> 'business_name',
-    NEW.raw_user_meta_data ->> 'business_type',
-    NEW.raw_user_meta_data ->> 'phone',
-    COALESCE(signup_credits, 1),
-    NEW.raw_user_meta_data ->> 'avatar_url' -- Store avatar from OAuth
+    -- Use the part of the email before the '@' as a fallback username
+    COALESCE(NEW.raw_user_meta_data ->> 'username', split_part(NEW.email, '@', 1)),
+    -- Safely assign a default role
+    'member',
+    -- Safely get signup credits from settings table, defaulting to 1 if not found
+    (SELECT value::INT FROM public.settings WHERE key = 'signup_bonus_credits' LIMIT 1),
+    -- Generate a unique 8-character referral code
+    substring(replace(gen_random_uuid()::text, '-', ''), 1, 8)
   );
   RETURN NEW;
 END;
