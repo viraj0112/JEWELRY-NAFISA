@@ -28,16 +28,15 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
 
   Future<List<Map<String, dynamic>>> _fetchPins() async {
     try {
-      
       final resp = await _supabase
           .from('boards_pins')
-          .select('pins!fk_boards_pins_pin_id(id, image_url, title, description)')
+          .select('pins(id, image_url, title, description)')
           .eq('board_id', widget.boardId)
           .order('created_at', ascending: false);
 
       final pins = (resp as List<dynamic>)
           .map((e) => e['pins'] as Map<String, dynamic>?)
-          .where((pin) => pin != null) 
+          .where((pin) => pin != null)
           .map((pin) => pin!)
           .toList();
 

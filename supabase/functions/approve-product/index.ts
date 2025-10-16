@@ -16,41 +16,53 @@ serve(async (req) => {
 
     // 1. Get the asset from the assets table
     const { data: asset, error: getError } = await supabase
-      .from('assets')
-      .select('*, users(business_type)')
-      .eq('id', assetId)
+      .from("assets")
+      .select("*, users(business_type)")
+      .eq("id", assetId)
       .single();
 
     if (getError) throw getError;
 
+    const { error: userUpdateError } = await supabase
+      .from("users")
+      .update({ approval_status: "approved" })
+      .eq("id", asset.owner_id);
+
+    if (userUpdateError) throw userUpdateError;
+
     // 2. Insert into designerproducts table
-    const { error: insertError } = await supabase.from('designerproducts').insert({
-      designer_id: asset.owner_id,
-      title: asset.title,
-      description: asset.description,
-      image: asset.media_url, // The URL is already correct from the upload step
-      price: asset.attributes.Price,
-      tags: asset.attributes['Product Tags']?.split(','),
-      gold_weight: asset.attributes['Gold Weight'],
-      gold_carat: asset.attributes['Metal Purity'],
-      gold_finish: asset.attributes['Metal Finish'],
-      stone_weight: asset.attributes['Stone Weight'],
-      stone_type: asset.attributes['Stone Type'],
-      stone_used: asset.attributes['Stone Used'],
-      stone_setting: asset.attributes['Stone Setting'],
-      stone_purity: asset.attributes['Stone Purity'],
-      stone_count: asset.attributes['Stone Count'],
-      category: asset.attributes['Product Type'],
-      sub_category: asset.attributes['Collection Name'],
-      size: asset.attributes['Dimension'],
-      occasions: asset.attributes['Theme'],
-      style: asset.attributes['Design Type'],
-    });
+    const { error: insertError } = await supabase
+      .from("designerproducts")
+      .insert({
+        designer_id: asset.owner_id,
+        title: asset.title,
+        description: asset.description,
+        image: asset.media_url, // The URL is already correct from the upload step
+        price: asset.attributes.Price,
+        tags: asset.attributes["Product Tags"]?.split(","),
+        gold_weight: asset.attributes["Gold Weight"],
+        gold_carat: asset.attributes["Metal Purity"],
+        gold_finish: asset.attributes["Metal Finish"],
+        stone_weight: asset.attributes["Stone Weight"],
+        stone_type: asset.attributes["Stone Type"],
+        stone_used: asset.attributes["Stone Used"],
+        stone_setting: asset.attributes["Stone Setting"],
+        stone_purity: asset.attributes["Stone Purity"],
+        stone_count: asset.attributes["Stone Count"],
+        category: asset.attributes["Product Type"],
+        sub_category: asset.attributes["Collection Name"],
+        size: asset.attributes["Dimension"],
+        occasions: asset.attributes["Theme"],
+        style: asset.attributes["Design Type"],
+      });
 
     if (insertError) throw insertError;
 
     // 3. Update the status of the asset
-    await supabase.from('assets').update({ status: 'approved' }).eq('id', assetId);
+    await supabase
+      .from("assets")
+      .update({ status: "approved" })
+      .eq("id", assetId);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

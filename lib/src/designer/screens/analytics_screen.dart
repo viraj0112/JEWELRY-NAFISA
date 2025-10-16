@@ -1,136 +1,238 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AnalyticsScreen extends StatefulWidget {
-  const AnalyticsScreen({super.key});
+  const AnalyticsScreen({Key? key}) : super(key: key);
 
   @override
-  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
+  _AnalyticsScreenState createState() => _AnalyticsScreenState();
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  late Future<Map<String, dynamic>> _analyticsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _analyticsFuture = _fetchAnalytics();
-  }
+  final _supabase = Supabase.instance.client;
+  int _touchedIndex = -1;
 
   Future<Map<String, dynamic>> _fetchAnalytics() async {
-    final supabase = Supabase.instance.client;
-    final userId = supabase.auth.currentUser!.id;
+    final designerId = _supabase.auth.currentUser!.id;
 
-    final topPostsResponse = await supabase
-        .from('analytics_daily')
-        .select('*, assets(*)')
-        .eq('assets.owner_id', userId)
-        .order('views', ascending: false)
-        .limit(10);
+    final categoryPerformance = await _supabase.rpc(
+      'get_category_performance',
+      params: {'designer_id_param': designerId},
+    );
 
-    final globalTopPostsResponse = await supabase
-        .from('analytics_daily')
-        .select('*, assets(*)')
-        .order('views', ascending: false)
-        .limit(10);
-
-    final totalViewsResponse = await supabase
-        .from('analytics_daily')
-        .select('views')
-        .eq('assets.owner_id', userId);
-    final totalLikesResponse = await supabase
-        .from('analytics_daily')
-        .select('likes')
-        .eq('assets.owner_id', userId);
+    final viewsByCountry = await _supabase.rpc(
+      'get_views_by_country',
+      params: {'designer_id_param': designerId},
+    );
 
     return {
-      'top_posts': List<Map<String, dynamic>>.from(topPostsResponse),
-      'global_top_posts': List<Map<String, dynamic>>.from(globalTopPostsResponse),
-      'total_views': (totalViewsResponse as List).fold(0, (prev, e) => prev + (e['views'] as int)),
-      'total_likes': (totalLikesResponse as List).fold(0, (prev, e) => prev + (e['likes'] as int)),
+      'category_performance': categoryPerformance,
+      'views_by_country': viewsByCountry,
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Work Analytics'),
+      ),
       body: FutureBuilder<Map<String, dynamic>>(
-        future: _analyticsFuture,
+        future: _fetchAnalytics(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
-          final analytics = snapshot.data!;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Your Performance", style: theme.textTheme.headlineMedium),
-                const SizedBox(height: 24),
-                Text("Top 10 Posts of the Day (Global)", style: theme.textTheme.titleLarge),
-                const SizedBox(height: 8),
-                _buildPostList(analytics['global_top_posts']),
-                const SizedBox(height: 16),
-                Text("Top 10 For Your Posts", style: theme.textTheme.titleLarge),
-                const SizedBox(height: 8),
-                _buildPostList(analytics['top_posts']),
-                const SizedBox(height: 24),
-                Text("Post-Level Metrics", style: theme.textTheme.titleLarge),
-                const SizedBox(height: 8),
-                _buildMetricCard(
-                    title: 'Total Views',
-                    value: analytics['total_views'].toString()),
-                _buildMetricCard(
-                    title: 'Total Likes',
-                    value: analytics['total_likes'].toString()),
-              ],
-            ),
+
+          final data = snapshot.data!;
+          final categoryPerformance = (data['category_performance'] as List)
+              .map((item) => item as Map<String, dynamic>)
+              .toList();
+          final viewsByCountry = (data['views_by_country'] as List)
+              .map((item) => item as Map<String, dynamic>)
+              .toList();
+
+          return ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: [
+              _buildCategoryPerformanceChart(categoryPerformance),
+              const SizedBox(height: 24),
+              _buildGeoAnalyticsChart(viewsByCountry),
+            ],
           );
         },
       ),
     );
   }
 
-  Widget _buildMetricCard({required String title, required String value}) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(title, style: const TextStyle(fontSize: 16)),
-            Text(value,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          ],
+  Widget _buildCategoryPerformanceChart(List<Map<String, dynamic>> data) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Category Performance',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
-      ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 300,
+          child: BarChart(
+            BarChartData(
+              barTouchData: BarTouchData(
+                touchTooltipData: BarTouchTooltipData(
+                  // getTooltipColor: Colors.blue
+                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                    final item = data[groupIndex];
+                    return BarTooltipItem(
+                      '${item['category']}\n',
+                      const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                      children: <TextSpan>[
+                        TextSpan(
+                          text: 'Views: ${item['total_views']}\n'
+                              'Likes: ${item['total_likes']}\n'
+                              'Downloads: ${item['total_downloads']}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              titlesData: FlTitlesData(
+                topTitles: AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                rightTitles: AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 38,
+                    getTitlesWidget: (double value, TitleMeta meta) {
+                      final categoryName =
+                          data[value.toInt()]['category'] as String;
+                      return SideTitleWidget(
+                        axisSide: meta.axisSide,
+                        space: 4, // Add a little space
+                        child: Text(
+                          categoryName,
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 40,
+                    getTitlesWidget: (double value, TitleMeta meta) {
+                      if (value % 5 != 0 && value != 0) {
+                        return Container();
+                      }
+                      return Text(
+                        meta.formattedValue,
+                        style: const TextStyle(
+                          color: Colors.black45,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.left,
+                      );
+                    },
+                  ),
+                ),
+              ),
+              borderData: FlBorderData(show: false),
+              barGroups: data.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                return BarChartGroupData(
+                  x: index,
+                  barRods: [
+                    BarChartRodData(
+                      toY: (item['total_views'] as int).toDouble(),
+                      color: Colors.lightBlue,
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildPostList(List<Map<String, dynamic>> posts) {
-    if (posts.isEmpty) {
-      return const Card(child: ListTile(title: Text("No data available.")));
-    }
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: posts.length,
-      itemBuilder: (context, index) {
-        final post = posts[index];
-        return Card(
-          child: ListTile(
-            leading: Image.network(post['assets']['media_url'],
-                width: 50, height: 50, fit: BoxFit.cover),
-            title: Text(post['assets']['title']),
-            trailing: Text("Views: ${post['views']}"),
+  Widget _buildGeoAnalyticsChart(List<Map<String, dynamic>> data) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Views by Country',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 300,
+          child: PieChart(
+            PieChartData(
+              pieTouchData: PieTouchData(
+                touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                  setState(() {
+                    if (!event.isInterestedForInteractions ||
+                        pieTouchResponse == null ||
+                        pieTouchResponse.touchedSection == null) {
+                      _touchedIndex = -1;
+                      return;
+                    }
+                    _touchedIndex =
+                        pieTouchResponse.touchedSection!.touchedSectionIndex;
+                  });
+                },
+              ),
+              borderData: FlBorderData(show: false),
+              sectionsSpace: 0,
+              centerSpaceRadius: 40,
+              sections: data.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                final isTouched = index == _touchedIndex;
+                final fontSize = isTouched ? 25.0 : 16.0;
+                final radius = isTouched ? 60.0 : 50.0;
+
+                return PieChartSectionData(
+                  color: Colors.primaries[index % Colors.primaries.length],
+                  value: (item['view_count'] as int).toDouble(),
+                  title: '${item['country']}\n${item['view_count']}',
+                  radius: radius,
+                  titleStyle: TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xffffffff),
+                  ),
+                );
+              }).toList(),
+            ),
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }
