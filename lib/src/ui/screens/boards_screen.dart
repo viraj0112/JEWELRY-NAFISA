@@ -64,7 +64,7 @@ class _BoardsScreenState extends State<BoardsScreen> {
         final id = r['id'] as int;
         final pinRes = await _supabase
             .from('boards_pins')
-            .select('pins!fk_boards_pins_pin_id(image_url)')
+            .select('pins(image_url)')
             .eq('board_id', id)
             .limit(3);
 
@@ -87,7 +87,8 @@ class _BoardsScreenState extends State<BoardsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Error loading boards: ${e is PostgrestException ? e.message : e.toString()}'),
+              content: Text(
+                  'Error loading boards: ${e is PostgrestException ? e.message : e.toString()}'),
               backgroundColor: Colors.red),
         );
         setState(() => _isLoadingBoards = false);
