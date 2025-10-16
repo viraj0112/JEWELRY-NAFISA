@@ -127,17 +127,20 @@ class SupabaseAuthService {
     required String businessName,
     required String businessType,
     required String phone,
+    required String address,
+    required String gstNumber,
   }) async {
     try {
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
-        // This 'data' object passes the extra business info to Supabase.
         data: {
           'business_name': businessName,
           'business_type': businessType,
           'phone': phone,
-          'role': 'designer', // This sets their role to 'designer' [cite: 1790]
+          'role': 'designer',
+          'address': address,
+          'gst_number': gstNumber,
         },
       );
       return response.user;

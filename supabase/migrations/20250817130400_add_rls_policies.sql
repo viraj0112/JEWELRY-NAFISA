@@ -60,3 +60,11 @@ CREATE POLICY "Users can manage their board pins"
         SELECT 1 FROM public.boards
         WHERE id = board_id AND user_id = auth.uid()
     ));
+
+CREATE POLICY "Admins can view all users"
+ON public.users FOR SELECT
+TO authenticated
+USING (
+  (SELECT role FROM public.users WHERE id = auth.uid()) = 'admin'
+);
+

@@ -1,10 +1,11 @@
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
+import 'package:mime/mime.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BusinessSignUpScreen extends StatefulWidget {
@@ -17,22 +18,25 @@ class BusinessSignUpScreen extends StatefulWidget {
 class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
-  final _businessNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _addressController = TextEditingController();
   final _gstController = TextEditingController();
   final _authService = SupabaseAuthService();
+
   String _businessType = '3D Designer';
-  bool _isLoading = false;
   String _fullPhoneNumber = '';
+  bool _isLoading = false;
+
   XFile? _workFile;
+  String _workFileName = 'Upload Work File*';
+
   XFile? _businessCardFile;
+  String _businessCardFileName = 'Upload Business Card*';
 
   @override
   void dispose() {
     _fullNameController.dispose();
-    _businessNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _addressController.dispose();
@@ -40,140 +44,112 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
     super.dispose();
   }
 
-  Future<void> _pickWorkFile() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+  Future<void> _pickFile(Function(XFile, String) onFilePicked) async {
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
-        _workFile = pickedFile;
+        onFilePicked(pickedFile, pickedFile.name);
       });
     }
   }
 
-  Future<void> _pickBusinessCard() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _businessCardFile = pickedFile;
-      });
-    }
-  }
-
-  Future<void> _signUpBusiness() async {
+  Future<void> _enroll() async {
+    // 1. Validate form and file uploads
     if (!_formKey.currentState!.validate()) return;
     if (_workFile == null || _businessCardFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please upload both work file and business card.'),
+          content: Text('Please upload both your work file and business card.'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
+
     setState(() => _isLoading = true);
 
-    final user = await _authService.signUpBusiness(
-      email: _emailController.text.trim(),
-      password: _passwordController.text.trim(),
-      businessName: _businessNameController.text.trim(),
-      businessType: _businessType,
-      phone: _fullPhoneNumber,
-    );
+    try {
+      // 2. Create the user with all metadata
+      final user = await _authService.signUpBusiness(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        businessName: _fullNameController.text.trim(),
+        businessType: _businessType,
+        phone: _fullPhoneNumber,
+        address: _addressController.text.trim(),
+        gstNumber: _gstController.text.trim(),
+      );
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-      if (user != null) {
-        // --- Start of File Upload Logic ---
+      if (user == null || !mounted) {
+        throw Exception('Sign up failed. The email may already be in use.');
+      }
 
-        try {
-          // 1. Upload Work File
-          final workFileBytes = await _workFile!.readAsBytes();
-          final workFileExt = _workFile!.path.split('.').last;
-          final workFileName = '${user.id}/work_file.$workFileExt';
-          await Supabase.instance.client.storage
-              .from('designer-files')
-              .uploadBinary(
-                workFileName,
-                workFileBytes,
-                fileOptions: FileOptions(upsert: true),
-              );
-          final workFileUrl = Supabase.instance.client.storage
-              .from('designer-files')
-              .getPublicUrl(workFileName);
+      final supabase = Supabase.instance.client;
+      final userId = user.id;
 
-          // 2. Upload Business Card
-          final businessCardBytes = await _businessCardFile!.readAsBytes();
-          final businessCardExt = _businessCardFile!.path.split('.').last;
-          final businessCardName = '${user.id}/business_card.$businessCardExt';
-          await Supabase.instance.client.storage
-              .from('designer-files')
-              .uploadBinary(
-                businessCardName,
-                businessCardBytes,
-                fileOptions: FileOptions(upsert: true),
-              );
-          final businessCardUrl = Supabase.instance.client.storage
-              .from('designer-files')
-              .getPublicUrl(businessCardName);
-
-          // 3. Insert File URLs into the database
-          await Supabase.instance.client.from('designer_files').insert([
-            {
-              'user_id': user.id,
-              'file_type': 'work_file',
-              'file_url': workFileUrl,
-            },
-            {
-              'user_id': user.id,
-              'file_type': 'business_card',
-              'file_url': businessCardUrl,
-            }
-          ]);
-
-          // 4. Update the user's profile with address and GST
-          await Supabase.instance.client.from('users').update({
-            'address': _addressController.text.trim(),
-            'gst_number': _gstController.text.trim(),
-          }).eq('id', user.id);
-        } catch (e) {
-          if (kDebugMode) {
-            print('Error uploading files: $e');
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Error uploading files. Please try again.'),
-              backgroundColor: Colors.red,
+      // 3. Upload files to Supabase Storage
+      final workFileExt = _workFile!.path.split('.').last;
+      final workFilePath = '$userId/work_file.$workFileExt';
+      await supabase.storage.from('designer-files').uploadBinary(
+            workFilePath,
+            await _workFile!.readAsBytes(),
+            fileOptions: FileOptions(
+              contentType: lookupMimeType(_workFile!.path),
+              upsert: true,
             ),
           );
-          return; // Stop execution if there was an error
-        }
 
-        // --- End of File Upload Logic ---
+      final cardFileExt = _businessCardFile!.path.split('.').last;
+      final cardFilePath = '$userId/business_card.$cardFileExt';
+      await supabase.storage.from('designer-files').uploadBinary(
+            cardFilePath,
+            await _businessCardFile!.readAsBytes(),
+            fileOptions: FileOptions(
+              contentType: lookupMimeType(_businessCardFile!.path),
+              upsert: true,
+            ),
+          );
 
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text("Enrollment Request Received"),
-            content: const Text("We will get back to you soon!"),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-                child: const Text("OK"),
-              ),
-            ],
-          ),
-        );
-      } else {
+      // 4. Get public URLs
+      final workFileUrl =
+          supabase.storage.from('designer-files').getPublicUrl(workFilePath);
+      final cardFileUrl =
+          supabase.storage.from('designer-files').getPublicUrl(cardFilePath);
+
+      // 5. Save file URLs to the database
+      await supabase.from('designer-files').insert([
+        {'user_id': userId, 'file_type': 'work_file', 'file_url': workFileUrl},
+        {
+          'user_id': userId,
+          'file_type': 'business_card',
+          'file_url': cardFileUrl
+        },
+      ]);
+
+      // 6. Show success message
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Sign-up failed. This email may already be in use.'),
+            content: Text(
+                'Enrollment successful! Please check your email for verification.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.go('/login');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An error occurred: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -222,12 +198,6 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
                     onChanged: (phone) {
                       _fullPhoneNumber = phone.completeNumber;
                     },
-                    validator: (phoneNumber) {
-                      if (phoneNumber == null || phoneNumber.number.isEmpty) {
-                        return 'Please enter a phone number';
-                      }
-                      return null;
-                    },
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
@@ -268,23 +238,26 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
                   ),
                   const SizedBox(height: 24),
                   OutlinedButton.icon(
-                    onPressed: _pickWorkFile,
+                    onPressed: () => _pickFile((file, name) {
+                      _workFile = file;
+                      _workFileName = name;
+                    }),
                     icon: const Icon(Icons.upload_file),
-                    label: Text(_workFile == null
-                        ? 'Upload Work File*'
-                        : 'Work File Uploaded'),
+                    label: Text(_workFileName, overflow: TextOverflow.ellipsis),
                   ),
                   const SizedBox(height: 16),
                   OutlinedButton.icon(
-                    onPressed: _pickBusinessCard,
+                    onPressed: () => _pickFile((file, name) {
+                      _businessCardFile = file;
+                      _businessCardFileName = name;
+                    }),
                     icon: const Icon(Icons.contact_mail),
-                    label: Text(_businessCardFile == null
-                        ? 'Upload Business Card*'
-                        : 'Business Card Uploaded'),
+                    label: Text(_businessCardFileName,
+                        overflow: TextOverflow.ellipsis),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: _isLoading ? null : _signUpBusiness,
+                    onPressed: _isLoading ? null : _enroll,
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
