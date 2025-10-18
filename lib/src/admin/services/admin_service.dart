@@ -153,6 +153,27 @@ class AdminService {
     });
   }
 
+  Stream<List<Map<String, dynamic>>> getDailyCreditsStream() {
+    return _createPollingStream(() async {
+      final response = await _supabase
+          .from('analytics_daily')
+          .select('date, quotes_requested') 
+          .gte(
+              'date',
+              DateTime.now()
+                  .subtract(const Duration(days: 30))
+                  .toIso8601String())
+          .order('date');
+
+      return (response as List).map((item) {
+        return {
+          'day': item['date'],
+          'val': item['quotes_requested'] ?? 0, 
+        };
+      }).toList();
+    });
+  }
+
   Stream<double> getConversionRateStream() {
     return _createPollingStream(() async {
       final response = await _supabase.from('users').select('is_member');

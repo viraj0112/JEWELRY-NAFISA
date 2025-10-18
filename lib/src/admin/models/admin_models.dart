@@ -100,6 +100,8 @@ class AppUser {
   final DateTime createdAt;
   final String? businessName;
   final String? avatarUrl;
+  final String? membershipPlan; // <-- ADDED
+  final String? membershipStatus; // <-- ADDED
 
   AppUser({
     required this.id,
@@ -111,6 +113,8 @@ class AppUser {
     required this.createdAt,
     this.businessName,
     this.avatarUrl,
+    this.membershipPlan, // <-- ADDED
+    this.membershipStatus, // <-- ADDED
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -124,6 +128,8 @@ class AppUser {
       createdAt: DateTime.parse(json['created_at']),
       businessName: json['business_name'],
       avatarUrl: json['avatar_url'],
+      membershipPlan: json['membership_plan'], // <-- ADDED
+      membershipStatus: json['membership_status'], // <-- ADDED
     );
   }
 

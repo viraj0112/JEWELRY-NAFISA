@@ -417,7 +417,8 @@ class _DailyUsageCardState extends State<DailyUsageCard> {
   @override
   void initState() {
     super.initState();
-    _subscription = _adminService.getDailyAnalyticsStream().listen((data) {
+    // MODIFIED: Pointed to the new credits stream
+    _subscription = _adminService.getDailyCreditsStream().listen((data) {
       if (mounted) {
         setState(() {
           _data = data;
@@ -437,9 +438,10 @@ class _DailyUsageCardState extends State<DailyUsageCard> {
     return StyledCard(
       child: Column(
         children: [
+          // MODIFIED: Updated title and subtitle
           const _ChartCardHeader(
-              title: 'Daily Platform Views',
-              subtitle: 'Views over the last 30 days'),
+              title: 'Daily Credits Used',
+              subtitle: 'Credits used over the last 30 days'),
           const SizedBox(height: 20),
           Expanded(
             child: _data == null
