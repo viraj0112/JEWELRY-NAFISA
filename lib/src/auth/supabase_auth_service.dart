@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:jewelry_nafisa/src/models/designer_profile.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class SupabaseAuthService {
@@ -17,17 +19,67 @@ class SupabaseAuthService {
   Future<User?> signUpAdmin({
     required String email,
     required String password,
-    required String username,
+    required String fullName,
+    required String businessType,
+    required String phone,
+    required String address,
+    String? gstNumber,
+    required File? workFile,
+    required File? businessCardFile,
   }) async {
     try {
-      final response = await _supabase.auth.signUp(
+      final authResponse = await _supabase.auth.signUp(
         email: email,
         password: password,
-        data: {'username': username, 'role': 'admin'},
+        data: {'username': fullName, 'role': 'designer'},
       );
-      return response.user;
+
+      final user = authResponse.user;
+
+      if (user == null) throw Exception("User creation failed.");
+
+      String? workFileUrl;
+      if (workFile != null) {
+        final fileName = workFile.path.split('/').last;
+        final uploadPath = 'designer-uploads/${user.id}/$fileName';
+
+        await _supabase.storage
+            .from('designer-files')
+            .upload(uploadPath, workFile);
+        workFileUrl =
+            _supabase.storage.from('designer-files').getPublicUrl(uploadPath);
+      }
+
+      String? businessCardUrl;
+      if (businessCardFile != null) {
+        final fileName = businessCardFile.path.split('/').last;
+        final uploadPath = 'designer-uploads/${user.id}/$fileName';
+
+        await _supabase.storage
+            .from('designer-files')
+            .upload(uploadPath, businessCardFile);
+        businessCardUrl =
+            _supabase.storage.from('designer-files').getPublicUrl(uploadPath);
+      }
+
+      final designerProfile = DesignerProfile(
+          userId: user.id,
+          businessName: fullName,
+          businessType: businessType,
+          phone: phone,
+          address: address,
+          gstNumber: gstNumber,
+          workFileUrl: workFileUrl,
+          businessCardUrl: businessCardUrl);
+
+      await _supabase.from("designer_profiles").insert(designerProfile.toMap());
+
+      return user;
+    } on AuthException catch (e) {
+      debugPrint('Auth Error during designer sign-up: ${e.message}');
+      return null;
     } catch (e) {
-      debugPrint('Exception during admin sign up: $e');
+      debugPrint('An unexpected error occurred during designer sign-up: $e');
       return null;
     }
   }
@@ -43,20 +95,12 @@ class SupabaseAuthService {
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
-        data: {'username': username, 'birthdate': birthdate},
+        data: {
+          'username': username,
+          'birthdate': birthdate,
+          'referral_code_used': referralCode
+        },
       );
-      if (response.user != null &&
-          referralCode != null &&
-          referralCode.isNotEmpty) {
-        await _supabase.functions.invoke(
-          'handle-referral',
-          body: {
-            'referral_code': referralCode,
-            'new_user_id': response.user!.id,
-          },
-        );
-      }
-
       return response.user;
     } catch (e) {
       debugPrint('Exception during sign up: $e');
@@ -73,12 +117,10 @@ class SupabaseAuthService {
       // 1. Check if the input is a username (doesn't contain '@')
       if (!emailOrUsername.contains('@')) {
         // 2. If it's a username, call the RPC function to get the email
-        final response = await _supabase
-            .rpc(
-              'get_email_by_username',
-              params: {'p_username': emailOrUsername},
-            )
-            .maybeSingle();
+        final response = await _supabase.rpc(
+          'get_email_by_username',
+          params: {'p_username': emailOrUsername},
+        ).maybeSingle();
 
         if (response != null && response['email'] != null) {
           email = response['email'];
@@ -156,9 +198,8 @@ class SupabaseAuthService {
       // For web, Supabase will use your project's Site URL by default.
       await _supabase.auth.resetPasswordForEmail(
         email,
-        redirectTo: kIsWeb
-            ? null
-            : 'com.example.jewelryNafisa://reset-password',
+        redirectTo:
+            kIsWeb ? null : 'com.example.jewelryNafisa://reset-password',
       );
     } catch (e) {
       debugPrint("Error during password reset: $e");

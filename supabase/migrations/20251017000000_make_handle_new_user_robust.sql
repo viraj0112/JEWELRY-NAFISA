@@ -1,47 +1,36 @@
+-- Inserts a new row into public.users and, if the user is a designer,
+-- also into public.designer_profiles.
 
--- Drop the old trigger and function to ensure a clean replacement
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-DROP FUNCTION IF EXISTS public.handle_new_user();
-
--- Create the new, robust function
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  user_role public.user_role;
 BEGIN
-  INSERT INTO public.users (
-    id,
-    email,
-    -- Use the unique ID as the default username to prevent collisions
-    username,
-    full_name,
-    role,
-    credits_remaining,
-    referral_code,
-    business_name,
-    business_type,
-    phone,
-    address,
-    gst_number
-  )
+  -- Insert into public.users table
+  INSERT INTO public.users (id, email, full_name, role, referral_code)
   VALUES (
-    NEW.id,
-    NEW.email,
-    -- Set username to the new user's ID, which is guaranteed to be unique.
-    NEW.id::text,
-    NEW.raw_user_meta_data ->> 'business_name', -- Use business name for the 'full_name' field
-    COALESCE((NEW.raw_user_meta_data ->> 'role')::user_role, 'member'),
-    (SELECT value::INT FROM public.settings WHERE key = 'signup_bonus_credits' LIMIT 1),
-    substring(replace(gen_random_uuid()::text, '-', ''), 1, 8),
-    NEW.raw_user_meta_data ->> 'business_name',
-    NEW.raw_user_meta_data ->> 'business_type',
-    NEW.raw_user_meta_data ->> 'phone',
-    NEW.raw_user_meta_data ->> 'address',
-    NEW.raw_user_meta_data ->> 'gst_number'
+    new.id,
+    new.email,
+    new.raw_user_meta_data->>'full_name',
+    (new.raw_user_meta_data->>'role')::public.user_role,
+    -- Generates a unique 8-character referral code
+    left(md5(random()::text), 8)
   );
-  RETURN NEW;
+
+  -- If the new user has the 'designer' role, create a designer profile
+  user_role := (new.raw_user_meta_data->>'role')::public.user_role;
+  IF user_role = 'designer' THEN
+    INSERT INTO public.designer_profiles (user_id, business_name, business_type, phone, address, gst_number)
+    VALUES (
+      new.id,
+      new.raw_user_meta_data->>'business_name',
+      (new.raw_user_meta_data->>'business_type')::public.business_type,
+      new.raw_user_meta_data->>'phone',
+      new.raw_user_meta_data->>'address',
+      new.raw_user_meta_data->>'gst_number'
+    );
+  END IF;
+
+  RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Recreate the trigger to use the new function
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

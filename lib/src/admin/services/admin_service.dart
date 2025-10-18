@@ -233,67 +233,71 @@ class AdminService {
   }
 
   Stream<List<AppUser>> getUsers({
-    required String userType,
-    required FilterState filterState,
-  }) {
-    // Start with select query
-    var baseQuery = _supabase.from('users').select();
+  required String userType,
+  required FilterState filterState,
+}) {
+  var baseQuery = _supabase.from('users').select();
 
-    switch (userType) {
-      case 'Members':
-        baseQuery = baseQuery.eq('is_member', true);
-        break;
-      case 'Non-Members':
-        baseQuery = baseQuery.eq('is_member', false);
-        break;
-      case 'B2B Creators':
-        baseQuery = baseQuery.eq('role', 'designer');
-        break;
-    }
-
-    final range = filterState.dateRange;
-
-    if (range != null) {
-      final endOfDay =
-          DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59);
-      baseQuery = baseQuery
-          .gte('created_at', range.start.toIso8601String())
-          .lte('created_at', endOfDay.toIso8601String());
-    }
-
-    if (filterState.status != 'All Status') {
-      baseQuery =
-          baseQuery.eq('approval_status', filterState.status.toLowerCase());
-    }
-
-    // Apply stream() at the end with all filters already applied
-    return baseQuery.order('created_at', ascending: false).asStream().map(
-        (response) =>
-            (response as List).map((map) => AppUser.fromJson(map)).toList());
+  switch (userType) {
+    case 'Members':
+      baseQuery = baseQuery.eq('is_member', true);
+      break;
+    case 'Non-Members':
+      baseQuery = baseQuery.eq('is_member', false);
+      break;
+    case 'B2B Creators':
+      baseQuery = baseQuery.eq('role', 'designer');
+      break;
   }
+
+  final range = filterState.dateRange;
+  if (range != null) {
+    final endOfDay = DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59);
+    baseQuery = baseQuery
+        .gte('created_at', range.start.toIso8601String())
+        .lte('created_at', endOfDay.toIso8601String());
+  }
+
+  
+  if (filterState.status != 'All Status') {
+    bool statusValue;
+    if (filterState.status == 'Approved') {
+      statusValue = true;
+    } else { 
+      statusValue = false;
+    }
+    baseQuery = baseQuery.eq('is_approved', statusValue); 
+  }
+
+
+  return baseQuery.order('created_at', ascending: false).asStream().map(
+      (response) =>
+          (response as List).map((map) => AppUser.fromJson(map)).toList());
+}
 
   Stream<List<AppUser>> getPendingCreators() {
-    return _supabase
-        .from('users')
-        .select()
-        .eq('role', 'designer')
-        .eq('approval_status', 'pending')
-        .order('created_at', ascending: true)
-        .asStream()
-        .map((response) =>
-            (response as List).map((map) => AppUser.fromJson(map)).toList());
-  }
+  return _supabase
+      .from('users')
+      .select()
+      .eq('role', 'designer')
+      .eq('is_approved', false) 
+      .order('created_at', ascending: true)
+      .asStream()
+      .map((response) =>
+          (response as List).map((map) => AppUser.fromJson(map)).toList());
+}
 
   Future<void> updateCreatorStatus(String userId, String newStatus) async {
-    try {
-      await _supabase
-          .from('users')
-          .update({'approval_status': newStatus}).eq('id', userId);
-    } catch (e) {
-      debugPrint('Error updating creator status: $e');
-      rethrow;
-    }
+  try {
+    await _supabase
+        .from('users')
+        .update({'is_approved': (newStatus == 'approved')}) 
+        .eq('id', userId);
+  } catch (e) {
+    debugPrint('Error updating creator status: $e');
+    rethrow;
   }
+}
 
   Future<void> deleteUser(String userId) async {
     try {

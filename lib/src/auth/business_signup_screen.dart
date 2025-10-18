@@ -20,36 +20,47 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _addressController = TextEditingController();
   final _gstController = TextEditingController();
   final _authService = SupabaseAuthService();
 
-  String _businessType = '3D Designer';
+  String? _selectedBusinessType;
+  final List<String> _businessTypes = [
+    '3D Designer',
+    'Sketch Artist',
+    'Manufacturer',
+    'Other'
+  ];
   String _fullPhoneNumber = '';
   bool _isLoading = false;
 
-  XFile? _workFile;
-  String _workFileName = 'Upload Work File*';
-
-  XFile? _businessCardFile;
-  String _businessCardFileName = 'Upload Business Card*';
+  File? _workFile;
+  String _workFileName = 'Upload Work File (PDF/Doc)';
+  File? _businessCardFile;
+  String _businessCardFileName = 'Upload Business Card (Image)';
 
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _addressController.dispose();
     _gstController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickFile(Function(XFile, String) onFilePicked) async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
+  Future<void> _pickFile(Function(File, String) onFilePicked,
+      {bool isImage = false}) async {
+    final picker = ImagePicker();
+    final XFile? pickedFile = isImage
+        ? await picker.pickImage(source: ImageSource.gallery)
+        : await picker.pickImage(source: ImageSource.gallery);
+
     if (pickedFile != null) {
       setState(() {
-        onFilePicked(pickedFile, pickedFile.name);
+        onFilePicked(File(pickedFile.path), pickedFile.name);
       });
     }
   }
@@ -75,7 +86,7 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         businessName: _fullNameController.text.trim(),
-        businessType: _businessType,
+        businessType: _selectedBusinessType!,
         phone: _fullPhoneNumber,
         address: _addressController.text.trim(),
         gstNumber: _gstController.text.trim(),
@@ -157,31 +168,31 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Create Business Account")),
-      body: Center(
+      appBar: AppBar(
+        title: const Text('Become a Designer'),
+      ),
+      body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text("Join as a Designer",
-                      style: Theme.of(context).textTheme.headlineMedium,
-                      textAlign: TextAlign.center),
-                  const SizedBox(height: 24),
+                  // --- All the form fields ---
                   TextFormField(
                     controller: _fullNameController,
-                    decoration: const InputDecoration(labelText: 'Full Name*'),
+                    decoration: const InputDecoration(
+                        labelText: 'Full Name / Business Name'),
                     validator: (value) =>
-                        value!.isEmpty ? 'Please enter your full name' : null,
+                        value!.trim().isEmpty ? 'Please enter your name' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(labelText: 'Email*'),
+                    decoration:
+                        const InputDecoration(labelText: 'Email Address'),
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) =>
                         (value!.isEmpty || !value.contains('@'))
@@ -190,53 +201,64 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
                   ),
                   const SizedBox(height: 16),
                   IntlPhoneField(
-                    decoration: const InputDecoration(
-                      labelText: 'Phone Number*',
-                      border: OutlineInputBorder(),
-                    ),
-                    initialCountryCode: 'IN',
+                    decoration:
+                        const InputDecoration(labelText: 'Phone Number'),
+                    initialCountryCode: 'IN', // Default to India
                     onChanged: (phone) {
                       _fullPhoneNumber = phone.completeNumber;
                     },
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _businessType,
-                    decoration:
-                        const InputDecoration(labelText: 'Business Type*'),
-                    items: ['3D Designer', 'Sketch Artist']
-                        .map((type) =>
-                            DropdownMenuItem(value: type, child: Text(type)))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => _businessType = value);
-                      }
+                    value: _selectedBusinessType,
+                    hint: const Text('Select Business Type'),
+                    items: _businessTypes.map((String type) {
+                      return DropdownMenuItem<String>(
+                          value: type, child: Text(type));
+                    }).toList(),
+                    onChanged: (newValue) {
+                      setState(() {
+                        _selectedBusinessType = newValue;
+                      });
                     },
+                    validator: (value) =>
+                        value == null ? 'This field is required' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _addressController,
-                    decoration: const InputDecoration(labelText: 'Address*'),
-                    validator: (value) =>
-                        value!.isEmpty ? 'Please enter your address' : null,
+                    decoration: const InputDecoration(labelText: 'Address'),
+                    validator: (value) => value!.trim().isEmpty
+                        ? 'Please enter your address'
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _gstController,
-                    decoration:
-                        const InputDecoration(labelText: 'GST (Optional)'),
+                    decoration: const InputDecoration(
+                        labelText: 'GST Number (Optional)'),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
+                    decoration: const InputDecoration(labelText: 'Password'),
                     obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Password*'),
-                    validator: (value) => (value!.length < 8)
-                        ? 'Password must be at least 8 characters'
+                    validator: (value) => value!.length < 6
+                        ? 'Password must be at least 6 characters'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    decoration:
+                        const InputDecoration(labelText: 'Confirm Password'),
+                    obscureText: true,
+                    validator: (value) => value != _passwordController.text
+                        ? 'Passwords do not match'
                         : null,
                   ),
                   const SizedBox(height: 24),
+                  // --- File Upload Buttons ---
                   OutlinedButton.icon(
                     onPressed: () => _pickFile((file, name) {
                       _workFile = file;
@@ -250,19 +272,23 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
                     onPressed: () => _pickFile((file, name) {
                       _businessCardFile = file;
                       _businessCardFileName = name;
-                    }),
+                    }, isImage: true),
                     icon: const Icon(Icons.contact_mail),
                     label: Text(_businessCardFileName,
                         overflow: TextOverflow.ellipsis),
                   ),
                   const SizedBox(height: 24),
+                  // The main action button
                   ElevatedButton(
-                    onPressed: _isLoading ? null : _enroll,
+                    onPressed: _isLoading
+                        ? null
+                        : _enroll, // Disable button when loading
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2))
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
                         : const Text('Enroll'),
                   ),
                 ],
