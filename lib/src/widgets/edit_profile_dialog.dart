@@ -29,17 +29,17 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     final user = context.read<UserProfileProvider>().userProfile;
     _nameController = TextEditingController(text: user?.username ?? '');
     _phoneController = TextEditingController(text: user?.phone ?? '');
-    _birthdateController = TextEditingController(text: user?.birthdate ?? '');
+    _birthdateController = TextEditingController(
+        text: user?.birthdate != null
+            ? DateFormat('yyyy-MM-dd').format(user!.birthdate!)
+            : '');
     _gender = user?.gender;
   }
 
   Future<void> _selectDate(BuildContext context) async {
     final userProfile = context.read<UserProfileProvider>().userProfile;
-    final initialDateStr = userProfile?.birthdate;
-    DateTime initialDate = DateTime.now().subtract(const Duration(days: 365 * 18));
-    if (initialDateStr != null && initialDateStr.isNotEmpty) {
-      initialDate = DateTime.tryParse(initialDateStr) ?? initialDate;
-    }
+    final initialDate = userProfile?.birthdate ??
+        DateTime.now().subtract(const Duration(days: 365 * 18));
 
     final DateTime? picked = await showDatePicker(
       context: context,

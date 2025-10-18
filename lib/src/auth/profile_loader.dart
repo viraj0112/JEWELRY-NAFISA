@@ -65,7 +65,8 @@ class _ProfileLoaderState extends State<ProfileLoader> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Could not find user profile. Please sign out.'),
+                      const Text(
+                          'Could not find user profile. Please sign out.'),
                       const SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: () => SupabaseAuthService().signOut(),
@@ -78,15 +79,15 @@ class _ProfileLoaderState extends State<ProfileLoader> {
             }
 
             switch (userProfile.role) {
-              case 'admin':
+              case UserRole.admin: 
                 return const AdminShell();
-              case 'designer':
+              case UserRole.designer: 
                 if (userProfile.isApproved == true) {
                   return const DesignerShell();
                 } else {
                   return const PendingApprovalScreen();
                 }
-              case 'member':
+              case UserRole.member: 
               default:
                 return const MainShell();
             }
