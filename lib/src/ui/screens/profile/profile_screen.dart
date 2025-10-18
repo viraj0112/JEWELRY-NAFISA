@@ -4,6 +4,7 @@ import 'package:jewelry_nafisa/src/ui/screens/membership/buy_membership_screen.d
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/referral_screen.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/credit_info_card.dart';
+import 'package:jewelry_nafisa/src/ui/screens/profile/quote_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -197,8 +198,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                   children: [
                     Text('My Quotes', style: theme.textTheme.titleLarge),
                     TextButton(
+                      // FIX: Corrected the navigation logic
                       onPressed: () {
-                        /* TODO: Navigate to Quote History */
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const QuoteHistoryScreen(),
+                          ),
+                        );
                       },
                       child: const Text('View Detail History'),
                     ),

@@ -18,6 +18,29 @@ class UserProfileProvider with ChangeNotifier {
   int get creditsRemaining => _userProfile?.credits ?? 0;
   String? get referralCode => _userProfile?.referralCode;
 
+  Future<List<Map<String, dynamic>>> getQuoteHistory() async {
+    // FIX: Changed _supabaseClient to _supabase
+    if (_supabase.auth.currentUser == null) {
+      throw Exception('Not authenticated');
+    }
+    // FIX: Changed _supabaseClient to _supabase
+    final userId = _supabase.auth.currentUser!.id;
+    
+    try {
+      // FIX: Changed _supabaseClient to _supabase
+      final response = await _supabase
+          .from('quotes') 
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+          
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching quote history: $e');
+      rethrow;
+    }
+  }
+
   Future<void> loadUserProfile() async {
     if (_supabase.auth.currentUser == null) return;
 

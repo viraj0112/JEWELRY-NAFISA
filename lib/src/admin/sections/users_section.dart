@@ -96,6 +96,61 @@ class _UsersSectionState extends State<UsersSection>
             ),
           ),
           actions: [
+            // ADD THIS BUTTON for deleting the user
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              onPressed: () {
+                // Show confirmation dialog
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Confirm Deletion'),
+                    content: Text(
+                        'Are you sure you want to delete this user (${user.username ?? user.email})? This action cannot be undone.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                        onPressed: () async {
+                          try {
+                            // Call the service function
+                            await _adminService.deleteUser(user.id);
+
+                            // Close confirmation dialog
+                            Navigator.of(ctx).pop();
+                            // Close user details dialog
+                            Navigator.of(context).pop();
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('User deleted successfully.'),
+                                  backgroundColor: Colors.green),
+                            );
+                          } catch (e) {
+                            Navigator.of(ctx).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Failed to delete user: $e'),
+                                  backgroundColor: Colors.red),
+                            );
+                          }
+                        },
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              child: const Text('Delete User'),
+            ),
+
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Close'),

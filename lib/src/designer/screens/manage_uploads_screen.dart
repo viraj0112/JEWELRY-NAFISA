@@ -10,6 +10,7 @@ class ManageUploadsScreen extends StatefulWidget {
 
 class _ManageUploadsScreenState extends State<ManageUploadsScreen> {
   late Future<List<Map<String, dynamic>>> _uploadsFuture;
+  final _supabase = Supabase.instance.client;
 
   @override
   void initState() {
@@ -26,6 +27,53 @@ class _ManageUploadsScreenState extends State<ManageUploadsScreen> {
         .eq('owner_id', userId)
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<void> _deleteUpload(Map<String, dynamic> uploadItem) async {
+    final assetId = uploadItem['id'];
+    final assetTitle = uploadItem['title'] ?? 'this item';
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm Deletion'),
+        content: Text('Are you sure you want to delete "$assetTitle"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _supabase.from('assets').delete().eq('id', assetId);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Upload deleted successfully.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Refresh the list
+        setState(() {
+          _uploadsFuture = _fetchUploads();
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete upload: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -73,7 +121,7 @@ class _ManageUploadsScreenState extends State<ManageUploadsScreen> {
                       IconButton(
                         icon: const Icon(Icons.delete_outline),
                         onPressed: () {
-                          // TODO: Implement delete functionality
+                          _deleteUpload(item);
                         },
                       ),
                     ],
