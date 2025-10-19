@@ -3,6 +3,11 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jewelry_nafisa/src/admin/models/admin_models.dart'
+    show TimeSeriesData;
+
+final adminServiceProvider = Provider((ref) => AdminService());
 
 class AdminService {
   final _supabase = Supabase.instance.client;
@@ -25,15 +30,12 @@ class AdminService {
         .subscribe();
   }
 
+  // FIX: This stream now uses the 30-second polling stream
+  // to ensure data is loaded and refreshed automatically.
   Stream<Map<String, dynamic>> getDashboardMetricsStream() {
-    fetchDashboardMetrics().then((metrics) {
-      if (!_controller.isClosed) {
-        _controller.add(metrics);
-      }
-    });
-    return _controller.stream;
+    return _createPollingStream(fetchDashboardMetrics);
   }
-
+  
   Future<Map<String, dynamic>> fetchDashboardMetrics() async {
     final responses = await Future.wait([
       _supabase.rpc('get_total_users'),
@@ -55,15 +57,13 @@ class AdminService {
 
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
-    final creditsUsedRes = await _supabase
-        .from('analytics_daily')
-        .select('quotes_requested')
-        .gte('date', startOfMonth.toIso8601String());
+  
+    final int creditsUsed = await _supabase
+        .from('quotes')
+        .count(CountOption.exact) 
+        .gte('created_at', startOfMonth.toIso8601String());
+    
 
-    int creditsUsed = 0;
-    for (var row in creditsUsedRes) {
-      creditsUsed += (row['quotes_requested'] as int?) ?? 0;
-    }
 
     final usersChange = _calculateChange(totalUsers, prevTotalUsers);
     final postsChange = _calculateChange(totalPosts, prevTotalPosts);
@@ -98,9 +98,7 @@ class AdminService {
   Stream<List<Map<String, dynamic>>> getUserGrowthStream() {
     return _createPollingStream(() async {
       final response = await _supabase.rpc('get_new_users_per_month');
-      return (response as List)
-          .map((item) => item as Map<String, dynamic>)
-          .toList();
+      return List<Map<String, dynamic>>.from(response as List);
     });
   }
 
@@ -144,7 +142,7 @@ class AdminService {
                   .toIso8601String())
           .order('date');
 
-      return (response as List).map((item) {
+      return List<Map<String, dynamic>>.from(response as List).map((item) {
         return {
           'day': item['date'],
           'val': item['views'] ?? 0,
@@ -153,11 +151,29 @@ class AdminService {
     });
   }
 
+  Future<List<TimeSeriesData>> getUserGrowth(DateTimeRange dateRange) async {
+    try {
+      final List<dynamic> data = await _supabase.rpc(
+        'get_user_growth_over_time',
+        params: {
+          'start_date': dateRange.start.toIso8601String(),
+          'end_date': dateRange.end.toIso8601String(),
+        },
+      );
+      return data
+          .map((item) => TimeSeriesData.fromMap(item as Map<String, dynamic>))
+          .toList();
+    } catch (e, s) {
+      debugPrint('Error fetching user growth data: $e\n$s');
+      rethrow;
+    }
+  }
+
   Stream<List<Map<String, dynamic>>> getDailyCreditsStream() {
     return _createPollingStream(() async {
       final response = await _supabase
           .from('analytics_daily')
-          .select('date, quotes_requested') 
+          .select('date, quotes_requested')
           .gte(
               'date',
               DateTime.now()
@@ -165,10 +181,10 @@ class AdminService {
                   .toIso8601String())
           .order('date');
 
-      return (response as List).map((item) {
+      return List<Map<String, dynamic>>.from(response as List).map((item) {
         return {
           'day': item['date'],
-          'val': item['quotes_requested'] ?? 0, 
+          'val': item['quotes_requested'] ?? 0,
         };
       }).toList();
     });
@@ -189,7 +205,7 @@ class AdminService {
     try {
       final response = await _supabase
           .rpc('get_top_referrers', params: {'limit_count': limit});
-      return (response as List)
+      return List<Map<String, dynamic>>.from(response as List)
           .map((data) => TopReferrer.fromJson(data))
           .toList();
     } catch (e) {
@@ -201,7 +217,8 @@ class AdminService {
   Future<Map<String, String>> getSettings() async {
     try {
       final response = await _supabase.rpc('get_settings');
-      return Map<String, String>.from(response);
+      if (response == null) return {};
+      return Map<String, String>.from(response as Map<String, dynamic>);
     } catch (e) {
       debugPrint('Error fetching settings: $e');
       rethrow;
@@ -219,15 +236,29 @@ class AdminService {
   }
 
   Future<List<CreditHistory>> getUserCreditHistory(String userId) async {
-    final response = await _supabase
-        .rpc('get_user_credit_history', params: {'p_user_id': userId});
-    return (response as List).map((e) => CreditHistory.fromJson(e)).toList();
+    try {
+      final response = await _supabase
+          .rpc('get_user_credit_history', params: {'p_user_id': userId});
+      return List<Map<String, dynamic>>.from(response as List)
+          .map((e) => CreditHistory.fromJson(e))
+          .toList();
+    } catch (e) {
+      debugPrint("Error fetching credit history (RPC might be missing): $e");
+      return [];
+    }
   }
 
   Future<List<ReferralNode>> getReferralTree(String userId) async {
-    final response =
-        await _supabase.rpc('get_referral_tree', params: {'p_user_id': userId});
-    return (response as List).map((e) => ReferralNode.fromJson(e)).toList();
+    try {
+      final response =
+          await _supabase.rpc('get_referral_tree', params: {'p_user_id': userId});
+      return List<Map<String, dynamic>>.from(response as List)
+          .map((e) => ReferralNode.fromJson(e))
+          .toList();
+    } catch (e) {
+      debugPrint("Error fetching referral tree (RPC might be missing): $e");
+      return [];
+    }
   }
 
   Stream<List<Asset>> getScrapedContent() {
@@ -248,81 +279,85 @@ class AdminService {
   }
 
   Future<CreatorDashboard> getCreatorDashboard(String creatorId) async {
-    final response = await _supabase
-        .rpc('get_creator_dashboard', params: {'p_creator_id': creatorId});
-    return CreatorDashboard.fromJson(response);
+    try {
+      final response = await _supabase
+          .rpc('get_creator_dashboard', params: {'p_creator_id': creatorId});
+      if (response == null) {
+        throw Exception('No dashboard data found for creator.');
+      }
+      return CreatorDashboard.fromJson(response as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint("Error fetching creator dashboard: $e");
+      rethrow;
+    }
   }
 
   Stream<List<AppUser>> getUsers({
-  required String userType,
-  required FilterState filterState,
-}) {
-  var baseQuery = _supabase.from('users').select();
+    required String userType,
+    required FilterState filterState,
+  }) {
+    var baseQuery = _supabase.from('users').select();
 
-  switch (userType) {
-    case 'Members':
-      baseQuery = baseQuery.eq('is_member', true);
-      break;
-    case 'Non-Members':
-      baseQuery = baseQuery.eq('is_member', false);
-      break;
-    case 'B2B Creators':
-      baseQuery = baseQuery.eq('role', 'designer');
-      break;
-  }
-
-  final range = filterState.dateRange;
-  if (range != null) {
-    final endOfDay = DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59);
-    baseQuery = baseQuery
-        .gte('created_at', range.start.toIso8601String())
-        .lte('created_at', endOfDay.toIso8601String());
-  }
-
-  
-  if (filterState.status != 'All Status') {
-    bool statusValue;
-    if (filterState.status == 'Approved') {
-      statusValue = true;
-    } else { 
-      statusValue = false;
+    switch (userType) {
+      case 'Members':
+        baseQuery = baseQuery.eq('is_member', true);
+        break;
+      case 'Non-Members':
+        baseQuery = baseQuery.eq('is_member', false);
+        break;
+      case 'B2B Creators':
+        baseQuery = baseQuery.eq('role', 'designer');
+        break;
     }
-    baseQuery = baseQuery.eq('is_approved', statusValue); 
+
+    final range = filterState.dateRange;
+    if (range != null) {
+      final endOfDay =
+          DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59);
+      baseQuery = baseQuery
+          .gte('created_at', range.start.toIso8601String())
+          .lte('created_at', endOfDay.toIso8601String());
+    }
+
+    if (filterState.status != 'All Status') {
+      bool statusValue = (filterState.status == 'Approved');
+      baseQuery = baseQuery.eq('is_approved', statusValue);
+    }
+
+    return baseQuery.order('created_at', ascending: false).asStream().map(
+        (response) => response.map((map) => AppUser.fromJson(map)).toList());
   }
-
-
-  return baseQuery.order('created_at', ascending: false).asStream().map(
-      (response) =>
-          (response as List).map((map) => AppUser.fromJson(map)).toList());
-}
 
   Stream<List<AppUser>> getPendingCreators() {
-  return _supabase
-      .from('users')
-      .select()
-      .eq('role', 'designer')
-      .eq('is_approved', false) 
-      .order('created_at', ascending: true)
-      .asStream()
-      .map((response) =>
-          (response as List).map((map) => AppUser.fromJson(map)).toList());
-}
+    return _supabase
+        .from('users')
+        .select()
+        .eq('role', 'designer')
+        .eq('is_approved', false)
+        .order('created_at', ascending: true)
+        .asStream()
+        .map((response) =>
+            response.map((map) => AppUser.fromJson(map)).toList());
+  }
 
   Future<void> updateCreatorStatus(String userId, String newStatus) async {
-  try {
-    await _supabase
-        .from('users')
-        .update({'is_approved': (newStatus == 'approved')}) 
-        .eq('id', userId);
-  } catch (e) {
-    debugPrint('Error updating creator status: $e');
-    rethrow;
+    try {
+      await _supabase
+          .from('users')
+          .update({'is_approved': (newStatus == 'approved')}).eq('id', userId);
+    } catch (e) {
+      debugPrint('Error updating creator status: $e');
+      rethrow;
+    }
   }
-}
 
   Future<void> deleteUser(String userId) async {
     try {
-      await _supabase.from('users').delete().eq('id', userId);
+      // User deletion should be handled by a secure backend function.
+      debugPrint(
+          'Attempted to delete user: $userId. Implement this via a backend function.');
+      throw UnimplementedError(
+          'User deletion should be handled by a secure backend function.');
     } catch (e) {
       debugPrint('Error deleting user: $e');
       rethrow;
@@ -335,9 +370,9 @@ class AdminService {
           .from('users')
           .select()
           .eq('role', 'designer')
-          .eq('approval_status', 'approved')
+          .eq('is_approved', true)
           .order('created_at', ascending: false);
-      return (response as List).map((data) => AppUser.fromJson(data)).toList();
+      return response.map((data) => AppUser.fromJson(data)).toList();
     } catch (e) {
       debugPrint('Error fetching approved creators: $e');
       rethrow;
@@ -352,19 +387,21 @@ class AdminService {
         .map((maps) => maps.map((map) => Asset.fromJson(map)).toList());
   }
 
-  Stream<List<Notification>> getActivityLogs() {
+  Stream<List<AdminNotification>> getActivityLogs() {
     return _supabase
         .from('notifications')
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
         .limit(100)
-        .map((maps) => maps.map((map) => Notification.fromMap(map)).toList());
+        .map((maps) =>
+            maps.map((map) => AdminNotification.fromMap(map)).toList());
   }
 
   Future<List<PostAnalytic>> getPostAnalytics() async {
     try {
       final response = await _supabase.rpc('get_all_post_analytics');
-      return (response as List)
+      if (response == null || response is! List) return [];
+      return List<Map<String, dynamic>>.from(response as List)
           .map((data) => PostAnalytic.fromJson(data))
           .toList();
     } catch (e) {
@@ -376,6 +413,7 @@ class AdminService {
   Future<Map<String, dynamic>> getMonetizationMetrics() async {
     try {
       final response = await _supabase.rpc('get_monetization_metrics');
+      if (response == null || response is! Map) return {};
       return response as Map<String, dynamic>;
     } catch (e) {
       debugPrint('Error fetching monetization metrics: $e');
@@ -390,11 +428,13 @@ class AdminService {
     void fetchData() async {
       try {
         final result = await futureFunction();
-        if (controller.isClosed) return;
-        controller.add(result);
-      } catch (e) {
-        if (controller.isClosed) return;
-        controller.addError(e);
+        if (!controller.isClosed) {
+          controller.add(result);
+        }
+      } catch (e, s) {
+        if (!controller.isClosed) {
+          controller.addError(e, s);
+        }
       }
     }
 
@@ -405,7 +445,6 @@ class AdminService {
       },
       onCancel: () {
         timer?.cancel();
-        controller.close();
       },
     );
 
@@ -413,25 +452,25 @@ class AdminService {
   }
 }
 
-class Notification {
+class AdminNotification {
   final String id;
   final String message;
   final bool isRead;
   final DateTime createdAt;
 
-  Notification({
+  AdminNotification({
     required this.id,
     required this.message,
     required this.isRead,
     required this.createdAt,
   });
 
-  factory Notification.fromMap(Map<String, dynamic> map) {
-    return Notification(
-      id: map['id'],
-      message: map['message'],
-      isRead: map['is_read'] ?? false,
-      createdAt: DateTime.parse(map['created_at']),
+  factory AdminNotification.fromMap(Map<String, dynamic> map) {
+    return AdminNotification(
+      id: map['id'] as String,
+      message: map['message'] as String,
+      isRead: map['is_read'] as bool? ?? false,
+      createdAt: DateTime.parse(map['created_at'] as String),
     );
   }
 }

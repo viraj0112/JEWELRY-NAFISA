@@ -44,6 +44,7 @@ dependencies:
   universal_html: ^2.0.8
   fl_chart: ^0.68.0 
   mime: ^1.0.4
+  flutter_riverpod: ^2.3.6
 
 dev_dependencies:
   flutter_test:

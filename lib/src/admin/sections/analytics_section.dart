@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart';
 import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
 import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
+// FIX: Import the detailed user growth chart
+import 'package:jewelry_nafisa/src/admin/widgets/user_growth_chart.dart'; 
+// FIX: Import the dashboard widgets (like DailyUsageCard)
+import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart'; 
 import 'package:intl/intl.dart';
 
 class AnalyticsSection extends StatefulWidget {
@@ -66,6 +69,8 @@ class _AnalyticsSectionState extends State<AnalyticsSection>
     );
   }
 
+  // FIX: The duplicate build method that was here has been removed.
+
   Widget _buildPostAnalytics() {
     return FutureBuilder<List<PostAnalytic>>(
       future: _adminService.getPostAnalytics(),
@@ -81,8 +86,10 @@ class _AnalyticsSectionState extends State<AnalyticsSection>
           return const Center(child: Text('No post analytics available.'));
         }
 
+        // Use StyledCard (it's imported from dashboard_widgets)
         return StyledCard(
           child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             child: DataTable(
               columns: const [
                 DataColumn(label: Text('Date')),
@@ -110,23 +117,26 @@ class _AnalyticsSectionState extends State<AnalyticsSection>
   }
 
   Widget _buildUserBehavior() {
+    // FIX: Use the UserGrowthChart we created, not the non-existent 'ChartGrid'
     return const SingleChildScrollView(
       padding: EdgeInsets.symmetric(vertical: 24.0),
-      child: ChartGrid(),
+      child: UserGrowthChart(), 
     );
   }
 
   Widget _buildCreditUsage() {
+    // FIX: Use DailyUsageCard from the imported dashboard_widgets
     return const SingleChildScrollView(
       padding: EdgeInsets.symmetric(vertical: 24.0),
-      child: DailyUsageCard(),
+      child: DailyUsageCard(), 
     );
   }
 
   Widget _buildEngagementSegment() {
+    // FIX: Use UserGrowthCard from the imported dashboard_widgets
     return const SingleChildScrollView(
       padding: EdgeInsets.symmetric(vertical: 24.0),
-      child: UserGrowthCard(),
+      child: UserGrowthCard(), 
     );
   }
 }

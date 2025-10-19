@@ -1,20 +1,16 @@
-// lib/src/admin/sections/activity_logs_section.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-// FIX: Added 'as admin_service' to create a prefix for the import
 import 'package:jewelry_nafisa/src/admin/services/admin_service.dart'
-    as admin_service;
+    as admin_service; // Keep the prefix
 
 class ActivityLogsSection extends StatelessWidget {
   const ActivityLogsSection({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // FIX: Used the prefix to specify which AdminService to use
     final admin_service.AdminService adminService =
-        admin_service.AdminService();
+        admin_service.AdminService(); // Use prefix
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -24,8 +20,8 @@ class ActivityLogsSection extends StatelessWidget {
                 GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
         const SizedBox(height: 24),
         Expanded(
-          // FIX: Used the prefix to specify your custom Notification class
-          child: StreamBuilder<List<admin_service.Notification>>(
+          // FIX: Changed Notification to AdminNotification
+          child: StreamBuilder<List<admin_service.AdminNotification>>(
             stream: adminService.getActivityLogs(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -56,6 +52,7 @@ class ActivityLogsSection extends StatelessWidget {
                     subtitle: Text(
                       DateFormat.yMMMd().add_jm().format(log.createdAt),
                     ),
+                    // Optionally add trailing icon or action based on log type/read status
                   );
                 },
               );

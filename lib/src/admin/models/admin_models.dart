@@ -17,6 +17,20 @@ extension DateRangeTypeExtension on DateRangeType {
   }
 }
 
+class TimeSeriesData {
+  final DateTime time;
+  final num value; 
+
+  TimeSeriesData(this.time, this.value);
+
+  factory TimeSeriesData.fromMap(Map<String, dynamic> map) {
+    return TimeSeriesData(
+      DateTime.parse(map['day'] as String), 
+      map['new_users_count'] as num,     
+    );
+  }
+}
+
 class FilterState {
   final DateRangeType dateRangeType;
   final DateTimeRange? customDateRange;
