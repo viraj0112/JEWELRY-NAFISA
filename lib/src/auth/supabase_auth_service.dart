@@ -16,6 +16,7 @@ class SupabaseAuthService {
   User? get currentUser => _supabase.auth.currentUser;
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
+  // ... (signUpAdmin, signUpWithEmailPassword, signInWithEmailOrUsername, signInWithGoogle, signOut, signUpBusiness, resetPassword functions are unchanged)
   Future<User?> signUpAdmin({
     required String email,
     required String password,
@@ -206,6 +207,22 @@ class SupabaseAuthService {
       rethrow;
     }
   }
+
+  // --- ADD THIS NEW FUNCTION ---
+  /// Prompts Supabase to send a confirmation email to change the user's email.
+  Future<void> updateUserEmail(String newEmail) async {
+    try {
+      await _supabase.auth.updateUser(
+        UserAttributes(email: newEmail),
+        // You might want to specify a redirect URL for the confirmation email
+        // emailRedirectTo: kIsWeb ? '${Uri.base.origin}/auth-callback' : 'com.example.jewelryNafisa://email-confirmed',
+      );
+    } catch (e) {
+      debugPrint("Error updating email: $e");
+      rethrow;
+    }
+  }
+  // -----------------------------
 
   Future<bool> updateUserPassword(String newPassword) async {
     try {

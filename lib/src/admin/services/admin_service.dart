@@ -30,8 +30,18 @@ class AdminService {
         .subscribe();
   }
 
-  // FIX: This stream now uses the 30-second polling stream
-  // to ensure data is loaded and refreshed automatically.
+  Stream<List<AppUser>> getPendingCreators() {
+    return _supabase
+        .from('users')
+        .select()
+        .eq('role', 'designer')
+        .eq('is_approved', false)
+        .order('created_at', ascending: true)
+        .asStream()
+        .map((response) =>
+            response.map((map) => AppUser.fromJson(map)).toList());
+  }
+
   Stream<Map<String, dynamic>> getDashboardMetricsStream() {
     return _createPollingStream(fetchDashboardMetrics);
   }
@@ -328,29 +338,26 @@ class AdminService {
         (response) => response.map((map) => AppUser.fromJson(map)).toList());
   }
 
-  Stream<List<AppUser>> getPendingCreators() {
-    return _supabase
-        .from('users')
-        .select()
-        .eq('role', 'designer')
-        .eq('is_approved', false)
-        .order('created_at', ascending: true)
-        .asStream()
-        .map((response) =>
-            response.map((map) => AppUser.fromJson(map)).toList());
-  }
+  
 
   Future<void> updateCreatorStatus(String userId, String newStatus) async {
     try {
-      await _supabase
-          .from('users')
-          .update({'is_approved': (newStatus == 'approved')}).eq('id', userId);
+      Map<String, dynamic> updates;
+
+      if (newStatus == 'approved') {
+        updates = {'is_approved': true, 'role': 'designer'};
+      } else if (newStatus == 'rejected') {
+        updates = {'is_approved': false, 'role': 'member'};
+      } else {
+        updates = {'is_approved': (newStatus == 'approved')};
+      }
+
+      await _supabase.from('users').update(updates).eq('id', userId);
     } catch (e) {
       debugPrint('Error updating creator status: $e');
       rethrow;
     }
   }
-
   Future<void> deleteUser(String userId) async {
     try {
       // User deletion should be handled by a secure backend function.

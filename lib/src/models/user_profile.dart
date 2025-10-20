@@ -19,6 +19,7 @@ class UserProfile {
   final DateTime? createdAt;
   final bool isApproved;
   final DesignerProfile? designerProfile;
+  final String? bio;
 
   UserProfile({
     required this.id,
@@ -39,6 +40,7 @@ class UserProfile {
     this.createdAt,
     this.isApproved = false,
     this.designerProfile,
+    this.bio,
   });
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
@@ -72,6 +74,7 @@ class UserProfile {
           designerProfileData != null && designerProfileData.isNotEmpty
               ? DesignerProfile.fromMap(designerProfileData[0])
               : null,
+      bio: map['bio'],
     );
   }
 }
