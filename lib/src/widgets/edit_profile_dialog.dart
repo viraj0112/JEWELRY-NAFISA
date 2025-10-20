@@ -19,6 +19,8 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _birthdateController;
+  late final TextEditingController _bioController;
+
   String? _gender;
   XFile? _avatarFile;
   bool _isLoading = false;
@@ -29,6 +31,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     final user = context.read<UserProfileProvider>().userProfile;
     _nameController = TextEditingController(text: user?.username ?? '');
     _phoneController = TextEditingController(text: user?.phone ?? '');
+    _bioController = TextEditingController(text: user?.bio ?? '');
     _birthdateController = TextEditingController(
         text: user?.birthdate != null
             ? DateFormat('yyyy-MM-dd').format(user!.birthdate!)
@@ -81,6 +84,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
         phone: _phoneController.text,
         birthdate: _birthdateController.text,
         gender: _gender,
+        bio: _bioController.text,
         avatarFile: _avatarFile,
       );
       if (mounted) {
@@ -127,6 +131,16 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Name'),
                 validator: (v) => v!.isEmpty ? 'Name is required' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _bioController,
+                decoration: const InputDecoration(
+                  labelText: 'Bio',
+                  hintText: 'Tell us a bit about yourself...',
+                ),
+                maxLines: 3,
+                maxLength: 150,
               ),
               const SizedBox(height: 16),
               TextFormField(

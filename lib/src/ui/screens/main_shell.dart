@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
+import 'package:jewelry_nafisa/src/models/user_profile.dart';
+import 'package:jewelry_nafisa/src/widgets/account_management_dialog.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/boards_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
@@ -48,6 +50,60 @@ class _MainShellState extends State<MainShell> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Logout failed: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleBusinessRequest(BuildContext context) async {
+    // Show a confirmation dialog first
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Request Business Account?'),
+        content: const Text(
+            'Your account will be submitted for approval. You will be notified once a decision is made.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Submit Request'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await context.read<UserProfileProvider>().requestBusinessAccount();
+      if (mounted) {
+        Navigator.of(context).pop(); // Dismiss loading indicator
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Request sent successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Dismiss loading indicator
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send request: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -310,6 +366,7 @@ class _MainShellState extends State<MainShell> {
 
   Widget _buildProfileDropdown(UserProfileProvider user) {
     final avatarUrl = user.userProfile?.avatarUrl;
+    final bool isMember = user.userProfile?.role == UserRole.member;
     return PopupMenuButton<String>(
       tooltip: 'Profile Menu',
       offset: const Offset(0, 50),
@@ -321,6 +378,15 @@ class _MainShellState extends State<MainShell> {
               builder: (context) => const EditProfileDialog(),
             );
             break;
+          case 'account_management':
+            showDialog(
+              context: context,
+              builder: (context) => const AccountManagementDialog(),
+            );
+            break;
+          case 'request_business_account':
+            _handleBusinessRequest(context);
+            break;
           case 'logout':
             _signOut();
             break;
@@ -330,37 +396,59 @@ class _MainShellState extends State<MainShell> {
         Icons.arrow_drop_down,
         color: Theme.of(context).colorScheme.onSurface,
       ),
-      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        PopupMenuItem<String>(
-          enabled: false,
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundImage:
-                  avatarUrl != null ? NetworkImage(avatarUrl) : null,
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              child: (avatarUrl == null)
-                  ? Text(
-                      user.username.isNotEmpty
-                          ? user.username[0].toUpperCase()
-                          : 'U',
-                      style: const TextStyle(color: Colors.white),
-                    )
-                  : null,
+      itemBuilder: (BuildContext context) {
+        List<PopupMenuEntry<String>> items = [
+          PopupMenuItem<String>(
+            enabled: false,
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundImage:
+                    avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                child: (avatarUrl == null)
+                    ? Text(
+                        user.username.isNotEmpty
+                            ? user.username[0].toUpperCase()
+                            : 'U',
+                        style: const TextStyle(color: Colors.white),
+                      )
+                    : null,
+              ),
+              title: Text(
+                user.username,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(user.isMember ? 'Premium Member' : 'Free Account'),
             ),
-            title: Text(
-              user.username,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(user.isMember ? 'Premium Member' : 'Free Account'),
           ),
-        ),
-        const PopupMenuDivider(),
-        const PopupMenuItem<String>(
-          value: 'edit_profile',
-          child: Text('Edit Profile'),
-        ),
-        const PopupMenuItem<String>(value: 'logout', child: Text('Log out')),
-      ],
+          const PopupMenuDivider(),
+          const PopupMenuItem<String>(
+            value: 'edit_profile',
+            child: Text('Edit Profile'),
+          ),
+          const PopupMenuItem<String>(
+            value: 'account_management',
+            child: Text('Account Management'),
+          ),
+        ];
+
+        // Conditionally add the business request item
+        if (isMember) {
+          items.add(
+            const PopupMenuItem<String>(
+              value: 'request_business_account',
+              child: Text('Request Business Account'),
+            ),
+          );
+        }
+
+        items.addAll([
+          const PopupMenuDivider(),
+          const PopupMenuItem<String>(value: 'logout', child: Text('Log out')),
+        ]);
+
+        return items;
+      },
     );
   }
 }

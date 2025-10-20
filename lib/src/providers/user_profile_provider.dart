@@ -19,15 +19,13 @@ class UserProfileProvider with ChangeNotifier {
   String? get referralCode => _userProfile?.referralCode;
 
   Future<List<Map<String, dynamic>>> getQuoteHistory() async {
-    // FIX: Changed _supabaseClient to _supabase
+  
     if (_supabase.auth.currentUser == null) {
       throw Exception('Not authenticated');
     }
-    // FIX: Changed _supabaseClient to _supabase
     final userId = _supabase.auth.currentUser!.id;
     
     try {
-      // FIX: Changed _supabaseClient to _supabase
       final response = await _supabase
           .from('quotes') 
           .select()
@@ -42,6 +40,7 @@ class UserProfileProvider with ChangeNotifier {
   }
 
   Future<void> loadUserProfile() async {
+    // ... (rest of the function is unchanged)
     if (_supabase.auth.currentUser == null) return;
 
     _isLoading = true;
@@ -49,8 +48,11 @@ class UserProfileProvider with ChangeNotifier {
 
     try {
       final userId = _supabase.auth.currentUser!.id;
-      final data =
-          await _supabase.from('users').select().eq('id', userId).single();
+      final data = await _supabase
+          .from('users')
+          .select('*, designer_profiles(*)')
+          .eq('id', userId)
+          .single();
       _userProfile = UserProfile.fromMap(data);
     } catch (e) {
       debugPrint("Error loading user profile: $e");
@@ -60,7 +62,6 @@ class UserProfileProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-
   void decrementCredit() {
     if (_userProfile != null && _userProfile!.credits > 0) {
       _userProfile = UserProfile(
@@ -73,6 +74,16 @@ class UserProfileProvider with ChangeNotifier {
         referralCode: _userProfile!.referralCode,
         avatarUrl: _userProfile!.avatarUrl,
         isMember: _userProfile!.isMember,
+        bio: _userProfile!.bio, 
+        fullName: _userProfile!.fullName,
+        birthdate: _userProfile!.birthdate,
+        gender: _userProfile!.gender,
+        phone: _userProfile!.phone,
+        membershipPlan: _userProfile!.membershipPlan,
+        lastCreditRefresh: _userProfile!.lastCreditRefresh,
+        referredBy: _userProfile!.referredBy,
+        createdAt: _userProfile!.createdAt,
+        designerProfile: _userProfile!.designerProfile,
       );
       notifyListeners();
     }
@@ -82,6 +93,7 @@ class UserProfileProvider with ChangeNotifier {
     required String name,
     required String phone,
     required String birthdate,
+    String? bio,
     String? gender,
     XFile? avatarFile,
   }) async {
@@ -105,6 +117,7 @@ class UserProfileProvider with ChangeNotifier {
       'phone': phone,
       'birthdate': birthdate,
       'gender': gender,
+      'bio': bio,
       if (avatarUrl != null) 'avatar_url': avatarUrl,
     };
 
@@ -125,6 +138,23 @@ class UserProfileProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Error fetching quote statistics: $e');
       return {'total': 0, 'valid': 0, 'expired': 0};
+    }
+  }
+
+  Future<void> requestBusinessAccount() async {
+    if (_userProfile == null) throw Exception("User not loaded");
+
+    final userId = _userProfile!.id;
+    try {
+      await _supabase.from('users').update({
+        'role': 'designer',
+        'is_approved': false,
+      }).eq('id', userId);
+
+      await loadUserProfile();
+    } catch (e) {
+      debugPrint('Error requesting business account: $e');
+      rethrow;
     }
   }
 
