@@ -191,6 +191,18 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
         final imageUrl =
             supabase.storage.from('designer-files').getPublicUrl(fileName);
 
+        List<String>? textToList(TextEditingController controller) {
+          final text = controller.text.trim();
+          return text.isEmpty ? null : [text];
+        }
+
+        List<String>? tagsToList(TextEditingController controller) {
+          final text = controller.text.trim();
+          return text.isEmpty
+              ? null
+              : text.split(',').map((t) => t.trim()).toList();
+        }
+
         await supabase.from('assets').insert({
           'owner_id': userId,
           'title': entry.productTitleController.text,
@@ -199,35 +211,44 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           'status': 'pending',
           'source': 'b2b_upload',
           'attributes': {
+            // Text fields
             'Price': entry.priceController.text,
-            'Product Tags': entry.productTagsController.text,
             'Gold Weight': entry.goldWeightController.text,
             'Metal Purity': entry.metalPurityController.text,
             'Metal Finish': entry.metalFinishController.text,
-            'Stone Weight': entry.stoneWeightController.text,
-            'Stone Type': entry.stoneTypeController.text,
-            'Stone Used': entry.stoneUsed,
-            'Stone Setting': entry.stoneSettingController.text,
-            'Stone Count': entry.stoneCountController.text,
             'Collection Name': entry.collectionNameController.text,
             'Product Type': entry.productTypeController.text,
-            'Gender': entry.gender,
             'Theme': entry.themeController.text,
             'Metal Type': entry.metalTypeController.text,
             'Metal Color': entry.metalColorController.text,
             'NET WEIGHT': entry.netWeightController.text,
-            'Stone Color': entry.stoneColorController.text,
-            'Stone Cut': entry.stoneCutController.text,
             'Dimension': entry.dimensionController.text,
-            'Design Type': entry.designType,
             'Art Form': entry.artFormController.text,
             'Plating': entry.platingController.text,
             'Enamel Work': entry.enamelWorkController.text,
-            'Customizable': entry.customizable,
+
+            // Dropdowns (Single Value)
+            'Gender': entry.gender,
+            'Design Type': entry.designType,
+
+            // Booleans
+            'Customizable': entry.customizable == 'Yes',
+
+            // --- FIELDS THAT MUST BE ARRAYS ---
+            'Product Tags':
+                tagsToList(entry.productTagsController), // Comma-separated
+            'Stone Weight': textToList(entry.stoneWeightController), // Array
+            'Stone Type': textToList(entry.stoneTypeController), // Array
+            'Stone Used':
+                (entry.stoneUsed == null) ? null : [entry.stoneUsed], // Array
+            'Stone Setting': textToList(entry.stoneSettingController), // Array
+            'Stone Count': textToList(entry.stoneCountController), // Array
+            'Stone Color': textToList(entry.stoneColorController), // Array
+            'Stone Cut': textToList(entry.stoneCutController), // Array
+            // Note: Stone Purity is missing from your manual form, so it's not included here.
           },
         });
       }
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -390,6 +411,18 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
       return;
     }
 
+    const arrayHeaders = {
+      'Product Tags',
+      'Stone Weight',
+      'Stone Type',
+      'Stone Used',
+      'Stone Setting',
+      'Stone Count',
+      'Stone Color',
+      'Stone Cut',
+      'Stone Purity', // Assuming this might be in your CSV
+    };
+
     setState(() => _isLoading = true);
     final supabase = Supabase.instance.client;
     final userId = supabase.auth.currentUser!.id;
@@ -414,6 +447,34 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
         final imageUrl =
             supabase.storage.from('designer-files').getPublicUrl(fileName);
 
+        final Map<String, dynamic> attributes = {};
+        for (int j = 0; j < headers.length; j++) {
+          final header = headers[j];
+          dynamic value = (j < row.length) ? row[j] : null;
+
+          if (arrayHeaders.contains(header)) {
+            // This is the same logic from the admin upload fix
+            if (value == null) {
+              attributes[header] = null;
+            } else if (value is String) {
+              if (value.isEmpty) {
+                attributes[header] = null;
+              } else {
+                attributes[header] =
+                    value.split(',').map((t) => t.trim()).toList();
+              }
+            } else {
+              attributes[header] = [value.toString()];
+            }
+          } else if (header != 'Product Title' &&
+              header != 'Image' &&
+              header != 'Description') {
+            // Don't add Title/Image/Description to attributes
+            // (Description is already a top-level field)
+            attributes[header] = value;
+          }
+        }
+
         await supabase.from('assets').insert({
           'owner_id': userId,
           'title': title,
@@ -421,33 +482,7 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
           'media_url': imageUrl,
           'status': 'pending',
           'source': 'b2b_bulk_upload',
-          'attributes': {
-            'Price': row[headers.indexOf('Price')],
-            'Product Tags': row[headers.indexOf('Product Tags')],
-            'Gold Weight': row[headers.indexOf('Gold Weight')],
-            'Metal Purity': row[headers.indexOf('Metal Purity')],
-            'Metal Finish': row[headers.indexOf('Metal Finish')],
-            'Stone Weight': row[headers.indexOf('Stone Weight')],
-            'Stone Type': row[headers.indexOf('Stone Type')],
-            'Stone Used': row[headers.indexOf('Stone Used')],
-            'Stone Setting': row[headers.indexOf('Stone Setting')],
-            'Stone Count': row[headers.indexOf('Stone Count')],
-            'Collection Name': row[headers.indexOf('Collection Name')],
-            'Product Type': row[headers.indexOf('Product Type')],
-            'Gender': row[headers.indexOf('Gender')],
-            'Theme': row[headers.indexOf('Theme')],
-            'Metal Type': row[headers.indexOf('Metal Type')],
-            'Metal Color': row[headers.indexOf('Metal Color')],
-            'NET WEIGHT': row[headers.indexOf('NET WEIGHT')],
-            'Stone Color': row[headers.indexOf('Stone Color')],
-            'Stone Cut': row[headers.indexOf('Stone Cut')],
-            'Dimension': row[headers.indexOf('Dimension')],
-            'Design Type': row[headers.indexOf('Design Type')],
-            'Art Form': row[headers.indexOf('Art Form')],
-            'Plating': row[headers.indexOf('Plating')],
-            'Enamel Work': row[headers.indexOf('Enamel Work')],
-            'Customizable': row[headers.indexOf('Customizable')],
-          },
+          'attributes': attributes, // <-- Use the new attributes map
         });
       }
 
@@ -686,8 +721,8 @@ class _ProductFormCardState extends State<ProductFormCard> {
         const SizedBox(height: 16),
         TextFormField(
           controller: widget.entry.productTagsController,
-          decoration:
-              const InputDecoration(labelText: "Product Tags (comma-separated)"),
+          decoration: const InputDecoration(
+              labelText: "Product Tags (comma-separated)"),
         ),
         const SizedBox(height: 16),
         TextFormField(

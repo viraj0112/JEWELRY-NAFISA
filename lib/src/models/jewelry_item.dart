@@ -73,12 +73,13 @@ class JewelryItem {
     if (value is double) return value;
     if (value is int) return value.toDouble();
     if (value is String) {
-      final cleanedString = value.replaceAll('₹', '').replaceAll(',', '').trim();
+      final cleanedString =
+          value.replaceAll('₹', '').replaceAll(',', '').trim();
       return double.tryParse(cleanedString);
     }
     return null;
   }
-  
+
   // Helper function to handle different tag formats
   static List<String>? _parseTags(dynamic tags) {
     if (tags is List) {
@@ -89,6 +90,17 @@ class JewelryItem {
     return null;
   }
 
+  static String? _parseStringOrFirst(dynamic value) {
+    if (value is String) {
+      return value;
+    }
+    if (value is List && value.isNotEmpty) {
+      // Safely convert the first element to string
+      return value.first?.toString();
+    }
+    // Return null if it's an empty list or not a string/list
+    return null;
+  }
 
   // The corrected fromJson factory
   factory JewelryItem.fromJson(Map<String, dynamic> json) {
@@ -97,29 +109,42 @@ class JewelryItem {
       productTitle: json['title'] ?? json['Product Title'] ?? '',
       image: json['image'] ?? json['Image'] ?? '',
       description: json['description'] ?? json['Description'] ?? '',
-      
+
       price: _parseDouble(json['price'] ?? json['Price']),
-      
+
       tags: _parseTags(json['tags'] ?? json['Product Tags']),
-      
+
       goldWeight: json['gold_weight'] ?? json['Gold Weight'],
       metalPurity: json['metal_purity'] ?? json['Metal Purity'],
       metalFinish: json['metal_finish'] ?? json['Metal Finish'],
-      stoneWeight: json['stone_weight'] ?? json['Stone Weight'],
-      stoneType: json['stone_type'] ?? json['Stone Type'],
-      stoneUsed: json['stone_used'] ?? json['Stone Used'],
-      stoneSetting: json['stone_setting'] ?? json['Stone Setting'],
-      stoneCount: json['stone_count'] ?? json['Stone Count'],
+
+      // --- APPLY THE FIX TO THESE FIELDS ---
+      stoneWeight:
+          _parseStringOrFirst(json['stone_weight'] ?? json['Stone Weight']),
+      stoneType: _parseStringOrFirst(json['stone_type'] ?? json['Stone Type']),
+      stoneUsed: _parseStringOrFirst(json['stone_used'] ?? json['Stone Used']),
+      stoneSetting:
+          _parseStringOrFirst(json['stone_setting'] ?? json['Stone Setting']),
+      stoneCount:
+          _parseStringOrFirst(json['stone_count'] ?? json['Stone Count']),
+      // --- END FIX ---
+
       scrapedUrl: json['scraped_url'] ?? json['Scraped URL'],
       collectionName: json['sub_category'] ?? json['Collection Name'],
       productType: json['category'] ?? json['Product Type'],
       gender: json['gender'] ?? json['Gender'],
       theme: json['occasions'] ?? json['Theme'],
       metalType: json['metal_type'] ?? json['Metal Type'],
-      metalColor: json['metal_color'] ?? json['Metal Color'],
+      metalColor: json['metal_color'] ??
+          json['Metal Color'], // This is 'text' in DB, so no change needed
       netWeight: _parseDouble(json['net_weight'] ?? json['NET WEIGHT']),
-      stoneColor: json['stone_color'] ?? json['Stone Color'],
-      stoneCut: json['stone_cut'] ?? json['Stone Cut'],
+
+      // --- APPLY THE FIX TO THESE FIELDS ---
+      stoneColor:
+          _parseStringOrFirst(json['stone_color'] ?? json['Stone Color']),
+      stoneCut: _parseStringOrFirst(json['stone_cut'] ?? json['Stone Cut']),
+      // --- END FIX ---
+
       dimension: json['size'] ?? json['Dimension'],
       designType: json['style'] ?? json['Design Type'],
       artForm: json['art_form'] ?? json['Art Form'],

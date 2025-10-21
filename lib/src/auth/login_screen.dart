@@ -234,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
             validator: (value) => (value == null || value.length < 6)
                 ? 'Password must be at least 6 characters'
                 : null,
-                onEditingComplete: _signIn,
+            onEditingComplete: _signIn,
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -263,7 +263,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   )
                 : const Text('Log In'),
-                
           ),
           const SizedBox(height: 16),
           const Row(
