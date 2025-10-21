@@ -32,7 +32,7 @@ final _router = GoRouter(
       builder: (context, state) => const MainShell(),
     ),
     GoRoute(
-      path: '/b2b',
+      path: '/designer',
       builder: (context, state) => const DesignerShell(),
     ),
     GoRoute(
@@ -50,20 +50,14 @@ final _router = GoRouter(
   ],
 );
 
-void main() async {
+Future<void> main() async {
+ 
   WidgetsFlutterBinding.ensureInitialized();
-  const bool isDebug = bool.fromEnvironment('dart.vm.product') == false;
-  final envFile = isDebug ? '.env.local' : '.env.production';
-  try {
-    await dotenv.load(fileName: envFile);
-  } catch (e) {
-    debugPrint('Warning: $envFile file not found, skipping dotenv load.');
-  }
 
   final supabaseUrl =
       const String.fromEnvironment('SUPABASE_URL', defaultValue: '').isNotEmpty
           ? const String.fromEnvironment('SUPABASE_URL')
-          : dotenv.env['SUPABASE_URL'] ?? '';
+          : dotenv.env['SUPABASE_URL'] ?? ''; 
   final supabaseAnonKey = const String.fromEnvironment(
     'SUPABASE_ANON_KEY',
     defaultValue: '',
@@ -71,12 +65,17 @@ void main() async {
       ? const String.fromEnvironment('SUPABASE_ANON_KEY')
       : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
+  
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
-    throw Exception('Supabase URL and Anon Key must be provided');
+    throw Exception(
+        'Supabase URL and Anon Key are required. Provide them via --dart-define or .env file.');
   }
 
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+  await Supabase.initialize(
+    url: supabaseUrl, 
+    anonKey: supabaseAnonKey, 
 
+  );
   runApp(
     MultiProvider(
       providers: [
@@ -89,7 +88,6 @@ void main() async {
     ),
   );
 }
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 

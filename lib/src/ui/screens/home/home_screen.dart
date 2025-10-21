@@ -1,14 +1,15 @@
 import 'dart:math';
-import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
-import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
-import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
-import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
+import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:jewelry_nafisa/src/services/filter_service.dart';
+import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
+import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -22,12 +23,30 @@ class _HomeScreenState extends State<HomeScreen> {
   final _scrollController = ScrollController();
   final _supabase = Supabase.instance.client;
   late final JewelryService _jewelryService;
-  List<JewelryItem> _items = [];
-  List<JewelryItem> _filteredItems = []; 
-  bool _isLoading = false;
-  String _selectedProductType = 'All'; 
-  final List<String> _productTypes = ['All']; 
- 
+
+  // --- REFACTORED FILTER STATE ---
+  final FilterService _filterService = FilterService();
+  List<JewelryItem> _products = [];
+  bool _isLoadingFilters = true;
+  bool _isLoadingProducts = true;
+  bool _isLoadingCategories = false;
+  bool _isLoadingSubCategories = false;
+
+  // Options for each filter
+  List<String> _productTypeOptions = ['All'];
+  List<String> _categoryOptions = ['All'];
+  List<String> _subCategoryOptions = ['All'];
+  List<String> _plainOptions = [];
+  List<String> _studdedOptions = [];
+
+  // Selected filter values
+  String _selectedProductType = 'All';
+  String _selectedCategory = 'All';
+  String _selectedSubCategory = 'All';
+  String? _selectedPlain;
+  String? _selectedStudded;
+  // --- END OF REFACTORED STATE ---
+
   String? _hoveredItemId;
   String? _tappedItemId;
   final Set<String> _itemsBeingLiked = {};
@@ -36,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _jewelryService = JewelryService(_supabase);
-    _loadItems(); // Initial load
+    _loadInitialData();
   }
 
   @override
@@ -45,66 +64,204 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Future<void> _loadItems() async {
-    if (_isLoading) return;
-    setState(() => _isLoading = true);
-
+  Future<void> _loadInitialData() async {
+    setState(() {
+      _isLoadingFilters = true;
+      _isLoadingProducts = true;
+    });
     try {
-      // Fetch items (you might want pagination later)
-      final allItems = await _jewelryService.getProducts(limit: 100); // Increased limit slightly
-
-      // --- Extract Unique Product Types ---
-      final Set<String> uniqueTypes = {'All'}; // Start with 'All'
-      for (var item in allItems) {
-        // Use 'productType' field from the model
-        if (item.productType != null && item.productType!.isNotEmpty) {
-          uniqueTypes.add(item.productType!);
+      // 1. Load Initial Filter Options (Independent filters only)
+      final options = await _filterService.getInitialFilterOptions();
+      options.updateAll((key, value) {
+        if (value.isNotEmpty && !value.contains('All')) {
+          if (key == 'Product Type') {
+            return ['All', ...value];
+          }
         }
-      }
-      // ------------------------------------
+        return value;
+      });
 
-      // Shuffle for variety if desired
-      allItems.shuffle(Random());
+      // 2. Load Initial Products (with default filters)
+      final productList = await _fetchFilteredProducts();
 
       if (mounted) {
         setState(() {
-          _items = allItems;
-          _filteredItems = allItems; // Initially show all
-          _productTypes.clear();
-          _productTypes.addAll(uniqueTypes.toList()..sort()); // Update list for chips
-          _selectedProductType = 'All'; // Reset filter selection
-          _isLoading = false;
+          _productTypeOptions = options['Product Type'] ?? ['All'];
+          _plainOptions = options['Plain'] ?? [];
+          _studdedOptions = options['Studded'] ?? [];
+          _products = productList;
+          _isLoadingFilters = false;
+          _isLoadingProducts = false;
         });
       }
     } catch (e) {
-      debugPrint('Error loading items from Supabase: $e');
+      debugPrint('Error loading data: $e');
       if (mounted) {
+        setState(() {
+          _isLoadingFilters = false;
+          _isLoadingProducts = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load designs: $e')),
+          SnackBar(content: Text('Error loading data: $e')),
         );
-        setState(() => _isLoading = false);
       }
     }
   }
 
-  // --- FILTER FUNCTION ---
-  void _filterItems(String productType) {
-    setState(() {
-      _selectedProductType = productType;
-      if (productType == 'All') {
-        _filteredItems = _items; // Show all items
-      } else {
-        // Filter based on the selected productType
-        _filteredItems = _items
-            .where((item) => item.productType == productType)
-            .toList();
+  // Fetches products from Supabase based on the *current* state of selected filters
+  Future<List<JewelryItem>> _fetchFilteredProducts() async {
+    if (mounted) {
+      setState(() => _isLoadingProducts = true);
+    }
+    try {
+      dynamic query = _supabase.from('products').select(); // Use 'dynamic'
+
+      // Apply filters
+      if (_selectedProductType != 'All') {
+        query = query.eq('Product Type', _selectedProductType);
       }
-    });
+      if (_selectedCategory != 'All') {
+        query = query.eq('Category', _selectedCategory);
+      }
+      if (_selectedSubCategory != 'All') {
+        // **FIX: Use quotes for column name with space**
+        query = query.eq('"Sub Category"', _selectedSubCategory);
+      }
+      if (_selectedPlain != null) {
+        query = query.eq('Plain', _selectedPlain!);
+      }
+      if (_selectedStudded != null) {
+        query = query.eq('Studded', _selectedStudded!);
+      }
+
+      query = query.limit(50).order('id', ascending: false);
+      final response = await query;
+
+      if (response is List) {
+        final allItems = response
+            .map((item) => JewelryItem.fromJson(item as Map<String, dynamic>))
+            .toList();
+        return allItems;
+      } else {
+        debugPrint(
+            'Unexpected response type from products query: ${response.runtimeType}');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Error fetching filtered products: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading products: $e')),
+        );
+      }
+      return [];
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingProducts = false);
+      }
+    }
   }
-  // ---------------------
+
+  // This function just applies the filters and updates the product list
+  Future<void> _applyFilters() async {
+    final productList = await _fetchFilteredProducts();
+    if (mounted) {
+      setState(() => _products = productList);
+    }
+  }
+
+  // --- NEW: Handlers for dependent dropdowns ---
+
+  /// Called when "Product Type" dropdown changes
+  Future<void> _onProductTypeChanged(String? value) async {
+    if (value == null) return;
+
+    setState(() {
+      _selectedProductType = value;
+      // Reset dependent filters
+      _selectedCategory = 'All';
+      _selectedSubCategory = 'All';
+      // Clear options and show loading
+      _categoryOptions = ['All'];
+      _subCategoryOptions = ['All'];
+      _isLoadingCategories = true;
+    });
+
+    // Fetch new options for 'Category'
+    final filters = {'Product Type': value};
+    final newCategories =
+        await _filterService.getDependentDistinctValues('Category', filters);
+
+    if (mounted) {
+      setState(() {
+        _categoryOptions = ['All', ...newCategories];
+        _isLoadingCategories = false;
+      });
+    }
+    // Refetch products
+    _applyFilters();
+  }
+
+  /// Called when "Category" dropdown changes
+  Future<void> _onCategoryChanged(String? value) async {
+    if (value == null) return;
+
+    setState(() {
+      _selectedCategory = value;
+      // Reset dependent filter
+      _selectedSubCategory = 'All';
+      // Clear options and show loading
+      _subCategoryOptions = ['All'];
+      _isLoadingSubCategories = true;
+    });
+
+    // Fetch new options for 'Sub Category'
+    final filters = {
+      'Product Type': _selectedProductType,
+      'Category': value,
+    };
+    // **FIX: Use correct column name with space**
+    final newSubCategories = await _filterService
+        .getDependentDistinctValues('Sub Category', filters);
+
+    if (mounted) {
+      setState(() {
+        _subCategoryOptions = ['All', ...newSubCategories];
+        _isLoadingSubCategories = false;
+      });
+    }
+    // Refetch products
+    _applyFilters();
+  }
+
+  /// Called when "Sub Category" dropdown changes
+  void _onSubCategoryChanged(String? value) {
+    if (value == null) return;
+    setState(() {
+      _selectedSubCategory = value;
+    });
+    // Just refetch products, no new options to load
+    _applyFilters();
+  }
+
+  // --- End of new handlers ---
+
+  void _resetFilters() {
+    setState(() {
+      _selectedProductType = 'All';
+      _selectedCategory = 'All';
+      _selectedSubCategory = 'All';
+      _selectedPlain = null;
+      _selectedStudded = null;
+
+      // Reset option lists to default
+      _categoryOptions = ['All'];
+      _subCategoryOptions = ['All'];
+    });
+    _applyFilters();
+  }
 
   Future<void> _likeItem(JewelryItem item) async {
-     // ... (like logic remains the same)
     if (_itemsBeingLiked.contains(item.id)) return;
 
     setState(() {
@@ -124,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final pinData = await _supabase
           .from('pins')
           .select('id')
-          .eq('image_url', item.image) // Use item.image
+          .eq('image_url', item.image)
           .maybeSingle();
 
       String pinId;
@@ -135,9 +292,9 @@ class _HomeScreenState extends State<HomeScreen> {
             .from('pins')
             .insert({
               'owner_id': uid,
-              'title': item.productTitle, // Use item.productTitle
-              'image_url': item.image, // Use item.image
-              'description': item.description, // Use item.description
+              'title': item.productTitle,
+              'image_url': item.image,
+              'description': item.description,
             })
             .select('id')
             .single();
@@ -160,17 +317,11 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (mounted) {
-        // Update the state in both lists to ensure consistency
-        final itemIndex = _items.indexWhere((i) => i.id == item.id);
-        if (itemIndex != -1) {
-          _items[itemIndex].isFavorite = !_items[itemIndex].isFavorite;
+        final productIndex = _products.indexWhere((i) => i.id == item.id);
+        if (productIndex != -1) {
+          setState(() => _products[productIndex].isFavorite =
+              !_products[productIndex].isFavorite);
         }
-         final filteredIndex = _filteredItems.indexWhere((i) => i.id == item.id);
-         if (filteredIndex != -1) {
-          setState(() => _filteredItems[filteredIndex].isFavorite = !_filteredItems[filteredIndex].isFavorite);
-         } else {
-          setState(() {}); // Still trigger rebuild if not in filtered list currently
-         }
       }
     } catch (e) {
       debugPrint("Error toggling like on home screen: $e");
@@ -185,13 +336,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _shareItem(JewelryItem item) {
-    // ... (share logic remains the same)
     Share.share(
         'Check out this beautiful ${item.productTitle} from Dagina Designs!');
   }
 
   void _saveToBoard(JewelryItem item) {
-    // ... (save logic remains the same)
     Provider.of<BoardsProvider>(context, listen: false).fetchBoards().then((_) {
       showDialog(
         context: context,
@@ -205,32 +354,31 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: Column(
         children: [
-          // --- ADD FILTER CHIPS ---
-          _buildFilterChips(), // Add the filter chips UI here
-          // -----------------------
+          _buildFilterBar(),
           Expanded(
-            child: _isLoading
+            child: (_isLoadingProducts && _products.isEmpty)
                 ? const Center(child: CircularProgressIndicator())
                 : RefreshIndicator(
-                    onRefresh: _loadItems, // Reload all items on refresh
-                    child: MasonryGridView.count(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(8.0),
-                      // Adjust cross axis count based on screen width
-                      crossAxisCount:
-                          (MediaQuery.of(context).size.width / 200)
-                              .floor()
-                              .clamp(2, 6),
-                      // Use the _filteredItems list here
-                      itemCount: _filteredItems.length,
-                      itemBuilder: (context, index) {
-                        // Build card using item from _filteredItems
-                        return _buildImageCard(
-                            context, _filteredItems[index]);
-                      },
-                      mainAxisSpacing: 8.0,
-                      crossAxisSpacing: 8.0,
-                    ),
+                    onRefresh: _loadInitialData,
+                    child: _products.isEmpty
+                        ? const Center(
+                            child: Text(
+                                'No products found matching your filters.'))
+                        : MasonryGridView.count(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(8.0),
+                            crossAxisCount:
+                                (MediaQuery.of(context).size.width / 200)
+                                    .floor()
+                                    .clamp(2, 6),
+                            itemCount: _products.length,
+                            itemBuilder: (context, index) {
+                              return _buildImageCard(
+                                  context, _products[index]);
+                            },
+                            mainAxisSpacing: 8.0,
+                            crossAxisSpacing: 8.0,
+                          ),
                   ),
           ),
         ],
@@ -238,44 +386,153 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- WIDGET FOR FILTER CHIPS ---
-  Widget _buildFilterChips() {
-    // Handle case where product types haven't loaded yet
-    if (_productTypes.isEmpty) return const SizedBox(height: 48);
+  Widget _buildFilterBar() {
+    if (_isLoadingFilters) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+        child: Center(child: LinearProgressIndicator()),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: SizedBox(
-        height: 40, // Give the ListView a fixed height
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          itemCount: _productTypes.length,
-          itemBuilder: (context, index) {
-            final type = _productTypes[index];
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: ChoiceChip(
-                label: Text(type),
-                selected: _selectedProductType == type,
-                onSelected: (selected) {
-                  if (selected) {
-                    _filterItems(type); // Call filter function on select
-                  }
-                },
-                // Optional: Style selected chip differently
-                selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                checkmarkColor: Theme.of(context).colorScheme.primary,
-              ),
-            );
-          },
-        ),
+      child: Wrap(
+        spacing: 8.0,
+        runSpacing: 4.0,
+        alignment: WrapAlignment.start,
+        children: [
+          _buildDropdownFilter(
+            hint: 'Product Type',
+            options: _productTypeOptions,
+            selectedValue: _selectedProductType,
+            onChanged: _onProductTypeChanged, // Use new handler
+          ),
+          _buildDropdownFilter(
+            hint: 'Category',
+            options: _categoryOptions,
+            selectedValue: _selectedCategory,
+            onChanged: _onCategoryChanged, // Use new handler
+            isLoading: _isLoadingCategories,
+          ),
+          _buildDropdownFilter(
+            hint: 'Sub Category',
+            options: _subCategoryOptions,
+            selectedValue: _selectedSubCategory,
+            onChanged: _onSubCategoryChanged, // Use new handler
+            isLoading: _isLoadingSubCategories,
+          ),
+          _buildChoiceChipFilter(
+            label: 'Plain',
+            options: _plainOptions,
+            selectedOption: _selectedPlain,
+            onSelected: (value) {
+              setState(() => _selectedPlain = value);
+              _applyFilters();
+            },
+          ),
+          _buildChoiceChipFilter(
+            label: 'Studded',
+            options: _studdedOptions,
+            selectedOption: _selectedStudded,
+            onSelected: (value) {
+              setState(() => _selectedStudded = value);
+              _applyFilters();
+            },
+          ),
+          if (_selectedProductType != 'All' ||
+              _selectedCategory != 'All' ||
+              _selectedSubCategory != 'All' ||
+              _selectedPlain != null ||
+              _selectedStudded != null)
+            ActionChip(
+              avatar: const Icon(Icons.clear, size: 18),
+              label: const Text('Reset'),
+              onPressed: _resetFilters,
+            ),
+        ],
       ),
     );
   }
-  // -------------------------------
+
+  Widget _buildDropdownFilter({
+    required String hint,
+    required List<String> options,
+    required String? selectedValue,
+    required ValueChanged<String?> onChanged,
+    bool isLoading = false,
+  }) {
+    // Show loading indicator if this specific dropdown is loading
+    if (isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: SizedBox(
+            width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2,)),
+      );
+    }
+    
+    // Don't build a dropdown if there are no options (besides 'All')
+    if (options.length <= 1 && hint != 'Product Type') return const SizedBox.shrink();
+
+    // Ensure 'All' is always an option and selected if value is null
+    final displayOptions =
+        (options.contains('All') ? options : ['All', ...options])
+            .toSet() // Remove duplicates
+            .toList();
+
+    final currentSelection =
+        (selectedValue == null || !displayOptions.contains(selectedValue))
+            ? 'All'
+            : selectedValue;
+
+    return DropdownButton<String>(
+      hint: Text(hint),
+      value: currentSelection,
+      onChanged: onChanged,
+      items: displayOptions.map<DropdownMenuItem<String>>((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(value),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildChoiceChipFilter({
+    required String label,
+    required List<String> options,
+    required String? selectedOption,
+    required Function(String?) onSelected,
+  }) {
+    if (options.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: 8.0,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (label.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: Text('$label:',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ...options.map((option) {
+          final isSelected = selectedOption == option;
+          return ChoiceChip(
+            label: Text(option),
+            selected: isSelected,
+            onSelected: (selected) {
+              onSelected(selected ? option : null);
+            },
+            selectedColor:
+                Theme.of(context).colorScheme.primary.withOpacity(0.2),
+            checkmarkColor: Theme.of(context).colorScheme.primary,
+          );
+        }).toList(),
+      ],
+    );
+  }
 
   Widget _buildImageCard(BuildContext context, JewelryItem item) {
-    // ... (card building logic remains the same)
     final bool isHovered = _hoveredItemId == item.id;
     final bool isTapped = _tappedItemId == item.id;
     final userProfile = context.watch<UserProfileProvider>();
@@ -306,11 +563,9 @@ class _HomeScreenState extends State<HomeScreen> {
               Image.network(
                 item.image,
                 fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) =>
-                    progress == null
-                        ? child
-                        : const Center(
-                            child: CircularProgressIndicator.adaptive()),
+                loadingBuilder: (context, child, progress) => progress == null
+                    ? child
+                    : const Center(child: CircularProgressIndicator.adaptive()),
                 errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.error_outline, color: Colors.grey),
               ),
@@ -342,9 +597,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        if (!isMember) const Spacer(), // Takes up space if not member
+                        if (!isMember)
+                          const Spacer(), // Takes up space if not member
                         Row(
-                          mainAxisSize: MainAxisSize.min, // Keep buttons compact
+                          mainAxisSize:
+                              MainAxisSize.min, // Keep buttons compact
                           children: [
                             IconButton(
                               icon: isLiking
@@ -368,14 +625,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               tooltip: 'Like',
                               iconSize: 20, // Adjust size
                               padding: EdgeInsets.zero, // Reduce padding
-                              constraints: const BoxConstraints(), // Remove extra constraints
+                              constraints:
+                                  const BoxConstraints(), // Remove extra constraints
                             ),
                             IconButton(
-                              icon: const Icon(Icons.share,
-                                  color: Colors.white),
+                              icon:
+                                  const Icon(Icons.share, color: Colors.white),
                               onPressed: () => _shareItem(item),
                               tooltip: 'Share',
-                               iconSize: 20,
+                              iconSize: 20,
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
                             ),
@@ -384,7 +642,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   color: Colors.white),
                               onPressed: () => _saveToBoard(item),
                               tooltip: 'Save',
-                               iconSize: 20,
+                              iconSize: 20,
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
                             ),

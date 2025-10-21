@@ -62,6 +62,18 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
         return;
       }
 
+      const arrayHeaders = {
+        'Product Tags',
+        'Stone Weight',
+        'Stone Type',
+        'Stone Used',
+        'Stone Setting',
+        'Stone Count',
+        'Stone Color',
+        'Stone Cut',
+        'Stone Purity',
+      };
+
       final List<Map<String, dynamic>> productList = [];
       for (final row in rows) {
         final product = <String, dynamic>{};
@@ -76,13 +88,37 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
               productTitle = value.toString();
             }
 
-            if (header == 'Product Tags' && value is String) {
-              product[header] = value.split(',').map((t) => t.trim()).toList();
+            // if (header == 'Product Tags' && value is String) {
+            //   product[header] = value.split(',').map((t) => t.trim()).toList();
+            // } else if (header == 'Price' && value is String) {
+            //   final cleanedPriceString =
+            //       value.replaceAll('₹', '').replaceAll(',', '').trim();
+            //   product[header] = double.tryParse(cleanedPriceString);
+            // } else {
+            //   product[header] = value;
+            // }
+
+            if (arrayHeaders.contains(header)) {
+              if (value == null) {
+                product[header] = null; // Set null if value is null
+              } else if (value is String) {
+                if (value.isEmpty) {
+                  product[header] = null; // Set null for empty strings
+                } else {
+                  // It's a string, split by comma
+                  product[header] =
+                      value.split(',').map((t) => t.trim()).toList();
+                }
+              } else {
+                // It's not a string (e.g., int, double), so wrap it in a list
+                product[header] = [value.toString()];
+              }
             } else if (header == 'Price' && value is String) {
               final cleanedPriceString =
                   value.replaceAll('₹', '').replaceAll(',', '').trim();
               product[header] = double.tryParse(cleanedPriceString);
             } else {
+              // Assign all other values directly
               product[header] = value;
             }
           }
@@ -92,8 +128,9 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
           final files = await Supabase.instance.client.storage
               .from('product-images')
               .list();
-          final matchingFiles =
-              files.where((file) => file.name.startsWith(productTitle!)).toList();
+          final matchingFiles = files
+              .where((file) => file.name.startsWith(productTitle!))
+              .toList();
 
           if (matchingFiles.isNotEmpty) {
             final imageName = matchingFiles.first.name;
