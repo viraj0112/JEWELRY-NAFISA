@@ -10,7 +10,6 @@ class JewelryService {
   Future<List<JewelryItem>> getProducts(
       {int limit = 50, int offset = 0}) async {
     try {
-      // Fetch from both tables in parallel
       final responses = await Future.wait([
         _supabaseClient
             .from('products')
@@ -46,11 +45,15 @@ class JewelryService {
     try {
       var query = _supabaseClient
           .from('products')
-          .select()
-          .not('id', 'eq', currentItemId);
+          .select();
+
+      final isIntegerId = int.tryParse(currentItemId) != null;
+      if (isIntegerId) {
+        query = query.not('id', 'eq', currentItemId);
+      }
 
       if (category != null && category.isNotEmpty) {
-        query = query.eq('category', category);
+        query = query.eq('Category', category);
       }
 
       final response = await query.limit(limit);
@@ -67,8 +70,14 @@ class JewelryService {
 
   Future<JewelryItem?> getJewelryItem(String id) async {
     try {
+      final intId = int.tryParse(id);
+      if (intId == null) {
+          debugPrint('getJewelryItem: ID is not an integer, cannot fetch from "products" table.');
+          return null;
+      }
+
       final response =
-          await _supabaseClient.from('products').select().eq('id', id).single();
+          await _supabaseClient.from('products').select().eq('id', intId).single();
       return JewelryItem.fromJson(response);
     } catch (e) {
       debugPrint('Error fetching single product: $e');

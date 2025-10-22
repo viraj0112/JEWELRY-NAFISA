@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:jewelry_nafisa/src/models/board.dart'; // Import the new model
+import 'package:jewelry_nafisa/src/models/board.dart'; // Import the model from the correct path
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
-import 'package:jewelry_nafisa/src/ui/widgets/board_card.dart';
+import 'package:jewelry_nafisa/src/ui/widgets/board_card.dart'; // Import the updated BoardCard
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// The local 'Board' class has been REMOVED from this file
+// --- ADDED: SortMode enum ---
+enum SortMode { newest, nameAsc, nameDesc }
 
 class BoardsScreen extends StatefulWidget {
   const BoardsScreen({super.key});
@@ -22,17 +23,26 @@ class _BoardsScreenState extends State<BoardsScreen> {
   List<Board> _filteredBoards = [];
   bool _isLoadingBoards = true;
   final _searchController = TextEditingController();
+  SortMode _sortMode = SortMode.newest; // --- ADDED: Sort state ---
 
   @override
   void initState() {
     super.initState();
     _fetchUserBoards();
-    _searchController.addListener(_filterBoards);
+    // --- UPDATED: Listener now rebuilds state to show/hide clear icon ---
+    _searchController.addListener(() {
+      setState(() {}); // Rebuilds to show/hide clear icon
+      _filterBoards(); // Calls the existing filter logic
+    });
   }
 
   @override
   void dispose() {
-    _searchController.removeListener(_filterBoards);
+    // --- UPDATED: Make sure to remove the correct listener ---
+    _searchController.removeListener(() {
+      setState(() {});
+      _filterBoards();
+    });
     _searchController.dispose();
     super.dispose();
   }
@@ -43,6 +53,27 @@ class _BoardsScreenState extends State<BoardsScreen> {
       _filteredBoards = _allBoards
           .where((board) => board.name.toLowerCase().contains(query))
           .toList();
+      _sortBoards(); // Apply sorting after filtering
+    });
+  }
+
+  // --- ADDED: Sort Function ---
+  void _sortBoards() {
+    setState(() {
+      switch (_sortMode) {
+        case SortMode.nameAsc:
+          _filteredBoards
+              .sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          break;
+        case SortMode.nameDesc:
+          _filteredBoards
+              .sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+          break;
+        case SortMode.newest:
+          // Sort by ID descending (assuming higher ID is newer)
+          _filteredBoards.sort((a, b) => b.id.compareTo(a.id));
+          break;
+      }
     });
   }
 
@@ -53,14 +84,19 @@ class _BoardsScreenState extends State<BoardsScreen> {
       return;
     }
     try {
+      if (!mounted) return;
+      setState(() => _isLoadingBoards = true);
+
       final res = await _supabase
           .from('boards')
-          .select('id, name')
+          .select('id, name, is_secret')
           .eq('user_id', user.id)
           .order('created_at', ascending: false);
+
       final rows = List<Map<String, dynamic>>.from(res as List<dynamic>);
       final result = <Board>[];
-      for (final r in rows) {
+
+      await Future.wait(rows.map((r) async {
         final id = r['id'] as int;
         final pinRes = await _supabase
             .from('boards_pins')
@@ -69,17 +105,30 @@ class _BoardsScreenState extends State<BoardsScreen> {
             .limit(3);
 
         final imageUrls = (pinRes as List<dynamic>)
-            .map((e) => e['pins']['image_url'] as String)
+            .map((e) => e['pins']['image_url'] as String?)
+            .where((url) => url != null)
+            .cast<String>()
             .toList();
+
         result.add(
-          Board(id: id, name: r['name'] as String, coverUrls: imageUrls),
+          Board(
+            id: id,
+            name: r['name'] as String,
+            coverUrls: imageUrls,
+            isSecret: r['is_secret'] as bool? ?? false,
+          ),
         );
-      }
+      }));
+
+      // Sort boards after fetching covers to maintain order
+      result.sort((a, b) => b.id.compareTo(a.id));
+
       if (mounted) {
         setState(() {
           _allBoards = result;
           _filteredBoards = result;
           _isLoadingBoards = false;
+          _sortBoards(); // --- ADDED: Apply initial sort ---
         });
       }
     } catch (e) {
@@ -97,23 +146,50 @@ class _BoardsScreenState extends State<BoardsScreen> {
   }
 
   Future<void> _deleteBoard(int boardId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Delete Board?"),
+          content: const Text(
+              "Are you sure you want to delete this board and all its Pins? This action cannot be undone."),
+          actions: [
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
+            TextButton(
+              child: const Text("Delete", style: TextStyle(color: Colors.red)),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
     try {
       await _supabase.from('boards').delete().eq('id', boardId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Board deleted.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      _fetchUserBoards();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Board deleted.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _fetchUserBoards();
+      }
     } catch (e) {
       debugPrint('Error deleting board: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to delete board.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to delete board.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -129,6 +205,7 @@ class _BoardsScreenState extends State<BoardsScreen> {
     );
   }
 
+  // --- UPDATED: Toolbar with Search, Sort, and Add Button ---
   Widget _buildBoardToolbar() {
     return Padding(
       padding: const EdgeInsets.all(12.0),
@@ -145,11 +222,26 @@ class _BoardsScreenState extends State<BoardsScreen> {
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
+                // --- IMPLEMENTED: Clear Button ---
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                        },
+                      )
+                    : null,
               ),
             ),
           ),
           const SizedBox(width: 8),
-          IconButton.filled(
+          // --- IMPLEMENTED: Sort Button ---
+          IconButton.filledTonal(
+            icon: const Icon(Icons.sort),
+            onPressed: _showSortOptions,
+            tooltip: 'Sort Boards',
+          ),
+          IconButton.filledTonal(
             icon: const Icon(Icons.add),
             onPressed: _showCreateBoardDialog,
             tooltip: 'Create New Board',
@@ -159,71 +251,266 @@ class _BoardsScreenState extends State<BoardsScreen> {
     );
   }
 
-  void _showCreateBoardDialog() {
-    final boardNameController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    showDialog(
+  // --- ADDED: Sort Options Modal ---
+  void _showSortOptions() {
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create New Board'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: boardNameController,
-            decoration: const InputDecoration(labelText: 'Board Name'),
-            validator: (v) => v!.isEmpty ? 'Name cannot be empty' : null,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                await context.read<BoardsProvider>().createBoard(
-                      boardNameController.text.trim(),
-                    );
+      builder: (context) {
+        return Wrap(
+          children: [
+            ListTile(
+              leading: Icon(_sortMode == SortMode.newest ? Icons.check_circle : Icons.circle_outlined),
+              title: const Text('Sort by Newest'),
+              onTap: () {
                 Navigator.pop(context);
-                _fetchUserBoards();
-              }
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
+                _sortMode = SortMode.newest;
+                _sortBoards();
+              },
+            ),
+            ListTile(
+              leading: Icon(_sortMode == SortMode.nameAsc ? Icons.check_circle : Icons.circle_outlined),
+              title: const Text('Sort A-Z'),
+              onTap: () {
+                Navigator.pop(context);
+                _sortMode = SortMode.nameAsc;
+                _sortBoards();
+              },
+            ),
+            ListTile(
+              leading: Icon(_sortMode == SortMode.nameDesc ? Icons.check_circle : Icons.circle_outlined),
+              title: const Text('Sort Z-A'),
+              onTap: () {
+                Navigator.pop(context);
+                _sortMode = SortMode.nameDesc;
+                _sortBoards();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
+  // --- Dialog for Creating New Boards (includes Secret option) ---
+  void _showCreateBoardDialog() {
+    final TextEditingController nameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isSecret = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("Create Board"),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: "Board Name"),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Board name cannot be empty';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("Keep this board secret?"),
+                        Switch(
+                          value: isSecret,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              isSecret = value;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      final name = nameController.text.trim();
+                      try {
+                        await context.read<BoardsProvider>().createBoard(
+                              name,
+                              isSecret: isSecret,
+                            );
+                        Navigator.of(context).pop();
+                        _fetchUserBoards();
+                      } catch (e) {
+                        if (mounted) {
+                           ScaffoldMessenger.of(context).showSnackBar(
+                             SnackBar(content: Text('Error creating board: $e'), backgroundColor: Colors.red),
+                           );
+                        }
+                      }
+                    }
+                  },
+                  child: const Text("Create"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- ADDED: Edit Board Dialog ---
+  void _showEditBoardDialog(Board board) {
+    final TextEditingController nameController =
+        TextEditingController(text: board.name);
+    final formKey = GlobalKey<FormState>();
+    bool isSecret = board.isSecret;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("Edit Board"),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: "Board Name"),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Board name cannot be empty';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("Keep this board secret?"),
+                        Switch(
+                          value: isSecret,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              isSecret = value;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      final newName = nameController.text.trim();
+                      if (newName == board.name && isSecret == board.isSecret) {
+                        Navigator.of(context).pop(); // No changes
+                        return;
+                      }
+
+                      try {
+                        // Call the provider's updateBoard method
+                        await context.read<BoardsProvider>().updateBoard(
+                              board.id,
+                              newName,
+                              isSecret,
+                            );
+                        Navigator.of(context).pop(); // Close the dialog
+                        _fetchUserBoards(); // Refresh the boards list
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('Error updating board: $e'),
+                                backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  child: const Text("Save"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- Grid View for Displaying Boards ---
   Widget _buildBoardsGrid() {
     if (_isLoadingBoards) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_filteredBoards.isEmpty) {
-      return const Center(child: Text("No boards found."));
+    if (_filteredBoards.isEmpty && _searchController.text.isEmpty) {
+      return const Center(
+          child: Text(
+        "You haven't created any boards yet.\nTap the '+' button to start!",
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Colors.grey),
+      ));
     }
+    if (_filteredBoards.isEmpty && _searchController.text.isNotEmpty) {
+      return const Center(
+          child: Text(
+        "No boards found matching your search.",
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Colors.grey),
+      ));
+    }
+
     return MasonryGridView.count(
-      padding: const EdgeInsets.all(12.0),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       crossAxisCount:
-          (MediaQuery.of(context).size.width / 250).floor().clamp(2, 5),
+          (MediaQuery.of(context).size.width / 200).floor().clamp(2, 5),
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       itemCount: _filteredBoards.length,
       itemBuilder: (context, idx) {
         final board = _filteredBoards[idx];
-        return BoardCard(
-          board: board,
-          onTap: () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) =>
-                    BoardDetailScreen(boardId: board.id, boardName: board.name),
-              ),
-            );
-            _fetchUserBoards();
-          },
-          onDelete: () => _deleteBoard(board.id),
+        return GestureDetector(
+          onLongPress: () => _showEditBoardDialog(board),
+          child: BoardCard(
+            board: board,
+            onTap: () async {
+              final result = await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      BoardDetailScreen(boardId: board.id, boardName: board.name),
+                ),
+              );
+              if (result == true) {
+                _fetchUserBoards();
+              }
+            },
+            onDelete: () => _deleteBoard(board.id),
+          ),
         );
       },
     );

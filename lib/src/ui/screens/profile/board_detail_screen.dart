@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart'; // Corrected path
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
+import 'package:provider/provider.dart';
 
 class BoardDetailScreen extends StatefulWidget {
-  final int boardId;
+  final int boardId; // Use int ID
   final String boardName;
 
   const BoardDetailScreen({
+    Key? key,
     required this.boardId,
     required this.boardName,
-    super.key,
-  });
+  }) : super(key: key);
 
   @override
   State<BoardDetailScreen> createState() => _BoardDetailScreenState();
@@ -18,163 +22,201 @@ class BoardDetailScreen extends StatefulWidget {
 
 class _BoardDetailScreenState extends State<BoardDetailScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
-  late Future<List<Map<String, dynamic>>> _pinsFuture;
+  List<JewelryItem> _pins = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _pinsFuture = _fetchPins();
+    _fetchPinsForBoard();
   }
 
-  Future<List<Map<String, dynamic>>> _fetchPins() async {
-    try {
-      final resp = await _supabase
-          .from('boards_pins')
-          .select('pins(id, image_url, title, description)')
-          .eq('board_id', widget.boardId)
-          .order('created_at', ascending: false);
+  Future<void> _fetchPinsForBoard() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
 
-      final pins = (resp as List<dynamic>)
-          .map((e) => e['pins'] as Map<String, dynamic>?)
-          .where((pin) => pin != null)
-          .map((pin) => pin!)
+    try {
+      final response = await _supabase
+          .from('boards_pins')
+          .select('pins(*)') // Select all columns from the linked 'pins' table
+          .eq('board_id', widget.boardId);
+
+      final List<dynamic> data = response as List<dynamic>;
+      final fetchedPins = data
+          .map((e) => JewelryItem.fromJson(e['pins'] as Map<String, dynamic>))
           .toList();
 
-      return pins;
-    } catch (e) {
-      debugPrint('Error fetching board pins: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Error loading pins: ${e is PostgrestException ? e.message : e.toString()}'),
-            backgroundColor: Colors.red));
-      }
-      return [];
-    }
-  }
-
-  Future<void> _removePin(String pinId) async {
-    try {
-      await _supabase.from('boards_pins').delete().match({
-        'board_id': widget.boardId,
-        'pin_id': pinId,
-      });
       if (mounted) {
         setState(() {
-          _pinsFuture = _fetchPins();
+          _pins = fetchedPins;
+          _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('Error removing pin: $e');
+      debugPrint('Error fetching pins for board: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Failed to remove pin')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading pins: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  // --- This function correctly expects an int ---
+  Future<void> _removePinFromBoard(int pinId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Remove Pin?"),
+          content: const Text(
+              "Are you sure you want to remove this pin from the board?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text("Remove", style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await _supabase
+          .from('boards_pins')
+          .delete()
+          .eq('board_id', widget.boardId)
+          .eq('pin_id', pinId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pin removed from board.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _fetchPinsForBoard(); // Refresh the list of pins
+        // Also notify BoardsProvider to refresh cover images if this was one
+        Provider.of<BoardsProvider>(context, listen: false).fetchBoards();
+      }
+    } catch (e) {
+      debugPrint('Error removing pin from board: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to remove pin.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.boardName),
-        backgroundColor: theme.appBarTheme.backgroundColor,
-        foregroundColor: theme.colorScheme.onPrimary,
-        elevation: 1,
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _pinsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final pins = snapshot.data ?? [];
-          if (pins.isEmpty) {
-            return const Center(
-              child: Text('No images saved to this board yet'),
-            );
-          }
-
-          return MasonryGridView.count(
-            crossAxisCount: MediaQuery.of(context).size.width > 800 ? 6 : 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            padding: const EdgeInsets.all(12),
-            itemCount: pins.length,
-            itemBuilder: (context, index) {
-              final pin = pins[index];
-              return Card(
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AspectRatio(
-                      aspectRatio: 4 / 3,
-                      child: Image.network(
-                        pin['image_url'] ?? '',
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.broken_image),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              pin['title'] ?? '',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _pins.isEmpty
+              ? const Center(
+                  child: Text("No pins in this board yet. Start saving!"))
+              : MasonryGridView.count(
+                  crossAxisCount: (MediaQuery.of(context).size.width / 180)
+                      .floor()
+                      .clamp(2, 5),
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  padding: const EdgeInsets.all(8),
+                  itemCount: _pins.length,
+                  itemBuilder: (context, index) {
+                    final pin = _pins[index];
+                    return GestureDetector(
+                      onTap: () {
+                        // --- This is the navigation logic you wanted ---
+                        // It was already correct.
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => JewelryDetailScreen(
+                                jewelryItem: pin), // Pass the entire item
+                          ),
+                        );
+                      },
+                      child: Card(
+                        clipBehavior: Clip.antiAlias,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AspectRatio(
+                              // --- This now works due to the fix in jewelry_item.dart ---
+                              aspectRatio: pin.aspectRatio,
+                              child: Image.network(
+                                pin.image,
+                                fit: BoxFit.cover,
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      value:
+                                          loadingProgress.expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                  loadingProgress
+                                                      .expectedTotalBytes!
+                                              : null,
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Center(
+                                        child: Icon(Icons.broken_image)),
                               ),
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Remove image?'),
-                                  content: const Text(
-                                    'Remove this image from the board?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(ctx, false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      child: const Text('Remove'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (confirm == true) {
-                                await _removePin(pin['id'] as String);
-                              }
-                            },
-                          ),
-                        ],
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                pin.productTitle,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            // --- Add a button to remove the pin ---
+                            Align(
+                              alignment: Alignment.bottomRight,
+                              child: IconButton(
+                                icon: const Icon(Icons.delete_forever,
+                                    color: Colors.grey),
+                                // --- FIX: Parse the String ID to an int ---
+                                onPressed: () =>
+                                    _removePinFromBoard(int.parse(pin.id)),
+                                tooltip: 'Remove from board',
+                              ),
+                            )
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
-          );
-        },
-      ),
     );
   }
 }
