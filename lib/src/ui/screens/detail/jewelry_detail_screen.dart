@@ -32,7 +32,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   bool _isLiking = false;
   bool _isSaving = false;
 
-
   String? _pinId;
   int _likeCount = 0;
   bool _userLiked = false;
@@ -169,7 +168,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   // ... (Rest of the file is unchanged) ...
-  
+
   Future<void> _shareItem() async {
     final shareText =
         'Check out this beautiful ${widget.jewelryItem.productTitle} from AKD Designs!';
@@ -372,19 +371,26 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           if (showFullDetails) ...[
             Text("Product Details", style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
-            _buildDetailRow("Collection:", item.collectionName ?? 'N/A'),
-            _buildDetailRow("Gender:", item.gender ?? 'N/A'),
-            _buildDetailRow("Metal:", item.metalType ?? 'N/A'),
-            _buildDetailRow("Metal Purity:", item.metalPurity ?? 'N/A'),
-            _buildDetailRow("Gold Weight:", item.goldWeight ?? 'N/A'),
-            _buildDetailRow("Stone:", item.stoneType ?? 'N/A'),
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Text(
-                item.description,
-                style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-              ),
-            ),
+            _buildDetailRow("Collection:", item.collectionName),
+            _buildDetailRow("Gender:", item.gender),
+            _buildDetailRow("Metal:", item.metalType),
+            _buildDetailRow("Metal Purity:", item.metalPurity),
+            _buildDetailRow("Gold Weight:", item.goldWeight),
+            _buildDetailRow("Stone Type:", item.stoneType),
+            _buildDetailRow("Stone Weight:", item.stoneWeight),
+            _buildDetailRow("Stone Count:", item.stoneCount),
+            _buildDetailRow("Stone Used:", item.stoneUsed),
+            _buildDetailRow("Stone Setting:", item.stoneSetting),
+            _buildDetailRow("Stone Purity:", item.stonePurity),
+            _buildDetailRow("Stone Color:", item.stoneColor),
+            _buildDetailRow("Stone Cut:", item.stoneCut),
+            // Padding(
+            //   padding: const EdgeInsets.only(top: 8.0),
+            //   child: Text(
+            //     item.description,
+            //     style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+            //   ),
+            // ),
             const SizedBox(height: 24),
           ] else ...[
             Text("Description", style: theme.textTheme.titleLarge),
@@ -407,14 +413,33 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     );
   }
 
-  Widget _buildDetailRow(String title, String value) {
+  Widget _buildDetailRow(String title, dynamic value) {
+    String displayValue;
+
+    if (value == null) {
+      return const SizedBox.shrink();
+    }
+
+    if (value is List) {
+      if (value.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      displayValue = value.join(', ');
+    } else {
+      displayValue = value.toString();
+    }
+
+    if (displayValue.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(width: 8),
-          Expanded(child: Text(value)),
+          Text('$title ', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Expanded(child: Text(displayValue)),
         ],
       ),
     );
