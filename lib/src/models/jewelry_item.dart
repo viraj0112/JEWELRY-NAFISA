@@ -34,6 +34,8 @@ class JewelryItem {
   final String? enamelWork;
   final bool? customizable;
   bool isFavorite;
+  // --- FIX: Added aspectRatio field used in board_detail_screen.dart ---
+  final double aspectRatio;
 
   JewelryItem({
     required this.id,
@@ -67,6 +69,7 @@ class JewelryItem {
     this.enamelWork,
     this.customizable,
     this.isFavorite = false,
+    this.aspectRatio = 1.0,
   });
 
   static double? _parseDouble(dynamic value) {
@@ -105,20 +108,24 @@ class JewelryItem {
   // The corrected fromJson factory
   factory JewelryItem.fromJson(Map<String, dynamic> json) {
     return JewelryItem(
+      // The id from the 'pins' table is an int, so .toString() handles both cases.
       id: json['id'].toString(),
-      productTitle: json['title'] ?? json['Product Title'] ?? '',
-      image: json['image'] ?? json['Image'] ?? '',
+
+      // --- FIX: Added 'product_title' from 'pins' table ---
+      productTitle:
+          json['title'] ?? json['Product Title'] ?? json['product_title'] ?? '',
+
+      // --- FIX: Added 'image_url' from 'pins' table ---
+      image: json['image'] ?? json['Image'] ?? json['image_url'] ?? '',
+
+      // --- FIX: Added 'description' from 'pins' table ---
       description: json['description'] ?? json['Description'] ?? '',
 
       price: _parseDouble(json['price'] ?? json['Price']),
-
       tags: _parseTags(json['tags'] ?? json['Product Tags']),
-
       goldWeight: json['gold_weight'] ?? json['Gold Weight'],
       metalPurity: json['metal_purity'] ?? json['Metal Purity'],
       metalFinish: json['metal_finish'] ?? json['Metal Finish'],
-
-      // --- APPLY THE FIX TO THESE FIELDS ---
       stoneWeight:
           _parseStringOrFirst(json['stone_weight'] ?? json['Stone Weight']),
       stoneType: _parseStringOrFirst(json['stone_type'] ?? json['Stone Type']),
@@ -127,24 +134,17 @@ class JewelryItem {
           _parseStringOrFirst(json['stone_setting'] ?? json['Stone Setting']),
       stoneCount:
           _parseStringOrFirst(json['stone_count'] ?? json['Stone Count']),
-      // --- END FIX ---
-
       scrapedUrl: json['scraped_url'] ?? json['Scraped URL'],
       collectionName: json['sub_category'] ?? json['Collection Name'],
       productType: json['category'] ?? json['Product Type'],
       gender: json['gender'] ?? json['Gender'],
       theme: json['occasions'] ?? json['Theme'],
       metalType: json['metal_type'] ?? json['Metal Type'],
-      metalColor: json['metal_color'] ??
-          json['Metal Color'], // This is 'text' in DB, so no change needed
+      metalColor: json['metal_color'] ?? json['Metal Color'],
       netWeight: _parseDouble(json['net_weight'] ?? json['NET WEIGHT']),
-
-      // --- APPLY THE FIX TO THESE FIELDS ---
       stoneColor:
           _parseStringOrFirst(json['stone_color'] ?? json['Stone Color']),
       stoneCut: _parseStringOrFirst(json['stone_cut'] ?? json['Stone Cut']),
-      // --- END FIX ---
-
       dimension: json['size'] ?? json['Dimension'],
       designType: json['style'] ?? json['Design Type'],
       artForm: json['art_form'] ?? json['Art Form'],
@@ -153,6 +153,8 @@ class JewelryItem {
       customizable: (json['customizable'] is bool)
           ? json['customizable']
           : (json['Customizable'] == 'Yes'),
+      // --- FIX: Parse aspectRatio from JSON ---
+      aspectRatio: (json['aspect_ratio'] as num?)?.toDouble() ?? 1.0,
     );
   }
 }

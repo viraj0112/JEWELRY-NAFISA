@@ -16,7 +16,7 @@ class BoardsProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('boards')
-          .select('id, name')
+          .select('id, name, is_secret') 
           .eq('user_id', userId);
 
       _boards.clear();
@@ -25,6 +25,7 @@ class BoardsProvider extends ChangeNotifier {
           Board(
             id: boardData['id'],
             name: boardData['name'],
+            isSecret: boardData['is_secret'] ?? false,
           ),
         );
       }
@@ -34,72 +35,104 @@ class BoardsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> createBoard(String name) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return;
+  Future<void> updateBoard(int boardId, String name, bool isSecret) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not authenticated');
+    }
 
     try {
-      final newBoardData = await _supabase
+      await _supabase
           .from('boards')
-          .insert({'user_id': userId, 'name': name})
-          .select()
-          .single();
-
-      final newBoard = Board(
-        id: newBoardData['id'],
-        name: newBoardData['name'],
-      );
-      _boards.add(newBoard);
-      notifyListeners();
+          .update({
+            'name': name,
+            'is_secret': isSecret,
+          })
+          .eq('id', boardId)
+          .eq('user_id', user.id);
+      final index = _boards.indexWhere((board) => board.id == boardId);
+      if (index != -1) {
+        _boards[index] = Board(
+          id: boardId,
+          name: name,
+          isSecret: isSecret,
+          coverUrls: _boards[index].coverUrls, 
+          items: _boards[index].items, 
+        );
+        notifyListeners();
+      }
     } catch (e) {
-      debugPrint("Error creating board: $e");
+      debugPrint('Error updating board: $e');
+      throw Exception('Failed to update board');
     }
   }
 
-  Future<void> saveToBoard(Board board, JewelryItem item) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return;
+  Future<void> createBoard(String name, {bool isSecret = false}) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+
+    final response = await _supabase.from('boards').insert({
+      'user_id': user.id,
+      'name': name,
+      'is_secret': isSecret,
+    }).select();
+
+    final newBoard = Board.fromJson(response.first);
+    _boards.add(newBoard);
+    notifyListeners();
+  }
+
+  Future<void> deleteBoard(int boardId) async {
+    await _supabase.from('boards').delete().eq('id', boardId);
+
+    _boards.removeWhere((board) => board.id == boardId);
+    notifyListeners();
+  }
+
+  Future<void> saveToBoard(int boardId, JewelryItem item) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not authenticated');
+    }
 
     try {
       final existingPin = await _supabase
           .from('pins')
           .select('id')
-          // FIX: Changed item.imageUrl to item.image
-          .eq('image_url', item.image)
-          .maybeSingle();
-
-      String pinId;
-
+          .eq('image_url', item.image) 
+          .maybeSingle(); 
+      int pinId;
       if (existingPin != null) {
-        pinId = existingPin['id'];
+        pinId = existingPin['id'] as int;
       } else {
-        final newPin = await _supabase
-            .from('pins')
-            .insert({
-              'owner_id': userId,
-              'title': item.productTitle,
-              'image_url': item.image,
-              'description': item.description,
-            })
-            .select('id')
-            .single();
-        pinId = newPin['id'];
+        final newPin = await _supabase.from('pins').insert({
+
+          'image_url': item.image, // Was: item.image
+          'product_title': item.productTitle,
+          'description': item.description,
+          'user_id': user.id,
+        }).select('id').single();
+        pinId = newPin['id'] as int;
       }
 
       await _supabase.from('boards_pins').insert({
-        'board_id': board.id,
+        'board_id': boardId,
         'pin_id': pinId,
       });
 
-      final boardIndex = _boards.indexWhere((b) => b.id == board.id);
-      if (boardIndex != -1 &&
-          !_boards[boardIndex].items.any((i) => i.id == item.id)) {
-        _boards[boardIndex].items.add(item);
+      final boardIndex = _boards.indexWhere((board) => board.id == boardId);
+      if (boardIndex != -1) {
+        final existingBoard = _boards[boardIndex];
+        // This line is correct because of the fix in board.dart
+        final updatedItems = List<JewelryItem>.from(existingBoard.items)
+          ..add(item);
+
+        _boards[boardIndex] = existingBoard.copyWith(items: updatedItems);
         notifyListeners();
       }
     } catch (e) {
-      debugPrint("Error saving to board: $e");
-      rethrow;
+      debugPrint('Error saving to board: $e');
+      throw Exception('Error saving to board: ${e.toString()}');
     }
   }
 }

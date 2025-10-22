@@ -32,6 +32,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   bool _isLiking = false;
   bool _isSaving = false;
 
+
   String? _pinId;
   int _likeCount = 0;
   bool _userLiked = false;
@@ -66,6 +67,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         final likeResponse = await supabase
             .from('user_likes')
             .select('user_id')
+            // --- FIX: The pinId is a String, which Supabase handles correctly ---
             .match({'user_id': uid, 'pin_id': pinId}).maybeSingle();
         _userLiked = (likeResponse != null);
       }
@@ -91,14 +93,14 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       final newPin = await supabase
           .from('pins')
           .insert({
-            'owner_id': uid,
-            'title': widget.jewelryItem.productTitle,
+            'user_id': uid, // Was 'owner_id', changed to match boards_provider
+            'product_title': widget.jewelryItem.productTitle, // Was 'title'
             'image_url': widget.jewelryItem.image,
             'description': widget.jewelryItem.description,
           })
           .select('id')
           .single();
-      _pinId = newPin['id'];
+      _pinId = newPin['id'] as String;
       return _pinId;
     } catch (e) {
       debugPrint("Error creating pin on demand: $e");
@@ -166,6 +168,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     if (mounted) setState(() => _isSaving = false);
   }
 
+  // ... (Rest of the file is unchanged) ...
+  
   Future<void> _shareItem() async {
     final shareText =
         'Check out this beautiful ${widget.jewelryItem.productTitle} from AKD Designs!';
@@ -200,8 +204,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       await supabase.rpc('decrement_credit');
       profile.decrementCredit();
 
-      final expiration = DateTime.now()
-          .add(const Duration(days: 30)); 
+      final expiration = DateTime.now().add(const Duration(days: 30));
       await supabase.from('quotes').insert({
         'user_id': supabase.auth.currentUser!.id,
         'product_id': widget.jewelryItem.id,

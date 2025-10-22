@@ -62,8 +62,9 @@ class _SaveToBoardDialogState extends State<SaveToBoardDialog> {
                         return ListTile(
                           title: Text(board.name),
                           onTap: () async {
+                            // --- FIX: Pass board.id (int) instead of board (Board) ---
                             await boardsProvider.saveToBoard(
-                              board,
+                              board.id,
                               widget.item,
                             );
                             if (mounted) {
