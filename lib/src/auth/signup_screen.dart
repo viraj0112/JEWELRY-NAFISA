@@ -4,6 +4,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
 import 'package:jewelry_nafisa/src/auth/business_signup_screen.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // A utility class for brand-specific icons
 class BrandIcons {
@@ -65,7 +66,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (user == null) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showErrorSnackbar('Sign up failed. The email might already be in use.');
+        _showErrorSnackbar(
+            'Sign up failed. The email might already be in use.');
       }
     } else {
       // Sign out immediately after signup to force the user to log in
@@ -157,7 +159,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       itemBuilder: (BuildContext context, int index) => Opacity(
         opacity: 0.5,
         child: Image.network(
-          'https://picsum.photos/200/300?random=$index',
+          const String.fromEnvironment('BG_IMAGE'),
           fit: BoxFit.cover,
         ),
       ),

@@ -16,7 +16,7 @@ class BoardsProvider extends ChangeNotifier {
     try {
       final response = await _supabase
           .from('boards')
-          .select('id, name, is_secret') 
+          .select('id, name, is_secret')
           .eq('user_id', userId);
 
       _boards.clear();
@@ -56,8 +56,8 @@ class BoardsProvider extends ChangeNotifier {
           id: boardId,
           name: name,
           isSecret: isSecret,
-          coverUrls: _boards[index].coverUrls, 
-          items: _boards[index].items, 
+          coverUrls: _boards[index].coverUrls,
+          items: _boards[index].items,
         );
         notifyListeners();
       }
@@ -99,40 +99,53 @@ class BoardsProvider extends ChangeNotifier {
       final existingPin = await _supabase
           .from('pins')
           .select('id')
-          .eq('image_url', item.image) 
-          .maybeSingle(); 
-      int pinId;
+          .eq('image_url', item.image)
+          .maybeSingle();
+
+      String pinId;
       if (existingPin != null) {
-        pinId = existingPin['id'] as int;
+        pinId = existingPin['id'] as String;
       } else {
         final newPin = await _supabase.from('pins').insert({
-
-          'image_url': item.image, // Was: item.image
-          'product_title': item.productTitle,
+          'image_url': item.image,
+          'title': item.productTitle,
           'description': item.description,
-          'user_id': user.id,
+          'owner_id': user.id,
         }).select('id').single();
-        pinId = newPin['id'] as int;
+       
+        pinId = newPin['id'] as String;
       }
 
-      await _supabase.from('boards_pins').insert({
-        'board_id': boardId,
-        'pin_id': pinId,
-      });
+      final existingBoardPin = await _supabase
+        .from('boards_pins')
+        .select('board_id')
+        .match({'board_id': boardId, 'pin_id': pinId})
+        .maybeSingle();
+
+      if (existingBoardPin == null) {
+        await _supabase.from('boards_pins').insert({
+          'board_id': boardId,
+          'pin_id': pinId, 
+        });
+      } else {
+         debugPrint("Pin already exists in this board.");
+      
+         throw Exception('Item is already in this board.');
+      }
 
       final boardIndex = _boards.indexWhere((board) => board.id == boardId);
       if (boardIndex != -1) {
         final existingBoard = _boards[boardIndex];
-        // This line is correct because of the fix in board.dart
-        final updatedItems = List<JewelryItem>.from(existingBoard.items)
-          ..add(item);
-
-        _boards[boardIndex] = existingBoard.copyWith(items: updatedItems);
-        notifyListeners();
+        if (!existingBoard.items.any((i) => i.id == item.id)) {
+            final updatedItems = List<JewelryItem>.from(existingBoard.items)
+            ..add(item);
+             _boards[boardIndex] = existingBoard.copyWith(items: updatedItems);
+             notifyListeners();
+        }
       }
     } catch (e) {
       debugPrint('Error saving to board: $e');
-      throw Exception('Error saving to board: ${e.toString()}');
+      rethrow;
     }
   }
 }

@@ -92,8 +92,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       final newPin = await supabase
           .from('pins')
           .insert({
-            'user_id': uid, // Was 'owner_id', changed to match boards_provider
-            'product_title': widget.jewelryItem.productTitle, // Was 'title'
+            'owner_id': uid, // Was 'owner_id', changed to match boards_provider
+            'title': widget.jewelryItem.productTitle, // Was 'title'
             'image_url': widget.jewelryItem.image,
             'description': widget.jewelryItem.description,
           })
@@ -167,12 +167,17 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     if (mounted) setState(() => _isSaving = false);
   }
 
-  // ... (Rest of the file is unchanged) ...
-
   Future<void> _shareItem() async {
-    final shareText =
-        'Check out this beautiful ${widget.jewelryItem.productTitle} from AKD Designs!';
-    await Share.share(shareText, subject: 'Beautiful Jewelry from AKD');
+    const String productBaseUrl = 'https://www.dagina.design/product';
+
+    final String productUrl = '$productBaseUrl/${widget.jewelryItem.id}';
+    final String shareText =
+        'Check out this beautiful ${widget.jewelryItem.productTitle}! $productUrl from Dagina Designs!';
+
+    await Share.share(
+      shareText,
+      subject: 'Beautiful Jewelry from Dagina Designs',
+    );
   }
 
   void _onGetQuotePressed(BuildContext context) async {

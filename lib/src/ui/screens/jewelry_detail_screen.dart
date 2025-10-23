@@ -1,11 +1,12 @@
-
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 
 class JewelryDetailScreen extends StatelessWidget {
   final JewelryItem jewelryItem;
 
-  const JewelryDetailScreen({Key? key, required this.jewelryItem}) : super(key: key);
+  const JewelryDetailScreen({Key? key, required this.jewelryItem})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -33,26 +34,21 @@ class JewelryDetailScreen extends StatelessWidget {
                 children: [
                   Text(
                     jewelryItem.productTitle,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     jewelryItem.description,
                     style: const TextStyle(fontSize: 16),
                   ),
-                  // Add more product details here
-                  // Example: Price, materials, etc.
                   const SizedBox(height: 16),
-                  // Example: "Buy Now" button
                   Center(
                     child: ElevatedButton(
                       onPressed: () {
-                        // Implement purchase logic
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Add to cart/Buy Now logic here!')),
-                        );
+                        context.push('/signup');
                       },
-                      child: const Text('Add to Cart'),
+                      child: const Text('Sign Up'),
                     ),
                   ),
                 ],
