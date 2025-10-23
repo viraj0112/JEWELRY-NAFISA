@@ -19,19 +19,18 @@ class UserProfileProvider with ChangeNotifier {
   String? get referralCode => _userProfile?.referralCode;
 
   Future<List<Map<String, dynamic>>> getQuoteHistory() async {
-  
     if (_supabase.auth.currentUser == null) {
       throw Exception('Not authenticated');
     }
     final userId = _supabase.auth.currentUser!.id;
-    
+
     try {
       final response = await _supabase
-          .from('quotes') 
+          .from('quotes')
           .select()
           .eq('user_id', userId)
           .order('created_at', ascending: false);
-          
+
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       debugPrint('Error fetching quote history: $e');
@@ -62,6 +61,7 @@ class UserProfileProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
   void decrementCredit() {
     if (_userProfile != null && _userProfile!.credits > 0) {
       _userProfile = UserProfile(
@@ -74,7 +74,7 @@ class UserProfileProvider with ChangeNotifier {
         referralCode: _userProfile!.referralCode,
         avatarUrl: _userProfile!.avatarUrl,
         isMember: _userProfile!.isMember,
-        bio: _userProfile!.bio, 
+        bio: _userProfile!.bio,
         fullName: _userProfile!.fullName,
         birthdate: _userProfile!.birthdate,
         gender: _userProfile!.gender,

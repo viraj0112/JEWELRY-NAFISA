@@ -15,7 +15,13 @@ import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
+import 'package:url_strategy/url_strategy.dart';
+import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
+import 'package:jewelry_nafisa/src/ui/screens/jewelry_detail_screen.dart';
+import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
 
+final supabaseClient = Supabase.instance.client;
 final _router = GoRouter(
   initialLocation: '/',
   routes: [
@@ -47,17 +53,30 @@ final _router = GoRouter(
       path: '/pending-approval',
       builder: (context, state) => const PendingApprovalScreen(),
     ),
+    GoRoute(
+      path: '/product/:id',
+      builder: (context, state) {
+        final productId = state.pathParameters['id'];
+        if (productId == null) {
+          return const AuthGate(); // Or an error screen
+        }
+        return ProductDetailLoader(productId: productId);
+      },
+    ),
+    GoRoute(
+      path: '/signup',
+      builder: (context, state) => const SignUpScreen(),
+    ),
   ],
 );
 
 Future<void> main() async {
- 
   WidgetsFlutterBinding.ensureInitialized();
 
   final supabaseUrl =
       const String.fromEnvironment('SUPABASE_URL', defaultValue: '').isNotEmpty
           ? const String.fromEnvironment('SUPABASE_URL')
-          : dotenv.env['SUPABASE_URL'] ?? ''; 
+          : dotenv.env['SUPABASE_URL'] ?? '';
   final supabaseAnonKey = const String.fromEnvironment(
     'SUPABASE_ANON_KEY',
     defaultValue: '',
@@ -65,17 +84,18 @@ Future<void> main() async {
       ? const String.fromEnvironment('SUPABASE_ANON_KEY')
       : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
-  
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
     throw Exception(
         'Supabase URL and Anon Key are required. Provide them via --dart-define or .env file.');
   }
 
   await Supabase.initialize(
-    url: supabaseUrl, 
-    anonKey: supabaseAnonKey, 
-
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
   );
+
+  setPathUrlStrategy();
+
   runApp(
     MultiProvider(
       providers: [
@@ -83,25 +103,56 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
         ChangeNotifierProvider(create: (context) => BoardsProvider()),
         ChangeNotifierProvider(create: (context) => FilterStateNotifier()),
+        Provider<JewelryService>(
+          create: (_) => JewelryService(supabaseClient), // Pass Supabase client
+        ),
       ],
       child: const MyApp(),
     ),
   );
 }
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    
+
     return MaterialApp.router(
       title: 'Dagina Designs',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
-      routerConfig: _router, 
+      routerConfig: _router,
+    );
+  }
+}
+
+class ProductDetailLoader extends StatelessWidget {
+  final String productId;
+  const ProductDetailLoader({super.key, required this.productId});
+
+  @override
+  Widget build(BuildContext context) {
+    final jewelryService = JewelryService(Supabase.instance.client);
+
+    return FutureBuilder<JewelryItem?>(
+      future: jewelryService.getJewelryItem(productId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
+        }
+        if (snapshot.hasError || snapshot.data == null) {
+          return Scaffold(
+            appBar: AppBar(),
+            body: const Center(child: Text("Product not found")),
+          );
+        }
+        return JewelryDetailScreen(jewelryItem: snapshot.data!);
+      },
     );
   }
 }

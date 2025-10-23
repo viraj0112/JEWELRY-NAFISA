@@ -43,9 +43,7 @@ class JewelryService {
     int limit = 10,
   }) async {
     try {
-      var query = _supabaseClient
-          .from('products')
-          .select();
+      var query = _supabaseClient.from('products').select();
 
       final isIntegerId = int.tryParse(currentItemId) != null;
       if (isIntegerId) {
@@ -70,17 +68,42 @@ class JewelryService {
 
   Future<JewelryItem?> getJewelryItem(String id) async {
     try {
+      // 1. Try to fetch from 'products' table.
+      // We'll respect the original logic of trying to parse an int.
       final intId = int.tryParse(id);
-      if (intId == null) {
-          debugPrint('getJewelryItem: ID is not an integer, cannot fetch from "products" table.');
-          return null;
+      if (intId != null) {
+        final productResponse = await _supabaseClient
+            .from('products')
+            .select()
+            .eq('id', intId) // Use the integer ID
+            .limit(1); // Use limit(1) instead of single()
+
+        if (productResponse.isNotEmpty) {
+          // Found in 'products'
+          return JewelryItem.fromJson(productResponse.first);
+        }
       }
 
-      final response =
-          await _supabaseClient.from('products').select().eq('id', intId).single();
-      return JewelryItem.fromJson(response);
+      // 2. If not found (or if ID wasn't an int), try 'designerproducts'.
+      // We'll try matching the original string ID.
+      final designerResponse = await _supabaseClient
+          .from('designerproducts')
+          .select()
+          .eq('id', id) // Use the original string ID
+          .limit(1); // Use limit(1) instead of single()
+
+      if (designerResponse.isNotEmpty) {
+        // Found in 'designerproducts'
+        return JewelryItem.fromJson(designerResponse.first);
+      }
+
+      // 3. If not found in either table
+      debugPrint(
+          'getJewelryItem: Product with ID $id not found in products or designerproducts.');
+      return null;
     } catch (e) {
-      debugPrint('Error fetching single product: $e');
+      // This will catch any other unexpected errors
+      debugPrint('Error fetching single product (ID: $id): $e');
       return null;
     }
   }
