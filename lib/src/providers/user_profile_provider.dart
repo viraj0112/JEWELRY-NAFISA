@@ -13,12 +13,19 @@ class UserProfileProvider with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  // --- NEW: Set to store unlocked item IDs ---
+  Set<String> _unlockedItemIds = {};
+
+  // --- NEW: Public getter to check unlock status ---
+  bool isItemUnlocked(String itemId) => _unlockedItemIds.contains(itemId);
+
   String get username => _userProfile?.username ?? '';
   bool get isMember => _userProfile?.isMember ?? false;
   int get creditsRemaining => _userProfile?.credits ?? 0;
   String? get referralCode => _userProfile?.referralCode;
 
   Future<List<Map<String, dynamic>>> getQuoteHistory() async {
+    // ... (rest of the function is unchanged)
     if (_supabase.auth.currentUser == null) {
       throw Exception('Not authenticated');
     }
@@ -39,7 +46,6 @@ class UserProfileProvider with ChangeNotifier {
   }
 
   Future<void> loadUserProfile() async {
-    // ... (rest of the function is unchanged)
     if (_supabase.auth.currentUser == null) return;
 
     _isLoading = true;
@@ -47,21 +53,39 @@ class UserProfileProvider with ChangeNotifier {
 
     try {
       final userId = _supabase.auth.currentUser!.id;
-      final data = await _supabase
-          .from('users')
-          .select('*, designer_profiles(*)')
-          .eq('id', userId)
-          .single();
-      _userProfile = UserProfile.fromMap(data);
+
+      final responses = await Future.wait<dynamic>([
+        _supabase
+            .from('users')
+            .select('*, designer_profiles(*)')
+            .eq('id', userId)
+            .single() as Future<dynamic>,
+        _supabase
+            .from('user_unlocked_items')
+            .select('item_id')
+            .eq('user_id', userId) as Future<dynamic>,
+      ]);
+
+      // Process user profile
+      final profileData = responses[0] as Map<String, dynamic>;
+      _userProfile = UserProfile.fromMap(profileData);
+
+      // Process unlocked items
+      final unlockedData = responses[1] as List<dynamic>;
+      _unlockedItemIds =
+          unlockedData.map((e) => e['item_id'] as String).toSet();
     } catch (e) {
       debugPrint("Error loading user profile: $e");
       _userProfile = null;
+      _unlockedItemIds = {};
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
+  // This function just updates local state.
+  // We'll call this from our new 'spendCreditToUnlockItem' function.
   void decrementCredit() {
     if (_userProfile != null && _userProfile!.credits > 0) {
       _userProfile = UserProfile(
@@ -70,7 +94,7 @@ class UserProfileProvider with ChangeNotifier {
         username: _userProfile!.username,
         role: _userProfile!.role,
         isApproved: _userProfile!.isApproved,
-        credits: _userProfile!.credits - 1,
+        credits: _userProfile!.credits - 1, // Decrement
         referralCode: _userProfile!.referralCode,
         avatarUrl: _userProfile!.avatarUrl,
         isMember: _userProfile!.isMember,
@@ -85,7 +109,45 @@ class UserProfileProvider with ChangeNotifier {
         createdAt: _userProfile!.createdAt,
         designerProfile: _userProfile!.designerProfile,
       );
-      notifyListeners();
+      // Note: notifyListeners() will be called by the parent function
+    }
+  }
+
+  // --- NEW: Core logic function for spending a credit ---
+  Future<void> spendCreditToUnlockItem(String itemId) async {
+    if (_userProfile == null) {
+      throw Exception('User profile not loaded.');
+    }
+    if (_userProfile!.credits <= 0) {
+      throw Exception('No credits remaining.');
+    }
+    if (isItemUnlocked(itemId)) {
+      throw Exception('Item already unlocked.');
+    }
+
+    final userId = _userProfile!.id;
+    final newCredits = _userProfile!.credits - 1;
+
+    try {
+      // 1. Update the credit count in the database
+      await _supabase
+          .from('users')
+          .update({'credits': newCredits}).eq('id', userId);
+
+      // 2. Insert the unlock record in the new table
+      await _supabase
+          .from('user_unlocked_items')
+          .insert({'user_id': userId, 'item_id': itemId});
+
+      // 3. Update local state
+      decrementCredit(); // Update local credit count
+      _unlockedItemIds.add(itemId); // Add to local unlock set
+
+      notifyListeners(); // Notify all listeners of the changes
+    } catch (e) {
+      debugPrint('Error spending credit: $e');
+      // If error, we don't update local state
+      rethrow;
     }
   }
 
@@ -97,6 +159,7 @@ class UserProfileProvider with ChangeNotifier {
     String? gender,
     XFile? avatarFile,
   }) async {
+    // ... (rest of the function is unchanged)
     final userId = _supabase.auth.currentUser!.id;
     String? avatarUrl;
 
@@ -126,6 +189,7 @@ class UserProfileProvider with ChangeNotifier {
   }
 
   Future<Map<String, int>> getQuoteStatistics() async {
+    // ... (rest of the function is unchanged)
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) {
       return {'total': 0, 'valid': 0, 'expired': 0};
@@ -142,6 +206,7 @@ class UserProfileProvider with ChangeNotifier {
   }
 
   Future<void> requestBusinessAccount() async {
+    // ... (rest of the function is unchanged)
     if (_userProfile == null) throw Exception("User not loaded");
 
     final userId = _userProfile!.id;
@@ -160,6 +225,7 @@ class UserProfileProvider with ChangeNotifier {
 
   void reset() {
     _userProfile = null;
+    _unlockedItemIds = {}; // Reset unlocked items
     notifyListeners();
   }
 }

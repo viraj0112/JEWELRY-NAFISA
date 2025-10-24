@@ -9,6 +9,7 @@ import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart'; // <-- ADDED IMPORT
 
 class JewelryDetailScreen extends StatefulWidget {
   final JewelryItem jewelryItem;
@@ -41,11 +42,32 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     super.initState();
     _jewelryService = JewelryService(supabase);
     _initializeInteractionState();
+
     _similarItemsFuture = _jewelryService.fetchSimilarItems(
       currentItemId: widget.jewelryItem.id.toString(),
-      category: widget.jewelryItem.productType,
+      productType: widget.jewelryItem.productType,
+      category: widget.jewelryItem.collectionName,
+     
       limit: 10,
     );
+  }
+
+  // --- ADDED check on build to see if item is already unlocked ---
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check if the item is already unlocked (by membership or credit)
+    // and update the local state if it's not already revealed.
+    final profile = Provider.of<UserProfileProvider>(context, listen: false);
+    final bool isItemUnlocked = profile.isItemUnlocked(widget.jewelryItem.id.toString()) || profile.isMember;
+
+    // We only set this once to true. The "Get Details" button
+    // will be hidden permanently once unlocked.
+    if (isItemUnlocked && !_detailsRevealed) {
+      setState(() {
+        _detailsRevealed = true;
+      });
+    }
   }
 
   Future<void> _initializeInteractionState() async {
@@ -66,7 +88,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         final likeResponse = await supabase
             .from('user_likes')
             .select('user_id')
-            // --- FIX: The pinId is a String, which Supabase handles correctly ---
             .match({'user_id': uid, 'pin_id': pinId}).maybeSingle();
         _userLiked = (likeResponse != null);
       }
@@ -78,6 +99,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<String?> _ensurePinExists() async {
+    // ... (This function is unchanged)
     if (_pinId != null) return _pinId;
 
     final uid = supabase.auth.currentUser?.id;
@@ -92,8 +114,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       final newPin = await supabase
           .from('pins')
           .insert({
-            'owner_id': uid, // Was 'owner_id', changed to match boards_provider
-            'title': widget.jewelryItem.productTitle, // Was 'title'
+            'owner_id': uid,
+            'title': widget.jewelryItem.productTitle,
             'image_url': widget.jewelryItem.image,
             'description': widget.jewelryItem.description,
           })
@@ -108,6 +130,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<void> _toggleLike() async {
+    // ... (This function is unchanged)
     if (_isLiking || _isLoadingInteraction) return;
     setState(() => _isLiking = true);
 
@@ -145,6 +168,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<void> _saveToBoard() async {
+    // ... (This function is unchanged)
     if (_isSaving || _isLoadingInteraction) return;
     setState(() => _isSaving = true);
 
@@ -168,6 +192,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<void> _shareItem() async {
+    // ... (This function is unchanged)
     const String productBaseUrl = 'https://www.dagina.design/product';
 
     final String productUrl = '$productBaseUrl/${widget.jewelryItem.id}';
@@ -180,8 +205,18 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     );
   }
 
+  
   void _onGetQuotePressed(BuildContext context) async {
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
+
+    final bool isItemUnlocked =
+        profile.isItemUnlocked(widget.jewelryItem.id.toString()) || profile.isMember;
+
+    if (isItemUnlocked) {
+      if (mounted) setState(() => _detailsRevealed = true);
+      return;
+    }
+    
     final bool? useCredit = await showDialog<bool>(
       context: context,
       builder: (context) => const GetQuoteDialog(),
@@ -189,7 +224,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     if (useCredit == true) {
       if (profile.creditsRemaining > 0) {
-        await _useQuoteCredit(context);
+        await _useQuoteCredit(context, profile);
         if (mounted) setState(() => _detailsRevealed = true);
       } else {
         if (mounted) {
@@ -201,12 +236,13 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
   }
 
-  Future<void> _useQuoteCredit(BuildContext context) async {
+  
+  Future<void> _useQuoteCredit(
+      BuildContext context, UserProfileProvider profile) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final profile = Provider.of<UserProfileProvider>(context, listen: false);
     try {
-      await supabase.rpc('decrement_credit');
-      profile.decrementCredit();
+
+      await profile.spendCreditToUnlockItem(widget.jewelryItem.id.toString());
 
       final expiration = DateTime.now().add(const Duration(days: 30));
       await supabase.from('quotes').insert({
@@ -227,8 +263,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       debugPrint('Error using quote credit: $e');
       if (mounted) {
         scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('Could not get details. Please try again.'),
+          SnackBar(
+            content: Text('Could not get details: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -236,8 +272,170 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
   }
 
+  // --- NEW "GET QUOTE" (GOOGLE FORM) LOGIC ---
+
+  Future<void> _handleGetQuote(BuildContext context) async {
+    final userProfileProvider = context.read<UserProfileProvider>();
+    final phone = userProfileProvider.userProfile?.phone;
+
+    if (phone == null || phone.isEmpty) {
+      final newPhoneNumber = await _showPhoneNumberDialog(context);
+      if (newPhoneNumber != null && newPhoneNumber.isNotEmpty && mounted) {
+        await _launchGoogleForm(context, userProfileProvider);
+      }
+    } else {
+      await _launchGoogleForm(context, userProfileProvider);
+    }
+  }
+
+  Future<String?> _showPhoneNumberDialog(BuildContext context) async {
+    final phoneController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isSaving = false;
+
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Verify WhatsApp Number'),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                        'Please enter your WhatsApp number to receive the quote.'),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration:
+                          const InputDecoration(labelText: 'WhatsApp Number'),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter a phone number';
+                        }
+                        if (value.trim().length < 10) {
+                          return 'Please enter a valid number';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed:
+                      isSaving ? null : () => Navigator.of(context).pop(null),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          if (formKey.currentState!.validate()) {
+                            setDialogState(() => isSaving = true);
+                            final phone = phoneController.text.trim();
+                            try {
+                              final userProfileProvider =
+                                  dialogContext.read<UserProfileProvider>();
+                              // We use your existing updateUserProfile function from the provider
+                              await userProfileProvider.updateUserProfile(
+                                name: userProfileProvider
+                                        .userProfile?.username ??
+                                    '',
+                                phone: phone,
+                                birthdate: userProfileProvider
+                                        .userProfile?.birthdate
+                                        ?.toIso8601String() ??
+                                    '',
+                                gender:
+                                    userProfileProvider.userProfile?.gender,
+                                bio: userProfileProvider.userProfile?.bio,
+                              );
+                              if (mounted) Navigator.of(context).pop(phone);
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content:
+                                          Text('Failed to save number: $e'),
+                                      backgroundColor: Colors.red),
+                                );
+                              }
+                              setDialogState(() => isSaving = false);
+                            }
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          height: 15,
+                          width: 15,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Submit'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _launchGoogleForm(
+      BuildContext context, UserProfileProvider userProvider) async {
+    // --- !! IMPORTANT !! ---
+    const String googleFormBaseUrl =
+        'YOUR_GOOGLE_FORM_URL_HERE'; 
+    const String productNameEntry = 'entry.YOUR_PRODUCT_NAME_ENTRY_ID';
+    const String productSpecEntry = 'entry.YOUR_PRODUCT_SPEC_ENTRY_ID';
+    const String userNameEntry = 'entry.YOUR_USER_NAME_ENTRY_ID';
+    const String userPhoneEntry = 'entry.YOUR_USER_PHONE_ENTRY_ID';
+    // --- End of values to replace ---
+
+    if (googleFormBaseUrl == 'YOUR_GOOGLE_FORM_URL_HERE') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Please update Google Form URL in jewelry_detail_screen.dart'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final userName = userProvider.userProfile?.username ?? 'N/A';
+    final userPhone = userProvider.userProfile?.phone ?? 'N/A';
+
+    final item = widget.jewelryItem;
+    final productSpecs =
+        'Metal: ${item.metalType ?? 'N/A'}, Purity: ${item.metalPurity ?? 'N/A'}, Gold Weight: ${item.goldWeight ?? 'N/A'} gms, Stone Weight: ${item.stoneWeight ?? 'N/A'} cts';
+
+    final Uri formUri =
+        Uri.parse(googleFormBaseUrl).replace(queryParameters: {
+      productNameEntry: item.productTitle,
+      productSpecEntry: productSpecs,
+      userNameEntry: userName,
+      userPhoneEntry: userPhone,
+    });
+
+    if (!await launchUrl(formUri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch Google Form')),
+        );
+      }
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
+  
     return Scaffold(
       body: SafeArea(
         child: LayoutBuilder(
@@ -251,6 +449,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildWideLayout() {
+    // ... (This function is unchanged)
     return Column(
       children: [
         Padding(
@@ -313,6 +512,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildNarrowLayout() {
+    // ... (This function is unchanged)
     return CustomScrollView(
       slivers: [
         SliverAppBar(
@@ -344,12 +544,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
   Widget _buildContentSection() {
     final theme = Theme.of(context);
-    final userProfile = context.watch<UserProfileProvider>();
-    final isMember = userProfile.isMember;
     final item = widget.jewelryItem;
-
-    final bool showTitle = isMember || _detailsRevealed;
     final bool showFullDetails = _detailsRevealed;
+    final bool showTitle = showFullDetails;
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -389,14 +586,22 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             _buildDetailRow("Stone Purity:", item.stonePurity),
             _buildDetailRow("Stone Color:", item.stoneColor),
             _buildDetailRow("Stone Cut:", item.stoneCut),
-            // Padding(
-            //   padding: const EdgeInsets.only(top: 8.0),
-            //   child: Text(
-            //     item.description,
-            //     style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-            //   ),
-            // ),
             const SizedBox(height: 24),
+
+            Center(
+              child: ElevatedButton(
+                onPressed: () => _handleGetQuote(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 32, vertical: 16),
+                ),
+                child: const Text('Get Quote',
+                    style: TextStyle(fontSize: 16)),
+              ),
+            ),
+            // --- END NEW BUTTON ---
           ] else ...[
             Text("Description", style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
@@ -419,6 +624,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildDetailRow(String title, dynamic value) {
+    // ... (This function is unchanged)
     String displayValue;
 
     if (value == null) {
@@ -451,6 +657,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   List<Widget> _buildActionButtons() {
+    // ... (This function is unchanged)
     return [
       IconButton(
         onPressed: _isLiking ? null : _toggleLike,
@@ -486,6 +693,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildSimilarItemsGrid({bool isSliver = false}) {
+    // ... (This function is unchanged)
     return FutureBuilder<List<JewelryItem>>(
       future: _similarItemsFuture,
       builder: (context, snapshot) {
