@@ -39,6 +39,7 @@ class JewelryService {
 
   Future<List<JewelryItem>> fetchSimilarItems({
     required String currentItemId,
+    String? productType,
     String? category,
     int limit = 10,
   }) async {
@@ -53,7 +54,9 @@ class JewelryService {
       if (category != null && category.isNotEmpty) {
         query = query.eq('Category', category);
       }
-
+      if (productType != null && productType.isNotEmpty) {
+        query = query.eq('productType', productType);
+      }
       final response = await query.limit(limit);
 
       final List<dynamic> data = response as List<dynamic>;

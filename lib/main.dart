@@ -22,6 +22,7 @@ import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
 
 final supabaseClient = Supabase.instance.client;
+// SupabaseClient get supabase => Supabase.instance.client;
 final _router = GoRouter(
   initialLocation: '/',
   routes: [
@@ -104,7 +105,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (context) => BoardsProvider()),
         ChangeNotifierProvider(create: (context) => FilterStateNotifier()),
         Provider<JewelryService>(
-          create: (_) => JewelryService(supabaseClient), // Pass Supabase client
+          create: (_) => JewelryService(supabaseClient), 
         ),
       ],
       child: const MyApp(),

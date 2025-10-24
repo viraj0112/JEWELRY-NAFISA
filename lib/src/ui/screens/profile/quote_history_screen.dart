@@ -5,7 +5,7 @@ import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:provider/provider.dart';
 
-// Helper class to combine quote data and product data
+
 class QuoteWithProduct {
   final Map<String, dynamic> quote;
   final JewelryItem? product;

@@ -12,6 +12,8 @@ dependencies:
     sdk: flutter
   go_router: ^14.2.1
   supabase_flutter: ^2.5.0
+  flutter_hooks: ^0.18.5
+  hooks_riverpod: ^2.3.6
 
   # UI & Design
   google_fonts: ^6.2.1
