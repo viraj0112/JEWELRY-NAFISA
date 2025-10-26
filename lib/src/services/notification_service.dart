@@ -21,8 +21,7 @@ class NotificationService {
     try {
       await _supabase
           .from('notifications')
-          .update({'is_read': true})
-          .eq('id', notificationId);
+          .update({'is_read': true}).eq('id', notificationId);
     } catch (e) {
       debugPrint('Error marking notification as read: $e');
     }

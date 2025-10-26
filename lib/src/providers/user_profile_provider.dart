@@ -23,6 +23,7 @@ class UserProfileProvider with ChangeNotifier {
   bool get isMember => _userProfile?.isMember ?? false;
   int get creditsRemaining => _userProfile?.credits ?? 0;
   String? get referralCode => _userProfile?.referralCode;
+  String get userId => _userProfile?.id ?? '';
 
   Future<List<Map<String, dynamic>>> getQuoteHistory() async {
     // ... (rest of the function is unchanged)
@@ -148,6 +149,23 @@ class UserProfileProvider with ChangeNotifier {
       debugPrint('Error spending credit: $e');
       // If error, we don't update local state
       rethrow;
+    }
+  }
+
+  void updateCredits(int newCredits) {
+    if (_userProfile != null) {
+      _userProfile = UserProfile(
+        id: _userProfile!.id,
+        email: _userProfile!.email,
+        username: _userProfile!.username,
+        role: _userProfile!.role,
+        isApproved: _userProfile!.isApproved,
+        credits: newCredits,
+        referralCode: _userProfile!.referralCode,
+        avatarUrl: _userProfile!.avatarUrl,
+        isMember: _userProfile!.isMember,
+      );
+      notifyListeners();
     }
   }
 

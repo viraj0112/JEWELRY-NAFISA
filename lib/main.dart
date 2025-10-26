@@ -73,7 +73,7 @@ final _router = GoRouter(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+// await dotenv.load(fileName: ".env");
   final supabaseUrl =
       const String.fromEnvironment('SUPABASE_URL', defaultValue: '').isNotEmpty
           ? const String.fromEnvironment('SUPABASE_URL')
@@ -105,7 +105,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (context) => BoardsProvider()),
         ChangeNotifierProvider(create: (context) => FilterStateNotifier()),
         Provider<JewelryService>(
-          create: (_) => JewelryService(supabaseClient), 
+          create: (_) => JewelryService(supabaseClient),
         ),
       ],
       child: const MyApp(),
@@ -121,7 +121,7 @@ class MyApp extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp.router(
-      title: 'Dagina Designs',
+      title: 'jewelry_nafisa',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

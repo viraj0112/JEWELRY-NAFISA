@@ -72,22 +72,22 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   Future<void> _signOut() async {
-  try {
-    await SupabaseAuthService().signOut();
-    if (mounted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Provider.of<UserProfileProvider>(context, listen: false).reset();
-      });
-      context.go('/welcome');
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Logout failed: ${e.toString()}')),
-      );
+    try {
+      await SupabaseAuthService().signOut();
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Provider.of<UserProfileProvider>(context, listen: false).reset();
+        });
+        context.go('/welcome');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Logout failed: ${e.toString()}')),
+        );
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {

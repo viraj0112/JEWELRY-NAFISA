@@ -1,63 +1,63 @@
 name: jewelry_nafisa
-description: "A new Flutter project."
+description: "Wearable art that captures your unique story and shines as brightly as you do"
 publish_to: "none"
-
 version: 1.0.0+1
+
 environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
-    
     sdk: flutter
+
+  # Core & State Management
   go_router: ^14.2.1
   supabase_flutter: ^2.5.0
   flutter_hooks: ^0.18.5
   hooks_riverpod: ^2.3.6
+  provider: ^6.1.5+1
+  universal_html: ^2.2.4
 
   # UI & Design
+  cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1
-  provider: ^6.0.5
   flutter_animate: ^4.5.0
   flutter_staggered_animations: ^1.1.1
   material_design_icons_flutter: ^7.0.7296
   font_awesome_flutter: ^10.7.0
-  cupertino_icons: ^1.0.8
+  flutter_staggered_grid_view: ^0.7.0
 
-  # Interactive Charts & Calendar
+  # Charts & Calendar
   syncfusion_flutter_charts: ^26.1.35
   syncfusion_flutter_datepicker: ^26.1.35
   table_calendar: ^3.1.2
+  fl_chart: ^0.68.0
+  
 
   # Utilities
   shared_preferences: ^2.2.3
   http: ^1.1.0
-  share_plus: ^9.0.0
+  share_plus: ^12.0.1  
   google_sign_in: ^6.3.0
   intl_phone_field: ^3.2.0
   image_picker: ^1.0.7
   intl: ^0.19.0
   flutter_dotenv: ^5.1.0
-  flutter_staggered_grid_view: ^0.7.0
   url_launcher: ^6.2.5
-  web: ^0.5.0
-  file_picker: ^8.0.0+1
+  url_strategy: ^0.2.0 
+  file_picker: ^8.3.3
   csv: ^6.0.0
-  universal_html: ^2.0.8
-  fl_chart: ^0.68.0 
   mime: ^1.0.4
-  flutter_riverpod: ^2.3.6
-  url_launcher_web: ^2.0.10
-  url_launcher_ios: ^6.1.10
-  url_launcher_android: ^6.1.10
-  url_strategy: ^0.2.0
+  # REMOVED: url_launcher_web, _ios, _android (not needed)
+  # REMOVED: web, universal_html (not needed by most apps)
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+    
+  flutter_lints: ^4.0.0 
   mockito: ^5.4.4
   build_runner: ^2.4.9
-  flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.13.1
 
 flutter:

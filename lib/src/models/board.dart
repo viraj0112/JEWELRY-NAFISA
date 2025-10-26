@@ -16,7 +16,6 @@ class Board {
   })  : coverUrls = coverUrls ?? [],
         items = items ?? [];
 
-        
   factory Board.fromJson(Map<String, dynamic> json) {
     return Board(
       id: json['id'] as int,

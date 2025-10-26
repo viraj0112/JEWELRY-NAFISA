@@ -3,7 +3,7 @@ import 'package:jewelry_nafisa/src/admin/sections/creator_analytics_section.dart
 
 class CreatorAnalyticsScreen extends StatelessWidget {
   final String creatorId;
-  final String? creatorName; 
+  final String? creatorName;
 
   const CreatorAnalyticsScreen({
     super.key,

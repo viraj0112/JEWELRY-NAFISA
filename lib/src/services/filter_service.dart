@@ -12,11 +12,27 @@ class FilterService {
       );
 
       if (response is List) {
-        // Process the list returned from the RPC
         return response
-            .map((item) => item?.toString())
-            .where((item) => item != null && item.isNotEmpty)
+            .map((item) {
+              // If item is null or specifically the array column returns null/empty
+              if (item == null || (item is Map && item.values.first == null)) {
+                return null;
+              }
+              // If it's an array, join elements (handle potential non-string elements)
+              if (item is List) {
+                return item
+                    .where((e) => e != null)
+                    .map((e) => e.toString())
+                    .join(', ');
+              }
+              // Otherwise, just convert to string
+              return item.toString();
+            })
+            .where((item) =>
+                item != null &&
+                item.isNotEmpty) // Filter out nulls/empty strings
             .cast<String>()
+            .toSet() // Ensure uniqueness
             .toList();
       } else {
         debugPrint(
@@ -24,47 +40,55 @@ class FilterService {
         return [];
       }
     } catch (e) {
-      debugPrint('Error fetching distinct values for column $columnName: $e');
-      return [];
+      if (e is PostgrestException &&
+          columnName == 'Studded' &&
+          e.code == '22P02') {
+        debugPrint(
+            'Caught known malformed array error for column $columnName. Returning empty list. Error: $e');
+        return []; // Return empty list specifically for this error on this column
+      } else {
+        // Log other errors normally
+        debugPrint('Error fetching distinct values for column $columnName: $e');
+        return [];
+      }
     }
   }
 
-  /// **FIXED:** Fetches distinct values for a column based on other filters.
   Future<List<String>> getDependentDistinctValues(
       String columnName, Map<String, String?> filters) async {
-    // Check if all filters are 'All' or null
+    // If no specific filters are selected (only 'All' or null), just get all distinct values.
     if (filters.values.every((v) => v == null || v == 'All')) {
-      // If no specific filters are applied, just get all distinct values.
       return getDistinctValues(columnName);
     }
 
     try {
-      // 1. Start the query.
-      // **FIX: Force quotes around the column name to handle spaces.**
-      var query = _supabase.from('products').select('"$columnName"');
+      // Start building the query
+      var query = _supabase
+          .from('products')
+          .select('"$columnName"'); // Ensure column name with space is quoted
 
-      // 2. Apply dependent filters
+      // Apply each filter from the map
       for (var filter in filters.entries) {
+        // Only apply if a specific value (not 'All' or null) is selected
         if (filter.value != null && filter.value != 'All') {
-          // Use quotes for filter keys if they contain spaces
+          // Quote the filter key if it contains spaces
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
           query = query.eq(filterKey, filter.value!);
         }
       }
 
-      // 3. Execute the query
+      // Execute the query
       final response = await query;
 
+      // Process the response
       if (response is List) {
-        // 4. Process the results client-side to get distinct values
-        // The response map key will be the unquoted column name.
         final values = response
             .map((item) => item[columnName]?.toString())
             .where((item) => item != null && item.isNotEmpty)
             .cast<String>()
-            .toSet() // Use toSet() to get unique values
-            .toList(); // Convert back to list
+            .toSet()
+            .toList();
         return values;
       } else {
         debugPrint(
@@ -78,10 +102,8 @@ class FilterService {
     }
   }
 
-  /// **MODIFIED:** Renamed and changed to only fetch *independent* filters.
   Future<Map<String, List<String>>> getInitialFilterOptions() async {
-    // Only fetch filters that do NOT depend on other filters
-    final filterColumns = ['Product Type', 'Plain', 'Studded'];
+    final filterColumns = ['Product Type', 'Metal Purity', 'Plain', 'Studded'];
 
     final List<Future<List<String>>> futures = filterColumns
         .map((columnName) => getDistinctValues(columnName))
@@ -91,8 +113,9 @@ class FilterService {
 
     return {
       'Product Type': results[0],
-      'Plain': results[1],
-      'Studded': results[2], 
+      'Metal Purity': results[1],
+      'Plain': results[2],
+      'Studded': results[3],
     };
   }
 }

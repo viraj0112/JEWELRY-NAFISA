@@ -62,12 +62,12 @@ class _BoardsScreenState extends State<BoardsScreen> {
     setState(() {
       switch (_sortMode) {
         case SortMode.nameAsc:
-          _filteredBoards
-              .sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          _filteredBoards.sort(
+              (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
           break;
         case SortMode.nameDesc:
-          _filteredBoards
-              .sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+          _filteredBoards.sort(
+              (a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
           break;
         case SortMode.newest:
           // Sort by ID descending (assuming higher ID is newer)
@@ -259,7 +259,9 @@ class _BoardsScreenState extends State<BoardsScreen> {
         return Wrap(
           children: [
             ListTile(
-              leading: Icon(_sortMode == SortMode.newest ? Icons.check_circle : Icons.circle_outlined),
+              leading: Icon(_sortMode == SortMode.newest
+                  ? Icons.check_circle
+                  : Icons.circle_outlined),
               title: const Text('Sort by Newest'),
               onTap: () {
                 Navigator.pop(context);
@@ -268,7 +270,9 @@ class _BoardsScreenState extends State<BoardsScreen> {
               },
             ),
             ListTile(
-              leading: Icon(_sortMode == SortMode.nameAsc ? Icons.check_circle : Icons.circle_outlined),
+              leading: Icon(_sortMode == SortMode.nameAsc
+                  ? Icons.check_circle
+                  : Icons.circle_outlined),
               title: const Text('Sort A-Z'),
               onTap: () {
                 Navigator.pop(context);
@@ -277,7 +281,9 @@ class _BoardsScreenState extends State<BoardsScreen> {
               },
             ),
             ListTile(
-              leading: Icon(_sortMode == SortMode.nameDesc ? Icons.check_circle : Icons.circle_outlined),
+              leading: Icon(_sortMode == SortMode.nameDesc
+                  ? Icons.check_circle
+                  : Icons.circle_outlined),
               title: const Text('Sort Z-A'),
               onTap: () {
                 Navigator.pop(context);
@@ -311,7 +317,8 @@ class _BoardsScreenState extends State<BoardsScreen> {
                   children: [
                     TextFormField(
                       controller: nameController,
-                      decoration: const InputDecoration(labelText: "Board Name"),
+                      decoration:
+                          const InputDecoration(labelText: "Board Name"),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Board name cannot be empty';
@@ -355,9 +362,11 @@ class _BoardsScreenState extends State<BoardsScreen> {
                         _fetchUserBoards();
                       } catch (e) {
                         if (mounted) {
-                           ScaffoldMessenger.of(context).showSnackBar(
-                             SnackBar(content: Text('Error creating board: $e'), backgroundColor: Colors.red),
-                           );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('Error creating board: $e'),
+                                backgroundColor: Colors.red),
+                          );
                         }
                       }
                     }
@@ -393,7 +402,8 @@ class _BoardsScreenState extends State<BoardsScreen> {
                   children: [
                     TextFormField(
                       controller: nameController,
-                      decoration: const InputDecoration(labelText: "Board Name"),
+                      decoration:
+                          const InputDecoration(labelText: "Board Name"),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Board name cannot be empty';
@@ -501,8 +511,8 @@ class _BoardsScreenState extends State<BoardsScreen> {
             onTap: () async {
               final result = await Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) =>
-                      BoardDetailScreen(boardId: board.id, boardName: board.name),
+                  builder: (_) => BoardDetailScreen(
+                      boardId: board.id, boardName: board.name),
                 ),
               );
               if (result == true) {

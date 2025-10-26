@@ -3,9 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
 import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
 // FIX: Import the detailed user growth chart
-import 'package:jewelry_nafisa/src/admin/widgets/user_growth_chart.dart'; 
+import 'package:jewelry_nafisa/src/admin/widgets/user_growth_chart.dart';
 // FIX: Import the dashboard widgets (like DailyUsageCard)
-import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart'; 
+import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart';
 import 'package:intl/intl.dart';
 
 class AnalyticsSection extends StatefulWidget {
@@ -120,7 +120,7 @@ class _AnalyticsSectionState extends State<AnalyticsSection>
     // FIX: Use the UserGrowthChart we created, not the non-existent 'ChartGrid'
     return const SingleChildScrollView(
       padding: EdgeInsets.symmetric(vertical: 24.0),
-      child: UserGrowthChart(), 
+      child: UserGrowthChart(),
     );
   }
 
@@ -128,7 +128,7 @@ class _AnalyticsSectionState extends State<AnalyticsSection>
     // FIX: Use DailyUsageCard from the imported dashboard_widgets
     return const SingleChildScrollView(
       padding: EdgeInsets.symmetric(vertical: 24.0),
-      child: DailyUsageCard(), 
+      child: DailyUsageCard(),
     );
   }
 
@@ -136,7 +136,7 @@ class _AnalyticsSectionState extends State<AnalyticsSection>
     // FIX: Use UserGrowthCard from the imported dashboard_widgets
     return const SingleChildScrollView(
       padding: EdgeInsets.symmetric(vertical: 24.0),
-      child: UserGrowthCard(), 
+      child: UserGrowthCard(),
     );
   }
 }

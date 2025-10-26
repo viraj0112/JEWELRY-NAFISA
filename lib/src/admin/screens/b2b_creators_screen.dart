@@ -8,7 +8,7 @@ class B2BCreatorsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.all(24.0),
-      child: B2BCreatorsSection(), 
+      child: B2BCreatorsSection(),
     );
   }
 }

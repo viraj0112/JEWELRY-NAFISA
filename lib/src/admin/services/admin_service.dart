@@ -45,7 +45,7 @@ class AdminService {
   Stream<Map<String, dynamic>> getDashboardMetricsStream() {
     return _createPollingStream(fetchDashboardMetrics);
   }
-  
+
   Future<Map<String, dynamic>> fetchDashboardMetrics() async {
     final responses = await Future.wait([
       _supabase.rpc('get_total_users'),
@@ -67,13 +67,11 @@ class AdminService {
 
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
-  
+
     final int creditsUsed = await _supabase
         .from('quotes')
-        .count(CountOption.exact) 
+        .count(CountOption.exact)
         .gte('created_at', startOfMonth.toIso8601String());
-    
-
 
     final usersChange = _calculateChange(totalUsers, prevTotalUsers);
     final postsChange = _calculateChange(totalPosts, prevTotalPosts);
@@ -260,8 +258,8 @@ class AdminService {
 
   Future<List<ReferralNode>> getReferralTree(String userId) async {
     try {
-      final response =
-          await _supabase.rpc('get_referral_tree', params: {'p_user_id': userId});
+      final response = await _supabase
+          .rpc('get_referral_tree', params: {'p_user_id': userId});
       return List<Map<String, dynamic>>.from(response as List)
           .map((e) => ReferralNode.fromJson(e))
           .toList();
@@ -338,8 +336,6 @@ class AdminService {
         (response) => response.map((map) => AppUser.fromJson(map)).toList());
   }
 
-  
-
   Future<void> updateCreatorStatus(String userId, String newStatus) async {
     try {
       Map<String, dynamic> updates;
@@ -358,6 +354,7 @@ class AdminService {
       rethrow;
     }
   }
+
   Future<void> deleteUser(String userId) async {
     try {
       // User deletion should be handled by a secure backend function.

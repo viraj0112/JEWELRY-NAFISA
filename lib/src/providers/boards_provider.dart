@@ -106,41 +106,44 @@ class BoardsProvider extends ChangeNotifier {
       if (existingPin != null) {
         pinId = existingPin['id'] as String;
       } else {
-        final newPin = await _supabase.from('pins').insert({
-          'image_url': item.image,
-          'title': item.productTitle,
-          'description': item.description,
-          'owner_id': user.id,
-        }).select('id').single();
-       
+        final newPin = await _supabase
+            .from('pins')
+            .insert({
+              'image_url': item.image,
+              'title': item.productTitle,
+              'description': item.description,
+              'owner_id': user.id,
+            })
+            .select('id')
+            .single();
+
         pinId = newPin['id'] as String;
       }
 
       final existingBoardPin = await _supabase
-        .from('boards_pins')
-        .select('board_id')
-        .match({'board_id': boardId, 'pin_id': pinId})
-        .maybeSingle();
+          .from('boards_pins')
+          .select('board_id')
+          .match({'board_id': boardId, 'pin_id': pinId}).maybeSingle();
 
       if (existingBoardPin == null) {
         await _supabase.from('boards_pins').insert({
           'board_id': boardId,
-          'pin_id': pinId, 
+          'pin_id': pinId,
         });
       } else {
-         debugPrint("Pin already exists in this board.");
-      
-         throw Exception('Item is already in this board.');
+        debugPrint("Pin already exists in this board.");
+
+        throw Exception('Item is already in this board.');
       }
 
       final boardIndex = _boards.indexWhere((board) => board.id == boardId);
       if (boardIndex != -1) {
         final existingBoard = _boards[boardIndex];
         if (!existingBoard.items.any((i) => i.id == item.id)) {
-            final updatedItems = List<JewelryItem>.from(existingBoard.items)
+          final updatedItems = List<JewelryItem>.from(existingBoard.items)
             ..add(item);
-             _boards[boardIndex] = existingBoard.copyWith(items: updatedItems);
-             notifyListeners();
+          _boards[boardIndex] = existingBoard.copyWith(items: updatedItems);
+          notifyListeners();
         }
       }
     } catch (e) {

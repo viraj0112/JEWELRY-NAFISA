@@ -79,15 +79,15 @@ class _ProfileLoaderState extends State<ProfileLoader> {
             }
 
             switch (userProfile.role) {
-              case UserRole.admin: 
+              case UserRole.admin:
                 return const AdminShell();
-              case UserRole.designer: 
+              case UserRole.designer:
                 if (userProfile.isApproved == true) {
                   return const DesignerShell();
                 } else {
                   return const PendingApprovalScreen();
                 }
-              case UserRole.member: 
+              case UserRole.member:
               default:
                 return const MainShell();
             }

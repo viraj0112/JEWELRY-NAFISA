@@ -26,7 +26,9 @@ class _ReferralsSectionState extends State<ReferralsSection> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       children: [
-        Text('Referrals & Growth', style: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
+        Text('Referrals & Growth',
+            style:
+                GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
         const SizedBox(height: 24),
         // This can be wired up to the main dashboard metrics later
         // const MetricsGrid(),
@@ -35,7 +37,9 @@ class _ReferralsSectionState extends State<ReferralsSection> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Top Referrers", style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text("Top Referrers",
+                  style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 16),
               FutureBuilder<List<TopReferrer>>(
                 future: _topReferrersFuture,
@@ -48,7 +52,8 @@ class _ReferralsSectionState extends State<ReferralsSection> {
                   }
                   final referrers = snapshot.data ?? [];
                   if (referrers.isEmpty) {
-                    return const Center(child: Text('No referral data available.'));
+                    return const Center(
+                        child: Text('No referral data available.'));
                   }
 
                   return LayoutBuilder(
@@ -80,7 +85,8 @@ class _ReferralsSectionState extends State<ReferralsSection> {
         return ListTile(
           leading: CircleAvatar(
             child: Text('${index + 1}'),
-            backgroundColor: index < 3 ? Colors.amber.shade100 : Colors.grey.shade200,
+            backgroundColor:
+                index < 3 ? Colors.amber.shade100 : Colors.grey.shade200,
           ),
           title: Text(referrer.username ?? 'N/A'),
           subtitle: Text(referrer.email ?? 'No Email'),
