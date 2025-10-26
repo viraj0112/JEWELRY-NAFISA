@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 // Import the new board model
-import 'package:jewelry_nafisa/src/models/board.dart'; 
+import 'package:jewelry_nafisa/src/models/board.dart';
 
 class BoardCard extends StatelessWidget {
   final Board board;
@@ -52,7 +52,10 @@ class BoardCard extends StatelessWidget {
     return Icon(
       Icons.photo_library_outlined,
       size: 48,
-      color: Theme.of(context).colorScheme.onSurface.withAlpha((255 * 0.3).round()),
+      color: Theme.of(context)
+          .colorScheme
+          .onSurface
+          .withAlpha((255 * 0.3).round()),
     );
   }
 
@@ -65,16 +68,21 @@ class BoardCard extends StatelessWidget {
       children: [
         Expanded(
           flex: 2,
-          child: Image.network(images[0], fit: BoxFit.cover, height: double.infinity),
+          child: Image.network(images[0],
+              fit: BoxFit.cover, height: double.infinity),
         ),
         const SizedBox(width: 2),
         Expanded(
           flex: 1,
           child: Column(
             children: [
-              Expanded(child: Image.network(images[1], fit: BoxFit.cover, width: double.infinity)),
+              Expanded(
+                  child: Image.network(images[1],
+                      fit: BoxFit.cover, width: double.infinity)),
               const SizedBox(height: 2),
-              Expanded(child: Image.network(images[2], fit: BoxFit.cover, width: double.infinity)),
+              Expanded(
+                  child: Image.network(images[2],
+                      fit: BoxFit.cover, width: double.infinity)),
             ],
           ),
         ),
@@ -94,7 +102,8 @@ class BoardCard extends StatelessWidget {
               board.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.bodyLarge
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
           ),
           IconButton(
@@ -114,7 +123,8 @@ class BoardCard extends StatelessWidget {
                     ),
                     ElevatedButton(
                       onPressed: () => Navigator.pop(ctx, true),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      style:
+                          ElevatedButton.styleFrom(backgroundColor: Colors.red),
                       child: const Text('Delete'),
                     ),
                   ],

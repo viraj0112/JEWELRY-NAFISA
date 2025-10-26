@@ -187,13 +187,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             const SizedBox(height: 10),
             Text(
-              'Dagina Designs',
+              'jewelry_nafisa',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 24),
             Text(
-              "Welcome to Dagina Designs",
+              "Welcome to jewelry_nafisa",
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),

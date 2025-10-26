@@ -8,7 +8,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.all(24.0),
-      child: SettingsSection(), 
+      child: SettingsSection(),
     );
   }
 }

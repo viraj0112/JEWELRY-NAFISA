@@ -48,12 +48,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   notification.isRead
                       ? Icons.notifications_none_outlined
                       : Icons.notifications_active,
-                  color: notification.isRead ? Colors.grey : Theme.of(context).primaryColor,
+                  color: notification.isRead
+                      ? Colors.grey
+                      : Theme.of(context).primaryColor,
                 ),
                 title: Text(
                   notification.message,
                   style: TextStyle(
-                    fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+                    fontWeight: notification.isRead
+                        ? FontWeight.normal
+                        : FontWeight.bold,
                   ),
                 ),
                 subtitle: Text(
@@ -61,7 +65,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
                 trailing: !notification.isRead
                     ? TextButton(
-                        onPressed: () => _notificationService.markAsRead(notification.id),
+                        onPressed: () =>
+                            _notificationService.markAsRead(notification.id),
                         child: const Text('Mark as Read'),
                       )
                     : null,

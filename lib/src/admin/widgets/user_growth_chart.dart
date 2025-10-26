@@ -5,9 +5,9 @@ import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:intl/intl.dart';
 
-
 final userGrowthProvider =
-    FutureProvider.family<List<TimeSeriesData>, DateTimeRange>((ref, dateRange) {
+    FutureProvider.family<List<TimeSeriesData>, DateTimeRange>(
+        (ref, dateRange) {
   final adminService = ref.watch(adminServiceProvider);
   return adminService.getUserGrowth(dateRange);
 });
@@ -87,7 +87,7 @@ class _UserGrowthChartState extends ConsumerState<UserGrowthChart> {
                   return SfCartesianChart(
                     primaryXAxis: DateTimeAxis(
                       edgeLabelPlacement: EdgeLabelPlacement.shift,
-                      dateFormat: DateFormat.Md(), 
+                      dateFormat: DateFormat.Md(),
                     ),
                     primaryYAxis: NumericAxis(
                       title: AxisTitle(text: 'New Users'),
@@ -105,8 +105,7 @@ class _UserGrowthChartState extends ConsumerState<UserGrowthChart> {
                     tooltipBehavior: TooltipBehavior(enable: true),
                   );
                 },
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, stack) => Center(child: Text('Error: $err')),
               ),
             ),

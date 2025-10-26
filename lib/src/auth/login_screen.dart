@@ -183,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Dagina Designs',
+            'jewelry_nafisa',
             textAlign: TextAlign.center,
             style: GoogleFonts.ptSerif(
               fontSize: 48,

@@ -5,7 +5,6 @@ import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:provider/provider.dart';
 
-
 class QuoteWithProduct {
   final Map<String, dynamic> quote;
   final JewelryItem? product;
@@ -210,7 +209,7 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
                         product.image,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        height: 200, 
+                        height: 200,
                         loadingBuilder: (context, child, progress) =>
                             progress == null
                                 ? child
@@ -222,31 +221,31 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
                     ),
                   ),
 
-                _buildDetailRow(
-                    'Product Name', product?.productTitle ?? 'N/A'),
-                
+                _buildDetailRow('Product Name', product?.productTitle ?? 'N/A'),
+
                 //
                 // --- FIX #1: PREVENTS THE CRASH ---
                 // This call is now null-safe.
-                _buildDetailRow('Product ID', quote['product_id']?.toString() ?? 'N/A'),
-                
+                _buildDetailRow(
+                    'Product ID', quote['product_id']?.toString() ?? 'N/A'),
+
                 _buildDetailRow('Quote Status', status.toUpperCase()),
-                _buildDetailRow('Expires',
-                    DateFormat.yMMMd().add_jm().format(expiresAt)),
-                
-                if(product != null) ...[
+                _buildDetailRow(
+                    'Expires', DateFormat.yMMMd().add_jm().format(expiresAt)),
+
+                if (product != null) ...[
                   const Divider(height: 20),
                   _buildDetailRow('Description', product.description),
-                  
-                
                   if (product.price != null)
-                    _buildDetailRow('Price', '₹${product.price!.toStringAsFixed(2)}'),
-                  
+                    _buildDetailRow(
+                        'Price', '₹${product.price!.toStringAsFixed(2)}'),
                   _buildDetailRow('Metal Type', product.metalType ?? 'N/A'),
                   _buildDetailRow('Metal Purity', product.metalPurity ?? 'N/A'),
                   _buildDetailRow('Gold Weight', product.goldWeight ?? 'N/A'),
-                  _buildDetailRow('Stone Type', product.stoneType?.join(', ') ?? 'N/A'),
-                  _buildDetailRow('Stone Count', product.stoneCount?.join(', ') ?? 'N/A'),
+                  _buildDetailRow(
+                      'Stone Type', product.stoneType?.join(', ') ?? 'N/A'),
+                  _buildDetailRow(
+                      'Stone Count', product.stoneCount?.join(', ') ?? 'N/A'),
                 ]
               ],
             ),

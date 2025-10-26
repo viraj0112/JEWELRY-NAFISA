@@ -8,7 +8,7 @@ class NotificationsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.all(24.0),
-      child: NotificationsSection(), 
+      child: NotificationsSection(),
     );
   }
 }

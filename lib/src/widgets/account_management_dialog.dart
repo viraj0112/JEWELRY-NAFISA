@@ -45,7 +45,7 @@ class _AccountManagementDialogState extends State<AccountManagementDialog>
             const SizedBox(height: 24),
             SizedBox(
               // Give the TabBarView a constrained height
-              height: 200, 
+              height: 200,
               child: TabBarView(
                 controller: _tabController,
                 children: [
@@ -161,13 +161,13 @@ class _ChangePasswordFormState extends State<_ChangePasswordForm> {
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-                'Password updated successfully! Please log in again.'),
+            content:
+                Text('Password updated successfully! Please log in again.'),
             backgroundColor: Colors.green,
           ),
         );
         // The service already signs the user out, so we just pop the dialog.
-        Navigator.of(context).pop(); 
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
@@ -206,7 +206,8 @@ class _ChangePasswordFormState extends State<_ChangePasswordForm> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _confirmPasswordController,
-            decoration: const InputDecoration(labelText: 'Confirm New Password'),
+            decoration:
+                const InputDecoration(labelText: 'Confirm New Password'),
             obscureText: true,
             validator: (value) {
               if (value != _newPasswordController.text) {

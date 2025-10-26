@@ -36,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<String> _productTypeOptions = ['All'];
   List<String> _categoryOptions = ['All'];
   List<String> _subCategoryOptions = ['All'];
+  List<String> _metalPurity = ['All'];
   List<String> _plainOptions = [];
   List<String> _studdedOptions = [];
 
@@ -43,8 +44,10 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedProductType = 'All';
   String _selectedCategory = 'All';
   String _selectedSubCategory = 'All';
+  String _selectedMetalPurity = 'All';
   String? _selectedPlain;
   String? _selectedStudded;
+
   // --- END OF REFACTORED STATE ---
 
   String? _hoveredItemId;
@@ -88,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _productTypeOptions = options['Product Type'] ?? ['All'];
           _plainOptions = options['Plain'] ?? [];
+          _metalPurity = options['Metal Purity'] ?? [];
           _studdedOptions = options['Studded'] ?? [];
           _products = productList;
           _isLoadingFilters = false;
@@ -108,13 +112,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Fetches products from Supabase based on the *current* state of selected filters
   Future<List<JewelryItem>> _fetchFilteredProducts() async {
     if (mounted) {
       setState(() => _isLoadingProducts = true);
     }
     try {
-      dynamic query = _supabase.from('products').select(); // Use 'dynamic'
+      dynamic query = _supabase.from('products').select();
 
       // Apply filters
       if (_selectedProductType != 'All') {
@@ -124,14 +127,16 @@ class _HomeScreenState extends State<HomeScreen> {
         query = query.eq('Category', _selectedCategory);
       }
       if (_selectedSubCategory != 'All') {
-        // **FIX: Use quotes for column name with space**
         query = query.eq('"Sub Category"', _selectedSubCategory);
+      }
+      if (_selectedMetalPurity != 'All') {
+        query = query.eq('Metal Purity', _selectedMetalPurity);
       }
       if (_selectedPlain != null) {
         query = query.eq('Plain', _selectedPlain!);
       }
       if (_selectedStudded != null) {
-        query = query.eq('Studded', _selectedStudded!);
+        query = query.cs('Studded', _selectedStudded!);
       }
 
       query = query.limit(50).order('id', ascending: false);
@@ -181,13 +186,14 @@ class _HomeScreenState extends State<HomeScreen> {
       // Reset dependent filters
       _selectedCategory = 'All';
       _selectedSubCategory = 'All';
+      _selectedMetalPurity = 'All';
       // Clear options and show loading
       _categoryOptions = ['All'];
       _subCategoryOptions = ['All'];
+      _metalPurity = ['All'];
       _isLoadingCategories = true;
     });
 
-    // Fetch new options for 'Category'
     final filters = {'Product Type': value};
     final newCategories =
         await _filterService.getDependentDistinctValues('Category', filters);
@@ -221,8 +227,8 @@ class _HomeScreenState extends State<HomeScreen> {
       'Category': value,
     };
     // **FIX: Use correct column name with space**
-    final newSubCategories = await _filterService
-        .getDependentDistinctValues('Sub Category', filters);
+    final newSubCategories = await _filterService.getDependentDistinctValues(
+        'Sub Category', filters);
 
     if (mounted) {
       setState(() {
@@ -337,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _shareItem(JewelryItem item) {
     Share.share(
-        'Check out this beautiful ${item.productTitle} from Dagina Designs!');
+        'Check out this beautiful ${item.productTitle} from jewelry_nafisa!');
   }
 
   void _saveToBoard(JewelryItem item) {
@@ -373,8 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     .clamp(2, 6),
                             itemCount: _products.length,
                             itemBuilder: (context, index) {
-                              return _buildImageCard(
-                                  context, _products[index]);
+                              return _buildImageCard(context, _products[index]);
                             },
                             mainAxisSpacing: 8.0,
                             crossAxisSpacing: 8.0,
@@ -421,6 +426,18 @@ class _HomeScreenState extends State<HomeScreen> {
             onChanged: _onSubCategoryChanged, // Use new handler
             isLoading: _isLoadingSubCategories,
           ),
+          _buildDropdownFilter(
+            hint: 'Metal Purity',
+            options: _metalPurity,
+            selectedValue: _selectedMetalPurity,
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _selectedMetalPurity = value;
+              });
+              _applyFilters();
+            },
+          ),
           _buildChoiceChipFilter(
             label: 'Plain',
             options: _plainOptions,
@@ -442,6 +459,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (_selectedProductType != 'All' ||
               _selectedCategory != 'All' ||
               _selectedSubCategory != 'All' ||
+              _selectedMetalPurity != 'All' ||
               _selectedPlain != null ||
               _selectedStudded != null)
             ActionChip(
@@ -466,12 +484,17 @@ class _HomeScreenState extends State<HomeScreen> {
       return const Padding(
         padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         child: SizedBox(
-            width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2,)),
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+            )),
       );
     }
-    
+
     // Don't build a dropdown if there are no options (besides 'All')
-    if (options.length <= 1 && hint != 'Product Type') return const SizedBox.shrink();
+    if (options.length <= 1 && hint != 'Product Type')
+      return const SizedBox.shrink();
 
     // Ensure 'All' is always an option and selected if value is null
     final displayOptions =

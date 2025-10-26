@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/designer/screens/analytics_screen.dart';
-import 'package:jewelry_nafisa/src/designer/screens/b2b_upload_screen.dart'; 
+import 'package:jewelry_nafisa/src/designer/screens/b2b_upload_screen.dart';
 import 'package:jewelry_nafisa/src/designer/screens/manage_uploads_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
@@ -19,13 +19,13 @@ class _DesignerShellState extends State<DesignerShell> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    const B2BProductUploadScreen(), 
+    const B2BProductUploadScreen(),
     const ManageUploadsScreen(),
     const AnalyticsScreen(),
   ];
 
   Future<void> _signOut() async {
-     try {
+    try {
       await SupabaseAuthService().signOut();
       if (mounted) {
         Provider.of<UserProfileProvider>(context, listen: false).reset();

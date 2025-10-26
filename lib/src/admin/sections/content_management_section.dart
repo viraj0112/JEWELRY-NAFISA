@@ -34,7 +34,8 @@ class _ContentManagementSectionState extends State<ContentManagementSection>
   Future<void> _updateStatus(String assetId, String status) async {
     if (status == 'approved') {
       try {
-        await Supabase.instance.client.functions.invoke('approve-product', body: {'assetId': assetId});
+        await Supabase.instance.client.functions
+            .invoke('approve-product', body: {'assetId': assetId});
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Product approved and moved to designer products.'),
