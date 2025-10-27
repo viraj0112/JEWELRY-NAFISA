@@ -20,15 +20,22 @@ import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/ui/screens/jewelry_detail_screen.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/product_page_loader.dart';
+import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 
 final supabaseClient = Supabase.instance.client;
-// SupabaseClient get supabase => Supabase.instance.client;
+
+
 final _router = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(
       path: '/',
       builder: (context, state) => const AuthGate(),
+    ),
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => const LoginScreen(),
     ),
     GoRoute(
       path: '/welcome',
@@ -53,6 +60,18 @@ final _router = GoRouter(
     GoRoute(
       path: '/pending-approval',
       builder: (context, state) => const PendingApprovalScreen(),
+    ),
+    GoRoute(
+      path: '/product/:slug', // This path matches the URL
+      builder: (context, state) {
+        // It extracts the 'slug' from the URL
+        final slug = state.pathParameters['slug']!;
+        if (slug.isEmpty) {
+          return const AuthGate(); // Or an error screen
+        }
+        // It passes the slug to your new loader screen
+        return ProductPageLoader(productSlug: slug);
+      },
     ),
     GoRoute(
       path: '/product/:id',

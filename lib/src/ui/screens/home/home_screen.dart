@@ -136,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
         query = query.eq('Plain', _selectedPlain!);
       }
       if (_selectedStudded != null) {
-        query = query.cs('Studded', _selectedStudded!);
+        query = query.contains('Studded', ['$_selectedStudded']);
       }
 
       query = query.limit(50).order('id', ascending: false);

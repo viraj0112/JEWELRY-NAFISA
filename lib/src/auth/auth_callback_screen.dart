@@ -20,13 +20,15 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
 
   Future<void> _handleAuthCallback() async {
     final uri = web.window.location.href;
-    try {
-      await _supabase.auth.getSessionFromUrl(Uri.parse(uri));
-      web.window.location.replace('/');
-    } catch (e) {
-      debugPrint('Authentication error: $e');
-      web.window.location.replace('/login');
-    }
+    await _supabase.auth.getSessionFromUrl(Uri.parse(uri));
+    web.window.location.replace('/');
+    // try {
+    //   await _supabase.auth.getSessionFromUrl(Uri.parse(uri));
+    //   web.window.location.replace('/');
+    // } catch (e) {
+    //   debugPrint('Authentication error: $e');
+    //   web.window.location.replace('/login');
+    // }
   }
 
   @override

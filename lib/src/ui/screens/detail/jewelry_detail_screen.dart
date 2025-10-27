@@ -8,9 +8,8 @@ import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/get_quote_dialog.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-// Add this import for generating random strings
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:math';
 
 class JewelryDetailScreen extends StatefulWidget {
@@ -206,39 +205,20 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     if (mounted) setState(() => _isSaving = false);
   }
 
-  // ---
-  // --- MODIFIED _shareItem FUNCTION
-  // ---
   Future<void> _shareItem() async {
-    // 1. Ensure the pin exists to get/create the _shareSlug
-    if (_pinId == null) {
-      await _ensurePinExists();
-    }
+    const String productBaseUrl = 'https://www.dagina.design/product';
 
-    // 2. Check if slug was successfully created/fetched
-    if (_shareSlug == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not generate share link.')),
-        );
-      }
-      return;
-    }
+    final String productUrl =
+        '$productBaseUrl/${widget.jewelryItem.productTitle.toLowerCase().replaceAll(' ', '-')}'
+        '${_shareSlug != null ? '?ref=${_shareSlug!}' : ''}';
+    final String shareText =
+        'Check out this beautiful ${widget.jewelryItem.productTitle}! $productUrl from Dagina Designs!';
 
-    // 3. !! IMPORTANT !!
-    //    Replace 'your-app-domain.com/item' with your actual domain
-    final String baseUrl =
-        'https://www.dagina.design/product'; // <-- REPLACE THIS
-    final String shareUrl = '$baseUrl/$_shareSlug';
-
-    // 4. Create the text and include the URL
-    final shareText =
-        'Check out this beautiful ${widget.jewelryItem.productTitle} from AKD Designs! $shareUrl';
-
-    // 5. Share both the text and the URL
-    await Share.share(shareText, subject: 'Beautiful Jewelry from AKD');
+    await Share.share(
+      shareText,
+      subject: 'Beautiful Jewelry from Dagina Designs',
+    );
   }
-  // --- END MODIFIED _shareItem FUNCTION ---
 
   void _onGetQuotePressed(BuildContext context) async {
     // ... (This function remains the same)
