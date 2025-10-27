@@ -2,6 +2,7 @@ import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
+
 class AuthCallbackScreen extends StatefulWidget {
   const AuthCallbackScreen({super.key});
 

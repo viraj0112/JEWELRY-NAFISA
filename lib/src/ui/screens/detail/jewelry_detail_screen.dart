@@ -224,13 +224,15 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     // ... (This function remains the same)
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
     final googleForm =
-        const String.fromEnvironment('GOOGLE_FORM', defaultValue: '');
+        const String.fromEnvironment('GOOGLE_FORM', defaultValue: '').isNotEmpty();
 
     final bool? useCredit = await showDialog<bool>(
       context: context,
       builder: (context) => GetQuoteDialog(googleFormLink: googleForm),
     );
-
+    await Supabase.initialize(
+    form: googleForm,
+  );
     if (useCredit == true) {
       if (profile.creditsRemaining > 0) {
         await _useQuoteCredit(context);
