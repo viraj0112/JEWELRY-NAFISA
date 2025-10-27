@@ -230,9 +230,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       context: context,
       builder: (context) => GetQuoteDialog(googleFormLink: googleForm),
     );
-    await Supabase.initialize(
-    form: googleForm,
-  );
+   
     if (useCredit == true) {
       if (profile.creditsRemaining > 0) {
         await _useQuoteCredit(context);
