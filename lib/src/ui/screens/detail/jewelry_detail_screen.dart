@@ -221,16 +221,15 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   void _onGetQuotePressed(BuildContext context) async {
-    // ... (This function remains the same)
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
-    final googleForm =
-        const String.fromEnvironment('GOOGLE_FORM', defaultValue: '').isNotEmpty();
+    const String googleFormUrl =
+        String.fromEnvironment('GOOGLE_FORM', defaultValue: '');
 
     final bool? useCredit = await showDialog<bool>(
       context: context,
-      builder: (context) => GetQuoteDialog(googleFormLink: googleForm),
+      builder: (context) => GetQuoteDialog(googleFormLink: googleFormUrl),
     );
-   
+
     if (useCredit == true) {
       if (profile.creditsRemaining > 0) {
         await _useQuoteCredit(context);
