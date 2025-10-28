@@ -123,6 +123,7 @@ class _MainShellState extends State<MainShell> {
     final userProfile = Provider.of<UserProfileProvider>(context);
     final theme = Theme.of(context);
 
+    // The problematic PopScope has been removed from here
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -193,6 +194,7 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildNarrowLayout() {
+    // The problematic PopScope has been removed from here
     return Scaffold(
       appBar: _buildAppBar(isWide: false),
       body: _pages.elementAt(_selectedIndex),

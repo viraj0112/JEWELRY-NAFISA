@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
@@ -10,8 +12,10 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:math';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:url_launcher/url_launcher.dart'; 
+import 'package:url_launcher/url_launcher.dart';
+
+// Import dart:html conditionally
+import 'dart:html' as html;
 
 class JewelryDetailScreen extends StatefulWidget {
   final JewelryItem jewelryItem;
@@ -30,11 +34,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   late final JewelryService _jewelryService;
   late Future<List<JewelryItem>> _similarItemsFuture;
 
-  // --- MODIFIED ---
-  // Default to false. _initializeInteractionState will check if it should be true.
   bool _detailsRevealed = false;
-  // --- END MODIFIED ---
-
   bool _isLoadingInteraction = true;
   bool _isLiking = false;
   bool _isSaving = false;
@@ -44,7 +44,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   bool _userLiked = false;
   String? _shareSlug;
 
-  // Define a duration for how long details remain unlocked
   static const _unlockDuration = Duration(days: 7);
 
   @override
@@ -91,10 +90,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       }
     }
 
-    // --- ADDED: Check for existing unlock ---
     if (uid != null) {
       try {
-        // Find the most recent 'valid' quote/unlock for this item
         final unlockData = await supabase
             .from('quotes')
             .select('status, expires_at')
@@ -103,7 +100,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               'product_id': widget.jewelryItem.id.toString(),
               'status': 'valid',
             })
-            .order('expires_at', ascending: false) // Get the latest one
+            .order('expires_at', ascending: false)
             .limit(1)
             .maybeSingle();
 
@@ -111,18 +108,15 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           final expiresAtStr = unlockData['expires_at'] as String?;
           if (expiresAtStr != null) {
             final expiresAt = DateTime.tryParse(expiresAtStr);
-            // Check if the expiration date is in the future
             if (expiresAt != null && expiresAt.isAfter(DateTime.now())) {
-              _detailsRevealed = true; // Set to true if valid and not expired
+              _detailsRevealed = true;
             }
           }
         }
       } catch (e) {
         debugPrint("Error checking for unlocked item: $e");
-        // _detailsRevealed remains false
       }
     }
-    // --- END ADDED ---
 
     if (mounted) {
       setState(() => _isLoadingInteraction = false);
@@ -239,40 +233,70 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   void _onGetQuotePressed() async {
-
     const String fromEnv = String.fromEnvironment('GOOGLE_FORM');
-    final String fromDotEnv = dotenv.env['GOOGLE_FORM'] ?? '';
+    final String fromDotEnv = "https://forms.gle/JBnYGzoX1HxnceQt7";
     final String googleFormUrl = fromEnv.isNotEmpty ? fromEnv : fromDotEnv;
+
+    debugPrint("Attempting to launch URL: $googleFormUrl");
+
     if (googleFormUrl.isEmpty) {
-      debugPrint("GOOGLE_FORM environment variable is not set.");
+      debugPrint("GOOGLE_FORM env variable not set.");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content:
-                  Text('Could not open quote form. Please try again later.')),
+                  Text('Could not open quote form. Form URL not configured.')),
         );
       }
       return;
     }
 
-    final Uri googleFormUri = Uri.parse(googleFormUrl);
-
-    if (await canLaunchUrl(googleFormUri)) {
-      await launchUrl(googleFormUri);
+    if (kIsWeb) {
+      try {
+        html.AnchorElement anchorElement =
+            html.AnchorElement(href: googleFormUrl);
+        anchorElement.target = '_blank';
+        anchorElement.click();
+      } catch (e) {
+        debugPrint("Error launching URL with dart:html: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Error opening form with dart:html: $e"),
+            ),
+          );
+        }
+      }
     } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Could not open the form. Please try again later."),
-          ),
+      final Uri googleFormUri = Uri.parse(googleFormUrl);
+      try {
+        bool launched = await launchUrl(
+          googleFormUri,
+          mode: LaunchMode.externalApplication,
         );
+        if (!launched && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  "Could not launch the form link. Browser might be blocking it."),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint("Error launching URL with url_launcher: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Error opening form with url_launcher: $e"),
+            ),
+          );
+        }
       }
     }
   }
 
   void _onGetDetailsPressed(BuildContext context) async {
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
-
 
     if (profile.creditsRemaining <= 0) {
       if (mounted) {
@@ -281,9 +305,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               content: Text('You are out of credits! Share to get more.')),
         );
       }
-      return; 
+      return;
     }
-   
 
     final bool? useCredit = await showDialog<bool>(
       context: context,
@@ -294,7 +317,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       await _useQuoteCredit(context);
     }
   }
-  
+
   Future<void> _useQuoteCredit(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
@@ -312,9 +335,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     try {
       await supabase.rpc('decrement_credit');
-
       profile.decrementCredit();
-
       final expiration = DateTime.now().add(_unlockDuration);
       await supabase.from('quotes').insert({
         'user_id': uid,
@@ -355,9 +376,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         ),
       );
     }
-    return true; 
+    return true;
   }
-  
 
   @override
   Widget build(BuildContext context) {
@@ -440,7 +460,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       ],
     );
   }
-  
 
   Widget _buildNarrowLayout() {
     return CustomScrollView(
@@ -505,7 +524,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           if (showFullDetails) ...[
             Text("Product Details", style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
-
             if (item.metalPurity != null && item.metalPurity!.isNotEmpty)
               _buildDetailRow("Metal Purity: ", item.metalPurity!),
             if (item.goldWeight != null && item.goldWeight!.isNotEmpty)
@@ -516,7 +534,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               _buildDetailRow("Metal Finish: ", item.metalFinish!),
             if (item.metalType != null && item.metalType!.isNotEmpty)
               _buildDetailRow("Metal Type: ", item.metalType!),
-
             if (item.stoneType != null && item.stoneType!.isNotEmpty)
               _buildDetailRow("Stone Type:", item.stoneType!.join(', ')),
             if (item.stoneColor != null && item.stoneColor!.isNotEmpty)
@@ -534,29 +551,22 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             if (item.stoneSetting != null && item.stoneSetting!.isNotEmpty)
               _buildDetailRow(
                   "Stone Settings: ", item.stoneSetting!.join(', ')),
-
-
             const SizedBox(height: 24),
-
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _onGetQuotePressed, // Opens Google Form
+                onPressed: _onGetQuotePressed,
                 child: const Text('Get Quote'),
               ),
             ),
-            // --- END ADDED ---
           ] else ...[
             Text("Description", style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
-              "Full product details including metal type, purity, and stone details are available to members or by using a credit.",
+              "Full product details including metal type, purity, and stone details are available by using a credit.",
               style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
             ),
             const SizedBox(height: 24),
-
-            // --- MODIFIED: This is now the "Get Details" button ---
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -564,13 +574,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                 child: const Text('Get Details'),
               ),
             ),
-            // --- END MODIFIED ---
           ],
         ],
       ),
     );
   }
-  // --- END MODIFIED ---
 
   Widget _buildDetailRow(String title, String value) {
     return Padding(
@@ -648,7 +656,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             final item = items[index];
             return GestureDetector(
               onTap: () {
-                // Use pushReplacement to avoid building up a stack of detail pages
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(

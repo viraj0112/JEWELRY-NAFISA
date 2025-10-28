@@ -25,7 +25,6 @@ import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 
 final supabaseClient = Supabase.instance.client;
 
-
 final _router = GoRouter(
   initialLocation: '/',
   routes: [
