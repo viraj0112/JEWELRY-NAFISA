@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/social_auth_button.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -36,7 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  uture<void> _signIn() async {
+  Future<void> _signIn() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       final user = await _authService.signInWithEmailOrUsername(
