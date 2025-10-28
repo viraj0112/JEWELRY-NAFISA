@@ -43,6 +43,27 @@
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
+
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:label="Dagina Designs"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        </application>
+
+    <queries>
+      <intent>
+        <action android:name="android.intent.action.VIEW" />
+        <data android:scheme="https" />
+      </intent>
+      <intent>
+        <action android:name="android.intent.action.VIEW" />
+        <data android:scheme="http" />
+      </intent>
+    </queries>
+
+</manifest>
     
     <queries>
         <intent>
