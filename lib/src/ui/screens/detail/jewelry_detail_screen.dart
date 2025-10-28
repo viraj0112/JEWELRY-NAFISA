@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
@@ -11,6 +10,8 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:math';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:url_launcher/url_launcher.dart'; 
 
 class JewelryDetailScreen extends StatefulWidget {
   final JewelryItem jewelryItem;
@@ -29,7 +30,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   late final JewelryService _jewelryService;
   late Future<List<JewelryItem>> _similarItemsFuture;
 
+  // --- MODIFIED ---
+  // Default to false. _initializeInteractionState will check if it should be true.
   bool _detailsRevealed = false;
+  // --- END MODIFIED ---
+
   bool _isLoadingInteraction = true;
   bool _isLiking = false;
   bool _isSaving = false;
@@ -37,11 +42,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   String? _pinId;
   int _likeCount = 0;
   bool _userLiked = false;
-
-  // --- ADDED ---
-  // Add a variable to store the share slug
   String? _shareSlug;
-  // --- END ADDED ---
+
+  // Define a duration for how long details remain unlocked
+  static const _unlockDuration = Duration(days: 7);
 
   @override
   void initState() {
@@ -55,7 +59,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     );
   }
 
-  // --- Helper to generate a random slug ---
   String _generateRandomSlug(int length) {
     const chars =
         'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
@@ -63,29 +66,21 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     return String.fromCharCodes(Iterable.generate(
         length, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
-  // --- End Helper ---
 
   Future<void> _initializeInteractionState() async {
     final uid = supabase.auth.currentUser?.id;
 
-    // --- MODIFIED ---
-    // Also fetch the share_slug
     final pinData = await supabase
         .from('pins')
-        .select('id, like_count, share_slug') // <-- Get share_slug
+        .select('id, like_count, share_slug')
         .eq('image_url', widget.jewelryItem.image)
         .maybeSingle();
-    // --- END MODIFIED ---
 
     if (pinData != null) {
       final pinId = pinData['id'] as String;
       _pinId = pinId;
       _likeCount = (pinData['like_count'] ?? 0) as int;
-
-      // --- ADDED ---
-      // Store the share_slug
       _shareSlug = pinData['share_slug'] as String?;
-      // --- END ADDED ---
 
       if (uid != null) {
         final likeResponse = await supabase
@@ -95,6 +90,39 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         _userLiked = (likeResponse != null);
       }
     }
+
+    // --- ADDED: Check for existing unlock ---
+    if (uid != null) {
+      try {
+        // Find the most recent 'valid' quote/unlock for this item
+        final unlockData = await supabase
+            .from('quotes')
+            .select('status, expires_at')
+            .match({
+              'user_id': uid,
+              'product_id': widget.jewelryItem.id.toString(),
+              'status': 'valid',
+            })
+            .order('expires_at', ascending: false) // Get the latest one
+            .limit(1)
+            .maybeSingle();
+
+        if (unlockData != null) {
+          final expiresAtStr = unlockData['expires_at'] as String?;
+          if (expiresAtStr != null) {
+            final expiresAt = DateTime.tryParse(expiresAtStr);
+            // Check if the expiration date is in the future
+            if (expiresAt != null && expiresAt.isAfter(DateTime.now())) {
+              _detailsRevealed = true; // Set to true if valid and not expired
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint("Error checking for unlocked item: $e");
+        // _detailsRevealed remains false
+      }
+    }
+    // --- END ADDED ---
 
     if (mounted) {
       setState(() => _isLoadingInteraction = false);
@@ -112,14 +140,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       return null;
     }
 
-    // --- ADDED ---
-    // Generate a share_slug if we are creating a new pin
-    _shareSlug ??= _generateRandomSlug(8); // Generate an 8-char slug
-    // --- END ADDED ---
+    _shareSlug ??= _generateRandomSlug(8);
 
     try {
-      // --- MODIFIED ---
-      // Insert the share_slug when creating the pin
       final newPin = await supabase
           .from('pins')
           .insert({
@@ -127,24 +150,20 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             'title': widget.jewelryItem.productTitle,
             'image_url': widget.jewelryItem.image,
             'description': widget.jewelryItem.description,
-            'share_slug': _shareSlug // <-- Save the slug
+            'share_slug': _shareSlug
           })
           .select('id')
           .single();
-      // --- END MODIFIED ---
       _pinId = newPin['id'];
       return _pinId;
     } catch (e) {
-      // Handle potential duplicate slug error (though unlikely)
       debugPrint("Error creating pin on demand: $e");
-      // Clear slug if insert failed
       _shareSlug = null;
       return null;
     }
   }
 
   Future<void> _toggleLike() async {
-    // ... (This function remains the same)
     if (_isLiking || _isLoadingInteraction) return;
     setState(() => _isLiking = true);
 
@@ -182,7 +201,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<void> _saveToBoard() async {
-    // ... (This function remains the same)
     if (_isSaving || _isLoadingInteraction) return;
     setState(() => _isSaving = true);
 
@@ -220,38 +238,93 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     );
   }
 
-  void _onGetQuotePressed(BuildContext context) async {
-    final profile = Provider.of<UserProfileProvider>(context, listen: false);
-    const String googleFormUrl =
-        String.fromEnvironment('GOOGLE_FORM', defaultValue: '');
+  void _onGetQuotePressed() async {
 
-    final bool? useCredit = await showDialog<bool>(
-      context: context,
-      builder: (context) => GetQuoteDialog(googleFormLink: googleFormUrl),
-    );
+    const String fromEnv = String.fromEnvironment('GOOGLE_FORM');
+    final String fromDotEnv = dotenv.env['GOOGLE_FORM'] ?? '';
+    final String googleFormUrl = fromEnv.isNotEmpty ? fromEnv : fromDotEnv;
+    if (googleFormUrl.isEmpty) {
+      debugPrint("GOOGLE_FORM environment variable is not set.");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content:
+                  Text('Could not open quote form. Please try again later.')),
+        );
+      }
+      return;
+    }
 
-    if (useCredit == true) {
-      if (profile.creditsRemaining > 0) {
-        await _useQuoteCredit(context);
-        if (mounted) setState(() => _detailsRevealed = true);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('You are out of credits!')),
-          );
-        }
+    final Uri googleFormUri = Uri.parse(googleFormUrl);
+
+    if (await canLaunchUrl(googleFormUri)) {
+      await launchUrl(googleFormUri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Could not open the form. Please try again later."),
+          ),
+        );
       }
     }
   }
 
+  void _onGetDetailsPressed(BuildContext context) async {
+    final profile = Provider.of<UserProfileProvider>(context, listen: false);
+
+
+    if (profile.creditsRemaining <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('You are out of credits! Share to get more.')),
+        );
+      }
+      return; 
+    }
+   
+
+    final bool? useCredit = await showDialog<bool>(
+      context: context,
+      builder: (context) => const GetQuoteDialog(),
+    );
+
+    if (useCredit == true) {
+      await _useQuoteCredit(context);
+    }
+  }
+  
   Future<void> _useQuoteCredit(BuildContext context) async {
-    // ... (This function remains the same)
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
+    final uid = supabase.auth.currentUser?.id;
+
+    if (uid == null) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('You must be logged in to use credits.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     try {
       await supabase.rpc('decrement_credit');
+
       profile.decrementCredit();
+
+      final expiration = DateTime.now().add(_unlockDuration);
+      await supabase.from('quotes').insert({
+        'user_id': uid,
+        'product_id': widget.jewelryItem.id.toString(),
+        'status': 'valid',
+        'expires_at': expiration.toIso8601String(),
+      });
+
       if (mounted) {
+        setState(() => _detailsRevealed = true);
         scaffoldMessenger.showSnackBar(
           const SnackBar(
             content: Text('Details revealed! One credit used.'),
@@ -272,23 +345,38 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
   }
 
+  Future<bool> _onWillPop() async {
+    if (_detailsRevealed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Product details saved to "View Detail History" on your profile.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+    return true; 
+  }
+  
+
   @override
   Widget build(BuildContext context) {
-    // ... (This function remains the same)
     return Scaffold(
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            bool isWide = constraints.maxWidth > 800;
-            return isWide ? _buildWideLayout() : _buildNarrowLayout();
-          },
+        child: WillPopScope(
+          onWillPop: _onWillPop,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              bool isWide = constraints.maxWidth > 800;
+              return isWide ? _buildWideLayout(context) : _buildNarrowLayout();
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildWideLayout() {
-    // ... (This function remains the same)
+  Widget _buildWideLayout(BuildContext context) {
     return Column(
       children: [
         Padding(
@@ -298,7 +386,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.close),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  _onWillPop();
+                  Navigator.of(context).pop();
+                },
                 tooltip: 'Close',
               ),
             ],
@@ -349,9 +440,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       ],
     );
   }
+  
 
   Widget _buildNarrowLayout() {
-    // ... (This function remains the same)
     return CustomScrollView(
       slivers: [
         SliverAppBar(
@@ -382,13 +473,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildContentSection() {
-    // ... (This function remains the same, but I removed a typo in the description text)
     final theme = Theme.of(context);
     final userProfile = context.watch<UserProfileProvider>();
-    final isMember = userProfile.isMember;
     final item = widget.jewelryItem;
 
-    final bool showTitle = isMember || _detailsRevealed;
+    final bool showTitle = _detailsRevealed;
     final bool showFullDetails = _detailsRevealed;
 
     return Padding(
@@ -416,64 +505,74 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           if (showFullDetails) ...[
             Text("Product Details", style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
-            // _buildDetailRow("SKU:", item.id.toString()),
 
-            // Metal Details
-            if (item.metalPurity != null)
+            if (item.metalPurity != null && item.metalPurity!.isNotEmpty)
               _buildDetailRow("Metal Purity: ", item.metalPurity!),
-            if (item.goldWeight != null)
+            if (item.goldWeight != null && item.goldWeight!.isNotEmpty)
               _buildDetailRow("Metal Weight: ", item.goldWeight!),
-            if (item.metalColor != null)
+            if (item.metalColor != null && item.metalColor!.isNotEmpty)
               _buildDetailRow("Metal Color: ", item.metalColor!),
-            if (item.metalFinish != null)
+            if (item.metalFinish != null && item.metalFinish!.isNotEmpty)
               _buildDetailRow("Metal Finish: ", item.metalFinish!),
-            if (item.metalType != null)
+            if (item.metalType != null && item.metalType!.isNotEmpty)
               _buildDetailRow("Metal Type: ", item.metalType!),
 
-            // Stone Details
-            if (item.stoneType != null)
-              _buildDetailRow("Stone Type:", item.stoneUsed!.join(', ')),
-            if (item.stoneColor != null)
+            if (item.stoneType != null && item.stoneType!.isNotEmpty)
+              _buildDetailRow("Stone Type:", item.stoneType!.join(', ')),
+            if (item.stoneColor != null && item.stoneColor!.isNotEmpty)
               _buildDetailRow("Stone Color: ", item.stoneColor!.join(', ')),
-            if (item.stoneCount != null)
+            if (item.stoneCount != null && item.stoneCount!.isNotEmpty)
               _buildDetailRow("Stone Count: ", item.stoneCount!.join(', ')),
-            if (item.stonePurity != null)
+            if (item.stonePurity != null && item.stonePurity!.isNotEmpty)
               _buildDetailRow("Stone Purity: ", item.stonePurity!.join(', ')),
-            if (item.stoneCut != null)
+            if (item.stoneCut != null && item.stoneCut!.isNotEmpty)
               _buildDetailRow("Stone Cut", item.stoneCut!.join(', ')),
-            if (item.stoneUsed != null)
+            if (item.stoneUsed != null && item.stoneUsed!.isNotEmpty)
               _buildDetailRow("Stone Used: ", item.stoneUsed!.join(', ')),
-            if (item.stoneWeight != null)
+            if (item.stoneWeight != null && item.stoneWeight!.isNotEmpty)
               _buildDetailRow("Stone Weight: ", item.stoneWeight!.join(', ')),
-            if (item.stoneSetting != null)
+            if (item.stoneSetting != null && item.stoneSetting!.isNotEmpty)
               _buildDetailRow(
                   "Stone Settings: ", item.stoneSetting!.join(', ')),
 
+
             const SizedBox(height: 24),
+
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _onGetQuotePressed, // Opens Google Form
+                child: const Text('Get Quote'),
+              ),
+            ),
+            // --- END ADDED ---
           ] else ...[
             Text("Description", style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
-              // Corrected typo: removed "weight" as it's not in the 'showFullDetails' list
               "Full product details including metal type, purity, and stone details are available to members or by using a credit.",
               style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
             ),
             const SizedBox(height: 24),
+
+            // --- MODIFIED: This is now the "Get Details" button ---
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => _onGetQuotePressed(context),
+                onPressed: () => _onGetDetailsPressed(context),
                 child: const Text('Get Details'),
               ),
             ),
+            // --- END MODIFIED ---
           ],
         ],
       ),
     );
   }
+  // --- END MODIFIED ---
 
   Widget _buildDetailRow(String title, String value) {
-    // ... (This function remains the same)
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
       child: Row(
@@ -487,7 +586,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   List<Widget> _buildActionButtons() {
-    // ... (This function remains the same)
     return [
       IconButton(
         onPressed: _isLiking ? null : _toggleLike,
@@ -523,7 +621,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildSimilarItemsGrid({bool isSliver = false}) {
-    // ... (This function remains the same)
     return FutureBuilder<List<JewelryItem>>(
       future: _similarItemsFuture,
       builder: (context, snapshot) {
@@ -551,6 +648,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             final item = items[index];
             return GestureDetector(
               onTap: () {
+                // Use pushReplacement to avoid building up a stack of detail pages
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
