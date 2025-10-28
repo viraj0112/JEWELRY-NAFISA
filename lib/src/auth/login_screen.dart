@@ -36,14 +36,17 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _signIn() async {
+  uture<void> _signIn() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       final user = await _authService.signInWithEmailOrUsername(
         _emailOrUsernameController.text.trim(),
         _passwordController.text.trim(),
       );
-      if (user == null && mounted) {
+
+      if (user != null && mounted) {
+        GoRouter.of(context).go('/');
+      } else if (user == null && mounted) {
         setState(() => _isLoading = false);
         _showErrorSnackbar('Login failed. Please check your credentials.');
       }
@@ -52,9 +55,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
-    await _authService.signInWithGoogle();
-    if (mounted) {
-      setState(() => _isLoading = false);
+    try {
+      await _authService.signInWithGoogle();
+    } catch (e) {
+      _showErrorSnackbar('Google Sign-In failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
