@@ -28,7 +28,7 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
       // If successful, redirect to the profile loader
       if (mounted) {
         // Use this method instead of context.go()
-        GoRouter.of(context).go('/profile-loader'); 
+        GoRouter.of(context).go('/home'); 
       }
     } catch (e) {
       // If it fails (e.g., "Code verifier not found"), we catch it
@@ -41,8 +41,7 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
           ),
         );
         
-        // Use this method instead of context.go()
-        GoRouter.of(context).go('/login');
+        GoRouter.of(context).go('/');
       }
     }
   }
