@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "googleapis": "https://esm.sh/googleapis@105.0.0?target=es2022&deno-std=0.177.0&pin=v128",
+    "google-auth-library": "https://esm.sh/google-auth-library@8.9.0?target=es2022&deno-std=0.177.0&pin=v128"
+  }
+}

@@ -254,7 +254,7 @@ CREATE POLICY "Users can view their own notifications" ON public.notifications F
 -- Insert default settings
 INSERT INTO public.settings (key, value, description) VALUES
   ('daily_reset_time_utc', '00:00', 'The time (UTC) when member credits are reset daily.'),
-  ('signup_bonus_credits', '1', 'Credits awarded to a new user on signup.'),
+  ('signup_bonus_credits', '20', 'Credits awarded to a new user on signup.'),
   ('referral_bonus_member', '3', 'Credits awarded to a member for a successful referral.'),
   ('referral_bonus_non_member', '2', 'Credits awarded to a non-member for a successful referral.')
 ON CONFLICT (key) DO NOTHING;

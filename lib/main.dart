@@ -22,6 +22,7 @@ import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/product_page_loader.dart';
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
+import 'package:jewelry_nafisa/src/services/quote_service.dart';
 
 final supabaseClient = Supabase.instance.client;
 
@@ -125,6 +126,7 @@ Future<void> main() async {
         Provider<JewelryService>(
           create: (_) => JewelryService(supabaseClient),
         ),
+        Provider<QuoteService>(create: (_) => QuoteService()),
       ],
       child: const MyApp(),
     ),
