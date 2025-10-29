@@ -64,8 +64,10 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('My Quote History'),
       ),
       // Update FutureBuilder type
@@ -165,6 +167,7 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
             },
           );
         },
+        ),
       ),
     );
   }

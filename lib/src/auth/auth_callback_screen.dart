@@ -48,6 +48,9 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return PopScope(
+      canPop: true,
+      child: const Scaffold(body: Center(child: CircularProgressIndicator())),
+    );
   }
 }

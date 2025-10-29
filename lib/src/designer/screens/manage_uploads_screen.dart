@@ -78,8 +78,10 @@ class _ManageUploadsScreenState extends State<ManageUploadsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: FutureBuilder<List<Map<String, dynamic>>>(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _uploadsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -131,6 +133,7 @@ class _ManageUploadsScreenState extends State<ManageUploadsScreen> {
             },
           );
         },
+        ),
       ),
     );
   }

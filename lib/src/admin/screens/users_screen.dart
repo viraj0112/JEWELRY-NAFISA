@@ -6,6 +6,9 @@ class UsersScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(padding: EdgeInsets.all(24.0), child: UsersSection());
+    return PopScope(
+      canPop: true,
+      child: const Padding(padding: EdgeInsets.all(24.0), child: UsersSection()),
+    );
   }
 }

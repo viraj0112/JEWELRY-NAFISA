@@ -5,9 +5,12 @@ class ReferralsScreen extends StatelessWidget {
   const ReferralsScreen({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(24.0),
-      child: ReferralsSection(),
+    return PopScope(
+      canPop: true,
+      child: const Padding(
+        padding: EdgeInsets.all(24.0),
+        child: ReferralsSection(),
+      ),
     );
   }
 }

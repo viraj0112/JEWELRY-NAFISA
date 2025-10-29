@@ -7,8 +7,10 @@ class BuyMembershipScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Unlock Premium")),
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(title: const Text("Unlock Premium")),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -57,6 +59,7 @@ class BuyMembershipScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

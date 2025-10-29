@@ -5,8 +5,10 @@ class SearchPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('Search'),
         actions: [
           IconButton(
@@ -37,6 +39,7 @@ class SearchPage extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

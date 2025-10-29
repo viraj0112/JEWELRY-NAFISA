@@ -6,6 +6,9 @@ class ProductUploadScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ProductUploadSection();
+    return PopScope(
+      canPop: true,
+      child: const ProductUploadSection(),
+    );
   }
 }

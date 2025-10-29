@@ -167,8 +167,10 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('Become a Designer'),
       ),
       body: SafeArea(
@@ -295,6 +297,7 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

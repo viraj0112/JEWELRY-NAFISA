@@ -90,8 +90,10 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      body: Center(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: ConstrainedBox(
@@ -155,6 +157,7 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

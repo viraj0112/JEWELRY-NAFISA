@@ -10,8 +10,10 @@ class JewelryDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
         title: Text(jewelryItem.productTitle),
       ),
       body: SingleChildScrollView(
@@ -55,6 +57,7 @@ class JewelryDetailScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

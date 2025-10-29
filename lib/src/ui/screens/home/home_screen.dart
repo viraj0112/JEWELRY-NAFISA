@@ -357,8 +357,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        body: Column(
         children: [
           _buildFilterBar(),
           Expanded(
@@ -387,6 +389,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
           ),
         ],
+        ),
       ),
     );
   }

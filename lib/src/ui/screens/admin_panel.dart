@@ -14,8 +14,10 @@ class AdminPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('Admin Panel'),
       ),
       body: ListView.builder(
@@ -62,6 +64,7 @@ class AdminPanel extends StatelessWidget {
           );
         },
       ),
+      ),
     );
   }
 }
@@ -71,12 +74,15 @@ class MonthlyCreditsSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('Monthly Credits Settings'),
       ),
       body: Center(
         child: Text('Settings for monthly credits will be here.'),
+        ),
       ),
     );
   }

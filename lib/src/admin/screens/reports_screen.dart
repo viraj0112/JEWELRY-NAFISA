@@ -6,9 +6,12 @@ class ReportsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(24.0),
-      child: ReportsSection(),
+    return PopScope(
+      canPop: true,
+      child: const Padding(
+        padding: EdgeInsets.all(24.0),
+        child: ReportsSection(),
+      ),
     );
   }
 }

@@ -195,12 +195,15 @@ class _BoardsScreenState extends State<BoardsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        body: Column(
         children: [
           _buildBoardToolbar(),
           Expanded(child: _buildBoardsGrid()),
         ],
+        ),
       ),
     );
   }

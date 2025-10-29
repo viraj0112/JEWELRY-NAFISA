@@ -135,8 +135,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      body: Stack(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        body: Stack(
         children: [
           // 1. Full-screen background image
           Container(
@@ -180,6 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

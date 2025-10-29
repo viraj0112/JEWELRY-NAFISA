@@ -42,8 +42,10 @@ class _MonthlyCreditsSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('Monthly Credits Settings'),
       ),
       body: Padding(
@@ -77,6 +79,7 @@ class _MonthlyCreditsSettingsScreenState
               child: const Text('Save'),
             ),
           ],
+        ),
         ),
       ),
     );

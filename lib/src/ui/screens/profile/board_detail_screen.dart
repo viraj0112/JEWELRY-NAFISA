@@ -124,8 +124,10 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
         title: Text(widget.boardName),
       ),
       body: _isLoading
@@ -217,6 +219,7 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
                     );
                   },
                 ),
-    );
-  }
+     ),
+   );
+ }
 }

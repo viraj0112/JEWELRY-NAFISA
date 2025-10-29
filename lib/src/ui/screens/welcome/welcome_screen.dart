@@ -70,8 +70,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _isLoading
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _imageUrls.isEmpty
               ? const Center(child: Text("No images found."))
@@ -80,9 +82,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     final isWide = constraints.maxWidth > 700;
                     return isWide ? _buildWideLayout() : _buildNarrowLayout();
                   },
-                ),
-    );
-  }
+                  ),
+        ),
+      );
+    }
 
   // ... The rest of the file remains the same, no changes needed below this line
   // ... (Omitting the rest of the build methods for brevity as they are unchanged)

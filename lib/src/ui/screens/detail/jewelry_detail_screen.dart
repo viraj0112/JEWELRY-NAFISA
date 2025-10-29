@@ -381,10 +381,21 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: WillPopScope(
-          onWillPop: _onWillPop,
+    return PopScope(
+      canPop: true,
+      onPopInvoked: (didPop) async {
+        if (didPop && _detailsRevealed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Product details saved to "View Detail History" on your profile.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      },
+      child: Scaffold(
+        body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
               bool isWide = constraints.maxWidth > 800;

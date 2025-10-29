@@ -76,14 +76,17 @@ class _ReferralScreenState extends State<ReferralScreen> {
     final userProfile = context.watch<UserProfileProvider>();
     final referralCode = userProfile.referralCode;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
+    return PopScope(
+      canPop: true,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
         if (constraints.maxWidth > 600) {
           return _buildDesktopLayout(context, referralCode);
         } else {
           return _buildMobileLayout(context, referralCode);
         }
-      },
+        },
+      ),
     );
   }
 

@@ -141,8 +141,10 @@ class _SearchScreenState extends State<SearchScreen> {
     final theme = Theme.of(context);
     final bool isSearching = _currentSearchQuery.isNotEmpty;
 
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
         titleSpacing: 16.0,
         elevation: 0,
         backgroundColor: theme.scaffoldBackgroundColor,
@@ -171,8 +173,9 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           onSubmitted: _performSearch,
         ),
+        ),
+        body: _buildBody(isSearching),
       ),
-      body: _buildBody(isSearching),
     );
   }
 

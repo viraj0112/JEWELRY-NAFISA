@@ -34,8 +34,10 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   Widget build(BuildContext context) {
     final userProfile = context.watch<UserProfileProvider>();
-    return Scaffold(
-      body: NestedScrollView(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
             SliverToBoxAdapter(
@@ -61,6 +63,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             _buildMyAccountTab(userProfile),
             const ReferralScreen(),
           ],
+        ),
         ),
       ),
     );

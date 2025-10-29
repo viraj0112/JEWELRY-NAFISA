@@ -94,8 +94,10 @@ class _B2BProductUploadScreenState extends State<B2BProductUploadScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: TabBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: TabBar(
         controller: _tabController,
         tabs: const [
           Tab(text: "Manual Upload"),
@@ -108,6 +110,7 @@ class _B2BProductUploadScreenState extends State<B2BProductUploadScreen>
           ManualUploadTab(),
           BulkUploadTab(),
         ],
+        ),
       ),
     );
   }

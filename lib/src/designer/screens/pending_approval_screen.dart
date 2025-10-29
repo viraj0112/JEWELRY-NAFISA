@@ -17,8 +17,10 @@ class PendingApprovalScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text("Account Pending"),
         actions: [
           IconButton(
@@ -49,6 +51,7 @@ class PendingApprovalScreen extends StatelessWidget {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

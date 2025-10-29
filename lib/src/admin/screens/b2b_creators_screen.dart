@@ -6,9 +6,12 @@ class B2BCreatorsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(24.0),
-      child: B2BCreatorsSection(),
+    return PopScope(
+      canPop: true,
+      child: const Padding(
+        padding: EdgeInsets.all(24.0),
+        child: B2BCreatorsSection(),
+      ),
     );
   }
 }

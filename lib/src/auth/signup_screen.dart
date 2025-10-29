@@ -114,8 +114,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
           _buildBackgroundGrid(),
@@ -147,6 +149,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

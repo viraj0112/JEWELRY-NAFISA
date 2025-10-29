@@ -13,14 +13,17 @@ class CreatorAnalyticsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
         title: Text(creatorName ?? 'Creator Analytics'),
         elevation: 1,
         shadowColor: Colors.black,
       ),
       body: CreatorAnalyticsSection(
         creatorId: creatorId,
+      ),
       ),
     );
   }

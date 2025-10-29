@@ -34,8 +34,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('Work Analytics'),
       ),
       body: FutureBuilder<Map<String, dynamic>>(
@@ -65,6 +67,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             ],
           );
         },
+        ),
       ),
     );
   }
