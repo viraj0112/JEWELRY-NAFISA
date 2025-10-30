@@ -9,18 +9,19 @@ jobs:
   mirror:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Source Repository (Code is here now)
         uses: actions/checkout@v4
         with:
+          # This step places the source code in the runner's workspace
           fetch-depth: 0 
 
       - name: Push to new repository
         uses: pixta-dev/repository-mirroring-action@v1
         with:
-          # FIX: Changed from SSH to HTTPS format
-          source_repo: 'https://github.com/viraj0112/JEWELRY-NAFISA.git' 
+          # FIX: Use a relative path to mirror the local repository
+          source_repo: '.' 
           
-          # Your destination repo line remains correct (using HTTPS with PAT)
+          # Destination repo remains the same (HTTPS with PAT)
           destination_repo: 'https://dagina6999-crypto:${{ secrets.DESTINATION_REPO_TOKEN }}@github.com/dagina6999-crypto/Dagina-Design.git'
           
           git_push_options: '--force --tags'
