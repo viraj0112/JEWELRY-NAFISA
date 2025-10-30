@@ -6,6 +6,8 @@ import 'package:jewelry_nafisa/src/ui/widgets/social_auth_button.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
+import 'package:provider/provider.dart';
+import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,6 +48,11 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (user != null && mounted) {
+        final profileProvider = Provider.of<UserProfileProvider>(context, listen: false);
+        
+        await profileProvider.loadUserProfile();
+        // ------------------
+        
         GoRouter.of(context).go('/');
       } else if (user == null && mounted) {
         setState(() => _isLoading = false);
