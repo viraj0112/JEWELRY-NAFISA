@@ -8,6 +8,17 @@ on:
 jobs:
   test_push:
     runs-on: ubuntu-latest
+    
+    #
+    # V V V ADD THIS BLOCK V V V
+    #
+    permissions:
+      contents: write
+      pull-requests: write
+    #
+    # ^ ^ ^ ADD THIS BLOCK ^ ^ ^
+    #
+
     steps:
       - name: ⬇️ Checkout Source Repository
         uses: actions/checkout@v4
