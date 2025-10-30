@@ -194,14 +194,11 @@ class _LoginScreenState extends State<LoginScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Dagina Designs',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.ptSerif(
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.primary,
-            ),
+
+          Image.asset(
+            'icons/ImageDD.png',
+            height: 80, 
+            fit: BoxFit.contain,
           ),
           const SizedBox(height: 8),
           Text(

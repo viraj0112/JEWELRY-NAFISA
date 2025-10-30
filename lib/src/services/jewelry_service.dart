@@ -79,14 +79,14 @@ class JewelryService {
           .from('designerproducts')
           .select()
           .or(
-            // Case-insensitive text search on relevant columns
+            // FIX: Columns must be quoted and capitalized
             '"Product Title".ilike.$ilikeQuery,'
-            'description.ilike.$ilikeQuery,'
-            'Category.ilike.$ilikeQuery,'
+            '"Description".ilike.$ilikeQuery,' // <-- FIXED: Was 'description'
+            '"Category".ilike.$ilikeQuery,' // <-- FIXED: Was 'Category' (unquoted)
             '"Sub Category".ilike.$ilikeQuery,'
-            '"Metal Type".ilike.$ilikeQuery,' // Assuming Metal Type exists
-            '"Metal Color".ilike.$ilikeQuery,' // Assuming Metal Color exists
-            // Array contains search (case-sensitive by default, use lowercase)
+            '"Metal Type".ilike.$ilikeQuery,'
+            '"Metal Color".ilike.$ilikeQuery,'
+            // Array columns remain quoted/capitalized
             '"Product Tags".cs.$arrayQuery,'
             '"Stone Type".cs.$arrayQuery,'
             '"Stone Color".cs.$arrayQuery',
@@ -125,7 +125,8 @@ class JewelryService {
       final response = await _supabaseClient.rpc(
         'get_trending_products_v2', // Name of the SQL function
         params: {'limit_count': limit}, // Parameter for the function
-      );
+      ) as List<dynamic>;
+      ;
 
       if (response is List) {
         // The RPC returns JSON, so we parse it directly
@@ -141,60 +142,40 @@ class JewelryService {
   }
   // --- END NEW TRENDING METHOD ---
 
-
   Future<List<JewelryItem>> fetchSimilarItems({
     required String currentItemId,
-    String? productType,
-    String? category,
+    String? category, // This holds either productType or collectionName
     int limit = 10,
   }) async {
-    // ... (existing code)
+    final filterValue = category;
+    if (filterValue == null || filterValue.isEmpty) {
+      return [];
+    }
+
     try {
-      // Prefer designerproducts if category exists, fallback to products
-      final tableName = (category != null && category.isNotEmpty)
-          ? 'designerproducts'
-          : 'products';
+      // 1. ADD EXPLICIT CAST HERE
+      final response = await _supabaseClient.rpc(
+        'get_similar_products',
+        params: {
+          'p_filter_value': filterValue,
+          'p_limit': limit,
+          'p_exclude_id': currentItemId,
+        },
+      ) as List<dynamic>; // <--- FIX: Explicitly cast to List<dynamic>
 
-      var query = _supabaseClient.from(tableName).select();
-
-      // Exclude the current item ID
-      // Check if ID is likely int (products) or bigint (designerproducts)
-      final isIntegerId = int.tryParse(currentItemId) != null;
-      if (isIntegerId && tableName == 'products') {
-        query = query.not('id', 'eq', currentItemId);
-      } else if (!isIntegerId && tableName == 'designerproducts') {
-        // Assuming designerproducts ID might not always be purely numeric string
-        query = query.not('id', 'eq', currentItemId);
-      } // Add more specific logic if ID formats differ significantly
-
-      // Filter by Category or Product Type if provided
-      if (category != null && category.isNotEmpty) {
-        // Use 'Sub Category' for designerproducts, 'Category' for products
-        final categoryColumn =
-            tableName == 'designerproducts' ? '"Sub Category"' : 'Category';
-        query = query.eq(categoryColumn, category);
-      } else if (productType != null && productType.isNotEmpty) {
-        // Use 'Category' for designerproducts, 'Product Type' for products
-        final productTypeColumn = tableName == 'designerproducts'
-            ? 'Category'
-            : '"Product Type"'; // Ensure quoting for space
-        query = query.eq(productTypeColumn, productType);
-      }
-
-      final response = await query.limit(limit);
-
+      // 2. The mapping below remains the same
       return response
           .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      debugPrint('Error fetching similar products: $e');
+      debugPrint('Error fetching similar products via RPC: $e');
       return [];
     }
   }
 
   Future<JewelryItem?> getJewelryItem(String id) async {
     // ... (existing code)
-     try {
+    try {
       // Try fetching from 'products' (assuming integer ID)
       final intId = int.tryParse(id);
       if (intId != null) {

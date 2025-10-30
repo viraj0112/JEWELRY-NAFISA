@@ -182,7 +182,7 @@ class _MainShellState extends State<MainShell> {
             Expanded(
               child: Column(
                 children: [
-                  _buildAppBar(isWide: true),
+                  _buildAppBar(isWide: true, selectedIndex: _selectedIndex),
                   Expanded(child: _pages.elementAt(_selectedIndex)),
                 ],
               ),
@@ -196,7 +196,7 @@ class _MainShellState extends State<MainShell> {
   Widget _buildNarrowLayout() {
     // The problematic PopScope has been removed from here
     return Scaffold(
-      appBar: _buildAppBar(isWide: false),
+     appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
       body: _pages.elementAt(_selectedIndex),
       bottomNavigationBar: _buildFixedNavBar(),
     );
@@ -242,17 +242,21 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar({required bool isWide}) {
+  PreferredSizeWidget _buildAppBar({required bool isWide, required int selectedIndex}) { // <--- MODIFIED SIGNATURE
     final themeProvider = Provider.of<ThemeProvider>(context);
     final userProfile = Provider.of<UserProfileProvider>(context);
     final theme = Theme.of(context);
+
+    // Index of the SearchScreen is 1 (see _pages list)
+    final bool isSearchScreen = selectedIndex == 1;
 
     return AppBar(
       automaticallyImplyLeading: !isWide,
       titleSpacing: 16.0,
       elevation: 0,
       backgroundColor: theme.scaffoldBackgroundColor,
-      title: _buildSearchBar(theme),
+      // HIDE the placeholder bar only when the Search Screen is active
+      title: isSearchScreen ? null : _buildSearchBar(theme), // <--- MODIFIED LOGIC
       actions: [
         IconButton(
           icon: Icon(

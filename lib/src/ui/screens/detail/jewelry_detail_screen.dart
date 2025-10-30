@@ -2,29 +2,28 @@
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-// REMOVED: import 'package:flutter_dotenv/flutter_dotenv.dart'; // No longer needed
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
-import 'package:jewelry_nafisa/src/models/user_profile.dart'; // Keep this
+import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
-import 'package:jewelry_nafisa/src/ui/widgets/get_quote_dialog.dart'; // KEPT for Get Details
+import 'package:jewelry_nafisa/src/ui/widgets/get_quote_dialog.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cross_file/cross_file.dart';
 import 'dart:math';
-
-// REMOVED: url_launcher and dart:html are no longer needed for the quote button
-// import 'package:url_launcher/url_launcher.dart';
-// import 'dart:html' as html;
-
-// --- ADDED: Imports for the new quote popup ---
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
-// Assuming you placed the new dialog in 'lib/src/widgets/' per the previous step
 import 'package:jewelry_nafisa/src/widgets/quote_request_dialog.dart';
-// --- END ADDED ---
+
+// --- ADD THESE IMPORTS ---
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'dart:typed_data';
+// --- END ADD IMPORTS ---
 
 class JewelryDetailScreen extends StatefulWidget {
   final JewelryItem jewelryItem;
@@ -43,28 +42,27 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   late final JewelryService _jewelryService;
   late Future<List<JewelryItem>> _similarItemsFuture;
 
-  // --- KEPT: State for revealing details using credits ---
   bool _detailsRevealed = false;
-  // --- END KEPT ---
-
   bool _isLoadingInteraction = true;
   bool _isLiking = false;
   bool _isSaving = false;
+
+  // --- ADD _isSharing STATE ---
+  bool _isSharing = false;
+  // --- END ADD ---
 
   String? _pinId;
   int _likeCount = 0;
   bool _userLiked = false;
   String? _shareSlug;
 
-  // --- KEPT: Unlock duration for credit logic ---
   static const _unlockDuration = Duration(days: 7);
-  // --- END KEPT ---
 
   @override
   void initState() {
     super.initState();
     _jewelryService = JewelryService(supabase);
-    _initializeInteractionState(); // Will check for unlocked status
+    _initializeInteractionState();
     _similarItemsFuture = _jewelryService.fetchSimilarItems(
       currentItemId: widget.jewelryItem.id.toString(),
       category:
@@ -74,6 +72,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   String _generateRandomSlug(int length) {
+    // ... (This function is unchanged)
     const chars =
         'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
     final rnd = Random();
@@ -81,11 +80,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         length, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
 
-  // --- KEPT: This function is unchanged and correctly checks 'quotes' table ---
   Future<void> _initializeInteractionState() async {
+    // ... (This function is unchanged)
     final uid = supabase.auth.currentUser?.id;
 
-    // Fetch Pin data
     final pinData = await supabase
         .from('pins')
         .select('id, like_count, share_slug')
@@ -107,11 +105,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       }
     }
 
-    // Check if the item details are already unlocked
     if (uid != null) {
       try {
         final unlockData = await supabase
-            .from('quotes') // This table stores the unlock status
+            .from('quotes')
             .select('status, expires_at')
             .match({
               'user_id': uid,
@@ -140,10 +137,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       setState(() => _isLoadingInteraction = false);
     }
   }
-  // --- END KEPT ---
 
-  // --- KEPT: Unchanged ---
   Future<String?> _ensurePinExists() async {
+    // ... (This function is unchanged)
     if (_pinId != null) return _pinId;
 
     final uid = supabase.auth.currentUser?.id;
@@ -181,10 +177,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       return null;
     }
   }
-  // --- END KEPT ---
 
-  // --- KEPT: Unchanged ---
   Future<void> _toggleLike() async {
+    // ... (This function is unchanged)
     if (_isLiking || _isLoadingInteraction) return;
     setState(() => _isLiking = true);
 
@@ -236,10 +231,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       if (mounted) setState(() => _isLiking = false);
     }
   }
-  // --- END KEPT ---
 
-  // --- KEPT: Unchanged ---
   Future<void> _saveToBoard() async {
+    // ... (This function is unchanged)
     if (_isSaving || _isLoadingInteraction) return;
 
     final pinId = await _ensurePinExists();
@@ -261,41 +255,130 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     if (mounted) setState(() => _isSaving = false);
   }
-  // --- END KEPT ---
 
-  // --- KEPT: Unchanged ---
+  Future<Uint8List> _downloadImageBytes(String imageUrl) async {
+    final uri = Uri.parse(imageUrl);
+
+    // Check if the URL is from a Supabase storage bucket
+    if (uri.path.contains('/storage/v1/')) {
+      final pathSegments = uri.pathSegments;
+      int bucketIndex = pathSegments.indexOf('public');
+      if (bucketIndex == -1) {
+        bucketIndex = pathSegments.indexOf('object');
+      }
+
+      if (bucketIndex != -1 && (bucketIndex + 1) < pathSegments.length) {
+        final bucket = pathSegments[bucketIndex + 1];
+        final path = pathSegments.sublist(bucketIndex + 2).join('/');
+
+        // If it's a private bucket, use the authenticated supabase client
+        if (bucket == 'designer-files') {
+          try {
+            final bytes = await supabase.storage.from(bucket).download(path);
+            return bytes;
+          } catch (e) {
+            debugPrint(
+                'Supabase download failed: $e. Falling back to http.get');
+            // If download fails (e.g., RLS issue), fall back to public download
+          }
+        }
+      }
+    }
+
+    // For "product-images" (public) or any non-private/fallback, use http.get
+    final response = await http.get(uri);
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    } else {
+      throw Exception('Failed to download image: ${response.statusCode}');
+    }
+  }
+
+  // This is the complete main share function.
   Future<void> _shareItem() async {
+    if (_isSharing) return;
+
+    setState(() {
+      _isSharing = true;
+    });
+
+    final item = widget.jewelryItem;
     const String productBaseUrl = 'https://www.dagina.design/product';
-    final String slug = widget.jewelryItem.productTitle
+    final String slug = item.productTitle
         .toLowerCase()
         .replaceAll(RegExp(r'\s+'), '-')
         .replaceAll(RegExp(r'[^a-z0-9-]'), '');
     final String productUrl = '$productBaseUrl/$slug';
-    final String shareText =
-        'Check out this beautiful ${widget.jewelryItem.productTitle}! $productUrl from Dagina Designs!';
+
+    // Original Text (without image link)
+    final String baseShareText =
+        'Check out this beautiful ${item.productTitle}! $productUrl from Dagina Designs!';
+
+    // Final text to be shared
+    String shareText = baseShareText;
 
     try {
-      await Share.share(
-        shareText,
-        subject: 'Beautiful Jewelry from Dagina Designs',
-      );
+      if (item.image.isEmpty) {
+        // Fallback to text-only share if image is missing
+        await Share.share(shareText, subject: 'Beautiful Jewelry');
+      } else if (kIsWeb) {
+        // --- WEB LOGIC (Localhost) ---
+        // Share link and image URL in the text so that social platforms can scrape the preview.
+        shareText = '$baseShareText \n\nImage URL: ${item.image}';
+
+        await Share.share(shareText, subject: 'Beautiful Jewelry');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    "File sharing disabled on the web. Shared link only.")),
+          );
+        }
+        // --- END WEB LOGIC ---
+      } else {
+        // --- MOBILE/DESKTOP LOGIC (Download and Share File) ---
+        // 1. Download the image data
+        final bytes = await _downloadImageBytes(item.image);
+
+        // 2. Get the temporary directory
+        final tempDir = await getTemporaryDirectory();
+
+        // 3. Create a temporary file
+        final fileName = 'shared_jewelry_image.png';
+        final path = '${tempDir.path}/$fileName';
+        final file = await File(path).writeAsBytes(bytes);
+
+        // 4. Convert the File to an XFile
+        final xFile = XFile(file.path, mimeType: 'image/png');
+
+        // 5. Share the file AND the text (using baseShareText)
+        await Share.shareXFiles(
+          [xFile],
+          text: baseShareText,
+          subject: 'Check out this jewelry: ${item.productTitle}',
+        );
+      }
     } catch (e) {
-      debugPrint("Error sharing item: $e");
+      debugPrint("Error sharing item with image: $e");
+      // If image download/saving fails, fall back to sharing text only
+      await Share.share(baseShareText, subject: 'Beautiful Jewelry');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Could not share item: $e")),
+          const SnackBar(
+              content: Text("Could not share image, shared link only.")),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSharing = false;
+        });
       }
     }
   }
-  // --- END KEPT ---
 
-  // --- REMOVED: Old Google Form function ---
-  // void _onGetQuotePressed() async { ... }
-  // --- END REMOVED ---
-
-  // --- ADDED: New function to show the quote popup ---
   void _showQuotePopup(BuildContext context) {
+    // ... (This function is unchanged)
     final userProfileProvider =
         Provider.of<UserProfileProvider>(context, listen: false);
     final quoteService = Provider.of<QuoteService>(context, listen: false);
@@ -308,7 +391,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       return;
     }
 
-    // Show the custom dialog
     showDialog(
       context: context,
       builder: (_) => QuoteRequestDialog(
@@ -318,10 +400,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       ),
     );
   }
-  // --- END ADDED ---
 
-  // --- KEPT: "Get Details" button logic is unchanged ---
   void _onGetDetailsPressed(BuildContext context) async {
+    // ... (This function is unchanged)
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
 
     if (profile.creditsRemaining <= 0) {
@@ -337,17 +418,16 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     final bool? useCredit = await showDialog<bool>(
       context: context,
-      builder: (context) => const GetQuoteDialog(), // Confirmation dialog
+      builder: (context) => const GetQuoteDialog(),
     );
 
     if (useCredit == true) {
       await _useQuoteCredit(context);
     }
   }
-  // --- END KEPT ---
 
-  // --- KEPT: Credit spending logic is unchanged ---
   Future<void> _useQuoteCredit(BuildContext context) async {
+    // ... (This function is unchanged)
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
     final uid = supabase.auth.currentUser?.id;
@@ -368,7 +448,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       final expiration = DateTime.now().add(_unlockDuration);
 
       await supabase.from('quotes').insert({
-        // Records the unlock
         'user_id': uid,
         'product_id': widget.jewelryItem.id.toString(),
         'status': 'valid',
@@ -376,7 +455,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       });
 
       if (mounted) {
-        setState(() => _detailsRevealed = true); // <-- This reveals the details
+        setState(() => _detailsRevealed = true);
         scaffoldMessenger.showSnackBar(
           const SnackBar(
             content: Text('Details revealed! One credit used.'),
@@ -396,26 +475,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       }
     }
   }
-  // --- END KEPT ---
-
-  // --- KEPT: PopScope logic is unchanged ---
-  Future<bool> _onWillPop() async {
-    if (_detailsRevealed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Product details saved to "View Detail History" on your profile.'),
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
-    return true;
-  }
-  // --- END KEPT ---
 
   @override
   Widget build(BuildContext context) {
-    // --- KEPT: PopScope is unchanged ---
+    // ... (This function is unchanged)
     return PopScope(
       canPop: true,
       onPopInvoked: (didPop) async {
@@ -440,10 +503,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         ),
       ),
     );
-    // --- END KEPT ---
   }
 
   Widget _buildWideLayout(BuildContext context) {
+    // ... (This function is unchanged)
     return Column(
       children: [
         Padding(
@@ -487,7 +550,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _buildContentSection(context), // Pass context
+                      _buildContentSection(context),
                     ],
                   ),
                 ),
@@ -514,6 +577,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildNarrowLayout() {
+    // ... (This function is unchanged)
     return CustomScrollView(
       slivers: [
         SliverAppBar(
@@ -538,8 +602,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             tooltip: 'Back',
           ),
         ),
-        SliverToBoxAdapter(
-            child: _buildContentSection(context)), // Pass context
+        SliverToBoxAdapter(child: _buildContentSection(context)),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -552,12 +615,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     );
   }
 
-  // --- MODIFIED: _buildContentSection now calls _showQuotePopup ---
   Widget _buildContentSection(BuildContext context) {
+    // ... (This function is unchanged)
     final theme = Theme.of(context);
     final item = widget.jewelryItem;
 
-    // These flags are controlled by the "Get Details" logic
     final bool showTitle = _detailsRevealed;
     final bool showFullDetails = _detailsRevealed;
 
@@ -572,7 +634,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            showTitle ? item.productTitle : "Jewelry Design", // KEPT
+            showTitle ? item.productTitle : "Jewelry Design",
             style: theme.textTheme.headlineMedium,
           ),
           if (_likeCount > 0) ...[
@@ -584,10 +646,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             ),
           ],
           const SizedBox(height: 24),
-
-          // --- KEPT: This conditional logic is the core of the feature ---
           if (showFullDetails) ...[
-            // --- This block shows AFTER details are revealed ---
             Text("Product Details", style: theme.textTheme.titleLarge),
             const SizedBox(height: 12),
             if (item.description.isNotEmpty) ...[
@@ -621,21 +680,15 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             if (item.stoneSetting != null && item.stoneSetting!.isNotEmpty)
               _buildDetailRow(
                   "Stone Settings: ", item.stoneSetting!.join(', ')),
-
             const SizedBox(height: 24),
-
-            // --- THIS IS THE MODIFIED BUTTON ---
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                // Changed from _onGetQuotePressed to the new popup function
                 onPressed: () => _showQuotePopup(context),
                 child: const Text('Get Quote'),
               ),
             ),
-            // --- END MODIFIED BUTTON ---
           ] else ...[
-            // --- This block shows BEFORE details are revealed ---
             Text("Description", style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
@@ -647,27 +700,21 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 24),
-
-            // --- THIS BUTTON IS UNCHANGED ---
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () =>
-                    _onGetDetailsPressed(context), // Calls credit logic
+                onPressed: () => _onGetDetailsPressed(context),
                 child: const Text('Get Details'),
               ),
             ),
-            // --- END UNCHANGED BUTTON ---
           ],
-          // --- END KEPT Conditional Block ---
         ],
       ),
     );
   }
-  // --- END MODIFIED ---
 
-  // --- KEPT: Unchanged ---
   Widget _buildDetailRow(String title, String value) {
+    // ... (This function is unchanged)
     if (value.trim().isEmpty || value.trim().toLowerCase() == 'n/a') {
       return const SizedBox.shrink();
     }
@@ -683,10 +730,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       ),
     );
   }
-  // --- END KEPT ---
 
-  // --- KEPT: Unchanged ---
   List<Widget> _buildActionButtons() {
+    // ... (This function is unchanged)
     final iconColor = Theme.of(context).iconTheme.color;
     return [
       IconButton(
@@ -702,11 +748,19 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               ),
         tooltip: _userLiked ? 'Unlike' : 'Like',
       ),
+      // --- MODIFIED: Show loading spinner for sharing ---
       IconButton(
-        onPressed: _shareItem,
-        icon: const Icon(Icons.share_outlined),
+        onPressed: _isSharing ? null : _shareItem, // Use _isSharing
+        icon: _isSharing
+            ? const SizedBox(
+                // Show spinner
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.share_outlined),
         tooltip: 'Share',
       ),
+      // --- END MODIFIED ---
       IconButton(
         onPressed: _isSaving ? null : _saveToBoard,
         icon: _isSaving
@@ -720,10 +774,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       ),
     ];
   }
-  // --- END KEPT ---
 
-  // --- KEPT: Unchanged ---
   Widget _buildSimilarItemsGrid({bool isSliver = false}) {
+    // ... (This function is unchanged)
     return FutureBuilder<List<JewelryItem>>(
       future: _similarItemsFuture,
       builder: (context, snapshot) {
@@ -791,5 +844,4 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       },
     );
   }
-  // --- END KEPT ---
 }

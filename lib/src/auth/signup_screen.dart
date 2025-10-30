@@ -189,14 +189,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
             ),
             const SizedBox(height: 10),
+            Image.asset(
+                'icons/ImageDD.png',
+                height: 40, 
+                fit: BoxFit.contain,
+              ),            const SizedBox(height: 24),
             Text(
-              'jewelry_nafisa',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              "Welcome to jewelry_nafisa",
+              "Welcome to Dagina Desings",
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),
