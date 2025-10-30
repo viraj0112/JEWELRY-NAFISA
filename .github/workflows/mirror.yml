@@ -1,0 +1,22 @@
+name: Mirror to Another Account
+
+# Run this workflow on every push to the 'main' branch
+on:
+  push:
+    branches:
+      - main # <-- Change this if your main branch is 'master'
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Check out the code from the current repo
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetches all history
+
+      # 2. Push the code to the new repository
+      - name: Push to External Repository
+        run: |
+          git push --mirror https://dagina6999-crypto:${{ secrets.EXTERNAL_REPO_PAT }}@github.com/dagina6999-crypto/jewelry-nafisa-mirror.git
