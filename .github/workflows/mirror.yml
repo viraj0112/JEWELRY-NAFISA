@@ -3,20 +3,26 @@ name: Mirror to New Account
 on:
   push:
     branches:
-      - main  
+      - main  # Trigger on push to the main branch
 
 jobs:
   mirror:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Source Repository
         uses: actions/checkout@v4
         with:
+          # Required to push all branches and tags
           fetch-depth: 0 
 
       - name: Push to new repository
         uses: pixta-dev/repository-mirroring-action@v1
         with:
+          # Source Repository (your current repo)
           source_repo: 'git@github.com:viraj0112/JEWELRY-NAFISA.git'
-          destination_repo: 'https://dagina6999-crypto:${{ secrets.DESTINATION_REPO_TOKEN }}@github.com/dagina6999-crypto/JEWELRY-NAFISA.git'
-          git_push_options: '--force --tags' 
+          
+          # Destination Repository (the new repo on the dagina6999-crypto account)
+          destination_repo: 'https://dagina6999-crypto:${{ secrets.DESTINATION_REPO_TOKEN }}@github.com/dagina6999-crypto/Dagina-Design.git'
+          
+          # Force push to overwrite any changes and include tags
+          git_push_options: '--force --tags'
