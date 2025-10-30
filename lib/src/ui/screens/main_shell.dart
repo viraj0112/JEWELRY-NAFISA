@@ -109,6 +109,41 @@ class _MainShellState extends State<MainShell> {
     }
   }
 
+  void _showExitConfirmationDialog(BuildContext context) {
+  // Use a simple action to exit the app or implement a formal dialog
+  // to confirm exit. Since this is the root of the app, SystemNavigator.pop()
+  // or a Navigator pop to root should work.
+  if (_selectedIndex != 0) {
+    setState(() {
+      _selectedIndex = 0; // Go to the home tab (index 0) instead
+    });
+  } else {
+    // If already on the home tab, show a confirmation dialog or just exit
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Exit App?'),
+        content: const Text('Are you sure you want to exit Dagina Designs?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(), // Dismiss dialog
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true), // Allow pop/exit
+            child: const Text('Exit'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true && mounted) {
+        // This closes the app
+        Navigator.of(context).pop(); 
+      }
+    });
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -194,12 +229,28 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildNarrowLayout() {
-    // The problematic PopScope has been removed from here
-    return Scaffold(
+    return PopScope(
+    canPop: false,
+    onPopInvoked: (didPop) {
+      if (didPop) return; 
+      if (_selectedIndex != 0) {
+        _onItemTapped(0); 
+      } else {
+        _showExitConfirmationDialog(context);
+      }
+    },
+    child: Scaffold( // The Scaffold no longer handles the pop directly
      appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
       body: _pages.elementAt(_selectedIndex),
       bottomNavigationBar: _buildFixedNavBar(),
-    );
+    ),
+  );
+    // The problematic PopScope has been removed from here
+    // return Scaffold(
+    //  appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
+    //   body: _pages.elementAt(_selectedIndex),
+    //   bottomNavigationBar: _buildFixedNavBar(),
+    // );
   }
 
   Widget _buildFixedNavBar() {
