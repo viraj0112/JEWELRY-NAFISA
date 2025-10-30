@@ -1,4 +1,4 @@
-name: Mirror to New Account
+name: Test Mirror Push
 
 on:
   push:
@@ -6,22 +6,25 @@ on:
       - main  
 
 jobs:
-  mirror:
+  test_push:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source Repository (Code is here now)
+      - name: ⬇️ Checkout Source Repository
+        # This brings all your source code into the runner's workspace
         uses: actions/checkout@v4
         with:
-          # This step places the source code in the runner's workspace
           fetch-depth: 0 
 
-      - name: Push to new repository
-        uses: pixta-dev/repository-mirroring-action@v1
+      - name: 🔄 Final Mirror Push
+        # Use a trusted action for simple push operations
+        uses: ad-m/github-push-action@master
         with:
-          # FIX: Use a relative path to mirror the local repository
-          source_repo: '.' 
+          # Use the GITHUB_TOKEN for authentication 
+          github_token: ${{ secrets.DESTINATION_REPO_TOKEN }}
           
-          # Destination repo remains the same (HTTPS with PAT)
-          destination_repo: 'https://dagina6999-crypto:${{ secrets.DESTINATION_REPO_TOKEN }}@github.com/dagina6999-crypto/Dagina-Design.git'
+          # Target remote repository path
+          repository: 'dagina6999-crypto/Dagina-Design'
           
-          git_push_options: '--force --tags'
+          # Force push all branches and tags
+          force: true
+          tags: true
