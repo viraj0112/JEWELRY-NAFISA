@@ -162,7 +162,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       itemBuilder: (BuildContext context, int index) => Opacity(
         opacity: 0.5,
         child: Image.network(
-          const String.fromEnvironment('BG_IMAGE'),
+          "https://static.vecteezy.com/system/resources/previews/035/081/140/non_2x/women-s-jewelry-gold-chain-trendy-jewelry-on-a-silk-background-photo.JPG",
           fit: BoxFit.cover,
         ),
       ),
@@ -190,8 +190,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             const SizedBox(height: 10),
             Image.asset(
-              'icons/dagina2.png',
-              height: 40,
+              'assets/icons/dagina2.png',
+              height: 130,
               fit: BoxFit.contain,
             ),
             const SizedBox(height: 24),

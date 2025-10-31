@@ -203,8 +203,8 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Image.asset(
-            'icons/dagina.jpg',
-            height: 80,
+            'assets/icons/dagina2.png',
+            height: 130,
             fit: BoxFit.contain,
           ),
           const SizedBox(height: 8),

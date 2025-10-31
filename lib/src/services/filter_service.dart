@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class FilterService {
   final _supabase = Supabase.instance.client;
 
-Future<List<String>> getDistinctArrayValues(String columnName) async {
+  Future<List<String>> getDistinctArrayValues(String columnName) async {
     try {
       // Call the NEW function you just created in the Supabase SQL Editor
       final response = await _supabase.rpc(
@@ -24,10 +24,12 @@ Future<List<String>> getDistinctArrayValues(String columnName) async {
         return [];
       }
     } catch (e) {
-      debugPrint('Error fetching distinct array values for column $columnName: $e');
+      debugPrint(
+          'Error fetching distinct array values for column $columnName: $e');
       return [];
     }
   }
+
   Future<List<String>> getDistinctValues(String columnName) async {
     try {
       final response = await _supabase.rpc(
@@ -102,19 +104,19 @@ Future<List<String>> getDistinctArrayValues(String columnName) async {
   }
 
   /// **MODIFIED:** Renamed and changed to only fetch *independent* filters.
- Future<Map<String, List<String>>> getInitialFilterOptions() async {
+  Future<Map<String, List<String>>> getInitialFilterOptions() async {
     // Separate columns by their type (text vs. array)
-    final textColumns = ['Product Type','Metal Purity', 'Plain'];
+    final textColumns = ['Product Type', 'Metal Purity', 'Plain'];
     final arrayColumns = ['Studded']; // 'Studded' is an ARRAY column
 
     // Fetch text values using the old function
-    final List<Future<List<String>>> textFutures = textColumns
-        .map((columnName) => getDistinctValues(columnName))
-        .toList();
-    
+    final List<Future<List<String>>> textFutures =
+        textColumns.map((columnName) => getDistinctValues(columnName)).toList();
+
     // Fetch array values using the NEW function
     final List<Future<List<String>>> arrayFutures = arrayColumns
-        .map((columnName) => getDistinctArrayValues(columnName)) // <-- Use the new function
+        .map((columnName) =>
+            getDistinctArrayValues(columnName)) // <-- Use the new function
         .toList();
 
     // Wait for all futures to complete
@@ -125,7 +127,7 @@ Future<List<String>> getDistinctArrayValues(String columnName) async {
     return {
       'Product Type': textResults[0],
       'Metal Purity': textResults[1],
-      'Plain': textResults[2], 
+      'Plain': textResults[2],
       'Studded': arrayResults[0], // <-- Get result from array futures
     };
   }

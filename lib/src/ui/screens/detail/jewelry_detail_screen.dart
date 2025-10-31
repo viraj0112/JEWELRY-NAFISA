@@ -612,6 +612,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             if (item.goldWeight != null && item.goldWeight!.isNotEmpty)
               _buildDetailRow("Metal Weight: ", item.goldWeight!),
             if (item.metalColor != null && item.metalColor!.isNotEmpty)
+             _buildDetailRow("Metal Weight: ", item.MetalWeight!),
+            if (item.metalColor != null && item.metalColor!.isNotEmpty)
               _buildDetailRow("Metal Color: ", item.metalColor!),
             if (item.metalFinish != null && item.metalFinish!.isNotEmpty)
               _buildDetailRow("Metal Finish: ", item.metalFinish!),

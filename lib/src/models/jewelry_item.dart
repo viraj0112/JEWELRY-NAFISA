@@ -10,6 +10,7 @@ class JewelryItem {
   final double? price;
   final List<String>? tags;
   final String? goldWeight;
+  final String? MetalWeight;
   final String? metalPurity;
   final String? metalFinish;
 
@@ -51,6 +52,7 @@ class JewelryItem {
     this.goldWeight,
     this.metalPurity,
     this.metalFinish,
+    this.MetalWeight,
     this.stoneWeight,
     this.stoneType,
     this.stoneUsed,
@@ -88,48 +90,77 @@ class JewelryItem {
     return null;
   }
 
-  static List<String>? _parseList(dynamic value) {
-    if (value is List) {
-      final List<String> parsedList = value
-          .where((e) => e != null)
-          .map((e) => e.toString())
-          .where((s) => s.isNotEmpty)
-          .toList();
-      return parsedList.isNotEmpty ? parsedList : null; // Return null if empty
-    }
-    if (value is String) {
-      final List<String> parsedList = value
-          .split(',')
-          .map((t) => t.trim())
-          .where((s) =>
-              s.isNotEmpty &&
-              s != 'null') // Filter empty and "null" strings
-          .toList();
-      return parsedList.isNotEmpty ? parsedList : null; // Return null if empty
-    }
-    return null; // Return null for other types
-  }
-
   static String? _parseString(dynamic value) {
-    String? result;
+    String? val;
+
     if (value is String) {
-      result = value;
+      val = value;
     } else if (value is List) {
-      // If it's a list, try to get the first element
       if (value.isNotEmpty) {
-        result = value[0]?.toString();
+        val = value[0]?.toString();
       }
     } else if (value != null) {
-      // Handle other types like int or double
-      result = value.toString();
+      val = value.toString();
     }
 
-    // Final cleanup: return null if the result is empty or the string "null"
-    if (result == null || result.isEmpty || result == 'null') {
+    if (val == null) {
       return null;
     }
 
-    return result;
+    val = val.trim(); // Trim whitespace
+
+    // Strip outer brackets OR braces
+    if ((val.startsWith('[') && val.endsWith(']')) ||
+        (val.startsWith('{') && val.endsWith('}'))) {
+      if (val.length <= 2) return null; // Handles "[]" or "{}"
+      val = val.substring(1, val.length - 1);
+    }
+
+    val = val.trim(); // Trim again after stripping
+
+    // Check for "null" or empty
+    if (val == 'null' || val.isEmpty) {
+      return null;
+    }
+
+    return val;
+  }
+
+  static List<String>? _parseList(dynamic value) {
+    List<String> rawList = [];
+
+    if (value is String) {
+      String listString = value.trim(); // Trim string
+
+      // Strip outer brackets OR braces
+      if ((listString.startsWith('[') && listString.endsWith(']')) ||
+          (listString.startsWith('{') && listString.endsWith('}'))) {
+        if (listString.length <= 2) return null; // "[]" or "{}"
+        listString = listString.substring(1, listString.length - 1);
+      }
+
+      rawList = listString.split(',').map((t) => t.trim()).toList();
+    } else if (value is List) {
+      rawList = value.map((e) => e?.toString().trim() ?? '').toList();
+    }
+
+    // Final Cleanup
+    final List<String> cleanedList = rawList
+        .map((s) {
+          String item = s.trim();
+          // Strip brackets OR braces from *each item*
+          if ((item.startsWith('[') && item.endsWith(']')) ||
+              (item.startsWith('{') && item.endsWith('}'))) {
+            if (item.length <= 2) return ''; // "[]" or "{}"
+            item = item.substring(1, item.length - 1);
+          }
+          return item.trim();
+        })
+        .where(
+            (s) => s.isNotEmpty && s != 'null') // Filter out empty and "null"
+        .toList();
+
+    return cleanedList.isNotEmpty ? cleanedList : null;
   }
 
   factory JewelryItem.fromJson(Map<String, dynamic> json) {
