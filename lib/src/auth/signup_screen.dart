@@ -118,37 +118,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
       canPop: true,
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-      body: Stack(
-        children: [
-          _buildBackgroundGrid(),
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24.0,
-                vertical: 48.0,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: theme.cardColor,
-                      borderRadius: BorderRadius.circular(32),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha((255 * 0.1).round()),
-                          blurRadius: 20,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
+        body: Stack(
+          children: [
+            _buildBackgroundGrid(),
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 48.0,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(32),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha((255 * 0.1).round()),
+                            blurRadius: 20,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: _buildForm(theme),
                     ),
-                    child: _buildForm(theme),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
         ),
       ),
     );
@@ -190,10 +190,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             const SizedBox(height: 10),
             Image.asset(
-                'icons/ImageDD.png',
-                height: 40, 
-                fit: BoxFit.contain,
-              ),            const SizedBox(height: 24),
+              'icons/dagina2.png',
+              height: 40,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 24),
             Text(
               "Welcome to Dagina Desings",
               textAlign: TextAlign.center,

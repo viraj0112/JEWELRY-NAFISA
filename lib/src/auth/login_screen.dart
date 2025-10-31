@@ -48,11 +48,12 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (user != null && mounted) {
-        final profileProvider = Provider.of<UserProfileProvider>(context, listen: false);
-        
+        final profileProvider =
+            Provider.of<UserProfileProvider>(context, listen: false);
+
         await profileProvider.loadUserProfile();
         // ------------------
-        
+
         GoRouter.of(context).go('/');
       } else if (user == null && mounted) {
         setState(() => _isLoading = false);
@@ -146,49 +147,49 @@ class _LoginScreenState extends State<LoginScreen> {
       canPop: true,
       child: Scaffold(
         body: Stack(
-        children: [
-          // 1. Full-screen background image
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: NetworkImage(
-                  'https://static.vecteezy.com/system/resources/previews/035/081/140/non_2x/women-s-jewelry-gold-chain-trendy-jewelry-on-a-silk-background-photo.JPG',
+          children: [
+            // 1. Full-screen background image
+            Container(
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: NetworkImage(
+                    'https://static.vecteezy.com/system/resources/previews/035/081/140/non_2x/women-s-jewelry-gold-chain-trendy-jewelry-on-a-silk-background-photo.JPG',
+                  ),
+                  fit: BoxFit.cover,
                 ),
-                fit: BoxFit.cover,
               ),
             ),
-          ),
-          // 2. Centered, floating form with blur effect
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Center(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(32),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
-                    child: Container(
-                      width: 480,
-                      padding: const EdgeInsets.all(32),
-                      decoration: BoxDecoration(
-                        color: isDarkMode
-                            ? const Color.fromRGBO(0, 0, 0, 0.5)
-                            : const Color.fromRGBO(255, 255, 255, 0.8),
-                        borderRadius: BorderRadius.circular(32),
-                        border: Border.all(
+            // 2. Centered, floating form with blur effect
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(32),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
+                      child: Container(
+                        width: 480,
+                        padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
                           color: isDarkMode
-                              ? const Color.fromRGBO(255, 255, 255, 0.2)
-                              : const Color.fromRGBO(0, 0, 0, 0.1),
+                              ? const Color.fromRGBO(0, 0, 0, 0.5)
+                              : const Color.fromRGBO(255, 255, 255, 0.8),
+                          borderRadius: BorderRadius.circular(32),
+                          border: Border.all(
+                            color: isDarkMode
+                                ? const Color.fromRGBO(255, 255, 255, 0.2)
+                                : const Color.fromRGBO(0, 0, 0, 0.1),
+                          ),
                         ),
+                        child: _buildFormContents(theme),
                       ),
-                      child: _buildFormContents(theme),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
         ),
       ),
     );
@@ -201,10 +202,9 @@ class _LoginScreenState extends State<LoginScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-
           Image.asset(
-            'icons/ImageDD.png',
-            height: 80, 
+            'icons/dagina.jpg',
+            height: 80,
             fit: BoxFit.contain,
           ),
           const SizedBox(height: 8),
