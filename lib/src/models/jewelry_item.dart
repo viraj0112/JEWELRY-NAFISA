@@ -10,7 +10,7 @@ class JewelryItem {
   final double? price;
   final List<String>? tags;
   final String? goldWeight;
-  final String? MetalWeight;
+  final String? metalWeight;
   final String? metalPurity;
   final String? metalFinish;
 
@@ -52,7 +52,7 @@ class JewelryItem {
     this.goldWeight,
     this.metalPurity,
     this.metalFinish,
-    this.MetalWeight,
+    this.metalWeight,
     this.stoneWeight,
     this.stoneType,
     this.stoneUsed,
@@ -180,6 +180,8 @@ class JewelryItem {
           json['Metal Purity'] ?? json['metal_purity']), // Use _parseString
       metalFinish: _parseString(
           json['Metal Finish'] ?? json['metal_finish']), // Use _parseString
+      metalWeight: _parseString(
+          json['Metal Weight'] ?? json['metal_weight']),
 
       // These already use _parseList, which is correct
       stoneWeight: _parseList(json['Stone Weight'] ?? json['stone_weight']),
