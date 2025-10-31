@@ -139,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
         query = query.contains('Studded', ['$_selectedStudded']);
       }
 
-      query = query.limit(50).order('id', ascending: false);
+      query = query.limit(500000).order('id', ascending: false);
       final response = await query;
 
       if (response is List) {

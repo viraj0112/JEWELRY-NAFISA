@@ -61,26 +61,24 @@ final _router = GoRouter(
       path: '/pending-approval',
       builder: (context, state) => const PendingApprovalScreen(),
     ),
+    // Handle both slug-based and ID-based product routes
     GoRoute(
-      path: '/product/:slug', // This path matches the URL
+      path: '/product/:identifier',
       builder: (context, state) {
-        // It extracts the 'slug' from the URL
-        final slug = state.pathParameters['slug']!;
-        if (slug.isEmpty) {
-          return const AuthGate(); // Or an error screen
+        final identifier = state.pathParameters['identifier'];
+        if (identifier == null || identifier.isEmpty) {
+          return const AuthGate();
         }
-        // It passes the slug to your new loader screen
-        return ProductPageLoader(productSlug: slug);
-      },
-    ),
-    GoRoute(
-      path: '/product/:id',
-      builder: (context, state) {
-        final productId = state.pathParameters['id'];
-        if (productId == null) {
-          return const AuthGate(); // Or an error screen
+        
+        // If identifier contains hyphens or letters, treat as slug
+        // Otherwise treat as numeric ID
+        final isSlug = identifier.contains('-') || identifier.contains(RegExp(r'[a-zA-Z]'));
+        
+        if (isSlug) {
+          return ProductPageLoader(productSlug: identifier);
+        } else {
+          return ProductDetailLoader(productId: identifier);
         }
-        return ProductDetailLoader(productId: productId);
       },
     ),
     GoRoute(

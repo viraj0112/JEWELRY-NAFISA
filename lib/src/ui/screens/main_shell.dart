@@ -12,6 +12,7 @@ import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/search_screen.dart';
 import 'package:jewelry_nafisa/src/widgets/edit_profile_dialog.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -110,15 +111,12 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _showExitConfirmationDialog(BuildContext context) {
-  // Use a simple action to exit the app or implement a formal dialog
-  // to confirm exit. Since this is the root of the app, SystemNavigator.pop()
-  // or a Navigator pop to root should work.
+
   if (_selectedIndex != 0) {
     setState(() {
-      _selectedIndex = 0; // Go to the home tab (index 0) instead
+      _selectedIndex = 0; 
     });
   } else {
-    // If already on the home tab, show a confirmation dialog or just exit
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -137,8 +135,7 @@ class _MainShellState extends State<MainShell> {
       ),
     ).then((confirmed) {
       if (confirmed == true && mounted) {
-        // This closes the app
-        Navigator.of(context).pop(); 
+        SystemNavigator.pop();
       }
     });
   }

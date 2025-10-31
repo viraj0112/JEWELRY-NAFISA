@@ -1,5 +1,3 @@
-// lib/src/ui/screens/detail/jewelry_detail_screen.dart
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -47,9 +45,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   bool _isLiking = false;
   bool _isSaving = false;
 
-  // --- ADD _isSharing STATE ---
   bool _isSharing = false;
-  // --- END ADD ---
 
   String? _pinId;
   int _likeCount = 0;
@@ -72,7 +68,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   String _generateRandomSlug(int length) {
-    // ... (This function is unchanged)
     const chars =
         'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
     final rnd = Random();
@@ -81,7 +76,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<void> _initializeInteractionState() async {
-    // ... (This function is unchanged)
     final uid = supabase.auth.currentUser?.id;
 
     final pinData = await supabase
@@ -139,7 +133,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<String?> _ensurePinExists() async {
-    // ... (This function is unchanged)
     if (_pinId != null) return _pinId;
 
     final uid = supabase.auth.currentUser?.id;
@@ -179,7 +172,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<void> _toggleLike() async {
-    // ... (This function is unchanged)
     if (_isLiking || _isLoadingInteraction) return;
     setState(() => _isLiking = true);
 
@@ -218,22 +210,12 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           SnackBar(content: Text("Error updating like status: $e")),
         );
       }
-      if (mounted) {
-        setState(() {
-          if (_userLiked)
-            _likeCount++;
-          else
-            _likeCount--;
-          _userLiked = !_userLiked;
-        });
-      }
     } finally {
       if (mounted) setState(() => _isLiking = false);
     }
   }
 
   Future<void> _saveToBoard() async {
-    // ... (This function is unchanged)
     if (_isSaving || _isLoadingInteraction) return;
 
     final pinId = await _ensurePinExists();
@@ -259,7 +241,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   Future<Uint8List> _downloadImageBytes(String imageUrl) async {
     final uri = Uri.parse(imageUrl);
 
-    // Check if the URL is from a Supabase storage bucket
     if (uri.path.contains('/storage/v1/')) {
       final pathSegments = uri.pathSegments;
       int bucketIndex = pathSegments.indexOf('public');
@@ -271,7 +252,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         final bucket = pathSegments[bucketIndex + 1];
         final path = pathSegments.sublist(bucketIndex + 2).join('/');
 
-        // If it's a private bucket, use the authenticated supabase client
         if (bucket == 'designer-files') {
           try {
             final bytes = await supabase.storage.from(bucket).download(path);
@@ -279,13 +259,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           } catch (e) {
             debugPrint(
                 'Supabase download failed: $e. Falling back to http.get');
-            // If download fails (e.g., RLS issue), fall back to public download
           }
         }
       }
     }
 
-    // For "product-images" (public) or any non-private/fallback, use http.get
     final response = await http.get(uri);
     if (response.statusCode == 200) {
       return response.bodyBytes;
@@ -294,7 +272,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
   }
 
-  // This is the complete main share function.
   Future<void> _shareItem() async {
     if (_isSharing) return;
 
@@ -304,54 +281,45 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     final item = widget.jewelryItem;
     const String productBaseUrl = 'https://www.dagina.design/product';
+    
+    // This creates the slug: "Hearty Bliss & Pendant" -> "hearty-bliss-pendant"
     final String slug = item.productTitle
         .toLowerCase()
-        .replaceAll(RegExp(r'\s+'), '-')
-        .replaceAll(RegExp(r'[^a-z0-9-]'), '');
+        .replaceAll(RegExp(r'\s+'), '-') // Replace spaces with dashes
+        .replaceAll(RegExp(r'[^a-z0-9-]'), ''); // Remove special characters
+        
     final String productUrl = '$productBaseUrl/$slug';
 
     // Original Text (without image link)
     final String baseShareText =
         'Check out this beautiful ${item.productTitle}! $productUrl from Dagina Designs!';
 
-    // Final text to be shared
-    String shareText = baseShareText;
-
     try {
       if (item.image.isEmpty) {
         // Fallback to text-only share if image is missing
-        await Share.share(shareText, subject: 'Beautiful Jewelry');
+        await Share.share(baseShareText, subject: 'Beautiful Jewelry');
+        
       } else if (kIsWeb) {
-        // --- WEB LOGIC (Localhost) ---
-        // Share link and image URL in the text so that social platforms can scrape the preview.
-        shareText = '$baseShareText \n\nImage URL: ${item.image}';
-
-        await Share.share(shareText, subject: 'Beautiful Jewelry');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    "File sharing disabled on the web. Shared link only.")),
-          );
-        }
+        
+        // <-- FIX: WEB LOGIC ---
+        // We now ONLY share the baseShareText.
+        // The Open Graph (OG) tags on the website will handle the image preview.
+        
+        await Share.share(
+          baseShareText, // Use 'baseShareText' which DOES NOT have the image URL
+          subject: 'Beautiful Jewelry',
+        );
         // --- END WEB LOGIC ---
+
       } else {
         // --- MOBILE/DESKTOP LOGIC (Download and Share File) ---
-        // 1. Download the image data
         final bytes = await _downloadImageBytes(item.image);
-
-        // 2. Get the temporary directory
         final tempDir = await getTemporaryDirectory();
-
-        // 3. Create a temporary file
         final fileName = 'shared_jewelry_image.png';
         final path = '${tempDir.path}/$fileName';
         final file = await File(path).writeAsBytes(bytes);
-
-        // 4. Convert the File to an XFile
         final xFile = XFile(file.path, mimeType: 'image/png');
 
-        // 5. Share the file AND the text (using baseShareText)
         await Share.shareXFiles(
           [xFile],
           text: baseShareText,
@@ -378,7 +346,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   void _showQuotePopup(BuildContext context) {
-    // ... (This function is unchanged)
     final userProfileProvider =
         Provider.of<UserProfileProvider>(context, listen: false);
     final quoteService = Provider.of<QuoteService>(context, listen: false);
@@ -402,7 +369,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   void _onGetDetailsPressed(BuildContext context) async {
-    // ... (This function is unchanged)
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
 
     if (profile.creditsRemaining <= 0) {
@@ -427,7 +393,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<void> _useQuoteCredit(BuildContext context) async {
-    // ... (This function is unchanged)
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
     final uid = supabase.auth.currentUser?.id;
@@ -478,7 +443,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ... (This function is unchanged)
     return PopScope(
       canPop: true,
       onPopInvoked: (didPop) async {
@@ -506,7 +470,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildWideLayout(BuildContext context) {
-    // ... (This function is unchanged)
     return Column(
       children: [
         Padding(
@@ -577,7 +540,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildNarrowLayout() {
-    // ... (This function is unchanged)
     return CustomScrollView(
       slivers: [
         SliverAppBar(
@@ -616,7 +578,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildContentSection(BuildContext context) {
-    // ... (This function is unchanged)
     final theme = Theme.of(context);
     final item = widget.jewelryItem;
 
@@ -714,7 +675,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildDetailRow(String title, String value) {
-    // ... (This function is unchanged)
     if (value.trim().isEmpty || value.trim().toLowerCase() == 'n/a') {
       return const SizedBox.shrink();
     }
@@ -732,7 +692,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   List<Widget> _buildActionButtons() {
-    // ... (This function is unchanged)
     final iconColor = Theme.of(context).iconTheme.color;
     return [
       IconButton(
@@ -748,19 +707,16 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               ),
         tooltip: _userLiked ? 'Unlike' : 'Like',
       ),
-      // --- MODIFIED: Show loading spinner for sharing ---
       IconButton(
-        onPressed: _isSharing ? null : _shareItem, // Use _isSharing
+        onPressed: _isSharing ? null : _shareItem,
         icon: _isSharing
             ? const SizedBox(
-                // Show spinner
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2))
             : const Icon(Icons.share_outlined),
         tooltip: 'Share',
       ),
-      // --- END MODIFIED ---
       IconButton(
         onPressed: _isSaving ? null : _saveToBoard,
         icon: _isSaving
@@ -776,7 +732,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildSimilarItemsGrid({bool isSliver = false}) {
-    // ... (This function is unchanged)
     return FutureBuilder<List<JewelryItem>>(
       future: _similarItemsFuture,
       builder: (context, snapshot) {
@@ -794,7 +749,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               : Center(child: Text(errorText));
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return isSliver
+              return isSliver
               ? const SliverToBoxAdapter(child: SizedBox.shrink())
               : const SizedBox.shrink();
         }

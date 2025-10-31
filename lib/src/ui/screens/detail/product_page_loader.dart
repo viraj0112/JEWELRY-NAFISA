@@ -1,3 +1,5 @@
+// [This is the corrected code for: lib/src/ui/screens/detail/product_page_loader.dart]
+
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
@@ -26,19 +28,18 @@ class _ProductPageLoaderState extends State<ProductPageLoader> {
   }
 
   Future<JewelryItem?> _fetchProductBySlug(String slug) async {
-    // 1. Re-create the 'Product Title' from the slug
-    // "dainty-floral-openable-gold-bracelets" -> "dainty floral openable gold bracelets"
-    final String productTitle = slug.replaceAll('-', ' ');
+    // <-- FIX: Re-create a fuzzy search term from the slug
+    // "hearty-bliss-gemstone-pendant" -> "hearty%bliss%gemstone%pendant"
+    final String productSearchTerm = slug.replaceAll('-', '%');
 
     try {
-      // 2. Search Supabase for a product with this exact title
-      // We use 'ilike' for a case-insensitive match
+      // 2. Search Supabase for a product with this
       final response = await Supabase.instance.client
-          .from('products') // Check 'products' table
+          .from('products')
           .select()
-          .ilike('Product Title', productTitle)
+          .ilike('Product Title', productSearchTerm) // <-- FIX: Use fuzzy search term
           .maybeSingle();
-
+      
       if (response != null) {
         return JewelryItem.fromJson(response);
       }
@@ -47,7 +48,7 @@ class _ProductPageLoaderState extends State<ProductPageLoader> {
       final designerResponse = await Supabase.instance.client
           .from('designerproducts') // Check 'designerproducts' table
           .select()
-          .ilike('Product Title', productTitle)
+          .ilike('Product Title', productSearchTerm) // <-- FIX: Use fuzzy search term
           .maybeSingle();
           
       if (designerResponse != null) {
@@ -55,6 +56,7 @@ class _ProductPageLoaderState extends State<ProductPageLoader> {
       }
 
       // 4. If still not found, return null
+      debugPrint("Product not found in 'products' or 'designerproducts' for slug: $slug (Search term: $productSearchTerm)");
       return null;
 
     } catch (e) {
@@ -75,11 +77,16 @@ class _ProductPageLoaderState extends State<ProductPageLoader> {
         }
 
         if (snapshot.hasError || snapshot.data == null) {
-          return const Scaffold(
-            body: Center(
-              child: Text(
-                'Product not found.',
-                style: TextStyle(fontSize: 24),
+          return Scaffold(
+            appBar: AppBar(),
+            body: const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Product not found. The link may be invalid or the item may have been removed.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18),
+                ),
               ),
             ),
           );
@@ -87,6 +94,8 @@ class _ProductPageLoaderState extends State<ProductPageLoader> {
 
         // Product was found! Show the detail screen.
         final product = snapshot.data!;
+        
+        // Use replace to show the detail screen without stacking on the loader
         return JewelryDetailScreen(jewelryItem: product);
       },
     );

@@ -16,6 +16,8 @@ migrate_working_dir/
 .env.production
 .vscode
 
+WHATSAPP_IMAGE_PREVIEW_EXPLANATION.md
+WHATSAPP_SHARING_GUIDE.md
 # IntelliJ related
 *.iml
 *.ipr
