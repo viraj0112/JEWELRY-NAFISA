@@ -322,9 +322,14 @@ class AdminService {
     if (range != null) {
       final endOfDay =
           DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59);
+
+      // --- MODIFICATION ---
+      // Removed the 'gte' filter to include all users created before the start date.
+      // We only filter users created *before or on* the end date.
       baseQuery = baseQuery
-          .gte('created_at', range.start.toIso8601String())
+          // .gte('created_at', range.start.toIso8601String()) // <-- REMOVE THIS LINE
           .lte('created_at', endOfDay.toIso8601String());
+      // --- END MODIFICATION ---
     }
 
     if (filterState.status != 'All Status') {
