@@ -56,9 +56,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
     // --- FIX 1: Fetch all files ONCE before the loop ---
     final List<FileObject> allStorageFiles;
     try {
-      allStorageFiles = await Supabase.instance.client.storage
-          .from('product-images')
-          .list();
+      allStorageFiles =
+          await Supabase.instance.client.storage.from('product-images').list();
     } catch (e) {
       _showErrorSnackBar('Failed to list files from storage: $e');
       setState(() => _isLoading = false);
@@ -106,7 +105,7 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
 
             if (arrayHeaders.contains(header)) {
               if (value == null) {
-                product[header] = null; 
+                product[header] = null;
               } else if (value is String) {
                 if (value.isEmpty) {
                   product[header] = null;
@@ -128,7 +127,6 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
         }
 
         if (productTitle != null && productTitle.isNotEmpty) {
-          
           // --- FIX 2: Search the local list (allStorageFiles), NOT the API ---
           final matchingFiles = allStorageFiles
               .where((file) => file.name.startsWith(productTitle!))

@@ -14,7 +14,7 @@ const supabase = createClient(
  * @param {string[]} allUrls - An array to accumulate URLs.
  */
 async function getUrlsRecursively(bucketName, path, allUrls) {
-  const limit = 500; // Get up to 500 items per request
+  const limit = 5000; // Get up to 500 items per request
   let offset = 0;
   let allFileObjects = [];
 
@@ -29,7 +29,10 @@ async function getUrlsRecursively(bucketName, path, allUrls) {
         });
 
       if (listError) {
-        console.error(`Error listing files in '${path}' (offset ${offset}):`, listError.message);
+        console.error(
+          `Error listing files in '${path}' (offset ${offset}):`,
+          listError.message
+        );
         return; // Stop processing this folder on error
       }
 
@@ -52,7 +55,7 @@ async function getUrlsRecursively(bucketName, path, allUrls) {
     console.error(`Error during pagination for path '${path}':`, error.message);
     return;
   }
-  
+
   // 2. Process all items found in this directory
   for (const file of allFileObjects) {
     const fullPath = path ? `${path}/${file.name}` : file.name;
@@ -61,7 +64,6 @@ async function getUrlsRecursively(bucketName, path, allUrls) {
       // This is a FOLDER (folders have 'id: null')
       // Call this function again to go one level deeper
       await getUrlsRecursively(bucketName, fullPath, allUrls);
-
     } else {
       // This is a FILE (files have an 'id')
       if (file.name !== ".emptyFolderPlaceholder") {
@@ -69,7 +71,7 @@ async function getUrlsRecursively(bucketName, path, allUrls) {
         const { data: publicUrlData } = supabase.storage
           .from(bucketName)
           .getPublicUrl(fullPath);
-        
+
         allUrls.push(publicUrlData.publicUrl);
       }
     }
@@ -86,22 +88,20 @@ async function getAllPublicImageUrls(bucketName) {
 
   try {
     // Start the recursive scan from the root directory ('')
-    await getUrlsRecursively(bucketName, '', allUrls);
+    await getUrlsRecursively(bucketName, "", allUrls);
     console.log(`Scan complete. Found ${allUrls.length} files.`);
     return allUrls;
-
   } catch (error) {
     console.error("An unexpected error occurred:", error.message);
     return [];
   }
 }
 
-
 // --- MAIN SCRIPT TO RUN AND SAVE TO CSV ---
 (async () => {
   // Get all URLs using the new recursive function
   const imageUrls = await getAllPublicImageUrls("product-images");
-  
+
   if (!imageUrls || imageUrls.length === 0) {
     console.log("No URLs found. CSV file will not be created.");
     return; // Exit if there's nothing to save
@@ -111,14 +111,16 @@ async function getAllPublicImageUrls(bucketName) {
   const header = "url\n"; // CSV header
   const rows = imageUrls.join("\n"); // Each URL on a new line
   const csvContent = header + rows;
-  
+
   const fileName = "product_urls_all.csv";
 
   try {
     // 2. Write the string to a file using Deno's API
     await Deno.writeTextFile(fileName, csvContent);
-    
-    console.log(`✅ Successfully saved ${imageUrls.length} URLs to ${fileName}`);
+
+    console.log(
+      `✅ Successfully saved ${imageUrls.length} URLs to ${fileName}`
+    );
   } catch (error) {
     console.error(`Error writing file: ${error.message}`);
   }

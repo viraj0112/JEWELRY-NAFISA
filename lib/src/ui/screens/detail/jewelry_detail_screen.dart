@@ -281,13 +281,13 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     final item = widget.jewelryItem;
     const String productBaseUrl = 'https://www.dagina.design/product';
-    
+
     // This creates the slug: "Hearty Bliss & Pendant" -> "hearty-bliss-pendant"
     final String slug = item.productTitle
         .toLowerCase()
         .replaceAll(RegExp(r'\s+'), '-') // Replace spaces with dashes
         .replaceAll(RegExp(r'[^a-z0-9-]'), ''); // Remove special characters
-        
+
     final String productUrl = '$productBaseUrl/$slug';
 
     // Original Text (without image link)
@@ -298,19 +298,16 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       if (item.image.isEmpty) {
         // Fallback to text-only share if image is missing
         await Share.share(baseShareText, subject: 'Beautiful Jewelry');
-        
       } else if (kIsWeb) {
-        
         // <-- FIX: WEB LOGIC ---
         // We now ONLY share the baseShareText.
         // The Open Graph (OG) tags on the website will handle the image preview.
-        
+
         await Share.share(
           baseShareText, // Use 'baseShareText' which DOES NOT have the image URL
           subject: 'Beautiful Jewelry',
         );
         // --- END WEB LOGIC ---
-
       } else {
         // --- MOBILE/DESKTOP LOGIC (Download and Share File) ---
         final bytes = await _downloadImageBytes(item.image);
@@ -610,10 +607,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           if (showFullDetails) ...[
             Text("Product Details", style: theme.textTheme.titleLarge),
             const SizedBox(height: 12),
-            if (item.description.isNotEmpty) ...[
-              _buildDetailRow("Description: ", item.description),
-              const SizedBox(height: 8),
-            ],
             if (item.metalPurity != null && item.metalPurity!.isNotEmpty)
               _buildDetailRow("Metal Purity: ", item.metalPurity!),
             if (item.goldWeight != null && item.goldWeight!.isNotEmpty)
@@ -749,7 +742,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               : Center(child: Text(errorText));
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return isSliver
+          return isSliver
               ? const SliverToBoxAdapter(child: SizedBox.shrink())
               : const SizedBox.shrink();
         }
