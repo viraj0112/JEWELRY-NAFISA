@@ -643,17 +643,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               ),
             ),
           ] else ...[
-            Text("Description", style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
             Text(
-              item.description.isNotEmpty
-                  ? item.description
-                  : "Full product details including metal type, purity, and stone details are available by using a credit.",
-              style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 24),
+              'Unlock detailed product specifications by using a credit.',
+              style: theme.textTheme.bodyMedium,
+            ), const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
