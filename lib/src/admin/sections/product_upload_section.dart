@@ -43,6 +43,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
     }
   }
 
+  // Inside _ProductUploadSectionState in product_upload_section.dart
+
   Future<void> _uploadToSupabase() async {
     if (_csvData == null || _csvData!.length < 2) {
       _showErrorSnackBar('No data to upload or header is missing.');
@@ -50,6 +52,19 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
     }
 
     setState(() => _isLoading = true);
+
+    // --- FIX 1: Fetch all files ONCE before the loop ---
+    final List<FileObject> allStorageFiles;
+    try {
+      allStorageFiles = await Supabase.instance.client.storage
+          .from('product-images')
+          .list();
+    } catch (e) {
+      _showErrorSnackBar('Failed to list files from storage: $e');
+      setState(() => _isLoading = false);
+      return;
+    }
+    // --- End of FIX 1 ---
 
     try {
       final headers = _csvData![0].map((e) => e.toString().trim()).toList();
@@ -85,32 +100,21 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
             dynamic value = row[i];
 
             if (header == 'Product Title') {
-              productTitle = value.toString();
+              // Also trim the value for safety
+              productTitle = value.toString().trim();
             }
-
-            // if (header == 'Product Tags' && value is String) {
-            //   product[header] = value.split(',').map((t) => t.trim()).toList();
-            // } else if (header == 'Price' && value is String) {
-            //   final cleanedPriceString =
-            //       value.replaceAll('₹', '').replaceAll(',', '').trim();
-            //   product[header] = double.tryParse(cleanedPriceString);
-            // } else {
-            //   product[header] = value;
-            // }
 
             if (arrayHeaders.contains(header)) {
               if (value == null) {
-                product[header] = null; // Set null if value is null
+                product[header] = null; 
               } else if (value is String) {
                 if (value.isEmpty) {
-                  product[header] = null; // Set null for empty strings
+                  product[header] = null;
                 } else {
-                  // It's a string, split by comma
                   product[header] =
                       value.split(',').map((t) => t.trim()).toList();
                 }
               } else {
-                // It's not a string (e.g., int, double), so wrap it in a list
                 product[header] = [value.toString()];
               }
             } else if (header == 'Price' && value is String) {
@@ -118,19 +122,18 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
                   value.replaceAll('₹', '').replaceAll(',', '').trim();
               product[header] = double.tryParse(cleanedPriceString);
             } else {
-              // Assign all other values directly
               product[header] = value;
             }
           }
         }
 
         if (productTitle != null && productTitle.isNotEmpty) {
-          final files = await Supabase.instance.client.storage
-              .from('product-images')
-              .list();
-          final matchingFiles = files
+          
+          // --- FIX 2: Search the local list (allStorageFiles), NOT the API ---
+          final matchingFiles = allStorageFiles
               .where((file) => file.name.startsWith(productTitle!))
               .toList();
+          // --- End of FIX 2 ---
 
           if (matchingFiles.isNotEmpty) {
             final imageName = matchingFiles.first.name;
