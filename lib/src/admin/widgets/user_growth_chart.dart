@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+// FIX: Change to ConsumerWidget
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jewelry_nafisa/src/admin/models/admin_models.dart';
 import 'package:jewelry_nafisa/src/admin/services/admin_service.dart';
@@ -12,8 +13,12 @@ final userGrowthProvider =
   return adminService.getUserGrowth(dateRange);
 });
 
+// FIX: Convert to ConsumerStatefulWidget
 class UserGrowthChart extends ConsumerStatefulWidget {
-  const UserGrowthChart({super.key});
+  // FIX: Add optional initial date range
+  final DateTimeRange? initialDateRange;
+
+  const UserGrowthChart({super.key, this.initialDateRange});
 
   @override
   ConsumerState<UserGrowthChart> createState() => _UserGrowthChartState();
@@ -25,11 +30,27 @@ class _UserGrowthChartState extends ConsumerState<UserGrowthChart> {
   @override
   void initState() {
     super.initState();
+    // FIX: Use the initialDateRange from the widget if provided
     final now = DateTime.now();
-    _selectedDateRange = DateTimeRange(
-      start: now.subtract(const Duration(days: 30)),
-      end: now,
-    );
+    _selectedDateRange = widget.initialDateRange ??
+        DateTimeRange(
+          start: now.subtract(const Duration(days: 30)),
+          end: now,
+        );
+  }
+
+  // FIX: Add this to update the chart if the global filter changes
+  @override
+  void didUpdateWidget(covariant UserGrowthChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialDateRange != null &&
+        widget.initialDateRange != _selectedDateRange) {
+      setState(() {
+        _selectedDateRange = widget.initialDateRange!;
+      });
+      // Invalidate the provider to refetch with the new global range
+      ref.invalidate(userGrowthProvider(_selectedDateRange));
+    }
   }
 
   Future<void> _selectDateRange(BuildContext context) async {
@@ -43,12 +64,14 @@ class _UserGrowthChartState extends ConsumerState<UserGrowthChart> {
       setState(() {
         _selectedDateRange = picked;
       });
-      ref.invalidate(userGrowthProvider);
+      // Invalidate to refetch with the new *manually* picked range
+      ref.invalidate(userGrowthProvider(_selectedDateRange));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Watch the provider with the *current* selected date range
     final chartDataAsync = ref.watch(userGrowthProvider(_selectedDateRange));
     final theme = Theme.of(context);
 
@@ -59,6 +82,7 @@ class _UserGrowthChartState extends ConsumerState<UserGrowthChart> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ... (rest of your build method is fine)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

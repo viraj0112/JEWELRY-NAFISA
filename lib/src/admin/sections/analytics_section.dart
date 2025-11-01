@@ -7,7 +7,11 @@ import 'package:jewelry_nafisa/src/admin/widgets/user_growth_chart.dart';
 // FIX: Import the dashboard widgets (like DailyUsageCard)
 import 'package:jewelry_nafisa/src/admin/widgets/dashboard_widgets.dart';
 import 'package:intl/intl.dart';
+// FIX: Import Provider and Notifier
+import 'package:provider/provider.dart';
+import 'package:jewelry_nafisa/src/admin/notifiers/filter_state_notifier.dart';
 
+// FIX: Convert to StatefulWidget to use the TabController
 class AnalyticsSection extends StatefulWidget {
   const AnalyticsSection({super.key});
 
@@ -34,46 +38,55 @@ class _AnalyticsSectionState extends State<AnalyticsSection>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Analytics & Insights',
-            style:
-                GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 24),
-        TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
-          unselectedLabelStyle: GoogleFonts.inter(),
-          tabs: const [
-            Tab(text: 'Post-Level Analytics'),
-            Tab(text: 'User Behavior'),
-            Tab(text: 'Credit Usage'),
-            Tab(text: 'Engagement by Segment'),
+    // FIX: We consume the filter state here
+    return Consumer<FilterStateNotifier>(
+      builder: (context, filterNotifier, child) {
+        final filterState = filterNotifier.value;
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Analytics & Insights',
+                style:
+                    GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              unselectedLabelStyle: GoogleFonts.inter(),
+              tabs: const [
+                Tab(text: 'Post-Level Analytics'),
+                Tab(text: 'User Behavior'),
+                Tab(text: 'Credit Usage'),
+                Tab(text: 'Engagement by Segment'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // FIX: Pass the filter state to the tab builders
+                  _buildPostAnalytics(filterState),
+                  _buildUserBehavior(filterState),
+                  _buildCreditUsage(filterState),
+                  _buildEngagementSegment(filterState),
+                ],
+              ),
+            ),
           ],
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildPostAnalytics(),
-              _buildUserBehavior(),
-              _buildCreditUsage(),
-              _buildEngagementSegment(),
-            ],
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
-  // FIX: The duplicate build method that was here has been removed.
-
-  Widget _buildPostAnalytics() {
+  // FIX: This method now accepts and uses the FilterState
+  Widget _buildPostAnalytics(FilterState filterState) {
     return FutureBuilder<List<PostAnalytic>>(
-      future: _adminService.getPostAnalytics(),
+      // Use the filterState as a key to force rebuild
+      key: ValueKey(filterState.hashCode), 
+      future: _adminService.getPostAnalytics(filterState),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -116,27 +129,32 @@ class _AnalyticsSectionState extends State<AnalyticsSection>
     );
   }
 
-  Widget _buildUserBehavior() {
-    // FIX: Use the UserGrowthChart we created, not the non-existent 'ChartGrid'
-    return const SingleChildScrollView(
-      padding: EdgeInsets.symmetric(vertical: 24.0),
-      child: UserGrowthChart(),
+  // FIX: Pass the filter state to the UserGrowthChart as an initial range
+  Widget _buildUserBehavior(FilterState filterState) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(vertical: 24.0),
+      // Pass the global filter's date range to the chart
+      child: UserGrowthChart(
+        initialDateRange: filterState.dateRange,
+      ),
     );
   }
 
-  Widget _buildCreditUsage() {
+  // These widgets are not filter-aware yet, but we pass the state
+  // for future-proofing.
+  Widget _buildCreditUsage(FilterState filterState) {
     // FIX: Use DailyUsageCard from the imported dashboard_widgets
     return const SingleChildScrollView(
       padding: EdgeInsets.symmetric(vertical: 24.0),
-      child: DailyUsageCard(),
+      child: DailyUsageCard(), // This widget would also need refactoring
     );
   }
 
-  Widget _buildEngagementSegment() {
+  Widget _buildEngagementSegment(FilterState filterState) {
     // FIX: Use UserGrowthCard from the imported dashboard_widgets
     return const SingleChildScrollView(
       padding: EdgeInsets.symmetric(vertical: 24.0),
-      child: UserGrowthCard(),
+      child: UserGrowthCard(), // This widget would also need refactoring
     );
   }
 }

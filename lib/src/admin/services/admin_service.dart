@@ -327,7 +327,7 @@ class AdminService {
       // Removed the 'gte' filter to include all users created before the start date.
       // We only filter users created *before or on* the end date.
       baseQuery = baseQuery
-          // .gte('created_at', range.start.toIso8601String()) // <-- REMOVE THIS LINE
+          .gte('created_at', range.start.toIso8601String())
           .lte('created_at', endOfDay.toIso8601String());
       // --- END MODIFICATION ---
     }
@@ -406,9 +406,26 @@ class AdminService {
             maps.map((map) => AdminNotification.fromMap(map)).toList());
   }
 
-  Future<List<PostAnalytic>> getPostAnalytics() async {
+  Future<List<PostAnalytic>> getPostAnalytics(FilterState filterState) async {
     try {
-      final response = await _supabase.rpc('get_all_post_analytics');
+      final dateRange = filterState.dateRange;
+
+      // Default to a 30-day range if no custom range is set
+      // (This is a fallback, but FilterState.defaultFilters should handle this)
+      final startDate = dateRange?.start.toIso8601String() ??
+          DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
+      final endDate =
+          dateRange?.end.toIso8601String() ?? DateTime.now().toIso8601String();
+
+      // Pass the date range to your RPC
+      final response = await _supabase.rpc(
+        'get_all_post_analytics',
+        params: {
+          'start_date': startDate,
+          'end_date': endDate,
+        },
+      );
+
       if (response == null || response is! List) return [];
       return List<Map<String, dynamic>>.from(response as List)
           .map((data) => PostAnalytic.fromJson(data))

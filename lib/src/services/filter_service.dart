@@ -106,29 +106,29 @@ class FilterService {
   /// **MODIFIED:** Renamed and changed to only fetch *independent* filters.
   Future<Map<String, List<String>>> getInitialFilterOptions() async {
     // Separate columns by their type (text vs. array)
-    final textColumns = ['Product Type', 'Metal Purity', 'Plain'];
-    final arrayColumns = ['Studded']; // 'Studded' is an ARRAY column
+    final textColumns = ['Product Type', 'Metal Purity', ]; //'Plain'
+    // final arrayColumns = ['Studded']; // 'Studded' is an ARRAY column
 
     // Fetch text values using the old function
     final List<Future<List<String>>> textFutures =
         textColumns.map((columnName) => getDistinctValues(columnName)).toList();
 
     // Fetch array values using the NEW function
-    final List<Future<List<String>>> arrayFutures = arrayColumns
-        .map((columnName) =>
-            getDistinctArrayValues(columnName)) // <-- Use the new function
-        .toList();
+    // final List<Future<List<String>>> arrayFutures = arrayColumns
+    //     .map((columnName) =>
+    //         getDistinctArrayValues(columnName)) // <-- Use the new function
+    //     .toList();
 
     // Wait for all futures to complete
     final textResults = await Future.wait(textFutures);
-    final arrayResults = await Future.wait(arrayFutures);
+    // final arrayResults = await Future.wait(arrayFutures);
 
     // Map results back
     return {
       'Product Type': textResults[0],
-      'Metal Purity': textResults[1],
-      'Plain': textResults[2],
-      'Studded': arrayResults[0], // <-- Get result from array futures
+      // 'Metal Purity': textResults[1],
+      // 'Plain': textResults[2],
+      // 'Studded': arrayResults[0], // <-- Get result from array futures
     };
   }
 }
