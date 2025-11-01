@@ -1,4 +1,3 @@
-// src/ui/screens/search_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
@@ -24,16 +23,23 @@ class Debouncer {
 }
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final TextEditingController? searchController;
+  const SearchScreen({super.key, this.searchController});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final _searchController = TextEditingController();
+  late final TextEditingController _searchController;
+  bool _isExternalController = false;
+
   final _debouncer = Debouncer(milliseconds: 500);
   late final JewelryService _jewelryService;
+
+  // final _searchController = TextEditingController();
+  // final _debouncer = Debouncer(milliseconds: 500);
+  // late final JewelryService _jewelryService;
 
   List<JewelryItem> _searchResults = [];
   List<JewelryItem> _trendingItems = [];
@@ -46,7 +52,12 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _jewelryService = Provider.of<JewelryService>(context, listen: false);
+
+    _isExternalController = widget.searchController != null;
+    _searchController = widget.searchController ?? TextEditingController();
+
     _loadInitialContent();
+
     _searchController.addListener(() {
       _debouncer.run(() {
         final query = _searchController.text;
@@ -59,20 +70,19 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
-    _searchController.dispose();
+    if (!_isExternalController) {
+      _searchController.dispose();
+    }
     _debouncer.dispose();
     super.dispose();
   }
 
-  // --- UPDATED _loadInitialContent ---
   Future<void> _loadInitialContent() async {
     if (!mounted) return;
     setState(() => _isLoadingInitial = true);
     try {
-      // Fetch latest items (assuming getProducts fetches recent items first)
       final latestFuture = _jewelryService.getProducts(limit: 20);
 
-      // Fetch "trending" items using the new RPC
       final trendingFuture = _jewelryService.getTrendingProducts(limit: 20);
 
       // Wait for both to finish
@@ -145,34 +155,34 @@ class _SearchScreenState extends State<SearchScreen> {
       canPop: true,
       child: Scaffold(
         appBar: AppBar(
-        titleSpacing: 16.0,
-        elevation: 0,
-        backgroundColor: theme.scaffoldBackgroundColor,
-        title: TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
-            hintText: 'Search designs, categories...',
-            prefixIcon: const Icon(Icons.search, size: 20),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+          titleSpacing: 16.0,
+          elevation: 0,
+          backgroundColor: theme.scaffoldBackgroundColor,
+          title: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search designs, categories...',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              fillColor: theme.splashColor,
+              filled: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () {
+                        _searchController.clear();
+                        _performSearch('');
+                      },
+                    )
+                  : null,
             ),
-            fillColor: theme.splashColor,
-            filled: true,
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
-                    onPressed: () {
-                      _searchController.clear();
-                      _performSearch('');
-                    },
-                  )
-                : null,
+            onSubmitted: _performSearch,
           ),
-          onSubmitted: _performSearch,
-        ),
         ),
         body: _buildBody(isSearching),
       ),

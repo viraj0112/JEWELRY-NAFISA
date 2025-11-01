@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 class JewelryItem {
   final String id;
+  final bool isDesignerProduct;
   final String productTitle;
   final String image;
   final String description;
@@ -46,6 +47,7 @@ class JewelryItem {
     required this.image,
     required this.description,
     this.price,
+    this.isDesignerProduct = false,
     this.tags,
     this.goldWeight,
     this.metalPurity,
@@ -161,9 +163,10 @@ class JewelryItem {
     return cleanedList.isNotEmpty ? cleanedList : null;
   }
 
-  factory JewelryItem.fromJson(Map<String, dynamic> json) {
+  factory JewelryItem.fromJson(Map<String, dynamic> json, {bool isDesignerProduct = false}) {
     return JewelryItem(
       id: json['id'].toString(),
+      isDesignerProduct: isDesignerProduct,
       productTitle:
           json['Product Title'] ?? json['title'] ?? json['product_title'] ?? '',
       image: json['Image'] ?? json['image'] ?? json['image_url'] ?? '',

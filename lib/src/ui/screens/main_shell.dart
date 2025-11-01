@@ -13,6 +13,7 @@ import 'package:jewelry_nafisa/src/ui/screens/search_screen.dart';
 import 'package:jewelry_nafisa/src/widgets/edit_profile_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
+import 'package:jewelry_nafisa/src/ui/widgets/search_overlay.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -24,13 +25,33 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
 
-  static const List<Widget> _pages = <Widget>[
-    HomeScreen(),
-    SearchScreen(),
-    BoardsScreen(),
-    NotificationsScreen(),
-    ProfileScreen(),
-  ];
+  final _searchController = TextEditingController();
+  late final List<Widget> _pages;
+  // static const List<Widget> _pages = <Widget>[
+  //   HomeScreen(),
+  //   SearchScreen(),
+  //   BoardsScreen(),
+  //   NotificationsScreen(),
+  //   ProfileScreen(),
+  // ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = <Widget>[
+      const HomeScreen(), 
+      SearchScreen(searchController: _searchController),
+      const BoardsScreen(), 
+      const NotificationsScreen(), 
+      const ProfileScreen(), 
+    ];
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -111,35 +132,34 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _showExitConfirmationDialog(BuildContext context) {
-
-  if (_selectedIndex != 0) {
-    setState(() {
-      _selectedIndex = 0; 
-    });
-  } else {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Exit App?'),
-        content: const Text('Are you sure you want to exit Dagina Designs?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(), // Dismiss dialog
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true), // Allow pop/exit
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
-    ).then((confirmed) {
-      if (confirmed == true && mounted) {
-        SystemNavigator.pop();
-      }
-    });
+    if (_selectedIndex != 0) {
+      setState(() {
+        _selectedIndex = 0;
+      });
+    } else {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Exit App?'),
+          content: const Text('Are you sure you want to exit Dagina Designs?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(), // Dismiss dialog
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true), // Allow pop/exit
+              child: const Text('Exit'),
+            ),
+          ],
+        ),
+      ).then((confirmed) {
+        if (confirmed == true && mounted) {
+          SystemNavigator.pop();
+        }
+      });
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -227,21 +247,22 @@ class _MainShellState extends State<MainShell> {
 
   Widget _buildNarrowLayout() {
     return PopScope(
-    canPop: false,
-    onPopInvoked: (didPop) {
-      if (didPop) return; 
-      if (_selectedIndex != 0) {
-        _onItemTapped(0); 
-      } else {
-        _showExitConfirmationDialog(context);
-      }
-    },
-    child: Scaffold( // The Scaffold no longer handles the pop directly
-     appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
-      body: _pages.elementAt(_selectedIndex),
-      bottomNavigationBar: _buildFixedNavBar(),
-    ),
-  );
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        if (_selectedIndex != 0) {
+          _onItemTapped(0);
+        } else {
+          _showExitConfirmationDialog(context);
+        }
+      },
+      child: Scaffold(
+        // The Scaffold no longer handles the pop directly
+        appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
+        body: _pages.elementAt(_selectedIndex),
+        bottomNavigationBar: _buildFixedNavBar(),
+      ),
+    );
     // The problematic PopScope has been removed from here
     // return Scaffold(
     //  appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
@@ -290,21 +311,27 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar({required bool isWide, required int selectedIndex}) { // <--- MODIFIED SIGNATURE
+  PreferredSizeWidget _buildAppBar(
+      {required bool isWide, required int selectedIndex}) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final userProfile = Provider.of<UserProfileProvider>(context);
     final theme = Theme.of(context);
 
-    // Index of the SearchScreen is 1 (see _pages list)
     final bool isSearchScreen = selectedIndex == 1;
+    final bool isBoardsScreen = selectedIndex == 2;
+    final bool isNotificationScreen = selectedIndex == 3;
+    final bool isProfileScreen = selectedIndex == 4;
 
+    final bool shouldHideSearchBar = isSearchScreen ||
+        isBoardsScreen ||
+        isNotificationScreen ||
+        isProfileScreen;
     return AppBar(
       automaticallyImplyLeading: !isWide,
       titleSpacing: 16.0,
       elevation: 0,
       backgroundColor: theme.scaffoldBackgroundColor,
-      // HIDE the placeholder bar only when the Search Screen is active
-      title: isSearchScreen ? null : _buildSearchBar(theme), // <--- MODIFIED LOGIC
+      title: shouldHideSearchBar ? null : _buildSearchBar(theme),
       actions: [
         IconButton(
           icon: Icon(
@@ -350,38 +377,34 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildSearchBar(ThemeData theme) {
-    return InkWell(
+    // It's no longer an InkWell, it's a TextField
+    return TextField(
+      controller: _searchController, // <-- Use the shared controller
+      decoration: InputDecoration(
+        hintText: 'Search',
+        prefixIcon: Icon(
+          Icons.search,
+          color: theme.colorScheme.onSurface.withOpacity(0.6),
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide.none,
+        ),
+        fillColor: theme.splashColor,
+        filled: true,
+        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+      ),
       onTap: () {
+        // 6. When the user taps the bar, navigate to the search screen
         _onItemTapped(1);
       },
-      hoverColor: Colors.grey.withOpacity(0.2),
-      borderRadius: BorderRadius.circular(12.0),
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: theme.splashColor,
-          borderRadius: BorderRadius.circular(12.0),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        alignment: Alignment.centerLeft,
-        child: Row(
-          children: [
-            Icon(
-              Icons.search,
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
-            ),
-            const SizedBox(width: 8.0),
-            Text(
-              'Search',
-              style: TextStyle(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                fontSize: 16.0,
-              ),
-            ),
-          ],
-        ),
-      ),
+      onSubmitted: (query) {
+        // 7. When the user hits "enter" on the keyboard:
+        //    The controller already has the text.
+        //    The SearchScreen is already listening and searching.
+        //    We just need to make sure we are on the SearchScreen.
+        _onItemTapped(1);
+      },
     );
   }
 

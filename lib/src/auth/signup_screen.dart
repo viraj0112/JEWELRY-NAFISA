@@ -156,24 +156,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   // Creates the decorative background grid of images
   Widget _buildBackgroundGrid() {
-    return MasonryGridView.count(
-      crossAxisCount: 4,
-      itemCount: 20,
-      itemBuilder: (BuildContext context, int index) => Opacity(
-        opacity: 0.5,
-        child: Image.network(
-          "https://static.vecteezy.com/system/resources/previews/035/081/140/non_2x/women-s-jewelry-gold-chain-trendy-jewelry-on-a-silk-background-photo.JPG",
-          fit: BoxFit.cover,
-        ),
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+            image: AssetImage('assets/icons/loginscreen.jpg'),
+            fit: BoxFit.cover),
       ),
-      mainAxisSpacing: 4.0,
-      crossAxisSpacing: 4.0,
     );
   }
 
   // Builds the main registration form
   Widget _buildForm(ThemeData theme) {
     return Form(
+     
       key: _formKey,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(34, 24, 34, 34),

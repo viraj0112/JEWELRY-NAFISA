@@ -199,7 +199,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('My Quotes', style: theme.textTheme.titleLarge),
+                    Text('Product Details', style: theme.textTheme.titleLarge),
                     TextButton(
                       // FIX: Corrected the navigation logic
                       onPressed: () {

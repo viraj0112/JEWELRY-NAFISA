@@ -23,6 +23,8 @@ import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/product_page_loader.dart';
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jewelry_nafisa/src/services/search_history_service.dart';
 
 final supabaseClient = Supabase.instance.client;
 
@@ -112,7 +114,9 @@ Future<void> main() async {
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
   );
-
+  
+final searchHistoryService = SearchHistoryService();
+  await searchHistoryService.init();
   setPathUrlStrategy();
 
   runApp(
@@ -176,3 +180,5 @@ class ProductDetailLoader extends StatelessWidget {
     );
   }
 }
+
+
