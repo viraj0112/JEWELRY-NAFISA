@@ -8,15 +8,16 @@ class QuoteService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   String _getProductTable(JewelryItem product) {
-    bool isDesignerProduct = product.tags != null; 
+    bool isDesignerProduct = product.tags != null;
     return isDesignerProduct ? 'designerproducts' : 'products';
   }
-
 
   Future<void> submitQuoteRequest({
     required UserProfile user,
     required JewelryItem product,
+    required String? phoneNumber,
     String? additionalNotes,
+
   }) async {
     try {
       final productTable = _getProductTable(product);
@@ -31,32 +32,34 @@ class QuoteService {
         'user_id': user.id,
         'user_name': user.username ?? user.fullName ?? user.email,
         'user_email': user.email,
-        'user_phone': user.phone, 
+        'user_phone': user.phone ?? phoneNumber,
 
-        'product_id': productIdBigInt, 
-        'product_table': productTable, 
+        'product_id': productIdBigInt,
+        'product_table': productTable,
         'product_title': product.productTitle,
 
-        'metal_purity': product.metalPurity, 
-        'gold_weight': product.goldWeight, 
-        'metal_color': product.metalColor, 
-        'metal_finish': product.metalFinish, 
-        'metal_type': product.metalType, 
-        'stone_type': product.stoneType,  
-        'stone_color': product.stoneColor, 
-        'stone_count': product.stoneCount, 
-        'stone_purity': product.stonePurity, 
-        'stone_cut': product.stoneCut, 
-        'stone_used': product.stoneUsed, 
-        'stone_weight': product.stoneWeight, 
-        'stone_setting': product.stoneSetting, 
-      
-        
-        'additional_notes': additionalNotes?.trim().isEmpty ?? true ? null : additionalNotes!.trim(),
+        'metal_purity': product.metalPurity,
+        'gold_weight': product.goldWeight,
+        'metal_color': product.metalColor,
+        'metal_finish': product.metalFinish,
+        'metal_type': product.metalType,
+        'stone_type': product.stoneType,
+        'stone_color': product.stoneColor,
+        'stone_count': product.stoneCount,
+        'stone_purity': product.stonePurity,
+        'stone_cut': product.stoneCut,
+        'stone_used': product.stoneUsed,
+        'stone_weight': product.stoneWeight,
+        'stone_setting': product.stoneSetting,
+
+        'additional_notes': additionalNotes?.trim().isEmpty ?? true
+            ? null
+            : additionalNotes!.trim(),
       });
     } on PostgrestException catch (e) {
       debugPrint('Supabase error submitting quote: ${e.message}');
-      throw Exception('Failed to submit quote request. ${e.details ?? e.message}');
+      throw Exception(
+          'Failed to submit quote request. ${e.details ?? e.message}');
     } catch (e) {
       debugPrint('Unexpected error submitting quote: $e');
       throw Exception('An unexpected error occurred while submitting.');

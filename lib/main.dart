@@ -69,11 +69,12 @@ final _router = GoRouter(
         if (identifier == null || identifier.isEmpty) {
           return const AuthGate();
         }
-        
+
         // If identifier contains hyphens or letters, treat as slug
         // Otherwise treat as numeric ID
-        final isSlug = identifier.contains('-') || identifier.contains(RegExp(r'[a-zA-Z]'));
-        
+        final isSlug = identifier.contains('-') ||
+            identifier.contains(RegExp(r'[a-zA-Z]'));
+
         if (isSlug) {
           return ProductPageLoader(productSlug: identifier);
         } else {
@@ -139,7 +140,7 @@ class MyApp extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp.router(
-      title: 'jewelry_nafisa',
+      title: 'Dagina Designs',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

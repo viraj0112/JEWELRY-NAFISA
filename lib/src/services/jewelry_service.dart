@@ -144,26 +144,31 @@ class JewelryService {
 
   Future<List<JewelryItem>> fetchSimilarItems({
     required String currentItemId,
-    String? category, // This holds either productType or collectionName
+    String? productType, 
+    String? category,    
+    String? subCategory, 
     int limit = 10,
   }) async {
-    final filterValue = category;
-    if (filterValue == null || filterValue.isEmpty) {
+    // Check if all relevant fields are null or empty
+    if ((productType == null || productType.isEmpty) &&
+        (category == null || category.isEmpty) &&
+        (subCategory == null || subCategory.isEmpty)) {
       return [];
     }
 
     try {
-      // 1. ADD EXPLICIT CAST HERE
       final response = await _supabaseClient.rpc(
-        'get_similar_products',
+        'get_similar_products', // Same function name
         params: {
-          'p_filter_value': filterValue,
+          // Pass new parameters to the SQL function
+          'p_product_type': productType, 
+          'p_category': category,       
+          'p_sub_category': subCategory, 
           'p_limit': limit,
           'p_exclude_id': currentItemId,
         },
-      ) as List<dynamic>; // <--- FIX: Explicitly cast to List<dynamic>
+      ) as List<dynamic>;
 
-      // 2. The mapping below remains the same
       return response
           .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>))
           .toList();

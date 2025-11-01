@@ -59,11 +59,16 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     super.initState();
     _jewelryService = JewelryService(supabase);
     _initializeInteractionState();
+
+  
     _similarItemsFuture = _jewelryService.fetchSimilarItems(
       currentItemId: widget.jewelryItem.id.toString(),
-      category:
-          widget.jewelryItem.productType ?? widget.jewelryItem.collectionName,
-      limit: 10,
+      
+      
+      productType: widget.jewelryItem.productType,
+      category: widget.jewelryItem.category,
+      limit: 80, 
+     
     );
   }
 

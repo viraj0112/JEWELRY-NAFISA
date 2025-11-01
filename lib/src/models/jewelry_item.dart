@@ -1,5 +1,3 @@
-// lib/src/models/jewelry_item.dart
-
 import 'package:flutter/foundation.dart';
 
 class JewelryItem {
@@ -22,7 +20,7 @@ class JewelryItem {
   final List<String>? stonePurity;
   // --- END MODIFICATION ---
   final String? scrapedUrl;
-  final String? collectionName;
+  final String? category;
   final String? productType;
   final String? gender;
   final String? theme;
@@ -60,7 +58,7 @@ class JewelryItem {
     this.stoneCount,
     this.stonePurity,
     this.scrapedUrl,
-    this.collectionName,
+    this.category,
     this.productType,
     this.gender,
     this.theme,
@@ -194,8 +192,8 @@ class JewelryItem {
       // --- APPLY THE FIX HERE ---
       scrapedUrl: _parseString(
           json['Scraped URL'] ?? json['scraped_url']), // Use _parseString
-      collectionName: _parseString(
-          json['Collection Name'] ?? json['sub_category']), // Use _parseString
+      category: _parseString(
+          json['Category'] ?? json['sub_category']), // Use _parseString
       productType: _parseString(
           json['Product Type'] ?? json['category']), // Use _parseString
       gender:

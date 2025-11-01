@@ -1,6 +1,4 @@
-// lib/src/widgets/quote_request_dialog.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
@@ -18,158 +16,147 @@ class QuoteRequestDialog extends StatefulWidget {
   });
 
   @override
-  State<QuoteRequestDialog> createState() => _QuoteRequestDialogState();
+  _QuoteRequestDialogState createState() => _QuoteRequestDialogState();
 }
 
 class _QuoteRequestDialogState extends State<QuoteRequestDialog> {
-  final _notesController = TextEditingController();
-  final _formKey = GlobalKey<FormState>(); // Used for validation if needed
-  bool _isSubmitting = false;
-  int _wordCount = 0;
-  final int _maxWords = 250; // Maximum allowed words
+  final _formKey = GlobalKey<FormState>();
+  // RENAME _messageController to _notesController for clarity
+  late final TextEditingController _notesController;
+  late final TextEditingController _phoneController; // <-- ADD THIS
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _notesController.addListener(_updateWordCount);
+    _notesController = TextEditingController();
+    _phoneController =
+        TextEditingController(text: widget.user.phone); // <-- ADD THIS
   }
 
   @override
   void dispose() {
-    _notesController.removeListener(_updateWordCount);
     _notesController.dispose();
+    _phoneController.dispose(); 
     super.dispose();
   }
 
-  // Counts words based on spaces
-  void _updateWordCount() {
-    final text = _notesController.text.trim();
-    setState(() {
-      _wordCount = text.isEmpty ? 0 : text.split(RegExp(r'\s+')).length;
-    });
-  }
-
-  // Handles the submission process
-  Future<void> _submitQuote() async {
-    // Basic validation (optional field doesn't need form validation unless strict rules apply)
-     if (_wordCount > _maxWords) {
-        ScaffoldMessenger.of(context).showSnackBar(
-         SnackBar(
-            content: Text('Please limit additional details to $_maxWords words.'),
-            backgroundColor: Colors.orange), // Use orange for warnings
+  Future<void> _submitForm() async {
+    // Validate is not needed if fields are optional, but good to keep
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+      try {
+        // Call the correct service method
+        await widget.quoteService.submitQuoteRequest(
+          product: widget.product,
+          user: widget.user,
+          phoneNumber: _phoneController.text, // <-- PASS PHONE
+          additionalNotes: _notesController.text, // <-- PASS NOTES
         );
-       return; // Stop submission if word count exceeded
-     }
 
-    setState(() => _isSubmitting = true);
-    try {
-      // Call the service to submit the data
-      await widget.quoteService.submitQuoteRequest(
-        user: widget.user,
-        product: widget.product,
-        additionalNotes: _notesController.text.isEmpty ? null : _notesController.text, // Pass null if empty
-      );
-
-      // If successful, close dialog and show success message
-      if (mounted) {
-        Navigator.of(context).pop(); // Close the dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Quote request submitted successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      // If error, show error message
-      if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error submitting quote: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      // Ensure loading state is reset even if errors occur
-      if (mounted) {
-        setState(() => _isSubmitting = false);
+        if (mounted) {
+          Navigator.of(context).pop(); // Close dialog on success
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Quote request submitted!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    // Determine user display name
-    final userName = widget.user.username ?? widget.user.fullName ?? widget.user.email ?? 'N/A';
-
     return AlertDialog(
-      title: const Text('Request Quote'),
-      // Make content scrollable if it overflows
-      content: SingleChildScrollView(
-        child: Form( // Wrap in Form if you add more validation later
-          key: _formKey,
+      title: const Text('Get a Quote'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
           child: Column(
-            mainAxisSize: MainAxisSize.min, // Important for AlertDialog content
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Display Product and User info (read-only)
-              Text("Product:", style: theme.textTheme.labelLarge),
-              Text(widget.product.productTitle, style: theme.textTheme.titleMedium),
-              const SizedBox(height: 12),
-              Text("User:", style: theme.textTheme.labelLarge),
-              Text(userName, style: theme.textTheme.titleMedium),
-              const SizedBox(height: 20),
+              Text(
+                widget.product.productTitle,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              if (widget.product.image.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    widget.product.image,
+                    height: 100,
+                    width: 100,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              const SizedBox(height: 16),
 
-              // Text area for additional details
+              // --- ADDED PHONE FIELD ---
+              TextFormField(
+                controller: _phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Phone Number',
+                  hintText: 'Enter your phone number',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone),
+                ),
+                keyboardType: TextInputType.phone,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your phone number';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
               TextFormField(
                 controller: _notesController,
-                decoration: InputDecoration(
-                  labelText: 'Additional Details (Optional)',
-                  hintText: 'Max 250 words (e.g., customizations, questions)',
-                  border: const OutlineInputBorder(),
-                  // Display word count and limit
-                  counterText: '$_wordCount/$_maxWords words',
-                  counterStyle: TextStyle(
-                    color: _wordCount > _maxWords ? Colors.red : theme.hintColor,
-                  ),
-                  // Show error style if word count exceeded
-                  errorText: _wordCount > _maxWords ? 'Word limit exceeded' : null,
-                  errorStyle: const TextStyle(color: Colors.red),
+                decoration: const InputDecoration(
+                  labelText: 'Additional Notes (Optional)',
+                  hintText: 'e.g., "I need this by..." or "Change stone to..."',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.notes),
                 ),
-                maxLines: 4, 
+                maxLines: 3,
               ),
-             
-              if (_wordCount > _maxWords)
-                 Padding(
-                   padding: const EdgeInsets.only(top: 8.0),
-                   child: Text(
-                     'Word limit exceeded. Please shorten your notes.',
-                     style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
-                   ),
-                 ),
             ],
           ),
         ),
       ),
       actions: [
         TextButton(
-         
-          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        
         ElevatedButton(
-          onPressed: (_isSubmitting || _wordCount > _maxWords) ? null : _submitQuote,
-          child: _isSubmitting
-              
+          onPressed: _isLoading
+              ? null
+              : _submitForm, 
+          child: _isLoading
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Submit Request'),
+              : const Text('Send Request'),
         ),
       ],
     );
