@@ -19,14 +19,14 @@ extension DateRangeTypeExtension on DateRangeType {
 
 class TimeSeriesData {
   final DateTime time;
-  final num value; 
+  final num value;
 
   TimeSeriesData(this.time, this.value);
 
   factory TimeSeriesData.fromMap(Map<String, dynamic> map) {
     return TimeSeriesData(
-      DateTime.parse(map['day'] as String), 
-      map['new_users_count'] as num,     
+      DateTime.parse(map['day'] as String),
+      map['new_users_count'] as num,
     );
   }
 }
@@ -117,6 +117,9 @@ class AppUser {
   final String? membershipPlan; // <-- ADDED
   final String? membershipStatus; // <-- ADDED
 
+  final int creditsRemaining;
+  final String? referralCode;
+
   AppUser({
     required this.id,
     this.email,
@@ -129,6 +132,8 @@ class AppUser {
     this.avatarUrl,
     this.membershipPlan, // <-- ADDED
     this.membershipStatus, // <-- ADDED
+    required this.creditsRemaining,
+    this.referralCode,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -144,6 +149,9 @@ class AppUser {
       avatarUrl: json['avatar_url'],
       membershipPlan: json['membership_plan'], // <-- ADDED
       membershipStatus: json['membership_status'], // <-- ADDED
+
+      creditsRemaining: json['credits_remaining'] as int? ?? 0,
+      referralCode: json['referral_code'],
     );
   }
 
@@ -222,7 +230,7 @@ class Asset {
       status: json['status'],
       createdAt: DateTime.parse(json['created_at']),
       ownerUsername: username,
-      ownerEmail: json['owner_email'], 
+      ownerEmail: json['owner_email'],
       source: json['source'],
     );
   }
@@ -260,47 +268,87 @@ class PostAnalytic {
   }
 }
 
-class CreditHistory {
-  final DateTime entryDate;
-  final int creditsAdded;
-  final int creditsSpent;
+// class CreditHistory {
+//   final DateTime entryDate;
+//   final int creditsAdded;
+//   final int creditsSpent;
 
-  CreditHistory(
-      {required this.entryDate,
-      required this.creditsAdded,
-      required this.creditsSpent});
+//   CreditHistory(
+//       {required this.entryDate,
+//       required this.creditsAdded,
+//       required this.creditsSpent});
 
-  factory CreditHistory.fromJson(Map<String, dynamic> json) {
-    return CreditHistory(
-      entryDate: DateTime.parse(json['entry_date']),
-      creditsAdded: json['credits_added'],
-      creditsSpent: json['credits_spent'],
+//   factory CreditHistory.fromJson(Map<String, dynamic> json) {
+//     return CreditHistory(
+//       entryDate: json['entry_date'] == null
+//           ? DateTime(1970, 1, 1) // Fallback date
+//           : DateTime.parse(json['entry_date']),
+//       creditsAdded: json['credits_added'] as int? ?? 0,
+//       creditsSpent: json['credits_spent'] as int? ?? 0,
+//     );
+//   }
+// }
+
+class CreditUsageLog {
+  final String productId;
+  final DateTime usedAt;
+  final String status;
+
+  CreditUsageLog({
+    required this.productId, 
+    required this.usedAt, 
+    required this.status
+  });
+
+  factory CreditUsageLog.fromJson(Map<String, dynamic> json) {
+    return CreditUsageLog(
+      productId: json['product_id'] as String? ?? 'Unknown',
+      usedAt: DateTime.parse(json['created_at']),
+      status: json['status'] as String? ?? 'valid',
     );
   }
 }
 
-class ReferralNode {
-  final int level;
-  final String userId;
-  final String? username;
-  final String? referredBy;
+// class ReferralNode {
+//   final int level;
+//   final String userId;
+//   final String? username;
+//   final String? referredBy;
 
-  ReferralNode(
-      {required this.level,
-      required this.userId,
-      this.username,
-      this.referredBy});
+//   ReferralNode(
+//       {required this.level,
+//       required this.userId,
+//       this.username,
+//       this.referredBy});
 
-  factory ReferralNode.fromJson(Map<String, dynamic> json) {
-    return ReferralNode(
-      level: json['level'],
-      userId: json['user_id'],
-      username: json['username'],
-      referredBy: json['referred_by'],
+//   factory ReferralNode.fromJson(Map<String, dynamic> json) {
+//     return ReferralNode(
+//       level: json['level'],
+//       userId: json['user_id'],
+//       username: json['username'],
+//       referredBy: json['referred_by'],
+//     );
+//   }
+// }
+
+class ReferredUser {
+  final String username;
+  final DateTime joinedAt;
+  
+  ReferredUser({required this.username, required this.joinedAt});
+
+  factory ReferredUser.fromJson(Map<String, dynamic> json) {
+    // This assumes you joined with the 'users' table
+    final referredUserData = json['users'];
+    
+    return ReferredUser(
+      username: referredUserData != null
+          ? (referredUserData['username'] as String? ?? 'Unknown User')
+          : (json['username'] as String? ?? 'Unknown User'),
+      joinedAt: DateTime.parse(json['created_at']),
     );
   }
 }
-
 class Board {
   final String id;
   final String name;

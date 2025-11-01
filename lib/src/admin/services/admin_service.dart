@@ -243,28 +243,64 @@ class AdminService {
     }
   }
 
-  Future<List<CreditHistory>> getUserCreditHistory(String userId) async {
+  // Future<List<CreditHistory>> getUserCreditHistory(String userId) async {
+  //   try {
+  //     final response = await _supabase
+  //         .rpc('get_user_credit_history', params: {'p_user_id': userId});
+  //     return List<Map<String, dynamic>>.from(response as List)
+  //         .map((e) => CreditHistory.fromJson(e))
+  //         .toList();
+  //   } catch (e) {
+  //     debugPrint("Error fetching credit history (RPC might be missing): $e");
+  //     return [];
+  //   }
+  // }
+
+  // Future<List<ReferralNode>> getReferralTree(String userId) async {
+  //   try {
+  //     final response = await _supabase
+  //         .rpc('get_referral_tree', params: {'p_user_id': userId});
+  //     final validData = List<Map<String, dynamic>>.from(response as List)
+  //         .where((e) => e['user_id'] != null && e['level'] != null);
+
+  //     return validData
+  //         .map((e) => ReferralNode.fromJson(e))
+  //         .toList();
+
+  //   } catch (e) {
+  //     debugPrint("Error fetching referral tree (RPC might be missing): $e");
+  //     return [];
+  //   }
+  // }
+
+  Future<List<CreditUsageLog>> getUserCreditUsage(String userId) async {
     try {
       final response = await _supabase
-          .rpc('get_user_credit_history', params: {'p_user_id': userId});
-      return List<Map<String, dynamic>>.from(response as List)
-          .map((e) => CreditHistory.fromJson(e))
-          .toList();
+          .from('quotes') //
+          .select('product_id, created_at, status')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false)
+          .limit(20); // Get last 20 uses
+
+      return response.map((e) => CreditUsageLog.fromJson(e)).toList();
     } catch (e) {
-      debugPrint("Error fetching credit history (RPC might be missing): $e");
+      debugPrint("Error fetching credit usage: $e");
       return [];
     }
   }
 
-  Future<List<ReferralNode>> getReferralTree(String userId) async {
+  Future<List<ReferredUser>> getUsersReferredBy(String userId) async {
     try {
       final response = await _supabase
-          .rpc('get_referral_tree', params: {'p_user_id': userId});
-      return List<Map<String, dynamic>>.from(response as List)
-          .map((e) => ReferralNode.fromJson(e))
-          .toList();
+          .from('referrals') //
+          // We select the 'users' table data for the person who was referred
+          .select('created_at, users!referrals_referred_id_fkey(username)')
+          .eq('referrer_id', userId) //
+          .order('created_at', ascending: false);
+
+      return response.map((e) => ReferredUser.fromJson(e)).toList();
     } catch (e) {
-      debugPrint("Error fetching referral tree (RPC might be missing): $e");
+      debugPrint("Error fetching referred users: $e");
       return [];
     }
   }
@@ -304,7 +340,9 @@ class AdminService {
     required String userType,
     required FilterState filterState,
   }) {
-    var baseQuery = _supabase.from('users').select();
+    // var baseQuery = _supabase.from('users').select();
+    var baseQuery =
+        _supabase.from('users').select('*, credits_remaining, referral_code');
 
     switch (userType) {
       case 'Members':
@@ -314,6 +352,7 @@ class AdminService {
         baseQuery = baseQuery.eq('is_member', false);
         break;
       case 'B2B Creators':
+        // B2B Creators are users with role 'designer'
         baseQuery = baseQuery.eq('role', 'designer');
         break;
     }
@@ -323,22 +362,43 @@ class AdminService {
       final endOfDay =
           DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59);
 
-      // --- MODIFICATION ---
-      // Removed the 'gte' filter to include all users created before the start date.
-      // We only filter users created *before or on* the end date.
       baseQuery = baseQuery
           .gte('created_at', range.start.toIso8601String())
           .lte('created_at', endOfDay.toIso8601String());
-      // --- END MODIFICATION ---
     }
 
     if (filterState.status != 'All Status') {
+      // Map UI status to database values
       bool statusValue = (filterState.status == 'Approved');
       baseQuery = baseQuery.eq('is_approved', statusValue);
     }
 
     return baseQuery.order('created_at', ascending: false).asStream().map(
-        (response) => response.map((map) => AppUser.fromJson(map)).toList());
+        (response) =>
+            response.map((map) => _mapUserFromDatabase(map)).toList());
+  }
+
+  // Helper method to map database fields to AppUser model
+  AppUser _mapUserFromDatabase(Map<String, dynamic> map) {
+    // Map database role enum to string
+    String? role = map['role']?.toString();
+
+    return AppUser(
+      id: map['id'],
+      email: map['email'],
+      username: map['username'] ??
+          map['full_name'], // Use username if available, fallback to full_name
+      role: role,
+      approvalStatus: map['approval_status'],
+      isMember: map['is_member'] ?? false,
+      createdAt: DateTime.parse(map['created_at']),
+      businessName: map['business_name'],
+      avatarUrl: map['avatar_url'],
+      membershipPlan: map['membership_plan'],
+      membershipStatus: map['is_member'] == true ? 'Active' : 'Inactive',
+      creditsRemaining: map['credits_remaining'] ?? 0,
+      referralCode: map['referral_code'],
+    );
   }
 
   Future<void> updateCreatorStatus(String userId, String newStatus) async {

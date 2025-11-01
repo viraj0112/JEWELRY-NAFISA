@@ -39,55 +39,85 @@ class _UsersSectionState extends State<UsersSection>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Email: ${user.email}'),
-                Text('Role: ${user.role}'),
+                Text('Email: ${user.email ?? "N/A"}'),
+                Text('Role: ${user.role ?? "N/A"}'),
                 Text('Member: ${user.isMember}'),
                 const SizedBox(height: 20),
-                const Text('Credit History:',
+
+                // FIX: Show current credits from the 'user' object
+                Text(
+                  'Credits Remaining: ${user.creditsRemaining}', //
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+
+                // FIX: Show credit *usage* history from 'quotes'
+                const Text('Credit Usage History (Last 20):',
                     style: TextStyle(fontWeight: FontWeight.bold)),
-                FutureBuilder<List<CreditHistory>>(
-                  future: _adminService.getUserCreditHistory(user.id),
+                FutureBuilder<List<CreditUsageLog>>(
+                  future: _adminService.getUserCreditUsage(user.id), //
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
+                    if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}');
+                    }
                     final history = snapshot.data ?? [];
+                    if (history.isEmpty) {
+                      return const Text('No credit usage found.');
+                    }
                     return DataTable(
                       columns: const [
                         DataColumn(label: Text('Date')),
-                        DataColumn(label: Text('Added')),
-                        DataColumn(label: Text('Spent')),
+                        DataColumn(label: Text('Product ID')),
+                        DataColumn(label: Text('Status')),
                       ],
                       rows: history
                           .map((e) => DataRow(cells: [
-                                DataCell(Text(
-                                    DateFormat.yMMMd().format(e.entryDate))),
-                                DataCell(Text(e.creditsAdded.toString())),
-                                DataCell(Text(e.creditsSpent.toString())),
+                                DataCell(
+                                    Text(DateFormat.yMMMd().format(e.usedAt))),
+                                DataCell(Text(e.productId,
+                                    style: const TextStyle(fontSize: 12))),
+                                DataCell(Text(e.status)),
                               ]))
                           .toList(),
                     );
                   },
                 ),
+
                 const SizedBox(height: 20),
-                const Text('Referral Tree:',
+
+                // FIX: Show referral code from the 'user' object
+                Text(
+                  'Referral Code: ${user.referralCode ?? "N/A"}', //
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+
+                // FIX: Show list of users this person referred
+                const Text('Users Referred By Them:',
                     style: TextStyle(fontWeight: FontWeight.bold)),
-                FutureBuilder<List<ReferralNode>>(
-                  future: _adminService.getReferralTree(user.id),
+                FutureBuilder<List<ReferredUser>>(
+                  future: _adminService.getUsersReferredBy(user.id), //
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
+                    if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}');
+                    }
                     final tree = snapshot.data ?? [];
+                    if (tree.isEmpty) {
+                      return const Text('No users referred yet.');
+                    }
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: tree
-                          .map((node) => Padding(
-                                padding:
-                                    EdgeInsets.only(left: (node.level * 20.0)),
-                                child: Text(
-                                    '${node.username} (Level ${node.level})'),
-                              ))
+                          .map((node) => Text(
+                              '${node.username} (Joined: ${DateFormat.yMMMd().format(node.joinedAt)})'))
                           .toList(),
                     );
                   },
@@ -96,7 +126,7 @@ class _UsersSectionState extends State<UsersSection>
             ),
           ),
           actions: [
-            // ADD THIS BUTTON for deleting the user
+            // ... (Your Delete User and Close buttons remain the same) ...
             TextButton(
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red,
