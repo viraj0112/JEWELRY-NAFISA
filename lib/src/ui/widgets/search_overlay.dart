@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jewelry_nafisa/src/services/search_history_service.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
@@ -22,24 +23,49 @@ class SearchOverlay extends StatefulWidget {
 
 class _SearchOverlayState extends State<SearchOverlay> {
   late final JewelryService _jewelryService;
+  late final SearchHistoryService _searchHistoryService;
+
   List<JewelryItem> _suggestions = [];
   bool _isLoading = false;
   String _currentQuery = '';
 
   // Simulate recent searches and ideas for you
-  final List<String> _recentSearches = [];
-
-  final List<String> _ideasForYou = [];
+  List<String> _recentSearches = [];
+  List<String> _ideasForYou = [];
+  bool _isLoadingInit = true;
 
   @override
   void initState() {
     super.initState();
     _jewelryService = Provider.of<JewelryService>(context, listen: false);
+    _searchHistoryService =
+        Provider.of<SearchHistoryService>(context, listen: false);
     widget.searchController.addListener(_onSearchQueryChanged);
-    _currentQuery =
-        widget.searchController.text;
+    _currentQuery = widget.searchController.text;
+
+    _loadInitialData();
+
     if (_currentQuery.isNotEmpty) {
       _fetchSuggestions(_currentQuery);
+    }
+  }
+
+  Future<void> _loadInitialData() async {
+    setState(() => _isLoadingInit = true);
+    try {
+      final ideas = await _jewelryService.getInitialSearchIdeas();
+      if (mounted) {
+        setState(() {
+          _ideasForYou = ideas;
+          _recentSearches = _searchHistoryService.recentSearches;
+          _isLoadingInit = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading search ideas: $e");
+      if (mounted) {
+        setState(() => _isLoadingInit = false);
+      }
     }
   }
 
@@ -148,20 +174,7 @@ class _SearchOverlayState extends State<SearchOverlay> {
                   ],
                 ),
                 child: _currentQuery.isEmpty
-                    ? ListView(
-                        shrinkWrap: true,
-                        children: [
-                          _buildSectionTitle(context, 'Recent searches'),
-                          ..._recentSearches.map((search) =>
-                              _buildSuggestionTile(search,
-                                  leading: const Icon(Icons.history))),
-                          Divider(height: 1, color: theme.dividerColor),
-                          _buildSectionTitle(context, 'Ideas for you'),
-                          ..._ideasForYou.map((idea) => _buildSuggestionTile(
-                              idea,
-                              leading: const Icon(Icons.lightbulb_outline))),
-                        ],
-                      )
+                    ? _buildInitialSuggestions()
                     : _isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : _suggestions.isEmpty
@@ -183,6 +196,29 @@ class _SearchOverlayState extends State<SearchOverlay> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildInitialSuggestions() {
+    if (_isLoadingInit) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final theme = Theme.of(context);
+    return ListView(
+      shrinkWrap: true,
+      children: [
+        if (_recentSearches.isNotEmpty) ...[
+          _buildSectionTitle(context, 'Recent searches'),
+          ..._recentSearches.map((search) =>
+              _buildSuggestionTile(search, leading: const Icon(Icons.history))),
+          Divider(height: 1, color: theme.dividerColor),
+        ],
+        _buildSectionTitle(context, 'Ideas for you'),
+        ..._ideasForYou.map((idea) =>
+            _buildSuggestionTile(idea,
+                leading: const Icon(Icons.lightbulb_outline))),
+      ],
     );
   }
 

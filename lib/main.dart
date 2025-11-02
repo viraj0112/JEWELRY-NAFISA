@@ -122,6 +122,7 @@ final searchHistoryService = SearchHistoryService();
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => SearchHistoryService()..init()),
         ChangeNotifierProvider(create: (context) => UserProfileProvider()),
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
         ChangeNotifierProvider(create: (context) => BoardsProvider()),
@@ -130,6 +131,9 @@ final searchHistoryService = SearchHistoryService();
           create: (_) => JewelryService(supabaseClient),
         ),
         Provider<QuoteService>(create: (_) => QuoteService()),
+        // Provider<SupabaseAuthService>(create: (_) => authService),
+        // Provider<JewelryService>(create: (_) => JewelryService(supabase)),
+        // Provider<QuoteService>(create: (_) => QuoteService(supabase)),
       ],
       child: const MyApp(),
     ),

@@ -766,11 +766,13 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             final item = items[index];
             return GestureDetector(
               onTap: () {
-                Navigator.pushReplacement(
+                // --- FIX: Use push instead of pushReplacement ---
+                Navigator.push(
                   context,
                   MaterialPageRoute(
                       builder: (_) => JewelryDetailScreen(jewelryItem: item)),
                 );
+                // --- END FIX ---
               },
               child: Card(
                 clipBehavior: Clip.antiAlias,

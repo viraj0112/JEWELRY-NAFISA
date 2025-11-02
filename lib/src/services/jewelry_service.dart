@@ -90,16 +90,18 @@ class JewelryService {
           .select()
           .or(
             // FIX: Columns must be quoted and capitalized
-            'title.ilike.$ilikeQuery,' // Assumes 'title' in designerproducts
-            'description.ilike.$ilikeQuery,'
-            'category.ilike.$ilikeQuery,'
-            'sub_category.ilike.$ilikeQuery,'
-            'metal_type.ilike.$ilikeQuery,'
-            'metal_color.ilike.$ilikeQuery,'
+            '"Product Title".ilike.$ilikeQuery,' // Assumes 'title' in designerproducts
+            'Description.ilike.$ilikeQuery,'
+            '"Collection Name".ilike.$ilikeQuery,'
+            '"Product Type".ilike.$ilikeQuery,'
+            'Category.ilike.$ilikeQuery,'
+            '"Sub Category".ilike.$ilikeQuery,'
+            '"Metal Type".ilike.$ilikeQuery,'
+            '"Metal Color".ilike.$ilikeQuery,'
             // Array columns
-            'tags.cs.$arrayQuery,'
-            'stone_type.cs.$arrayQuery,'
-            'stone_color.cs.$arrayQuery',
+            '"Product Tags".cs.$arrayQuery,'
+            '"Stone Type".cs.$arrayQuery,'
+            '"Stone Color".cs.$arrayQuery',
           )
           .limit(50); // Limit results for performance
 
@@ -181,7 +183,7 @@ class JewelryService {
           'p_sub_category': subCategory,
           'p_limit': limit,
           'p_exclude_id': currentItemId,
-          'p_is_designer': isDesigner, // Pass the table flag
+          // 'p_is_designer': isDesigner, // <-- FIX: REMOVED THIS PARAMETER
         },
       ) as List<dynamic>;
 

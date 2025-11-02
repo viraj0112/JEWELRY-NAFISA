@@ -6,8 +6,11 @@ import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/services/filter_service.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
+import 'package:jewelry_nafisa/src/services/search_history_service.dart'; // <-- 1. ADD THIS IMPORT
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
+import 'package:jewelry_nafisa/src/ui/screens/search_page.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
+import 'package:jewelry_nafisa/src/ui/widgets/search_overlay.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,10 +19,12 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  // 2. MAKE STATE PUBLIC
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+// 3. MAKE STATE CLASS PUBLIC
+class HomeScreenState extends State<HomeScreen> {
   final _scrollController = ScrollController();
   final _supabase = Supabase.instance.client;
   late final JewelryService _jewelryService;
@@ -54,6 +59,11 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _tappedItemId;
   final Set<String> _itemsBeingLiked = {};
 
+  // --- SEARCH OVERLAY STATE ---
+  OverlayEntry? _searchOverlay;
+  final _searchController = TextEditingController();
+  // --- END SEARCH OVERLAY STATE ---
+
   @override
   void initState() {
     super.initState();
@@ -64,8 +74,63 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
+    _closeSearchOverlay();
     super.dispose();
   }
+
+  // --- SEARCH OVERLAY METHODS ---
+
+  // 4. MAKE METHOD PUBLIC
+  void showSearchOverlay() {
+    if (_searchOverlay != null) return;
+
+    // 5. GET PROVIDERS FROM CURRENT CONTEXT
+    final searchHistoryService =
+        Provider.of<SearchHistoryService>(context, listen: false);
+    final jewelryService = Provider.of<JewelryService>(context, listen: false);
+
+    _searchOverlay = OverlayEntry(
+        builder: (context) =>
+            // 6. RE-PROVIDE SERVICES TO THE OVERLAY WIDGET
+            Material(
+                type: MaterialType.transparency, // Make it transparent
+                child: MultiProvider(
+                  providers: [
+                    ChangeNotifierProvider.value(value: searchHistoryService),
+                    Provider.value(value: jewelryService),
+                  ],
+                  child: SearchOverlay(
+                    searchController: _searchController,
+                    onClose: _closeSearchOverlay,
+                    onSuggestionTapped: _onSearchSuggestionTapped,
+                  ),
+                )));
+    Overlay.of(context).insert(_searchOverlay!);
+  }
+
+  void _closeSearchOverlay() {
+    _searchOverlay?.remove();
+    _searchOverlay = null;
+  }
+
+  void _onSearchSuggestionTapped(String query) {
+    _closeSearchOverlay();
+    _searchController.text = query;
+
+    // Add to history
+    Provider.of<SearchHistoryService>(context, listen: false)
+        .addSearchTerm(query);
+
+    // Navigate to Search Results Page
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => SearchPage(initialQuery: query),
+      ),
+    );
+  }
+
+  // --- END SEARCH OVERLAY METHODS ---
 
   Future<void> _loadInitialData() async {
     setState(() {
@@ -361,38 +426,43 @@ class _HomeScreenState extends State<HomeScreen> {
       canPop: true,
       child: Scaffold(
         body: Column(
-        children: [
-          _buildFilterBar(),
-          Expanded(
-            child: (_isLoadingProducts && _products.isEmpty)
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: _loadInitialData,
-                    child: _products.isEmpty
-                        ? const Center(
-                            child: Text(
-                                'No products found matching your filters.'))
-                        : MasonryGridView.count(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.all(8.0),
-                            crossAxisCount:
-                                (MediaQuery.of(context).size.width / 200)
-                                    .floor()
-                                    .clamp(2, 6),
-                            itemCount: _products.length,
-                            itemBuilder: (context, index) {
-                              return _buildImageCard(context, _products[index]);
-                            },
-                            mainAxisSpacing: 8.0,
-                            crossAxisSpacing: 8.0,
-                          ),
-                  ),
-          ),
-        ],
+          children: [
+            // --- 7. REMOVED FAKE SEARCH BAR ---
+            _buildFilterBar(),
+            Expanded(
+              child: (_isLoadingProducts && _products.isEmpty)
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: _loadInitialData,
+                      child: _products.isEmpty
+                          ? const Center(
+                              child: Text(
+                                  'No products found matching your filters.'))
+                          : MasonryGridView.count(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.all(8.0),
+                              crossAxisCount:
+                                  (MediaQuery.of(context).size.width / 200)
+                                      .floor()
+                                      .clamp(2, 6),
+                              itemCount: _products.length,
+                              itemBuilder: (context, index) {
+                                return _buildImageCard(
+                                    context, _products[index]);
+                              },
+                              mainAxisSpacing: 8.0,
+                              crossAxisSpacing: 8.0,
+                            ),
+                    ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  // 8. REMOVED _buildFakeSearchbar WIDGET
+  // ...
 
   Widget _buildFilterBar() {
     if (_isLoadingFilters) {

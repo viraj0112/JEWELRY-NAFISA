@@ -24,7 +24,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
-
+  final _homeScreenKey = GlobalKey<HomeScreenState>();
   final _searchController = TextEditingController();
   late final List<Widget> _pages;
   // static const List<Widget> _pages = <Widget>[
@@ -39,11 +39,11 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     _pages = <Widget>[
-      const HomeScreen(), 
+      HomeScreen(key: _homeScreenKey),
       SearchScreen(searchController: _searchController),
-      const BoardsScreen(), 
-      const NotificationsScreen(), 
-      const ProfileScreen(), 
+      const BoardsScreen(),
+      const NotificationsScreen(),
+      const ProfileScreen(),
     ];
   }
 
@@ -395,8 +395,7 @@ class _MainShellState extends State<MainShell> {
         contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
       ),
       onTap: () {
-        // 6. When the user taps the bar, navigate to the search screen
-        _onItemTapped(1);
+       _homeScreenKey.currentState?.showSearchOverlay();
       },
       onSubmitted: (query) {
         // 7. When the user hits "enter" on the keyboard:
