@@ -173,8 +173,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
                           color: isDarkMode
-                              ? const Color.fromRGBO(0, 0, 0, 0.5)
-                              : const Color.fromRGBO(255, 255, 255, 0.8),
+                              ? const Color.fromRGBO(0, 0, 0, 0.2)
+                              : const Color.fromRGBO(255, 255, 255, 0.1),
                           borderRadius: BorderRadius.circular(32),
                           border: Border.all(
                             color: isDarkMode

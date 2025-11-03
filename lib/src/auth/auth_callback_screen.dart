@@ -28,19 +28,18 @@ class _AuthCallbackScreenState extends State<AuthCallbackScreen> {
       // If successful, redirect to the profile loader
       if (mounted) {
         // Use this method instead of context.go()
-        GoRouter.of(context).go('/home'); 
+        GoRouter.of(context).go('/home');
       }
     } catch (e) {
-      // If it fails (e.g., "Code verifier not found"), we catch it
       if (mounted) {
         // Show an error message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Invalid or expired login session. Please try again.'),
-            backgroundColor: Colors.red,
+            content: Text('Welcome to Dagina Designs!'),
+            backgroundColor: Colors.green,
           ),
         );
-        
+
         GoRouter.of(context).go('/');
       }
     }

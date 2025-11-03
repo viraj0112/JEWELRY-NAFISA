@@ -13,6 +13,11 @@ import 'package:jewelry_nafisa/src/ui/screens/search_screen.dart';
 import 'package:jewelry_nafisa/src/widgets/edit_profile_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
+import 'package:jewelry_nafisa/src/ui/widgets/search_dropdown.dart';
+import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
+import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -23,14 +28,31 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
+  final _searchController = TextEditingController();
+  late final List<Widget> _pages;
 
-  static const List<Widget> _pages = <Widget>[
-    HomeScreen(),
-    SearchScreen(),
-    BoardsScreen(),
-    NotificationsScreen(),
-    ProfileScreen(),
-  ];
+  // Search state management
+  List<JewelryItem> _searchResults = [];
+  String _currentSearchQuery = '';
+  bool _isSearchMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = <Widget>[
+      HomeScreen(),
+      SearchScreen(searchController: _searchController),
+      const BoardsScreen(),
+      const NotificationsScreen(),
+      const ProfileScreen(),
+    ];
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -111,35 +133,54 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _showExitConfirmationDialog(BuildContext context) {
+    if (_selectedIndex != 0) {
+      setState(() {
+        _selectedIndex = 0;
+      });
+    } else {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Exit App?'),
+          content: const Text('Are you sure you want to exit Dagina Designs?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(), // Dismiss dialog
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true), // Allow pop/exit
+              child: const Text('Exit'),
+            ),
+          ],
+        ),
+      ).then((confirmed) {
+        if (confirmed == true && mounted) {
+          SystemNavigator.pop();
+        }
+      });
+    }
+  }
 
-  if (_selectedIndex != 0) {
+  // Handle search results from SearchDropdown
+  void _onSearchResults(List<JewelryItem> results, String query) {
     setState(() {
-      _selectedIndex = 0; 
-    });
-  } else {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Exit App?'),
-        content: const Text('Are you sure you want to exit Dagina Designs?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(), // Dismiss dialog
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true), // Allow pop/exit
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
-    ).then((confirmed) {
-      if (confirmed == true && mounted) {
-        SystemNavigator.pop();
-      }
+      _searchResults = results;
+      _currentSearchQuery = query;
+      _isSearchMode = true;
+      _selectedIndex = 1; // Navigate to search screen
     });
   }
-}
+
+  // Clear search
+  void _clearSearch() {
+    setState(() {
+      _searchController.clear();
+      _searchResults = [];
+      _currentSearchQuery = '';
+      _isSearchMode = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +196,6 @@ class _MainShellState extends State<MainShell> {
     final userProfile = Provider.of<UserProfileProvider>(context);
     final theme = Theme.of(context);
 
-    // The problematic PopScope has been removed from here
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -215,7 +255,7 @@ class _MainShellState extends State<MainShell> {
               child: Column(
                 children: [
                   _buildAppBar(isWide: true, selectedIndex: _selectedIndex),
-                  Expanded(child: _pages.elementAt(_selectedIndex)),
+                  Expanded(child: _buildContent()),
                 ],
               ),
             ),
@@ -227,27 +267,125 @@ class _MainShellState extends State<MainShell> {
 
   Widget _buildNarrowLayout() {
     return PopScope(
-    canPop: false,
-    onPopInvoked: (didPop) {
-      if (didPop) return; 
-      if (_selectedIndex != 0) {
-        _onItemTapped(0); 
-      } else {
-        _showExitConfirmationDialog(context);
-      }
-    },
-    child: Scaffold( // The Scaffold no longer handles the pop directly
-     appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
-      body: _pages.elementAt(_selectedIndex),
-      bottomNavigationBar: _buildFixedNavBar(),
-    ),
-  );
-    // The problematic PopScope has been removed from here
-    // return Scaffold(
-    //  appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
-    //   body: _pages.elementAt(_selectedIndex),
-    //   bottomNavigationBar: _buildFixedNavBar(),
-    // );
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        if (_selectedIndex != 0) {
+          _onItemTapped(0);
+        } else {
+          _showExitConfirmationDialog(context);
+        }
+      },
+      child: Scaffold(
+        appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
+        body: _buildContent(),
+        bottomNavigationBar: _buildFixedNavBar(),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isSearchMode && _selectedIndex == 1) {
+      return _buildSearchResults();
+    }
+    return _pages.elementAt(_selectedIndex);
+  }
+
+  Widget _buildSearchResults() {
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No results found for "$_currentSearchQuery"',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _clearSearch,
+              child: const Text('Clear search'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Search results header
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Search results for "$_currentSearchQuery" (${_searchResults.length} items)',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ),
+              IconButton(
+                onPressed: _clearSearch,
+                icon: const Icon(Icons.clear),
+                tooltip: 'Clear search',
+              ),
+            ],
+          ),
+        ),
+        // Search results grid
+        Expanded(
+          child: MasonryGridView.count(
+            padding: const EdgeInsets.all(8.0),
+            crossAxisCount:
+                (MediaQuery.of(context).size.width / 200).floor().clamp(2, 6),
+            itemCount: _searchResults.length,
+            itemBuilder: (context, index) {
+              return _buildImageCard(context, _searchResults[index]);
+            },
+            mainAxisSpacing: 8.0,
+            crossAxisSpacing: 8.0,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageCard(BuildContext context, JewelryItem item) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => JewelryDetailScreen(jewelryItem: item),
+          ),
+        );
+      },
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: AspectRatio(
+          aspectRatio: item.aspectRatio,
+          child: Image.network(
+            item.image,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, progress) => progress == null
+                ? child
+                : const Center(child: CircularProgressIndicator.adaptive()),
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.error_outline, color: Colors.grey),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildFixedNavBar() {
@@ -290,21 +428,28 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar({required bool isWide, required int selectedIndex}) { // <--- MODIFIED SIGNATURE
+  PreferredSizeWidget _buildAppBar(
+      {required bool isWide, required int selectedIndex}) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final userProfile = Provider.of<UserProfileProvider>(context);
     final theme = Theme.of(context);
 
-    // Index of the SearchScreen is 1 (see _pages list)
     final bool isSearchScreen = selectedIndex == 1;
+    final bool isBoardsScreen = selectedIndex == 2;
+    final bool isNotificationScreen = selectedIndex == 3;
+    final bool isProfileScreen = selectedIndex == 4;
+
+    final bool shouldHideSearchBar = isSearchScreen ||
+        isBoardsScreen ||
+        isNotificationScreen ||
+        isProfileScreen;
 
     return AppBar(
       automaticallyImplyLeading: !isWide,
       titleSpacing: 16.0,
       elevation: 0,
       backgroundColor: theme.scaffoldBackgroundColor,
-      // HIDE the placeholder bar only when the Search Screen is active
-      title: isSearchScreen ? null : _buildSearchBar(theme), // <--- MODIFIED LOGIC
+      title: shouldHideSearchBar ? null : _buildSearchBar(),
       actions: [
         IconButton(
           icon: Icon(
@@ -349,39 +494,10 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _buildSearchBar(ThemeData theme) {
-    return InkWell(
-      onTap: () {
-        _onItemTapped(1);
-      },
-      hoverColor: Colors.grey.withOpacity(0.2),
-      borderRadius: BorderRadius.circular(12.0),
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: theme.splashColor,
-          borderRadius: BorderRadius.circular(12.0),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        alignment: Alignment.centerLeft,
-        child: Row(
-          children: [
-            Icon(
-              Icons.search,
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
-            ),
-            const SizedBox(width: 8.0),
-            Text(
-              'Search',
-              style: TextStyle(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                fontSize: 16.0,
-              ),
-            ),
-          ],
-        ),
-      ),
+  Widget _buildSearchBar() {
+    return SearchDropdown(
+      searchController: _searchController,
+      onSearchResults: _onSearchResults,
     );
   }
 

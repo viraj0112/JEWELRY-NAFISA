@@ -34,7 +34,7 @@ class _StyledCardState extends State<StyledCard> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(_isHovered ? 0.1 : 0.05),
+              color: Colors.black.withValues(alpha: _isHovered ? 0.1 : 0.05),
               blurRadius: 15,
               spreadRadius: _isHovered ? 3 : 0,
               offset: const Offset(0, 4),
@@ -121,12 +121,14 @@ class MetricsGrid extends StatelessWidget {
                   );
                 }),
               )
-            : Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: List.generate(metricsData.length, (index) {
-                  final metric = metricsData[index];
-                  return Flexible(
-                    child: AnimationConfiguration.staggeredList(
+            : SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: List.generate(metricsData.length, (index) {
+                    final metric = metricsData[index];
+                    return AnimationConfiguration.staggeredList(
                       position: index,
                       duration: const Duration(milliseconds: 375),
                       child: SlideAnimation(
@@ -139,9 +141,9 @@ class MetricsGrid extends StatelessWidget {
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
       );
     });
@@ -177,7 +179,7 @@ class _MetricCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8.0),
                   decoration: BoxDecoration(
-                      color: (data['color'] as Color).withOpacity(0.1),
+                      color: (data['color'] as Color).withValues(alpha: 0.1),
                       shape: BoxShape.circle),
                   child: Icon(data['icon'], color: data['color'], size: 22),
                 ),

@@ -72,20 +72,40 @@ class _FilterComponentState extends State<FilterComponent> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             spreadRadius: 1,
             blurRadius: 5,
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // FIX: Expanded to allow the date range filter to take available space
-          Expanded(child: _buildDateRangeFilter()),
-          _buildCategoryFilter(),
-          _buildStatusFilter(),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 600;
+          return isMobile
+              ? SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildDateRangeFilter(),
+                      const SizedBox(width: 12),
+                      _buildCategoryFilter(),
+                      const SizedBox(width: 12),
+                      _buildStatusFilter(),
+                    ],
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(child: _buildDateRangeFilter()),
+                    const SizedBox(width: 16),
+                    _buildCategoryFilter(),
+                    const SizedBox(width: 16),
+                    _buildStatusFilter(),
+                  ],
+                );
+        },
       ),
     );
   }
@@ -102,7 +122,7 @@ class _FilterComponentState extends State<FilterComponent> {
               return TextButton.icon(
                 onPressed: _showDatePicker,
                 icon: Icon(Icons.calendar_today,
-                    color: theme.textTheme.bodyLarge?.color?.withOpacity(0.7)),
+                    color: theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.7)),
                 label: Text(
                   _customDateRange != null
                       ? '${DateFormat.yMMMd().format(_customDateRange!.start)} - ${DateFormat.yMMMd().format(_customDateRange!.end)}'
@@ -125,7 +145,7 @@ class _FilterComponentState extends State<FilterComponent> {
                       : FontWeight.normal,
                   color: _selectedRange == range
                       ? theme.colorScheme.primary
-                      : theme.textTheme.bodyLarge?.color?.withOpacity(0.7),
+                      : theme.textTheme.bodyLarge?.color?.withValues(alpha: 0.7),
                 ),
               ),
             );

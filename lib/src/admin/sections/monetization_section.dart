@@ -188,7 +188,7 @@ class _RevenueDashboardTabState extends State<RevenueDashboardTab> {
                 Container(
                   padding: const EdgeInsets.all(8.0),
                   decoration: BoxDecoration(
-                      color: (data['color'] as Color).withOpacity(0.1),
+                      color: (data['color'] as Color).withValues(alpha: 0.1),
                       shape: BoxShape.circle),
                   child: Icon(data['icon'], color: data['color'], size: 22),
                 ),
@@ -300,7 +300,7 @@ class _SubscriptionsTabState extends State<SubscriptionsTab> {
                     DataCell(Chip(
                       label: Text(status),
                       backgroundColor: (isActive ? Colors.green : Colors.grey)
-                          .withOpacity(0.1),
+                          .withValues(alpha: 0.1),
                       side: BorderSide.none,
                     )),
                     DataCell(Text(user.createdAt != null
@@ -357,7 +357,7 @@ class _SubscriptionsTabState extends State<SubscriptionsTab> {
                   Chip(
                     label: Text(status),
                     backgroundColor: (isActive ? Colors.green : Colors.grey)
-                        .withOpacity(0.1),
+                        .withValues(alpha: 0.1),
                     side: BorderSide.none,
                   ),
                 ],

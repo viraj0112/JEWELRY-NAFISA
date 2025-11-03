@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:jewelry_nafisa/src/models/board.dart'; // Import the model from the correct path
+import 'package:jewelry_nafisa/src/models/board.dart'; 
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
-import 'package:jewelry_nafisa/src/ui/widgets/board_card.dart'; // Import the updated BoardCard
+import 'package:jewelry_nafisa/src/ui/widgets/board_card.dart'; 
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// --- ADDED: SortMode enum ---
+
 enum SortMode { newest, nameAsc, nameDesc }
 
 class BoardsScreen extends StatefulWidget {

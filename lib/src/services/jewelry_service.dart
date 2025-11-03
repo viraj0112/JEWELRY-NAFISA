@@ -1,4 +1,4 @@
-// src/services/jewelry_service.dart
+// lib/src/services/jewelry_service.dart
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/jewelry_item.dart';
@@ -29,15 +29,25 @@ class JewelryService {
       final List<dynamic> productsData = responses[0] as List<dynamic>;
       final List<dynamic> designerProductsData = responses[1] as List<dynamic>;
 
+      final List<JewelryItem> productItems = productsData
+          .map((json) => JewelryItem.fromJson(
+              json as Map<String, dynamic>,
+              isDesignerProduct: false)) // <-- SET FLAG
+          .toList();
+
+      final List<JewelryItem> designerProductItems = designerProductsData
+          .map((json) => JewelryItem.fromJson(
+              json as Map<String, dynamic>,
+              isDesignerProduct: true)) // <-- SET FLAG
+          .toList();
+
       // Combine and parse
-      final allProducts = [...productsData, ...designerProductsData];
+      final allProducts = [...productItems, ...designerProductItems];
 
       // Shuffle for variety
       allProducts.shuffle();
 
-      return allProducts
-          .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>))
-          .toList();
+      return allProducts;
     } catch (e) {
       debugPrint('Error fetching products: $e');
       return [];
@@ -80,13 +90,15 @@ class JewelryService {
           .select()
           .or(
             // FIX: Columns must be quoted and capitalized
-            '"Product Title".ilike.$ilikeQuery,'
-            '"Description".ilike.$ilikeQuery,' // <-- FIXED: Was 'description'
-            '"Category".ilike.$ilikeQuery,' // <-- FIXED: Was 'Category' (unquoted)
+            '"Product Title".ilike.$ilikeQuery,' // Assumes 'title' in designerproducts
+            'Description.ilike.$ilikeQuery,'
+            '"Collection Name".ilike.$ilikeQuery,'
+            '"Product Type".ilike.$ilikeQuery,'
+            'Category.ilike.$ilikeQuery,'
             '"Sub Category".ilike.$ilikeQuery,'
             '"Metal Type".ilike.$ilikeQuery,'
             '"Metal Color".ilike.$ilikeQuery,'
-            // Array columns remain quoted/capitalized
+            // Array columns
             '"Product Tags".cs.$arrayQuery,'
             '"Stone Type".cs.$arrayQuery,'
             '"Stone Color".cs.$arrayQuery',
@@ -106,9 +118,13 @@ class JewelryService {
       }.values.toList();
 
       if (uniqueResults.isNotEmpty) {
-        return uniqueResults
-            .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>))
-            .toList();
+        // Need to check which table it came from to set isDesignerProduct
+        return uniqueResults.map((json) {
+          final map = json as Map<String, dynamic>;
+          // Simple check: if designer_id exists, it's a designer product
+          final isDesigner = map.containsKey('designer_id');
+          return JewelryItem.fromJson(map, isDesignerProduct: isDesigner);
+        }).toList();
       } else {
         return [];
       }
@@ -125,13 +141,13 @@ class JewelryService {
       final response = await _supabaseClient.rpc(
         'get_trending_products_v2', // Name of the SQL function
         params: {'limit_count': limit}, // Parameter for the function
-      ) as List<dynamic>;
-      ;
+      );
 
       if (response is List) {
         // The RPC returns JSON, so we parse it directly
         return response
-            .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>))
+            .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>,
+                isDesignerProduct: true)) // Assuming trending are designer
             .toList();
       }
       return [];
@@ -144,9 +160,10 @@ class JewelryService {
 
   Future<List<JewelryItem>> fetchSimilarItems({
     required String currentItemId,
-    String? productType, 
-    String? category,    
-    String? subCategory, 
+    required bool isDesigner, // Need to know which table to query
+    String? productType,
+    String? category,
+    String? subCategory,
     int limit = 10,
   }) async {
     // Check if all relevant fields are null or empty
@@ -161,16 +178,19 @@ class JewelryService {
         'get_similar_products', // Same function name
         params: {
           // Pass new parameters to the SQL function
-          'p_product_type': productType, 
-          'p_category': category,       
-          'p_sub_category': subCategory, 
+          'p_product_type': productType,
+          'p_category': category,
+          'p_sub_category': subCategory,
           'p_limit': limit,
           'p_exclude_id': currentItemId,
+          // 'p_is_designer': isDesigner, // <-- FIX: REMOVED THIS PARAMETER
         },
       ) as List<dynamic>;
 
       return response
-          .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>))
+          .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>,
+              isDesignerProduct:
+                  isDesigner)) // Pass flag based on original item
           .toList();
     } catch (e) {
       debugPrint('Error fetching similar products via RPC: $e');
@@ -179,9 +199,19 @@ class JewelryService {
   }
 
   Future<JewelryItem?> getJewelryItem(String id) async {
-    // ... (existing code)
     try {
-      // Try fetching from 'products' (assuming integer ID)
+      // Try fetching from 'designerproducts' first (since UUIDs are common)
+      final designerResponse = await _supabaseClient
+          .from('designerproducts')
+          .select()
+          .eq('id', id)
+          .maybeSingle(); // Use maybeSingle
+
+      if (designerResponse != null) {
+        return JewelryItem.fromJson(designerResponse, isDesignerProduct: true);
+      }
+
+      // If not found, try fetching from 'products' (assuming integer ID)
       final intId = int.tryParse(id);
       if (intId != null) {
         final productResponse = await _supabaseClient
@@ -191,25 +221,33 @@ class JewelryService {
             .maybeSingle(); // Use maybeSingle for potentially null result
 
         if (productResponse != null) {
-          return JewelryItem.fromJson(productResponse);
+          return JewelryItem.fromJson(productResponse, isDesignerProduct: false);
         }
       }
 
-      final designerResponse = await _supabaseClient
-          .from('designerproducts')
-          .select()
-          .eq('id', id)
-          .maybeSingle(); // Use maybeSingle
-
-      if (designerResponse != null) {
-        return JewelryItem.fromJson(designerResponse);
-      }
-
-      debugPrint('JewelryItem with ID $id not found.');
+      debugPrint('JewelryItem with ID $id not found in either table.');
       return null;
     } catch (e) {
       debugPrint('Error fetching single product (ID: $id): $e');
       return null;
     }
   }
+
+  // --- NEW METHOD ---
+  Future<List<String>> getInitialSearchIdeas({int limit = 15}) async {
+    try {
+      final response = await _supabaseClient.rpc(
+        'get_initial_search_ideas',
+        params: {'limit_count': limit},
+      ) as List<dynamic>;
+
+      // The RPC returns a list of text, so cast directly
+      return response.map((item) => item.toString()).toList();
+    } catch (e) {
+      debugPrint('Error fetching search ideas: $e');
+      // Return a fallback list on error
+      return ['Rings', 'Necklaces', 'Earrings', 'Gold', 'Diamond'];
+    }
+  }
+  // --- END NEW METHOD ---
 }

@@ -16,15 +16,15 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   final _scrollController = ScrollController();
   final _supabase = Supabase.instance.client;
   late final JewelryService _jewelryService;
 
-  // --- REFACTORED FILTER STATE ---
+  // Filter state
   final FilterService _filterService = FilterService();
   List<JewelryItem> _products = [];
   bool _isLoadingFilters = true;
@@ -32,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingCategories = false;
   bool _isLoadingSubCategories = false;
 
-  // Options for each filter
+  // Filter options
   List<String> _productTypeOptions = ['All'];
   List<String> _categoryOptions = ['All'];
   List<String> _subCategoryOptions = ['All'];
@@ -47,8 +47,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedMetalPurity = 'All';
   String? _selectedPlain;
   String? _selectedStudded;
-
-  // --- END OF REFACTORED STATE ---
 
   String? _hoveredItemId;
   String? _tappedItemId;
@@ -175,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // --- NEW: Handlers for dependent dropdowns ---
+  // Handlers for dependent dropdowns
 
   /// Called when "Product Type" dropdown changes
   Future<void> _onProductTypeChanged(String? value) async {
@@ -226,7 +224,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'Product Type': _selectedProductType,
       'Category': value,
     };
-    // **FIX: Use correct column name with space**
     final newSubCategories = await _filterService.getDependentDistinctValues(
         'Sub Category', filters);
 
@@ -249,8 +246,6 @@ class _HomeScreenState extends State<HomeScreen> {
     // Just refetch products, no new options to load
     _applyFilters();
   }
-
-  // --- End of new handlers ---
 
   void _resetFilters() {
     setState(() {
@@ -357,40 +352,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: true,
-      child: Scaffold(
-        body: Column(
+    return Scaffold(
+      body: Column(
         children: [
           _buildFilterBar(),
           Expanded(
-            child: (_isLoadingProducts && _products.isEmpty)
+            child: _isLoadingProducts
                 ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: _loadInitialData,
-                    child: _products.isEmpty
-                        ? const Center(
-                            child: Text(
-                                'No products found matching your filters.'))
-                        : MasonryGridView.count(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.all(8.0),
-                            crossAxisCount:
-                                (MediaQuery.of(context).size.width / 200)
-                                    .floor()
-                                    .clamp(2, 6),
-                            itemCount: _products.length,
-                            itemBuilder: (context, index) {
-                              return _buildImageCard(context, _products[index]);
-                            },
-                            mainAxisSpacing: 8.0,
-                            crossAxisSpacing: 8.0,
-                          ),
-                  ),
+                : _buildHomeGrid(),
           ),
         ],
-        ),
       ),
+    );
+  }
+
+  Widget _buildHomeGrid() {
+    return RefreshIndicator(
+      onRefresh: _loadInitialData,
+      child: _products.isEmpty
+          ? const Center(child: Text('No products found matching your filters.'))
+          : MasonryGridView.count(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(8.0),
+              crossAxisCount:
+                  (MediaQuery.of(context).size.width / 200).floor().clamp(2, 6),
+              itemCount: _products.length,
+              itemBuilder: (context, index) {
+                return _buildImageCard(context, _products[index]);
+              },
+              mainAxisSpacing: 8.0,
+              crossAxisSpacing: 8.0,
+            ),
     );
   }
 
@@ -413,20 +405,20 @@ class _HomeScreenState extends State<HomeScreen> {
             hint: 'Product Type',
             options: _productTypeOptions,
             selectedValue: _selectedProductType,
-            onChanged: _onProductTypeChanged, // Use new handler
+            onChanged: _onProductTypeChanged,
           ),
           _buildDropdownFilter(
             hint: 'Category',
             options: _categoryOptions,
             selectedValue: _selectedCategory,
-            onChanged: _onCategoryChanged, // Use new handler
+            onChanged: _onCategoryChanged,
             isLoading: _isLoadingCategories,
           ),
           _buildDropdownFilter(
             hint: 'Sub Category',
             options: _subCategoryOptions,
             selectedValue: _selectedSubCategory,
-            onChanged: _onSubCategoryChanged, // Use new handler
+            onChanged: _onSubCategoryChanged,
             isLoading: _isLoadingSubCategories,
           ),
           _buildDropdownFilter(

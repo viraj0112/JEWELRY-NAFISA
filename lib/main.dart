@@ -12,6 +12,7 @@ import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/admin/notifiers/filter_state_notifier.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
+import 'package:jewelry_nafisa/src/admin/services/enhanced_admin_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
@@ -23,6 +24,8 @@ import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/product_page_loader.dart';
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jewelry_nafisa/src/services/search_history_service.dart';
 
 final supabaseClient = Supabase.instance.client;
 
@@ -112,12 +115,15 @@ Future<void> main() async {
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
   );
-
+  
+final searchHistoryService = SearchHistoryService();
+  await searchHistoryService.init();
   setPathUrlStrategy();
 
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => SearchHistoryService()..init()),
         ChangeNotifierProvider(create: (context) => UserProfileProvider()),
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
         ChangeNotifierProvider(create: (context) => BoardsProvider()),
@@ -125,7 +131,11 @@ Future<void> main() async {
         Provider<JewelryService>(
           create: (_) => JewelryService(supabaseClient),
         ),
+        Provider<EnhancedAdminService>(create: (_) => EnhancedAdminService()),
         Provider<QuoteService>(create: (_) => QuoteService()),
+        // Provider<SupabaseAuthService>(create: (_) => authService),
+        // Provider<JewelryService>(create: (_) => JewelryService(supabase)),
+        // Provider<QuoteService>(create: (_) => QuoteService(supabase)),
       ],
       child: const MyApp(),
     ),
@@ -176,3 +186,5 @@ class ProductDetailLoader extends StatelessWidget {
     );
   }
 }
+
+

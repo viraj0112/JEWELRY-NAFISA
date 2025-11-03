@@ -60,16 +60,12 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     _jewelryService = JewelryService(supabase);
     _initializeInteractionState();
 
-  
     _similarItemsFuture = _jewelryService.fetchSimilarItems(
-      currentItemId: widget.jewelryItem.id.toString(),
-      
-      
-      productType: widget.jewelryItem.productType,
-      category: widget.jewelryItem.category,
-      limit: 80, 
-     
-    );
+        currentItemId: widget.jewelryItem.id.toString(),
+        productType: widget.jewelryItem.productType,
+        category: widget.jewelryItem.category,
+        limit: 80,
+        isDesigner: widget.jewelryItem.isDesignerProduct);
   }
 
   String _generateRandomSlug(int length) {
@@ -420,6 +416,15 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         'status': 'valid',
         'expires_at': expiration.toIso8601String(),
       });
+      if (widget.jewelryItem.isDesignerProduct) {
+        // <-- ADD THIS CHECK
+        await supabase.from('views').insert({
+          'user_id': uid,
+          'product_id': int.tryParse(widget.jewelryItem
+              .id), // Also, ensure this is an int, since views.product_id is bigint
+          'pin_id': null,
+        });
+      }
 
       if (mounted) {
         setState(() => _detailsRevealed = true);
@@ -617,7 +622,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             if (item.goldWeight != null && item.goldWeight!.isNotEmpty)
               _buildDetailRow("Metal Weight: ", item.goldWeight!),
             if (item.metalWeight != null && item.metalWeight!.isNotEmpty)
-             _buildDetailRow("Metal Weight: ", item.metalWeight!),
+              _buildDetailRow("Metal Weight: ", item.metalWeight!),
             if (item.metalColor != null && item.metalColor!.isNotEmpty)
               _buildDetailRow("Metal Color: ", item.metalColor!),
             if (item.metalFinish != null && item.metalFinish!.isNotEmpty)
@@ -653,7 +658,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             Text(
               'Unlock detailed product specifications by using a credit.',
               style: theme.textTheme.bodyMedium,
-            ), const SizedBox(height: 24),
+            ),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -760,11 +766,13 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             final item = items[index];
             return GestureDetector(
               onTap: () {
-                Navigator.pushReplacement(
+                // --- FIX: Use push instead of pushReplacement ---
+                Navigator.push(
                   context,
                   MaterialPageRoute(
                       builder: (_) => JewelryDetailScreen(jewelryItem: item)),
                 );
+                // --- END FIX ---
               },
               child: Card(
                 clipBehavior: Clip.antiAlias,

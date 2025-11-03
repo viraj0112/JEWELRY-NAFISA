@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 
 class UsersSection extends StatefulWidget {
   const UsersSection({super.key});
-
   @override
   State<UsersSection> createState() => _UsersSectionState();
 }

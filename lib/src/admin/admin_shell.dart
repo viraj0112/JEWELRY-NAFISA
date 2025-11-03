@@ -3,10 +3,10 @@ import 'package:jewelry_nafisa/src/admin/constants/constant.dart';
 import 'package:jewelry_nafisa/src/admin/models/menu_item.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
-import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/admin/widgets/filter_component.dart';
+import 'package:jewelry_nafisa/src/admin/notifiers/filter_state_notifier.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 
@@ -25,7 +25,7 @@ class _HoverableMenuItemState extends State<_HoverableMenuItem> {
     final theme = Theme.of(context);
     Color backgroundColor;
     if (widget.isSelected) {
-      backgroundColor = theme.primaryColor.withOpacity(0.1);
+      backgroundColor = theme.primaryColor.withValues(alpha: 0.1);
     } else if (_isHovered) {
       backgroundColor = theme.hoverColor;
     } else {
@@ -91,11 +91,15 @@ class _AdminShellState extends State<AdminShell> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 800;
-        return isMobile ? _buildMobileLayout() : _buildDesktopLayout();
-      },
+    // Provide filter state globally for all admin pages
+    return ChangeNotifierProvider<FilterStateNotifier>(
+      create: (_) => FilterStateNotifier(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 800;
+          return isMobile ? _buildMobileLayout() : _buildDesktopLayout();
+        },
+      ),
     );
   }
 
@@ -168,30 +172,42 @@ class _AdminShellState extends State<AdminShell> {
   Widget _buildAdminHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-      // FIX: Changed Wrap to Row and wrapped TextField in Expanded
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search...',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
-                fillColor: Theme.of(context).scaffoldBackgroundColor,
-                filled: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-              ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 700;
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: compact
+                      ? 200
+                      : (constraints.maxWidth - 220).clamp(260.0, 500.0),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      fillColor: Theme.of(context).scaffoldBackgroundColor,
+                      filled: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 0, horizontal: 16),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _buildAppBarActions(),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 16),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: _buildAppBarActions(),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:jewelry_nafisa/src/admin/sections/content_management_section.dart';
 
 class ContentManagementScreen extends StatelessWidget {
   const ContentManagementScreen({super.key});
@@ -10,7 +9,17 @@ class ContentManagementScreen extends StatelessWidget {
       canPop: true,
       child: const Padding(
         padding: EdgeInsets.all(24.0),
-        child: ContentManagementSection(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Content Management',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 16),
+            Text('Manage scraped content and B2B creator uploads'),
+          ],
+        ),
       ),
     );
   }
