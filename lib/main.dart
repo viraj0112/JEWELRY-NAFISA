@@ -12,6 +12,7 @@ import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/admin/notifiers/filter_state_notifier.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
+import 'package:jewelry_nafisa/src/admin/services/enhanced_admin_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
@@ -130,6 +131,7 @@ final searchHistoryService = SearchHistoryService();
         Provider<JewelryService>(
           create: (_) => JewelryService(supabaseClient),
         ),
+        Provider<EnhancedAdminService>(create: (_) => EnhancedAdminService()),
         Provider<QuoteService>(create: (_) => QuoteService()),
         // Provider<SupabaseAuthService>(create: (_) => authService),
         // Provider<JewelryService>(create: (_) => JewelryService(supabase)),

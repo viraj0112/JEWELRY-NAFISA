@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:jewelry_nafisa/src/auth/business_signup_screen.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // A utility class for brand-specific icons
 class BrandIcons {
@@ -110,6 +111,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  Future<void> _launchLegalUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.inAppWebView)) {
+      if (mounted) {
+        _showErrorSnackbar('Could not open $url');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -168,7 +178,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   // Builds the main registration form
   Widget _buildForm(ThemeData theme) {
     return Form(
-     
       key: _formKey,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(34, 24, 34, 34),
@@ -384,7 +393,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             recognizer: TapGestureRecognizer()
               ..onTap = () {
-                /* TODO: Navigate to Terms URL */
+                _launchLegalUrl('https://www.dagina.design/terms.html');
               },
           ),
           const TextSpan(text: " and acknowledge you've read our "),
@@ -397,7 +406,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
             recognizer: TapGestureRecognizer()
               ..onTap = () {
-                /* TODO: Navigate to Privacy URL */
+                _launchLegalUrl('https://www.dagina.design/privacy.html');
               },
           ),
         ],

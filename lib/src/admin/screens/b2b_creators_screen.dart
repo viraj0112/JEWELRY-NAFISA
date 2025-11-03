@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:jewelry_nafisa/src/admin/sections/b2b_creators_section.dart';
 
 class B2BCreatorsScreen extends StatelessWidget {
   const B2BCreatorsScreen({super.key});
@@ -10,7 +9,18 @@ class B2BCreatorsScreen extends StatelessWidget {
       canPop: true,
       child: const Padding(
         padding: EdgeInsets.all(24.0),
-        child: B2BCreatorsSection(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'B2B Creators',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 16),
+            Text('Manage B2B creators and their uploads'),
+            // TODO: Implement B2B creators management
+          ],
+        ),
       ),
     );
   }

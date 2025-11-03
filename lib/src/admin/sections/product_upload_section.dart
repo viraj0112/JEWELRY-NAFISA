@@ -16,6 +16,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
   bool _isLoading = false;
   String? _fileName;
   List<List<dynamic>>? _csvData;
+  List<PlatformFile>? _selectedImages;
+  Map<String, String> _imageNameToUrl = {};
 
   void _pickFile() async {
     setState(() => _isLoading = true);
@@ -43,7 +45,66 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
     }
   }
 
-  // Inside _ProductUploadSectionState in product_upload_section.dart
+  void _pickImages() async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        setState(() {
+          _selectedImages = result.files;
+        });
+        _showSuccessSnackBar('${result.files.length} images selected');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Error picking images: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _uploadImagesToSupabase() async {
+    if (_selectedImages == null || _selectedImages!.isEmpty) {
+      _showErrorSnackBar('No images selected');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      _imageNameToUrl.clear();
+
+      for (final imageFile in _selectedImages!) {
+        if (imageFile.bytes != null) {
+          final fileName = imageFile.name;
+          final filePath = 'product-images/$fileName';
+
+          await Supabase.instance.client.storage
+              .from('product-images')
+              .uploadBinary(
+                filePath,
+                imageFile.bytes!,
+                fileOptions: const FileOptions(upsert: true),
+              );
+
+          final imageUrl = Supabase.instance.client.storage
+              .from('product-images')
+              .getPublicUrl(fileName);
+
+          _imageNameToUrl[fileName] = imageUrl;
+        }
+      }
+
+      _showSuccessSnackBar('${_selectedImages!.length} images uploaded successfully');
+    } catch (e) {
+      _showErrorSnackBar('Error uploading images: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   Future<void> _uploadToSupabase() async {
     if (_csvData == null || _csvData!.length < 2) {
@@ -51,19 +112,12 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
       return;
     }
 
-    setState(() => _isLoading = true);
-
-    // --- FIX 1: Fetch all files ONCE before the loop ---
-    final List<FileObject> allStorageFiles;
-    try {
-      allStorageFiles =
-          await Supabase.instance.client.storage.from('product-images').list();
-    } catch (e) {
-      _showErrorSnackBar('Failed to list files from storage: $e');
-      setState(() => _isLoading = false);
+    if (_imageNameToUrl.isEmpty) {
+      _showErrorSnackBar('Please upload images first');
       return;
     }
-    // --- End of FIX 1 ---
+
+    setState(() => _isLoading = true);
 
     try {
       final headers = _csvData![0].map((e) => e.toString().trim()).toList();
@@ -99,7 +153,6 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
             dynamic value = row[i];
 
             if (header == 'Product Title') {
-              // Also trim the value for safety
               productTitle = value.toString().trim();
             }
 
@@ -127,18 +180,17 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
         }
 
         if (productTitle != null && productTitle.isNotEmpty) {
-          // --- FIX 2: Search the local list (allStorageFiles), NOT the API ---
-          final matchingFiles = allStorageFiles
-              .where((file) => file.name.startsWith(productTitle!))
-              .toList();
-          // --- End of FIX 2 ---
+          // Find matching image by product title prefix
+          String? matchingImageUrl;
+          for (final entry in _imageNameToUrl.entries) {
+            if (entry.key.startsWith(productTitle)) {
+              matchingImageUrl = entry.value;
+              break;
+            }
+          }
 
-          if (matchingFiles.isNotEmpty) {
-            final imageName = matchingFiles.first.name;
-            final imageUrl = Supabase.instance.client.storage
-                .from('product-images')
-                .getPublicUrl(imageName);
-            product['Image'] = imageUrl;
+          if (matchingImageUrl != null) {
+            product['Image'] = matchingImageUrl;
           } else {
             _showErrorSnackBar('Image not found for product: $productTitle');
             product['Image'] = null;
@@ -147,12 +199,15 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
 
         productList.add(product);
       }
+
       await Supabase.instance.client.from('products').upsert(productList);
 
       _showSuccessSnackBar('Successfully uploaded products!');
       setState(() {
         _fileName = null;
         _csvData = null;
+        _selectedImages = null;
+        _imageNameToUrl.clear();
       });
     } catch (e) {
       _showErrorSnackBar('Error uploading to Supabase: $e');
@@ -201,6 +256,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
                 ),
               ),
               const SizedBox(height: 24),
+              _buildImagePickerCard(),
+              const SizedBox(height: 24),
               _buildFilePickerCard(),
               if (_csvData != null) ...[
                 const SizedBox(height: 24),
@@ -208,6 +265,100 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePickerCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            Icon(
+              Icons.image_outlined,
+              size: 60,
+              color: Theme.of(context).primaryColor,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Select Product Images',
+              style:
+                  GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Choose image files for your products. Image names should start with the product title.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            if (_selectedImages != null && _selectedImages!.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_selectedImages!.length} images selected:',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    ..._selectedImages!.take(5).map((file) => Text(
+                          '• ${file.name}',
+                          style: const TextStyle(fontSize: 12),
+                        )),
+                    if (_selectedImages!.length > 5)
+                      Text(
+                        '• +${_selectedImages!.length - 5} more',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _pickImages,
+                  icon: const Icon(Icons.folder_open),
+                  label: const Text('Browse Images'),
+                  style: ElevatedButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    textStyle: const TextStyle(fontSize: 16),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                if (_selectedImages != null && _selectedImages!.isNotEmpty)
+                  ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _uploadImagesToSupabase,
+                    icon: const Icon(Icons.cloud_upload),
+                    label: const Text('Upload Images'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 16),
+                      textStyle: const TextStyle(fontSize: 16),
+                      backgroundColor: Colors.green,
+                    ),
+                  ),
+              ],
+            ),
+            if (_isLoading) ...[
+              const SizedBox(height: 16),
+              const CircularProgressIndicator(),
+            ],
+          ],
         ),
       ),
     );
@@ -276,6 +427,13 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
             const SizedBox(height: 8),
             Text('File: $_fileName'),
             Text('Rows to upload: ${_csvData!.length - 1}'),
+            Text(
+              'Images uploaded: ${_imageNameToUrl.length}',
+              style: TextStyle(
+                color: _imageNameToUrl.isNotEmpty ? Colors.green : Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 16),
             _buildDataTable(),
             const SizedBox(height: 24),
@@ -286,12 +444,16 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
                   onPressed: () => setState(() {
                     _fileName = null;
                     _csvData = null;
+                    _selectedImages = null;
+                    _imageNameToUrl.clear();
                   }),
                   child: const Text('Cancel'),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _uploadToSupabase,
+                  onPressed: _isLoading || _imageNameToUrl.isEmpty
+                      ? null
+                      : _uploadToSupabase,
                   icon: const Icon(Icons.upload),
                   label: const Text('Upload to Supabase'),
                   style: ElevatedButton.styleFrom(
