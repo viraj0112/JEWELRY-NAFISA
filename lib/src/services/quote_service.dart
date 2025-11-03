@@ -17,10 +17,15 @@ class QuoteService {
     required JewelryItem product,
     required String? phoneNumber,
     String? additionalNotes,
-
   }) async {
     try {
       final productTable = _getProductTable(product);
+      const String productBaseUrl = 'https://www.dagina.design/product';
+      final String slug = product.productTitle
+          .toLowerCase()
+          .replaceAll(RegExp(r'\s+'), '-')
+          .replaceAll(RegExp(r'[^a-z0-9-]'), '');
+      final String productUrl = '$productBaseUrl/$slug';
 
       final productIdBigInt = int.tryParse(product.id);
       if (productIdBigInt == null) {
@@ -51,7 +56,7 @@ class QuoteService {
         'stone_used': product.stoneUsed,
         'stone_weight': product.stoneWeight,
         'stone_setting': product.stoneSetting,
-
+        'product_url': productUrl,
         'additional_notes': additionalNotes?.trim().isEmpty ?? true
             ? null
             : additionalNotes!.trim(),

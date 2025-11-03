@@ -16,12 +16,10 @@ import 'dart:math';
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
 import 'package:jewelry_nafisa/src/widgets/quote_request_dialog.dart';
 
-// --- ADD THESE IMPORTS ---
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:typed_data';
-// --- END ADD IMPORTS ---
 
 class JewelryDetailScreen extends StatefulWidget {
   final JewelryItem jewelryItem;
@@ -283,11 +281,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     final item = widget.jewelryItem;
     const String productBaseUrl = 'https://www.dagina.design/product';
 
-    // This creates the slug: "Hearty Bliss & Pendant" -> "hearty-bliss-pendant"
     final String slug = item.productTitle
         .toLowerCase()
-        .replaceAll(RegExp(r'\s+'), '-') // Replace spaces with dashes
-        .replaceAll(RegExp(r'[^a-z0-9-]'), ''); // Remove special characters
+        .replaceAll(RegExp(r'\s+'), '-') 
+        .replaceAll(RegExp(r'[^a-z0-9-]'), ''); 
 
     final String productUrl = '$productBaseUrl/$slug';
 
