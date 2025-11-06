@@ -5,6 +5,8 @@ import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
 
 class Debouncer {
   final int milliseconds;
@@ -36,6 +38,11 @@ class _SearchScreenState extends State<SearchScreen> {
 
   final _debouncer = Debouncer(milliseconds: 500);
   late final JewelryService _jewelryService;
+
+  final ImagePicker _picker = ImagePicker();
+  List<JewelryItem> _results = [];
+  bool _isLoading = false;
+  bool _hasSearched = false;
 
   // final _searchController = TextEditingController();
   // final _debouncer = Debouncer(milliseconds: 500);
@@ -145,6 +152,72 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
+  Future<void> _searchByImage() async {
+    // 1. Ask user for source (Camera or Gallery)
+    final ImageSource? source = await showDialog<ImageSource>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Select Image Source'),
+        actions: <Widget>[
+          TextButton(
+            child: Text('Camera'),
+            onPressed: () => Navigator.pop(context, ImageSource.camera),
+          ),
+          TextButton(
+            child: Text('Gallery'),
+            onPressed: () => Navigator.pop(context, ImageSource.gallery),
+          ),
+        ],
+      ),
+    );
+
+    if (source == null) return; // User cancelled the dialog
+
+    // 2. Pick the image
+    final XFile? image = await _picker.pickImage(source: source);
+    if (image == null) return; // User cancelled the picker
+
+    // 3. Set loading state
+    if (mounted) {
+      FocusScope.of(context).unfocus(); // Dismiss keyboard
+      setState(() {
+        _isLoading = true;
+        _hasSearched = true;
+        _searchController.text = "Searching by image...";
+        _results.clear();
+      });
+    }
+
+    try {
+      // 4. Read image bytes and call the service
+      final Uint8List imageBytes = await image.readAsBytes();
+      // Use the _jewelryService initialized in initState
+      final results =
+          await _jewelryService.findSimilarProductsByImage(imageBytes);
+
+      if (mounted) {
+        setState(() {
+          _results = results;
+          _searchController.text = "Similar items to your image";
+        });
+      }
+    } catch (e) {
+      debugPrint("Error searching by image: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error searching by image: $e")),
+        );
+      }
+    } finally {
+      // 5. Reset loading state
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // ... (This function remains the same as before)
@@ -171,20 +244,33 @@ class _SearchScreenState extends State<SearchScreen> {
               filled: true,
               contentPadding:
                   const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min, // Keeps the row compact
+                children: [
+                  // Camera Icon
+                  IconButton(
+                    icon: const Icon(Icons.camera_alt_outlined, size: 20),
+                    onPressed: _searchByImage,
+                    tooltip: 'Search by Image (AI Lens)',
+                  ),
+
+                  // Conditional Clear Icon
+                  if (_searchController.text.isNotEmpty)
+                    IconButton(
                       icon: const Icon(Icons.clear, size: 20),
                       onPressed: () {
                         _searchController.clear();
                         _performSearch('');
                       },
-                    )
-                  : null,
+                    ),
+                ],
+              ),
             ),
             onSubmitted: _performSearch,
           ),
         ),
         body: _buildBody(isSearching),
+        
       ),
     );
   }

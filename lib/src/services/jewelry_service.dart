@@ -1,4 +1,4 @@
-// lib/src/services/jewelry_service.dart
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/jewelry_item.dart';
@@ -54,7 +54,6 @@ class JewelryService {
     }
   }
 
-  // ... (existing searchProducts method)
   Future<List<JewelryItem>> searchProducts(String query) async {
     if (query.isEmpty) return [];
 
@@ -183,7 +182,7 @@ class JewelryService {
           'p_sub_category': subCategory,
           'p_limit': limit,
           'p_exclude_id': currentItemId,
-          // 'p_is_designer': isDesigner, // <-- FIX: REMOVED THIS PARAMETER
+          // 'p_is_designer': isDesigner, 
         },
       ) as List<dynamic>;
 
@@ -250,4 +249,33 @@ class JewelryService {
     }
   }
   // --- END NEW METHOD ---
+
+  Future<List<JewelryItem>> findSimilarProductsByImage(
+      Uint8List imageBytes) async {
+    try {
+      final response = await _supabaseClient.functions.invoke(
+        'find-similar-products', // The name of your edge function
+        body: imageBytes,
+      );
+
+      if (response.data is List) {
+        final dataList = response.data as List;
+        return dataList.map((json) {
+          // This works because your SQL returns a boolean
+          final bool isDesigner = json['is_designer_product'] ?? false;
+
+          // This works because your SQL returns "Product Title", "Image", etc.
+          return JewelryItem.fromJson(
+            json as Map<String, dynamic>,
+            isDesignerProduct: isDesigner,
+          );
+        }).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error calling findSimilarProductsByImage: $e');
+      // throw Exception('Could not find similar items: $e');
+      return [];
+    }
+  }
 }
