@@ -68,3 +68,28 @@ USING (
   (SELECT role FROM public.users WHERE id = auth.uid()) = 'admin'
 );
 
+-- Enable RLS for 'likes' and 'views' tables (if not already enabled)
+ALTER TABLE public.likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.views ENABLE ROW LEVEL SECURITY;
+
+-- 1. Policies for 'likes' table
+DROP POLICY IF EXISTS "Users can insert their own likes" ON public.likes;
+CREATE POLICY "Users can insert their own likes"
+    ON public.likes FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view their own likes" ON public.likes;
+CREATE POLICY "Users can view their own likes"
+    ON public.likes FOR SELECT
+    USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own likes" ON public.likes;
+CREATE POLICY "Users can delete their own likes"
+    ON public.likes FOR DELETE
+    USING (auth.uid() = user_id);
+
+-- 2. Policies for 'views' table
+DROP POLICY IF EXISTS "Users can insert their own views" ON public.views;
+CREATE POLICY "Users can insert their own views"
+    ON public.views FOR INSERT
+    WITH CHECK (auth.uid() = user_id);

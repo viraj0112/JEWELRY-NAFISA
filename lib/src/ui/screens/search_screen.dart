@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 
 class Debouncer {
   final int milliseconds;
@@ -189,9 +190,25 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     try {
-      // 4. Read image bytes and call the service
-      final Uint8List imageBytes = await image.readAsBytes();
-      // Use the _jewelryService initialized in initState
+      // 4. Read image bytes
+      Uint8List imageBytes = await image.readAsBytes();
+      
+      // 5. Convert WebP or unsupported formats to JPEG for compatibility
+      try {
+        // Decode the image
+        final img.Image? decodedImage = img.decodeImage(imageBytes);
+        if (decodedImage != null) {
+          // Re-encode as JPEG with 85% quality for good balance
+          imageBytes = Uint8List.fromList(
+            img.encodeJpg(decodedImage, quality: 85)
+          );
+        }
+      } catch (e) {
+        debugPrint("Image conversion warning: $e - proceeding with original format");
+        // If conversion fails, continue with original bytes
+      }
+      
+      // 6. Call the service
       final results =
           await _jewelryService.findSimilarProductsByImage(imageBytes);
 

@@ -45,6 +45,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
   bool _isSharing = false;
 
+  late final String _itemId;
+  late final String _itemTable;
+
   String? _pinId;
   int _likeCount = 0;
   bool _userLiked = false;
@@ -55,15 +58,25 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   @override
   void initState() {
     super.initState();
+
+    _itemId = widget.jewelryItem.id;
+    _itemTable = widget.jewelryItem.isDesignerProduct 
+                 ? 'designerproducts' 
+                 : 'products';
+
     _jewelryService = JewelryService(supabase);
     _initializeInteractionState();
 
     _similarItemsFuture = _jewelryService.fetchSimilarItems(
-        currentItemId: widget.jewelryItem.id.toString(),
+        currentItemId: _itemId, 
         productType: widget.jewelryItem.productType,
         category: widget.jewelryItem.category,
         limit: 80,
         isDesigner: widget.jewelryItem.isDesignerProduct);
+
+    final jewelryService = context.read<JewelryService>();
+
+    _logView();
   }
 
   String _generateRandomSlug(int length) {
@@ -74,27 +87,51 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         length, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
 
+  Future<void> _logView() async {
+    final uid = supabase.auth.currentUser?.id;
+    
+    String? userCountry = null; // <-- TODO: Set this if you have it.
+
+    try {
+      await supabase.from('views').insert({
+        'user_id': uid,
+        'item_id': _itemId,
+        'item_table': _itemTable,
+        'country': userCountry,
+      });
+    } catch (e) {
+      debugPrint('Error logging view: $e');
+    }
+  }
+
   Future<void> _initializeInteractionState() async {
     final uid = supabase.auth.currentUser?.id;
 
-    final pinData = await supabase
-        .from('pins')
-        .select('id, like_count, share_slug')
-        .eq('image_url', widget.jewelryItem.image)
-        .maybeSingle();
-
-    if (pinData != null) {
-      final pinId = pinData['id'] as String;
-      _pinId = pinId;
-      _likeCount = (pinData['like_count'] ?? 0) as int;
-      _shareSlug = pinData['share_slug'] as String?;
-
-      if (uid != null) {
+    try {
+      _likeCount = await supabase
+          .from('likes')
+          .count(CountOption.exact) 
+          .match({'item_id': _itemId, 'item_table': _itemTable});
+          
+    } catch (e) {
+      debugPrint("Error getting like count: $e");
+      _likeCount = 0;
+    }
+    if (uid != null) {
+      try {
         final likeResponse = await supabase
-            .from('user_likes')
-            .select('user_id')
-            .match({'user_id': uid, 'pin_id': pinId}).maybeSingle();
+            .from('likes')
+            .select('id')
+            .match({
+              'user_id': uid,
+              'item_id': _itemId,
+              'item_table': _itemTable,
+            }).maybeSingle();
+        
         _userLiked = (likeResponse != null);
+      } catch (e) {
+         debugPrint("Error checking user like: $e");
+         _userLiked = false;
       }
     }
 
@@ -172,31 +209,38 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
   Future<void> _toggleLike() async {
     if (_isLiking || _isLoadingInteraction) return;
-    setState(() => _isLiking = true);
-
-    final pinId = await _ensurePinExists();
-    if (pinId == null) {
-      setState(() => _isLiking = false);
+    
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to like items.")),
+      );
       return;
     }
 
-    final uid = supabase.auth.currentUser!.id;
+    setState(() => _isLiking = true);
 
     try {
       if (_userLiked) {
         await supabase
-            .from('user_likes')
+            .from('likes')
             .delete()
-            .match({'user_id': uid, 'pin_id': pinId});
-        await supabase.rpc('increment_like_count',
-            params: {'pin_id_to_update': pinId, 'delta': -1});
+            .match({
+              'user_id': uid,
+              'item_id': _itemId,
+              'item_table': _itemTable
+            });
+        
         _likeCount--;
       } else {
         await supabase
-            .from('user_likes')
-            .insert({'user_id': uid, 'pin_id': pinId});
-        await supabase.rpc('increment_like_count',
-            params: {'pin_id_to_update': pinId, 'delta': 1});
+            .from('likes')
+            .insert({
+              'user_id': uid,
+              'item_id': _itemId,
+              'item_table': _itemTable
+            });
+        
         _likeCount++;
       }
       if (mounted) {
@@ -209,6 +253,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           SnackBar(content: Text("Error updating like status: $e")),
         );
       }
+      // Revert count if error
+      if (_userLiked) _likeCount++; else _likeCount--;
     } finally {
       if (mounted) setState(() => _isLiking = false);
     }
@@ -283,8 +329,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     final String slug = item.productTitle
         .toLowerCase()
-        .replaceAll(RegExp(r'\s+'), '-') 
-        .replaceAll(RegExp(r'[^a-z0-9-]'), ''); 
+        .replaceAll(RegExp(r'\s+'), '-')
+        .replaceAll(RegExp(r'[^a-z0-9-]'), '');
 
     final String productUrl = '$productBaseUrl/$slug';
 
@@ -292,17 +338,14 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     final String baseShareText =
         'Check out this beautiful ${item.productTitle}! $productUrl from Dagina Designs!';
 
+    String sharePlatform = kIsWeb ? 'web' : 'mobile';
+
     try {
       if (item.image.isEmpty) {
-        // Fallback to text-only share if image is missing
         await Share.share(baseShareText, subject: 'Beautiful Jewelry');
       } else if (kIsWeb) {
-        // <-- FIX: WEB LOGIC ---
-        // We now ONLY share the baseShareText.
-        // The Open Graph (OG) tags on the website will handle the image preview.
-
         await Share.share(
-          baseShareText, // Use 'baseShareText' which DOES NOT have the image URL
+          baseShareText, 
           subject: 'Beautiful Jewelry',
         );
         // --- END WEB LOGIC ---
@@ -320,6 +363,20 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           text: baseShareText,
           subject: 'Check out this jewelry: ${item.productTitle}',
         );
+      }
+
+      final uid = supabase.auth.currentUser?.id;
+      if (uid != null) {
+        try {
+          await supabase.from('shares').insert({
+            'user_id': uid,
+            'item_id': _itemId,
+            'item_table': _itemTable,
+            'share_platform': sharePlatform,
+          });
+        } catch (e) {
+          debugPrint('Error logging share: $e');
+        }
       }
     } catch (e) {
       debugPrint("Error sharing item with image: $e");

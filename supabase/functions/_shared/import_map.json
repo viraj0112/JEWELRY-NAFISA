@@ -1,9 +1,9 @@
 {
-  "imports": {
-    "googleapis": "https://esm.sh/googleapis@105.0.0?target=es2022&deno-std=0.177.0&pin=v128",
-    "google-auth-library": "https://esm.sh/google-auth-library@8.9.0?target=es2022&deno-std=0.177.0&pin=v128",
-    "std/http/server": "https://deno.land/std@0.168.0/http/server.ts",
-    "supabase": "https://esm.sh/@supabase/supabase-js@2.39.0",
-    "transformers": "https://esm.sh/@xenova/transformers@2.17.2"
-  }
+ "imports": {
+   "googleapis": "https://esm.sh/googleapis@105.0.0?target=es2022&deno-std=0.177.0&pin=v128",
+   "google-auth-library": "https://esm.sh/google-auth-library@8.9.0?target=es2022&deno-std=0.177.0&pin=v128",
+   "std/http/server": "https://deno.land/std@0.168.0/http/server.ts",
+   "supabase": "https://esm.sh/@supabase/supabase-js@2.39.0",
+   "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2"
+ }
 }

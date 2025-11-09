@@ -10,6 +10,9 @@ dependencies:
   flutter:
     sdk: flutter
   image_picker: ^1.0.7
+  image: ^4.1.3
+  excel: ^2.1.0
+  path_provider: ^2.1.3
 
   # Core & State Management
   go_router: ^14.2.1

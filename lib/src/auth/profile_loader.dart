@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/admin/admin_shell.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
+import 'package:jewelry_nafisa/src/admin2/screens/main_screen.dart';
 import 'package:jewelry_nafisa/src/designer/designer_shell.dart';
 import 'package:jewelry_nafisa/src/designer/screens/pending_approval_screen.dart';
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
@@ -80,7 +81,8 @@ class _ProfileLoaderState extends State<ProfileLoader> {
 
             switch (userProfile.role) {
               case UserRole.admin:
-                return const AdminShell();
+                // return const AdminShell();
+                return const ManinScreen();
               case UserRole.designer:
                 if (userProfile.isApproved == true) {
                   return const DesignerShell();
