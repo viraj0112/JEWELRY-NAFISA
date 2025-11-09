@@ -98,7 +98,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
         }
       }
 
-      _showSuccessSnackBar('${_selectedImages!.length} images uploaded successfully');
+      _showSuccessSnackBar(
+          '${_selectedImages!.length} images uploaded successfully');
     } catch (e) {
       _showErrorSnackBar('Error uploading images: $e');
     } finally {
@@ -334,8 +335,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> {
                   icon: const Icon(Icons.folder_open),
                   label: const Text('Browse Images'),
                   style: ElevatedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 16),
                     textStyle: const TextStyle(fontSize: 16),
                   ),
                 ),

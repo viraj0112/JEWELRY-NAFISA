@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jewelry_nafisa/src/admin/admin_shell.dart';
+import 'package:jewelry_nafisa/src/admin2/screens/main_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_callback_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
 import 'package:jewelry_nafisa/src/designer/designer_shell.dart';
@@ -15,6 +16,7 @@ import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:jewelry_nafisa/src/admin/services/enhanced_admin_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:jewelry_nafisa/src/admin2/providers/app_state.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 import 'package:url_strategy/url_strategy.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
@@ -32,6 +34,10 @@ final supabaseClient = Supabase.instance.client;
 final _router = GoRouter(
   initialLocation: '/',
   routes: [
+    GoRoute(
+      path: '/admin',
+      builder: (context, state) => const ManinScreen(),
+    ),
     GoRoute(
       path: '/',
       builder: (context, state) => const AuthGate(),
@@ -52,10 +58,10 @@ final _router = GoRouter(
       path: '/designer',
       builder: (context, state) => const DesignerShell(),
     ),
-    GoRoute(
-      path: '/admin',
-      builder: (context, state) => const AdminShell(),
-    ),
+    // GoRoute(
+    //   path: '/admin',
+    //   builder: (context, state) => const AdminShell(),
+    // ),
     GoRoute(
       path: '/auth-callback',
       builder: (context, state) => const AuthCallbackScreen(),
@@ -115,14 +121,15 @@ Future<void> main() async {
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
   );
-  
-final searchHistoryService = SearchHistoryService();
+
+  final searchHistoryService = SearchHistoryService();
   await searchHistoryService.init();
   setPathUrlStrategy();
 
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (context) => AppState()),
         ChangeNotifierProvider(create: (_) => SearchHistoryService()..init()),
         ChangeNotifierProvider(create: (context) => UserProfileProvider()),
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
@@ -186,5 +193,3 @@ class ProductDetailLoader extends StatelessWidget {
     );
   }
 }
-
-
