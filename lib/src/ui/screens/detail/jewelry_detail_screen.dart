@@ -60,15 +60,15 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     super.initState();
 
     _itemId = widget.jewelryItem.id;
-    _itemTable = widget.jewelryItem.isDesignerProduct 
-                 ? 'designerproducts' 
-                 : 'products';
+    _itemTable = widget.jewelryItem.isDesignerProduct
+        ? 'designerproducts'
+        : 'products';
 
     _jewelryService = JewelryService(supabase);
     _initializeInteractionState();
 
     _similarItemsFuture = _jewelryService.fetchSimilarItems(
-        currentItemId: _itemId, 
+        currentItemId: _itemId,
         productType: widget.jewelryItem.productType,
         category: widget.jewelryItem.category,
         limit: 80,
@@ -89,8 +89,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
   Future<void> _logView() async {
     final uid = supabase.auth.currentUser?.id;
-    
-    String? userCountry = null; // <-- TODO: Set this if you have it.
+
+    String? userCountry; // <-- TODO: Set this if you have it.
 
     try {
       await supabase.from('views').insert({
@@ -110,9 +110,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     try {
       _likeCount = await supabase
           .from('likes')
-          .count(CountOption.exact) 
+          .count(CountOption.exact)
           .match({'item_id': _itemId, 'item_table': _itemTable});
-          
     } catch (e) {
       debugPrint("Error getting like count: $e");
       _likeCount = 0;
@@ -126,12 +125,13 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               'user_id': uid,
               'item_id': _itemId,
               'item_table': _itemTable,
-            }).maybeSingle();
-        
+            })
+            .maybeSingle();
+
         _userLiked = (likeResponse != null);
       } catch (e) {
-         debugPrint("Error checking user like: $e");
-         _userLiked = false;
+        debugPrint("Error checking user like: $e");
+        _userLiked = false;
       }
     }
 
@@ -209,7 +209,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
   Future<void> _toggleLike() async {
     if (_isLiking || _isLoadingInteraction) return;
-    
+
     final uid = supabase.auth.currentUser?.id;
     if (uid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -222,25 +222,17 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     try {
       if (_userLiked) {
-        await supabase
-            .from('likes')
-            .delete()
-            .match({
-              'user_id': uid,
-              'item_id': _itemId,
-              'item_table': _itemTable
-            });
-        
+        await supabase.from('likes').delete().match(
+            {'user_id': uid, 'item_id': _itemId, 'item_table': _itemTable});
+
         _likeCount--;
       } else {
-        await supabase
-            .from('likes')
-            .insert({
-              'user_id': uid,
-              'item_id': _itemId,
-              'item_table': _itemTable
-            });
-        
+        await supabase.from('likes').insert({
+          'user_id': uid,
+          'item_id': _itemId,
+          'item_table': _itemTable
+        });
+
         _likeCount++;
       }
       if (mounted) {
@@ -254,7 +246,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         );
       }
       // Revert count if error
-      if (_userLiked) _likeCount++; else _likeCount--;
+      if (_userLiked)
+        _likeCount++;
+      else
+        _likeCount--;
     } finally {
       if (mounted) setState(() => _isLiking = false);
     }
@@ -345,7 +340,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         await Share.share(baseShareText, subject: 'Beautiful Jewelry');
       } else if (kIsWeb) {
         await Share.share(
-          baseShareText, 
+          baseShareText,
           subject: 'Beautiful Jewelry',
         );
         // --- END WEB LOGIC ---
@@ -531,6 +526,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildWideLayout(BuildContext context) {
+    // This is the "desktop" layout.
     return Column(
       children: [
         Padding(
@@ -559,20 +555,26 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                   child: Column(
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.network(
-                          widget.jewelryItem.image,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Center(
-                              child: Icon(Icons.broken_image, size: 48)),
-                          loadingBuilder: (context, child, progress) =>
-                              progress == null
-                                  ? child
-                                  : const Center(
-                                      child: CircularProgressIndicator()),
+                      // --- ADDITION: Wrapped image with InteractiveViewer for zoom ---
+                      InteractiveViewer(
+                        minScale: 1.0,
+                        maxScale: 4.0, // Allow zooming up to 4x
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.network(
+                            widget.jewelryItem.image,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Center(
+                                child: Icon(Icons.broken_image, size: 48)),
+                            loadingBuilder: (context, child, progress) =>
+                                progress == null
+                                    ? child
+                                    : const Center(
+                                        child: CircularProgressIndicator()),
+                          ),
                         ),
                       ),
+                      // --- END ADDITION ---
                       const SizedBox(height: 16),
                       _buildContentSection(context),
                     ],
@@ -589,7 +591,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                       child: Text("More like this",
                           style: Theme.of(context).textTheme.titleLarge),
                     ),
-                    Expanded(child: _buildSimilarItemsGrid()),
+                    Expanded(child: _buildSimilarItemsGrid(isSliver: false)), // Pass false for non-sliver
                   ],
                 ),
               ),
@@ -601,40 +603,63 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildNarrowLayout() {
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          expandedHeight: 400,
-          stretch: true,
-          pinned: true,
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          flexibleSpace: FlexibleSpaceBar(
-            background: Image.network(
-              widget.jewelryItem.image,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  const Center(child: Icon(Icons.broken_image)),
-              loadingBuilder: (context, child, progress) => progress == null
-                  ? child
-                  : const Center(child: CircularProgressIndicator()),
+    // This is the "mobile" layout.
+    // --- MODIFICATION: Added DefaultTabController for mobile tabs ---
+    return DefaultTabController(
+      length: 2,
+      child: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 400,
+            stretch: true,
+            pinned: true,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            // --- MODIFICATION: Added TabBar to the bottom of the app bar ---
+            bottom: const TabBar(
+              tabs: [
+                Tab(text: 'Details'),
+                Tab(text: 'More Like This'),
+              ],
+            ),
+            // --- MODIFICATION: Wrapped image with InteractiveViewer for zoom ---
+            flexibleSpace: FlexibleSpaceBar(
+              background: InteractiveViewer(
+                minScale: 1.0,
+                maxScale: 4.0, // Allow zooming up to 4x
+                child: Image.network(
+                  widget.jewelryItem.image,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      const Center(child: Icon(Icons.broken_image)),
+                  loadingBuilder: (context, child, progress) => progress == null
+                      ? child
+                      : const Center(child: CircularProgressIndicator()),
+                ),
+              ),
+            ),
+            // --- END MODIFICATION ---
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.of(context).pop(),
+              tooltip: 'Back',
             ),
           ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).pop(),
-            tooltip: 'Back',
+          // --- MODIFICATION: Replaced content/grid slivers with a TabBarView ---
+          SliverFillRemaining(
+            child: TabBarView(
+              children: [
+                // Tab 1: Details
+                SingleChildScrollView(
+                  child: _buildContentSection(context),
+                ),
+                // Tab 2: More Like This
+                _buildSimilarItemsGrid(isSliver: false), // isSliver is false now
+              ],
+            ),
           ),
-        ),
-        SliverToBoxAdapter(child: _buildContentSection(context)),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text("More like this",
-                style: Theme.of(context).textTheme.titleLarge),
-          ),
-        ),
-        _buildSimilarItemsGrid(isSliver: true),
-      ],
+          // --- END MODIFICATION ---
+        ],
+      ),
     );
   }
 
@@ -809,8 +834,13 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
         final items = snapshot.data!;
         final gridWidget = MasonryGridView.count(
-          physics: isSliver ? const NeverScrollableScrollPhysics() : null,
-          shrinkWrap: isSliver,
+          // --- MODIFICATION: Set physics based on context ---
+          // If it's in a tab (not sliver), it needs its own scroll physics.
+          // If it was a sliver, it shouldn't scroll independently.
+          physics: isSliver
+              ? const NeverScrollableScrollPhysics()
+              : const AlwaysScrollableScrollPhysics(),
+          shrinkWrap: isSliver, // Still true if it's a sliver
           crossAxisCount:
               (MediaQuery.of(context).size.width / 180).floor().clamp(2, 4),
           mainAxisSpacing: 8,
@@ -849,6 +879,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           return SliverPadding(
               padding: const EdgeInsets.all(8.0), sliver: gridWidget);
         } else {
+          // --- MODIFICATION: Add padding when not a sliver (for tab view) ---
           return Padding(padding: const EdgeInsets.all(8.0), child: gridWidget);
         }
       },

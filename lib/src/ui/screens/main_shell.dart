@@ -474,22 +474,15 @@ class _MainShellState extends State<MainShell> {
       child: CircleAvatar(
         radius: 18,
         backgroundColor: const Color(0xFFDAB766),
-        child: user.isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : Text(
-                user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+        // --- FIX: Removed user.isLoading check ---
+        child: Text(
+          user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        // --- END FIX ---
       ),
     );
   }
@@ -510,26 +503,19 @@ class _MainShellState extends State<MainShell> {
       child: CircleAvatar(
         backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
         backgroundColor: Theme.of(context).colorScheme.primary,
-        child: user.isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
+        // --- FIX: Removed user.isLoading check ---
+        child: (avatarUrl == null)
+            ? Text(
+                user.username.isNotEmpty
+                    ? user.username[0].toUpperCase()
+                    : 'U',
+                style: const TextStyle(
                   color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
               )
-            : (avatarUrl == null)
-                ? Text(
-                    user.username.isNotEmpty
-                        ? user.username[0].toUpperCase()
-                        : 'U',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : null,
+            : null,
+        // --- END FIX ---
       ),
     );
   }

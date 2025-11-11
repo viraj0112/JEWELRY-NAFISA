@@ -16,7 +16,6 @@ class SupabaseAuthService {
   User? get currentUser => _supabase.auth.currentUser;
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
-  // ... (signUpAdmin, signUpWithEmailPassword, signInWithEmailOrUsername, signInWithGoogle, signOut, signUpBusiness, resetPassword functions are unchanged)
   Future<User?> signUpAdmin({
     required String email,
     required String password,
@@ -89,6 +88,7 @@ class SupabaseAuthService {
     String email,
     String password,
     String username,
+    String phone,
     String birthdate,
     String? referralCode,
   ) async {
@@ -98,6 +98,7 @@ class SupabaseAuthService {
         password: password,
         data: {
           'username': username,
+          'phone': phone,
           'birthdate': birthdate,
           'referral_code_used': referralCode
         },

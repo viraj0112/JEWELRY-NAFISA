@@ -10,8 +10,8 @@ class UserProfileProvider with ChangeNotifier {
   UserProfile? _userProfile;
   UserProfile? get userProfile => _userProfile;
 
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
+  // bool _isLoading = false;
+  // bool get isLoading => _isLoading;
 
   // --- NEW: Set to store unlocked item IDs ---
   Set<String> _unlockedItemIds = {};
@@ -49,8 +49,8 @@ class UserProfileProvider with ChangeNotifier {
   Future<void> loadUserProfile() async {
     if (_supabase.auth.currentUser == null) return;
 
-    _isLoading = true;
-    notifyListeners();
+    // _isLoading = true;
+    // notifyListeners();
 
     try {
       final userId = _supabase.auth.currentUser!.id;
@@ -80,7 +80,7 @@ class UserProfileProvider with ChangeNotifier {
       _userProfile = null;
       _unlockedItemIds = {};
     } finally {
-      _isLoading = false;
+      // _isLoading = false;
       notifyListeners();
     }
   }

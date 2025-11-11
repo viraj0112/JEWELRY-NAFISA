@@ -238,7 +238,7 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
 
                 if (product != null) ...[
                   const Divider(height: 20),
-                  _buildDetailRow('Description', product.description),
+                  // _buildDetailRow('Description', product.description),
                   if (product.price != null)
                     _buildDetailRow(
                         'Price', '₹${product.price!.toStringAsFixed(2)}'),

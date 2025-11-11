@@ -158,7 +158,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final ImageSource? source = await showDialog<ImageSource>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Select Image Source'),
+        title: Text('Select Image Source. \n Feature Coming Soon at your fingertips!🤳🏻'),
         actions: <Widget>[
           TextButton(
             child: Text('Camera'),

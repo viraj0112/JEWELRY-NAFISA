@@ -48,11 +48,13 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (user != null && mounted) {
-        final profileProvider =
-            Provider.of<UserProfileProvider>(context, listen: false);
-
-        await profileProvider.loadUserProfile();
-        // ------------------
+        // --- FIX: REMOVED THE FOLLOWING 2 LINES ---
+        // final profileProvider =
+        //     Provider.of<UserProfileProvider>(context, listen: false);
+        // await profileProvider.loadUserProfile();
+        // --- END FIX ---
+        // The AuthGate and ProfileLoader are responsible for this.
+        // Calling it here causes the race condition.
 
         GoRouter.of(context).go('/');
       } else if (user == null && mounted) {
