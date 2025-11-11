@@ -2,11 +2,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
+import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/auth/business_signup_screen.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl_phone_field/country_picker_dialog.dart';
 // A utility class for brand-specific icons
 class BrandIcons {
   static const IconData google = Icons.g_mobiledata_rounded;
@@ -28,6 +30,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _referralCodeController = TextEditingController();
   final _authService = SupabaseAuthService();
 
+  String _fullPhoneNumber = ''; // Renamed to avoid confusion
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
@@ -37,6 +40,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _passwordController.dispose();
     _usernameController.dispose();
     _birthdateController.dispose();
+    _referralCodeController
+        .dispose(); // Added referral code controller to dispose
     super.dispose();
   }
 
@@ -53,13 +58,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   // Handles the user registration process
   Future<void> _signUp() async {
+    // This will now check the phone number validator
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+
     final user = await _authService.signUpWithEmailPassword(
       _emailController.text.trim(),
       _passwordController.text.trim(),
       _usernameController.text.trim(),
+      _fullPhoneNumber, // Pass the phone number string
       _birthdateController.text.trim(),
       _referralCodeController.text.trim(),
     );
@@ -82,7 +90,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        // The AuthGate will handle navigation after signOut, so we remove Navigator.pop().
+        
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false, 
+        );
       }
     }
   }
@@ -226,13 +238,54 @@ class _SignUpScreenState extends State<SignUpScreen> {
             const SizedBox(height: 16),
             _buildPasswordField(),
             const SizedBox(height: 16),
+            IntlPhoneField(
+              decoration: InputDecoration(
+                labelText: 'Phone Number',
+                hintText: 'Enter phone number',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16.0),
+                ),
+                counterText: '', // Hides the character counter
+              ),
+              // This moves the flag icon to the prefix area
+              dropdownIconPosition: IconPosition.leading,
+              // Styles the country picker dialog to be more modal-like
+              pickerDialogStyle: PickerDialogStyle(
+                // This makes the dialog not take up the full screen
+                width: MediaQuery.of(context).size.width * 0.3,
+                searchFieldInputDecoration: InputDecoration(
+                  labelText: 'Search country',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                ),
+                // 'shape' parameter is removed.
+              ),
+              initialCountryCode: 'IN', // Default to India
+              onChanged: (phone) {
+                _fullPhoneNumber = phone.completeNumber;
+              },
+              validator: (phone) {
+                if (phone == null || phone.number.isEmpty) {
+                  return 'Phone number is required';
+                }
+                // You can add more robust validation if needed
+                if (!phone.isValidNumber()) {
+                  return 'Please enter a valid phone number';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
             _buildDateField(),
+            const SizedBox(height: 16), // Added spacing
             TextFormField(
               controller: _referralCodeController,
               decoration: InputDecoration(
                 labelText: 'Referral Code (Optional)',
+                hintText: 'Enter referral code', // Added hint text
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+                  borderRadius: BorderRadius.circular(16.0), // Matched radius
                 ),
               ),
             ),
@@ -282,8 +335,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
-          validator: (val) =>
-              (val == null || val.isEmpty) ? '$label is required' : null,
+          validator: (val) {
+            if (val == null || val.isEmpty) {
+              return '$label is required';
+            }
+            if (keyboardType == TextInputType.emailAddress &&
+                !val.contains('@')) {
+              return 'Please enter a valid email';
+            }
+            return null;
+          },
           decoration: InputDecoration(
             hintText: hint,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
@@ -343,7 +404,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Birthdate", style: TextStyle(fontWeight: FontWeight.w500)),
+        const Text("Birthdate",
+            style: const TextStyle(fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         TextFormField(
           controller: _birthdateController,

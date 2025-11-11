@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import "package:jewelry_nafisa/src/auth/login_screen.dart";
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +7,7 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:mime/mime.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl_phone_field/country_picker_dialog.dart';
 
 class BusinessSignUpScreen extends StatefulWidget {
   const BusinessSignUpScreen({super.key});
@@ -94,6 +95,11 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
 
       if (user == null || !mounted) {
         throw Exception('Sign up failed. The email may already be in use.');
+      }else{
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false, // This removes all routes behind the login screen
+        );
       }
 
       final supabase = Supabase.instance.client;
@@ -366,10 +372,39 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
                           IntlPhoneField(
                             decoration: const InputDecoration(
                               labelText: 'Phone Number',
+                              hintText: 'Enter phone number',
+                              counterText: '', // Hides the character counter
+                            ),
+                            // This moves the flag icon to the prefix area
+                            dropdownIconPosition: IconPosition.leading,
+                            // Styles the country picker dialog to be more modal-like
+                            pickerDialogStyle: PickerDialogStyle(
+                              // This makes the dialog not take up the full screen
+                              width: MediaQuery.of(context).size.width * 0.4,
+                              searchFieldInputDecoration: const InputDecoration(
+                                labelText: 'Search country',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(12.0),
+                                  ),
+                                ),
+                              ),
+                              // disableSearch: false is the new way to show the search box
+
+                              // 'shape' parameter is removed.
                             ),
                             initialCountryCode: 'IN', // Default to India
                             onChanged: (phone) {
                               _fullPhoneNumber = phone.completeNumber;
+                            },
+                            validator: (phone) {
+                              if (phone == null || phone.number.isEmpty) {
+                                return 'Phone number is required';
+                              }
+                              if (!phone.isValidNumber()) {
+                                return 'Please enter a valid phone number';
+                              }
+                              return null;
                             },
                           ),
                           const SizedBox(height: 16),

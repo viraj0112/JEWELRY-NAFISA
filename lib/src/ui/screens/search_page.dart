@@ -81,7 +81,7 @@ class _SearchPageState extends State<SearchPage> {
     final ImageSource? source = await showDialog<ImageSource>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Select Image Source'),
+        title: Text('Select Image Source. \n Feature Coming Soon at your fingertips!🤳🏻'),
         actions: <Widget>[
           TextButton(
             child: Text('Camera'),
@@ -115,22 +115,22 @@ class _SearchPageState extends State<SearchPage> {
     try {
       // 4. Read image bytes
       Uint8List imageBytes = await image.readAsBytes();
-      
+
       // 5. Convert WebP or unsupported formats to JPEG for compatibility
       try {
         // Decode the image
         final img.Image? decodedImage = img.decodeImage(imageBytes);
         if (decodedImage != null) {
           // Re-encode as JPEG with 85% quality for good balance
-          imageBytes = Uint8List.fromList(
-            img.encodeJpg(decodedImage, quality: 85)
-          );
+          imageBytes =
+              Uint8List.fromList(img.encodeJpg(decodedImage, quality: 85));
         }
       } catch (e) {
-        debugPrint("Image conversion warning: $e - proceeding with original format");
+        debugPrint(
+            "Image conversion warning: $e - proceeding with original format");
         // If conversion fails, continue with original bytes
       }
-      
+
       // 6. Call the service
       final results =
           await _jewelryService.findSimilarProductsByImage(imageBytes);
@@ -181,7 +181,8 @@ class _SearchPageState extends State<SearchPage> {
             IconButton(
               icon: const Icon(Icons.camera_alt_outlined),
               onPressed: _searchByImage,
-              tooltip: 'Search by Image (AI Lens)',
+              tooltip:
+                  'Search by Image (AI Lens)',
             ),
             if (_searchController.text.isNotEmpty)
               IconButton(
