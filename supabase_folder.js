@@ -4,12 +4,7 @@ import "https://deno.land/std@0.224.0/dotenv/load.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { writeCSV } from "https://deno.land/x/csv@v0.9.2/mod.ts";
 
-const SUPABASE_URL = "https://cxnkagfbymztpwszfaiw.supabase.co";
-const SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4bmthZ2ZieW16dHB3c3pmYWl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTg0ODc5NiwiZXhwIjoyMDc1NDI0Nzk2fQ.ufFuCqTitNsxznOUXu0dADAWrPNPe5bAFgE6Ue-aXls";
-
-const BUCKET_NAME = "product-images";
-const FOLDER_NAME = "Rings Gemstones";
-const OUTPUT_FILE = "image_links5.csv";
+Deno.env.("SUPABASE_SERVICE_ROLE")
 
 // Rings Engagement
 // Rings Gemstones
