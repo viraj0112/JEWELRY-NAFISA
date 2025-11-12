@@ -19,7 +19,10 @@
       async
       src="https://www.googletagmanager.com/gtag/js?id=G-F9CR65KB0B"
     ></script>
-    <script>
+    <!-- <script>
+      
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
       window.dataLayer = window.dataLayer || [];
       function gtag() {
         dataLayer.push(arguments);
@@ -27,6 +30,22 @@
       gtag("js", new Date());
 
       gtag("config", "G-F9CR65KB0B");
+    </script> -->
+
+    <script>
+     
+      var firebaseConfig = {
+        apiKey: "AIzaSyCY_gde-4Pm9f73gyRYsx-gp-TRieDT9M8",
+        authDomain: "jewellery-nafisa.firebaseapp.com",
+        projectId: "jewellery-nafisa",
+        storageBucket: "jewellery-nafisa.firebasestorage.app",
+        messagingSenderId: "498124910842",
+        appId: "1:498124910842:web:cf4bd6cc7b35573a41d943",
+        measurementId: "G-F9CR65KB0B"
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      firebase.analytics();
     </script>
     <meta charset="UTF-8" />
     <meta content="IE=Edge" http-equiv="X-UA-Compatible" />

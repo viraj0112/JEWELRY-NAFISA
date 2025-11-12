@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jewelry_nafisa/src/admin/admin_shell.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:jewelry_nafisa/src/admin2/screens/main_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_callback_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
@@ -31,8 +33,13 @@ import 'package:jewelry_nafisa/src/services/search_history_service.dart';
 
 final supabaseClient = Supabase.instance.client;
 
+final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
+final FirebaseAnalyticsObserver _analyticsObserver =
+    FirebaseAnalyticsObserver(analytics: _analytics);
+
 final _router = GoRouter(
   initialLocation: '/',
+  observers: [_analyticsObserver],
   routes: [
     GoRoute(
       path: '/admin',
