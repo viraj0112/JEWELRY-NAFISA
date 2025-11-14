@@ -60,9 +60,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     super.initState();
 
     _itemId = widget.jewelryItem.id;
-    _itemTable = widget.jewelryItem.isDesignerProduct
-        ? 'designerproducts'
-        : 'products';
+    _itemTable =
+        widget.jewelryItem.isDesignerProduct ? 'designerproducts' : 'products';
 
     _jewelryService = JewelryService(supabase);
     _initializeInteractionState();
@@ -118,15 +117,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     }
     if (uid != null) {
       try {
-        final likeResponse = await supabase
-            .from('likes')
-            .select('id')
-            .match({
-              'user_id': uid,
-              'item_id': _itemId,
-              'item_table': _itemTable,
-            })
-            .maybeSingle();
+        final likeResponse = await supabase.from('likes').select('id').match({
+          'user_id': uid,
+          'item_id': _itemId,
+          'item_table': _itemTable,
+        }).maybeSingle();
 
         _userLiked = (likeResponse != null);
       } catch (e) {
@@ -227,11 +222,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
         _likeCount--;
       } else {
-        await supabase.from('likes').insert({
-          'user_id': uid,
-          'item_id': _itemId,
-          'item_table': _itemTable
-        });
+        await supabase.from('likes').insert(
+            {'user_id': uid, 'item_id': _itemId, 'item_table': _itemTable});
 
         _likeCount++;
       }
@@ -591,7 +583,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                       child: Text("More like this",
                           style: Theme.of(context).textTheme.titleLarge),
                     ),
-                    Expanded(child: _buildSimilarItemsGrid(isSliver: false)), // Pass false for non-sliver
+                    Expanded(
+                        child: _buildSimilarItemsGrid(
+                            isSliver: false)), // Pass false for non-sliver
                   ],
                 ),
               ),
@@ -614,18 +608,36 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             stretch: true,
             pinned: true,
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            // --- MODIFICATION: Added TabBar to the bottom of the app bar ---
-            bottom: const TabBar(
-              tabs: [
-                Tab(text: 'Details'),
-                Tab(text: 'More Like This'),
-              ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(kToolbarHeight),
+              child: Container(
+                // This container adds the gradient
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color.fromARGB(255, 194, 201, 198),
+                      Color(0xFF006435)
+                          .withOpacity(0.6), // Adjust opacity as needed
+                    ],
+                    stops: const [0.0, 1.0],
+                  ),
+                ),
+                child: const TabBar(
+                  labelStyle: TextStyle(
+                      fontWeight: FontWeight.bold, color: Colors.white),
+                  tabs: [
+                    Tab(text: 'Details'),
+                    Tab(text: 'More Like This'),
+                  ],
+                ),
+              ),
             ),
-            // --- MODIFICATION: Wrapped image with InteractiveViewer for zoom ---
             flexibleSpace: FlexibleSpaceBar(
               background: InteractiveViewer(
                 minScale: 1.0,
-                maxScale: 4.0, // Allow zooming up to 4x
+                maxScale: 4.0,
                 child: Image.network(
                   widget.jewelryItem.image,
                   fit: BoxFit.cover,
@@ -637,14 +649,20 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                 ),
               ),
             ),
-            // --- END MODIFICATION ---
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.of(context).pop(),
-              tooltip: 'Back',
+            leading: Container(
+              margin: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: Colors.black
+                    .withOpacity(0.4), // Semi-transparent black background
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+                padding: EdgeInsets.zero, // Centers the icon nicely
+              ),
             ),
           ),
-          // --- MODIFICATION: Replaced content/grid slivers with a TabBarView ---
           SliverFillRemaining(
             child: TabBarView(
               children: [
@@ -653,7 +671,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                   child: _buildContentSection(context),
                 ),
                 // Tab 2: More Like This
-                _buildSimilarItemsGrid(isSliver: false), // isSliver is false now
+                _buildSimilarItemsGrid(
+                    isSliver: false), // isSliver is false now
               ],
             ),
           ),

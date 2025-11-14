@@ -3,8 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // --- YOUR GOLDEN PRIMARY COLORS (PRESERVED) ---
-  static const Color lightPrimary = Color(0xFFB69121); // Dark Goldenrod
-  static const Color darkPrimary = Color(0xFFDAB766); // Gold (metallic)
+  static const Color lightPrimary = Color(0xFF006435); // Dark Goldenrod
+  static const Color darkPrimary = Color(0xFF66BB94); // Gold (metallic)
 
   // --- PINTEREST-INSPIRED LIGHT THEME COLORS ---
   static const Color lightBackground = Color(0xFFEFEFEF);

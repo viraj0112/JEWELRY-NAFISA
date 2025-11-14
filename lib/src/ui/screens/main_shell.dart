@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/search_dropdown.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
+import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
@@ -473,7 +474,7 @@ class _MainShellState extends State<MainShell> {
       padding: const EdgeInsets.only(top: 8.0, bottom: 52.0),
       child: CircleAvatar(
         radius: 18,
-        backgroundColor: const Color(0xFFDAB766),
+        backgroundColor: Color(0xFF006435) ,
         // --- FIX: Removed user.isLoading check ---
         child: Text(
           user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
