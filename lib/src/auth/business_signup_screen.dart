@@ -1,7 +1,6 @@
 import 'dart:io';
 import "package:jewelry_nafisa/src/auth/login_screen.dart";
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
@@ -93,15 +92,11 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
         gstNumber: _gstController.text.trim(),
       );
 
-      if (user == null || !mounted) {
-        throw Exception('Sign up failed. The email may already be in use.');
-      }else{
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false, // This removes all routes behind the login screen
-        );
+      // Check if user creation failed
+      if (user == null) {
+         throw Exception('Sign up failed. The email may already be in use.');
       }
-
+      
       final supabase = Supabase.instance.client;
       final userId = user.id;
 
@@ -144,16 +139,22 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
         },
       ]);
 
-      // 6. Show success message
+      // 6. Show success message and Navigate
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'Enrollment successful! Please check your email for verification.'),
+                'Enrollment successful! Your account is under review. Once approved, you can login.'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
           ),
         );
-        context.go('/login');
+        
+        // Use Navigator pushAndRemoveUntil instead of go_router for safer redirection to Login
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false, 
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -171,7 +172,6 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
     }
   }
 
-  // Helper widget for elegant section headers
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Text(
       title,
@@ -389,9 +389,6 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
                                   ),
                                 ),
                               ),
-                              // disableSearch: false is the new way to show the search box
-
-                              // 'shape' parameter is removed.
                             ),
                             initialCountryCode: 'IN', // Default to India
                             onChanged: (phone) {

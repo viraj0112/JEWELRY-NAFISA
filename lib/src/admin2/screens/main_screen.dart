@@ -1,9 +1,13 @@
 import "package:flutter/material.dart";
-import "package:jewelry_nafisa/src/admin2/sections/analytics_section.dart";
-import "package:jewelry_nafisa/src/admin2/sections/content_section.dart";
-import "package:jewelry_nafisa/src/admin2/widgets/app_sidebar.dart";
 import "package:provider/provider.dart";
-import 'package:jewelry_nafisa/src/admin2/providers/app_state.dart';
+import "../sections/users_section.dart";
+import "../sections/analytics_section.dart";
+import "../sections/content_section.dart";
+import "../screens/b2b_creators_screen.dart";
+import "../widgets/app_sidebar.dart";
+import "../providers/app_state.dart";
+import "../providers/users_provider.dart";
+import "../widgets/admin_profile_menu.dart"; 
 
 class ManinScreen extends StatelessWidget {
   const ManinScreen({super.key});
@@ -11,11 +15,20 @@ class ManinScreen extends StatelessWidget {
   Widget _renderContent(String activeView) {
     switch (activeView) {
       case "content":
-        return ContentSection();
+        return const ContentSection();
+      case "users":
+        return ChangeNotifierProvider(
+          create: (_) => UsersProvider(),
+          child: const UsersSection(),
+        );
+      case "b2b-creators":
+        return const B2BCreatorsScreen();
       case "analytics":
         return const AnalyticsSection();
+      case "dashboard":
+        return const Center(child: Text("Dashboard Placeholder"));
       default:
-        return  ContentSection();
+        return const B2BCreatorsScreen();
     }
   }
 
@@ -29,41 +42,76 @@ class ManinScreen extends StatelessWidget {
       builder: (context, appState, child) {
         return Scaffold(
           drawer: isMobile
-              ? Drawer(
-                  child: const AppSidebar(),
+              ? const Drawer(
+                  child: AppSidebar(),
                 )
               : null,
-          body: Stack(
+          body: Row(
             children: [
-              Row(
-                children: [
-                  if (!isMobile) const AppSidebar(),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            color: Theme.of(context).scaffoldBackgroundColor,
-                            child: Padding(
-                              // Responsive padding
-                              padding: EdgeInsets.all(isMobile
-                                  ? 16.0
-                                  : isTablet
-                                      ? 20.0
-                                      : 24.0),
-                              child: _renderContent(appState.activeView),
-                            ),
-                          ),
+              if (!isMobile) const AppSidebar(),
+              Expanded(
+                child: Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 64,
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
                         ),
-                      ],
-                    ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            if (isMobile)
+                              IconButton(
+                                icon: const Icon(Icons.menu),
+                                onPressed: () => Scaffold.of(context).openDrawer(),
+                              )
+                            else
+                              Text(
+                                _getViewTitle(appState.activeView),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87
+                                ),
+                              ),
+                            
+                            const AdminProfileMenu(), 
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.all(isMobile
+                              ? 16.0
+                              : isTablet
+                                  ? 20.0
+                                  : 24.0),
+                          child: _renderContent(appState.activeView),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ],
           ),
         );
       },
     );
+  }
+
+  String _getViewTitle(String view) {
+    switch (view) {
+      case 'users': return 'Users Management';
+      case 'content': return 'Content Management';
+      case 'b2b-creators': return 'B2B Creators';
+      case 'analytics': return 'Analytics';
+      case 'dashboard': return 'Dashboard';
+      default: return 'Admin Panel';
+    }
   }
 }
