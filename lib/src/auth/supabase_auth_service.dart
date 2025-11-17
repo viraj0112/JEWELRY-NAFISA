@@ -175,10 +175,13 @@ class SupabaseAuthService {
     required String gstNumber,
   }) async {
     try {
+      final String username = '${businessName.toLowerCase().replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}';
+
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
         data: {
+          'username': username,
           'business_name': businessName,
           'business_type': businessType,
           'phone': phone,
@@ -187,6 +190,11 @@ class SupabaseAuthService {
           'gst_number': gstNumber,
         },
       );
+
+      if (_supabase.auth.currentSession != null) {
+        await _supabase.auth.signOut();
+      }
+
       return response.user;
     } catch (e) {
       debugPrint('Exception during business sign up: $e');
