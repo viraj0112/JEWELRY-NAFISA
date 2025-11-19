@@ -44,7 +44,8 @@ class AppSidebar extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Theme.of(context).primaryColor.withOpacity(0.3),
+                            color:
+                                Theme.of(context).primaryColor.withOpacity(0.3),
                             offset: const Offset(0, 4),
                             blurRadius: 12,
                           ),
@@ -62,24 +63,26 @@ class AppSidebar extends StatelessWidget {
                       children: [
                         Text(
                           'Jewelry Admin',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 18,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 18,
+                                  ),
                         ),
                         Text(
                           'Premium Dashboard',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey.shade500,
-                            fontSize: 11,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey.shade500,
+                                    fontSize: 11,
+                                  ),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              
+
               // Divider
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -94,9 +97,9 @@ class AppSidebar extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Navigation items
               Expanded(
                 child: ListView(
@@ -112,9 +115,9 @@ class AppSidebar extends StatelessWidget {
                       appState.activeView == 'dashboard',
                       () => appState.setActiveView('dashboard'),
                     ),
-                    
+
                     const SizedBox(height: 20),
-                    
+
                     // Management Section
                     _buildSectionHeader('Management'),
                     _buildNavItem(
@@ -143,9 +146,17 @@ class AppSidebar extends StatelessWidget {
                       appState.activeView == 'b2b-creators',
                       () => appState.setActiveView('b2b-creators'),
                     ),
-                    
+                    const SizedBox(height: 4),
+                    _buildNavItem(
+                      context,
+                      'product-upload',
+                      'Product Upload',
+                      Icons.cloud_upload_outlined,
+                      appState.activeView == 'product-upload',
+                      () => appState.setActiveView('product-upload'),
+                    ),
                     const SizedBox(height: 20),
-                    
+
                     // Analytics Section
                     _buildSectionHeader('Analytics'),
                     _buildNavItem(
@@ -174,9 +185,9 @@ class AppSidebar extends StatelessWidget {
                       appState.activeView == 'website-performance',
                       () => appState.setActiveView('website-performance'),
                     ),
-                    
+
                     const SizedBox(height: 20),
-                    
+
                     // Engagement Section
                     _buildSectionHeader('Engagement'),
                     _buildNavItem(
@@ -205,9 +216,9 @@ class AppSidebar extends StatelessWidget {
                       appState.activeView == 'reports',
                       () => appState.setActiveView('reports'),
                     ),
-                    
+
                     const SizedBox(height: 20),
-                    
+
                     // System Section
                     _buildSectionHeader('System'),
                     _buildNavItem(
@@ -236,7 +247,7 @@ class AppSidebar extends StatelessWidget {
                       appState.activeView == 'settings',
                       () => appState.setActiveView('settings'),
                     ),
-                    
+
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -275,13 +286,13 @@ class AppSidebar extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       margin: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
-        color: isActive 
-          ? Theme.of(context).primaryColor.withOpacity(0.08)
-          : Colors.transparent,
+        color: isActive
+            ? Theme.of(context).primaryColor.withOpacity(0.08)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
-        border: isActive 
-          ? Border.all(color: Theme.of(context).primaryColor.withOpacity(0.2))
-          : null,
+        border: isActive
+            ? Border.all(color: Theme.of(context).primaryColor.withOpacity(0.2))
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -295,17 +306,18 @@ class AppSidebar extends StatelessWidget {
                 Container(
                   width: 24,
                   height: 24,
-                  decoration: isActive 
-                    ? BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      )
-                    : null,
+                  decoration: isActive
+                      ? BoxDecoration(
+                          color:
+                              Theme.of(context).primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        )
+                      : null,
                   child: Icon(
                     icon,
-                    color: isActive 
-                      ? Theme.of(context).primaryColor 
-                      : Colors.grey.shade600,
+                    color: isActive
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey.shade600,
                     size: 18,
                   ),
                 ),
@@ -314,9 +326,9 @@ class AppSidebar extends StatelessWidget {
                   child: Text(
                     title,
                     style: TextStyle(
-                      color: isActive 
-                        ? Theme.of(context).primaryColor 
-                        : Colors.grey.shade700,
+                      color: isActive
+                          ? Theme.of(context).primaryColor
+                          : Colors.grey.shade700,
                       fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                       fontSize: 14,
                     ),

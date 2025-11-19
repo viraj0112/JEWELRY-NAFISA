@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "../screens/productupload_screen.dart";
 import "package:provider/provider.dart";
 import "../sections/users_section.dart";
 import "../sections/analytics_section.dart";
@@ -23,6 +24,8 @@ class ManinScreen extends StatelessWidget {
         );
       case "b2b-creators":
         return const B2BCreatorsScreen();
+      case "product-upload":
+        return const ProductUploadScreen();
       case "analytics":
         return const AnalyticsSection();
       case "dashboard":
