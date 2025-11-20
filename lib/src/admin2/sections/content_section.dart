@@ -1,14 +1,12 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb, compute; // <-- MODIFIED
+import 'package:flutter/foundation.dart' show kIsWeb, compute;
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'package:excel/excel.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:collection/collection.dart';
-// Conditional imports for web (when kIsWeb is true)
-import 'dart:html' as html show AnchorElement, Blob, Url;
-import 'dart:io' if (dart.library.html) 'dart:html' show File;
+import 'package:universal_html/html.dart' as html;
 // Import dashboard widgets
+import '../widgets/admin_page_header.dart';
 import '../widgets/credit_usage_dashboard.dart';
 import '../widgets/unified_engagement_analytics.dart';
 import '../widgets/simple_scraped_analytics.dart';
@@ -731,100 +729,99 @@ class _ContentSectionState extends State<ContentSection> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final width = MediaQuery.of(context).size.width;
+    final horizontalPadding = width < 900
+        ? 12.0
+        : width < 1400
+            ? 20.0
+            : 32.0;
 
     return SafeArea(
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Content Management',
-                      style: Theme.of(context).textTheme.headlineMedium,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: 20,
+        ),
+        child: Column(
+          children: [
+            AdminPageHeader(
+              title: 'Content Management',
+              subtitle:
+                  'Manage jewellery posts, boards, contents and monitor credit usage patterns.',
+              actions: [
+                if (_isExporting)
+                  ElevatedButton.icon(
+                    onPressed: null,
+                    label: const Text('Exporting...'),
+                    icon: const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
                     ),
-                    Text(
-                      "Manage jewellery posts, boards, contents and monitor credit usage patterns.",
-                      style: Theme.of(context).textTheme.labelSmall,
-                    )
-                  ],
-                ),
-              ),
-              _isExporting
-                  ? ElevatedButton.icon(
-                      onPressed: null,
-                      label: const Text("Exporting..."),
-                      icon: const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withOpacity(0.6),
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
-                      ),
-                    )
-                  : PopupMenuButton<ExportFormat>(
-                      tooltip: "Export Data",
-                      onSelected: (ExportFormat format) {
-                        switch (format) {
-                          case ExportFormat.csv:
-                            _exportToCsv();
-                            break;
-                          case ExportFormat.xlsx:
-                            _exportToXlsx();
-                            break;
-                        }
-                      },
-                      itemBuilder: (BuildContext context) =>
-                          <PopupMenuEntry<ExportFormat>>[
-                        const PopupMenuItem<ExportFormat>(
-                          value: ExportFormat.csv,
-                          child: ListTile(
-                            dense: true,
-                            leading: Icon(Icons.table_chart),
-                            title: Text('Export as CSV'),
-                            subtitle: Text('Separate files per data type'),
-                          ),
-                        ),
-                        const PopupMenuItem<ExportFormat>(
-                          value: ExportFormat.xlsx,
-                          child: ListTile(
-                            dense: true,
-                            leading: Icon(Icons.grid_on),
-                            title: Text('Export as Excel'),
-                            subtitle: Text('Multi-sheet workbook'),
-                          ),
-                        ),
-                      ],
-                      child: ElevatedButton.icon(
-                        onPressed: null, // Controlled by PopupMenuButton
-                        label: const Text("Export Data"),
-                        icon: const Icon(Icons.file_download_outlined),
-                      ),
-                      style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.all<Color>(
-                          Theme.of(context).colorScheme.primary,
-                        ),
-                        foregroundColor: MaterialStateProperty.all<Color>(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.6),
+                      foregroundColor:
                           Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  )
+                else
+                  PopupMenuButton<ExportFormat>(
+                    tooltip: 'Export Data',
+                    onSelected: (ExportFormat format) {
+                      switch (format) {
+                        case ExportFormat.csv:
+                          _exportToCsv();
+                          break;
+                        case ExportFormat.xlsx:
+                          _exportToXlsx();
+                          break;
+                      }
+                    },
+                    itemBuilder: (BuildContext context) =>
+                        <PopupMenuEntry<ExportFormat>>[
+                      const PopupMenuItem<ExportFormat>(
+                        value: ExportFormat.csv,
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(Icons.table_chart),
+                          title: Text('Export as CSV'),
+                          subtitle: Text('Separate files per data type'),
                         ),
                       ),
-                    )
-            ],
-          ),
+                      const PopupMenuItem<ExportFormat>(
+                        value: ExportFormat.xlsx,
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(Icons.grid_on),
+                          title: Text('Export as Excel'),
+                          subtitle: Text('Multi-sheet workbook'),
+                        ),
+                      ),
+                    ],
+                    child: ElevatedButton.icon(
+                      onPressed: null,
+                      label: const Text('Export Data'),
+                      icon: const Icon(Icons.file_download_outlined),
+                    ),
+                    style: ButtonStyle(
+                      backgroundColor: MaterialStateProperty.all<Color>(
+                        Theme.of(context).colorScheme.primary,
+                      ),
+                      foregroundColor: MaterialStateProperty.all<Color>(
+                        Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Wrap(
@@ -1014,7 +1011,8 @@ class _ContentSectionState extends State<ContentSection> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   String _activeFiltersText() {

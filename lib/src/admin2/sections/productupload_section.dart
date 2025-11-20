@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
+import '../widgets/admin_page_header.dart';
 
 class ImagePreview {
   final String name;
@@ -39,8 +40,8 @@ class ProductUploadSection extends StatefulWidget {
   State<ProductUploadSection> createState() => _ProductUploadSectionState();
 }
 
-class _ProductUploadSectionState extends State<ProductUploadSection> with TickerProviderStateMixin {
-
+class _ProductUploadSectionState extends State<ProductUploadSection>
+    with TickerProviderStateMixin {
   bool _isLoading = false;
   String? _fileName;
   List<List<dynamic>>? _csvData;
@@ -124,7 +125,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
             _imagePreviews.add(ImagePreview(
               name: file.name,
               size: file.size,
-              width: 300, // Default width since we can't easily decode image without additional package
+              width:
+                  300, // Default width since we can't easily decode image without additional package
               height: 300, // Default height
               bytes: bytes,
             ));
@@ -218,7 +220,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
             _imageNameToUrl[fileName] = imageUrl;
           }
         }
-        _showSuccessSnackBar('${_imageNameToUrl.length} images uploaded to Supabase');
+        _showSuccessSnackBar(
+            '${_imageNameToUrl.length} images uploaded to Supabase');
       }
 
       final headers = _csvData![0].map((e) => e.toString().trim()).toList();
@@ -241,7 +244,7 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
         'Stone Color',
         'Stone Cut',
         'Stone Purity',
-        'embedding',  // Singular (matches your CSV)
+        'embedding', // Singular (matches your CSV)
         'embeddings', // Plural (kept just in case)
       };
 
@@ -263,16 +266,17 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
             if (arrayHeaders.contains(header)) {
               // Check for empty or null values specifically for array columns
               if (value == null || value.toString().trim().isEmpty) {
-                // Send NULL for empty optional arrays/vectors. 
+                // Send NULL for empty optional arrays/vectors.
                 // Sending "" (empty string) causes the 'malformed array literal' error.
-                product[header] = null; 
+                product[header] = null;
               } else {
-                 // Parse valid strings into a List
-                 product[header] = value.toString().split(',').map((t) => t.trim()).toList();
+                // Parse valid strings into a List
+                product[header] =
+                    value.toString().split(',').map((t) => t.trim()).toList();
               }
-            } 
+            }
             // --- LOGIC FIX END ---
-            
+
             else if (header == 'Price' && value is String) {
               final cleanedPriceString =
                   value.replaceAll('₹', '').replaceAll(',', '').trim();
@@ -312,7 +316,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
 
       await Supabase.instance.client.from('products').upsert(productList);
 
-      _showSuccessSnackBar('🎉 Successfully uploaded ${productList.length} products!');
+      _showSuccessSnackBar(
+          '🎉 Successfully uploaded ${productList.length} products!');
       _resetForm();
     } catch (e) {
       _showErrorSnackBar('Error uploading to Supabase: $e');
@@ -334,7 +339,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
           ),
           backgroundColor: Colors.red.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -353,7 +359,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
           ),
           backgroundColor: Colors.green.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -387,51 +394,31 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
           color: Theme.of(context).primaryColor.withOpacity(0.2),
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              Icons.inventory_2_outlined,
-              size: 32,
-              color: Theme.of(context).primaryColor,
-            ),
+      child: AdminPageHeader(
+        leading: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).primaryColor.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(16),
           ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Product Upload Center',
-                  style: GoogleFonts.inter(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Upload product data and images efficiently to your inventory',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                  ),
-                ),
-              ],
-            ),
+          child: Icon(
+            Icons.inventory_2_outlined,
+            size: 32,
+            color: Theme.of(context).primaryColor,
           ),
+        ),
+        title: 'Product Upload Center',
+        subtitle:
+            'Upload product data and images efficiently to your inventory',
+        actions: [
           if (_csvData != null || _selectedImages != null)
             IconButton(
               onPressed: _resetForm,
               icon: const Icon(Icons.refresh, size: 24),
               tooltip: 'Reset Form',
               style: IconButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                backgroundColor:
+                    Theme.of(context).colorScheme.error.withOpacity(0.1),
                 foregroundColor: Theme.of(context).colorScheme.error,
               ),
             ),
@@ -460,7 +447,7 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
         children: steps.map((step) {
           final isActive = _currentStep == step.index;
           final isCompleted = _currentStep > step.index;
-          
+
           return Expanded(
             child: Row(
               children: [
@@ -468,15 +455,15 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: isCompleted 
-                        ? Colors.green 
-                        : isActive 
+                    color: isCompleted
+                        ? Colors.green
+                        : isActive
                             ? Theme.of(context).primaryColor
                             : Theme.of(context).colorScheme.surface,
                     border: Border.all(
-                      color: isActive 
+                      color: isActive
                           ? Theme.of(context).primaryColor
-                          : isCompleted 
+                          : isCompleted
                               ? Colors.green
                               : Theme.of(context).colorScheme.outline,
                       width: 2,
@@ -484,12 +471,13 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Icon(
-                    isCompleted 
-                        ? Icons.check 
-                        : step.icon,
-                    color: isCompleted || isActive 
+                    isCompleted ? Icons.check : step.icon,
+                    color: isCompleted || isActive
                         ? Colors.white
-                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        : Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.6),
                     size: 24,
                   ),
                 ),
@@ -505,7 +493,10 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
                           fontSize: 16,
                           color: isActive || isCompleted
                               ? Theme.of(context).colorScheme.onSurface
-                              : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.6),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -514,8 +505,14 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           color: isActive || isCompleted
-                              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
-                              : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                              ? Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.7)
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.5),
                         ),
                       ),
                     ],
@@ -525,9 +522,12 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
                   Container(
                     height: 2,
                     width: 40,
-                    color: isCompleted 
-                        ? Colors.green 
-                        : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                    color: isCompleted
+                        ? Colors.green
+                        : Theme.of(context)
+                            .colorScheme
+                            .outline
+                            .withOpacity(0.3),
                   ),
               ],
             ),
@@ -556,7 +556,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
         if (_selectedImages == null || _selectedImages!.isEmpty) ...[
           _buildUploadCard(
             title: 'Upload Product Images',
-            subtitle: 'Select high-quality images for your products. Image filenames should start with the product title for automatic matching.',
+            subtitle:
+                'Select high-quality images for your products. Image filenames should start with the product title for automatic matching.',
             icon: Icons.image_outlined,
             onTap: _pickImages,
             isLoading: _isLoading,
@@ -576,7 +577,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
         if (_csvData == null) ...[
           _buildUploadCard(
             title: 'Import Product Data',
-            subtitle: 'Upload a CSV file containing your product information. Ensure the first row contains column headers.',
+            subtitle:
+                'Upload a CSV file containing your product information. Ensure the first row contains column headers.',
             icon: Icons.table_chart_outlined,
             onTap: _pickFile,
             isLoading: _isLoading,
@@ -647,7 +649,10 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
                   subtitle,
                   style: GoogleFonts.inter(
                     fontSize: 16,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.7),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -723,7 +728,10 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
                   return Container(
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outline
+                            .withOpacity(0.2),
                       ),
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -774,13 +782,15 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         OutlinedButton.icon(
-          onPressed: _isLoading ? null : () {
-            setState(() {
-              _selectedImages = null;
-              _imagePreviews.clear();
-              _currentStep = 0;
-            });
-          },
+          onPressed: _isLoading
+              ? null
+              : () {
+                  setState(() {
+                    _selectedImages = null;
+                    _imagePreviews.clear();
+                    _currentStep = 0;
+                  });
+                },
           icon: const Icon(Icons.delete_outline),
           label: const Text('Clear'),
           style: OutlinedButton.styleFrom(
@@ -793,7 +803,7 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
         const SizedBox(width: 16),
         FilledButton.icon(
           onPressed: _isLoading ? null : _uploadImagesToSupabase,
-          icon: _isLoading 
+          icon: _isLoading
               ? const SizedBox(
                   width: 16,
                   height: 16,
@@ -848,14 +858,18 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
                         'File: $_fileName • ${_csvData!.length - 1} products',
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.7),
                         ),
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -906,11 +920,13 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
         ),
         const SizedBox(width: 16),
         FilledButton.icon(
-          onPressed: (_selectedImages?.isNotEmpty ?? false) && _csvData != null ? () {
-            setState(() {
-              _currentStep = 2;
-            });
-          } : null,
+          onPressed: (_selectedImages?.isNotEmpty ?? false) && _csvData != null
+              ? () {
+                  setState(() {
+                    _currentStep = 2;
+                  });
+                }
+              : null,
           icon: const Icon(Icons.arrow_forward),
           label: const Text('Continue to Review'),
           style: FilledButton.styleFrom(
@@ -967,7 +983,10 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
                         'Verify your data before final upload',
                         style: GoogleFonts.inter(
                           fontSize: 16,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.7),
                         ),
                       ),
                     ],
@@ -1029,7 +1048,8 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
     );
   }
 
-  Widget _buildSummaryItem(String label, String value, IconData icon, Color color) {
+  Widget _buildSummaryItem(
+      String label, String value, IconData icon, Color color) {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -1072,11 +1092,13 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         OutlinedButton.icon(
-          onPressed: _isLoading ? null : () {
-            setState(() {
-              _currentStep = 1;
-            });
-          },
+          onPressed: _isLoading
+              ? null
+              : () {
+                  setState(() {
+                    _currentStep = 1;
+                  });
+                },
           icon: const Icon(Icons.arrow_back),
           label: const Text('Back'),
           style: OutlinedButton.styleFrom(
@@ -1089,11 +1111,12 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
         const SizedBox(width: 16),
         FilledButton.icon(
           onPressed: _isLoading ? null : _uploadToSupabase,
-          icon: _isLoading 
+          icon: _isLoading
               ? const SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
                 )
               : const Icon(Icons.upload),
           label: const Text('Upload to Supabase'),
@@ -1148,11 +1171,15 @@ class _ProductUploadSectionState extends State<ProductUploadSection> with Ticker
             cells: row.map((cell) {
               return DataCell(
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                   child: Text(
                     cell.toString(),
                     style: GoogleFonts.inter(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.8),
                     ),
                   ),
                 ),

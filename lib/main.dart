@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jewelry_nafisa/src/admin/admin_shell.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jewelry_nafisa/src/admin2/screens/main_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_callback_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
@@ -10,12 +10,10 @@ import 'package:jewelry_nafisa/src/designer/screens/pending_approval_screen.dart
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
-import 'package:jewelry_nafisa/src/admin/notifiers/filter_state_notifier.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
-import 'package:jewelry_nafisa/src/admin/services/enhanced_admin_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as provider_pkg;
 import 'package:jewelry_nafisa/src/admin2/providers/app_state.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 import 'package:url_strategy/url_strategy.dart';
@@ -37,7 +35,7 @@ final _router = GoRouter(
   routes: [
     GoRoute(
       path: '/admin',
-      builder: (context, state) => const ManinScreen(),
+      builder: (context, state) => const MainScreen(),
     ),
     GoRoute(
       path: '/',
@@ -128,24 +126,30 @@ Future<void> main() async {
   setPathUrlStrategy();
 
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (context) => AppState()),
-        ChangeNotifierProvider(create: (_) => SearchHistoryService()..init()),
-        ChangeNotifierProvider(create: (context) => UserProfileProvider()),
-        ChangeNotifierProvider(create: (context) => ThemeProvider()),
-        ChangeNotifierProvider(create: (context) => BoardsProvider()),
-        ChangeNotifierProvider(create: (context) => FilterStateNotifier()),
-        Provider<JewelryService>(
-          create: (_) => JewelryService(supabaseClient),
-        ),
-        Provider<EnhancedAdminService>(create: (_) => EnhancedAdminService()),
-        Provider<QuoteService>(create: (_) => QuoteService()),
-        // Provider<SupabaseAuthService>(create: (_) => authService),
-        // Provider<JewelryService>(create: (_) => JewelryService(supabase)),
-        // Provider<QuoteService>(create: (_) => QuoteService(supabase)),
-      ],
-      child: const MyApp(),
+    ProviderScope(
+      child: provider_pkg.MultiProvider(
+        providers: [
+          provider_pkg.ChangeNotifierProvider(create: (context) => AppState()),
+          provider_pkg.ChangeNotifierProvider(
+              create: (_) => SearchHistoryService()..init()),
+          provider_pkg.ChangeNotifierProvider(
+              create: (context) => UserProfileProvider()),
+          provider_pkg.ChangeNotifierProvider(
+              create: (context) => ThemeProvider()),
+          provider_pkg.ChangeNotifierProvider(
+              create: (context) => BoardsProvider()),
+
+          provider_pkg.Provider<JewelryService>(
+            create: (_) => JewelryService(supabaseClient),
+          ),
+
+          provider_pkg.Provider<QuoteService>(create: (_) => QuoteService()),
+          // Provider<SupabaseAuthService>(create: (_) => authService),
+          // Provider<JewelryService>(create: (_) => JewelryService(supabase)),
+          // Provider<QuoteService>(create: (_) => QuoteService(supabase)),
+        ],
+        child: const MyApp(),
+      ),
     ),
   );
 
@@ -155,13 +159,12 @@ Future<void> main() async {
   }
 }
 
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    final themeProvider = provider_pkg.Provider.of<ThemeProvider>(context);
 
     return MaterialApp.router(
       title: 'Dagina Designs',

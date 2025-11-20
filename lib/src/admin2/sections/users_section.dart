@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/users_provider.dart';
+import '../widgets/admin_page_header.dart';
 import 'tabs/members_tab.dart';
 import 'tabs/non_members_tab.dart';
 import 'tabs/referral_leaderboard_tab.dart';
@@ -14,82 +15,102 @@ class UsersSection extends StatefulWidget {
 class _UsersSectionState extends State<UsersSection> {
   @override
   Widget build(BuildContext context) {
-    // Root scaffold for section
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Users Management'),
-        elevation: 0,
-        actions: [
-          TextButton.icon(
-            onPressed: () => context.read<UsersProvider>().exportCsv(),
-            icon: const Icon(Icons.download_outlined),
-            label: const Text('Export Users'),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: () {
-              // trigger campaign flow
-            },
-            icon: const Icon(Icons.mail_outline),
-            label: const Text('Send Campaign'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            ),
-          ),
-          const SizedBox(width: 12),
-        ],
-      ),
       body: SafeArea(
         child: LayoutBuilder(builder: (context, constraints) {
-          final isMobile = constraints.maxWidth < 768;
-          final isTablet = constraints.maxWidth >= 768 && constraints.maxWidth < 1024;
+          final horizontalPadding = constraints.maxWidth < 900 ? 12.0 : 24.0;
 
           return Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 20,
+            ),
             child: Column(
               children: [
-                // Header & filter bar
-                const _FilterBar(),
-                const SizedBox(height: 16),
-                // Tabs
-                Expanded(
-                  // Expanded + TabBarView ensures no RenderFlex overflow
-                  child: DefaultTabController(
-                    length: 3,
-                    child: Column(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceVariant,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.all(6),
-                          child: TabBar(
-                            labelColor: Theme.of(context).colorScheme.onSurface,
-                            unselectedLabelColor: Theme.of(context).textTheme.bodySmall?.color,
-                            indicator: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            tabs: const [
-                              Tab(icon: Icon(Icons.person), text: 'Members'),
-                              Tab(icon: Icon(Icons.person_outline), text: 'Non-Members'),
-                              Tab(icon: Icon(Icons.emoji_events), text: 'Referral Leaderboard'),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Expanded(
-                          child: TabBarView(
-                            children: [
-                              MembersTab(),
-                              NonMembersTab(),
-                              ReferralLeaderboardTab(),
-                            ],
-                          ),
-                        ),
-                      ],
+                AdminPageHeader(
+                  title: 'Users Management',
+                  subtitle:
+                      'Monitor members, referrals, and outreach campaigns.',
+                  actions: [
+                    TextButton.icon(
+                      onPressed: () =>
+                          context.read<UsersProvider>().exportCsv(),
+                      icon: const Icon(Icons.download_outlined),
+                      label: const Text('Export Users'),
                     ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        // trigger campaign flow
+                      },
+                      icon: const Icon(Icons.mail_outline),
+                      label: const Text('Send Campaign'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: Column(
+                    children: [
+                      const _FilterBar(),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: DefaultTabController(
+                          length: 3,
+                          child: Column(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceVariant,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.all(6),
+                                child: TabBar(
+                                  labelColor:
+                                      Theme.of(context).colorScheme.onSurface,
+                                  unselectedLabelColor: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.color,
+                                  indicator: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  tabs: const [
+                                    Tab(
+                                        icon: Icon(Icons.person),
+                                        text: 'Members'),
+                                    Tab(
+                                        icon: Icon(Icons.person_outline),
+                                        text: 'Non-Members'),
+                                    Tab(
+                                        icon: Icon(Icons.emoji_events),
+                                        text: 'Referral Leaderboard'),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Expanded(
+                                child: TabBarView(
+                                  children: [
+                                    MembersTab(),
+                                    NonMembersTab(),
+                                    ReferralLeaderboardTab(),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -159,7 +180,9 @@ class _SearchField extends StatelessWidget {
       decoration: InputDecoration(
         prefixIcon: const Icon(Icons.search),
         hintText: 'Search by name or email...',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
         filled: true,
         fillColor: Theme.of(context).colorScheme.surface,
       ),
@@ -178,14 +201,18 @@ class _UserTypeDropdown extends StatelessWidget {
         value: prov.userType,
         items: const [
           DropdownMenuItem(value: UserTypeFilter.all, child: Text('All Users')),
-          DropdownMenuItem(value: UserTypeFilter.members, child: Text('Members')),
-          DropdownMenuItem(value: UserTypeFilter.nonMembers, child: Text('Non-Members')),
+          DropdownMenuItem(
+              value: UserTypeFilter.members, child: Text('Members')),
+          DropdownMenuItem(
+              value: UserTypeFilter.nonMembers, child: Text('Non-Members')),
         ],
         onChanged: (v) {
           if (v != null) context.read<UsersProvider>().setUserType(v);
         },
         decoration: InputDecoration(
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none),
           filled: true,
           fillColor: Theme.of(context).colorScheme.surface,
         ),
@@ -206,13 +233,16 @@ class _StatusDropdown extends StatelessWidget {
         items: const [
           DropdownMenuItem(value: StatusFilter.all, child: Text('All Status')),
           DropdownMenuItem(value: StatusFilter.active, child: Text('Active')),
-          DropdownMenuItem(value: StatusFilter.inactive, child: Text('Inactive')),
+          DropdownMenuItem(
+              value: StatusFilter.inactive, child: Text('Inactive')),
         ],
         onChanged: (v) {
           if (v != null) context.read<UsersProvider>().setStatus(v);
         },
         decoration: InputDecoration(
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none),
           filled: true,
           fillColor: Theme.of(context).colorScheme.surface,
         ),
