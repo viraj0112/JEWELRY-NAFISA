@@ -66,3 +66,8 @@ app.*.map.json
 
 # Ignore build artifacts
 build/
+
+*.txt
+*.zip
+*.sql
+*.js

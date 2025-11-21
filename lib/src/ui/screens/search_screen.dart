@@ -154,84 +154,91 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _searchByImage() async {
-    // 1. Ask user for source (Camera or Gallery)
+    // 1. Ask user for source
     final ImageSource? source = await showDialog<ImageSource>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Select Image Source. \n Feature Coming Soon at your fingertips!🤳🏻'),
-        actions: <Widget>[
-          TextButton(
-            child: Text('Camera'),
+      builder: (context) => SimpleDialog(
+        title: const Text('Search by Image'),
+        children: [
+          SimpleDialogOption(
             onPressed: () => Navigator.pop(context, ImageSource.camera),
+            child: const Row(children: [
+              Icon(Icons.camera_alt),
+              SizedBox(width: 10),
+              Text('Camera')
+            ]),
           ),
-          TextButton(
-            child: Text('Gallery'),
+          SimpleDialogOption(
             onPressed: () => Navigator.pop(context, ImageSource.gallery),
+            child: const Row(children: [
+              Icon(Icons.image),
+              SizedBox(width: 10),
+              Text('Gallery')
+            ]),
           ),
         ],
       ),
     );
 
-    if (source == null) return; // User cancelled the dialog
+    if (source == null) return;
 
     // 2. Pick the image
-    final XFile? image = await _picker.pickImage(source: source);
-    if (image == null) return; // User cancelled the picker
+    final XFile? image = await _picker.pickImage(
+      source: source,
+      maxWidth: 512, // Optimization 1: Built-in picker resize
+      maxHeight: 512,
+      imageQuality: 80,
+    );
 
-    // 3. Set loading state
+    if (image == null) return;
+
     if (mounted) {
-      FocusScope.of(context).unfocus(); // Dismiss keyboard
+      FocusScope.of(context).unfocus();
       setState(() {
         _isLoading = true;
         _hasSearched = true;
-        _searchController.text = "Searching by image...";
+        _searchController.text = "Analyzing image...";
         _results.clear();
       });
     }
 
     try {
-      // 4. Read image bytes
+      // 3. Read bytes
       Uint8List imageBytes = await image.readAsBytes();
-      
-      // 5. Convert WebP or unsupported formats to JPEG for compatibility
+
+      // 4. CRITICAL OPTIMIZATION: Resize to exactly 224x224 (CLIP Native Size)
+      // This makes the payload tiny and the API response much faster.
       try {
-        // Decode the image
         final img.Image? decodedImage = img.decodeImage(imageBytes);
         if (decodedImage != null) {
-          // Re-encode as JPEG with 85% quality for good balance
-          imageBytes = Uint8List.fromList(
-            img.encodeJpg(decodedImage, quality: 85)
+          // Resize using cubic interpolation for quality at small size
+          final img.Image resized = img.copyResize(
+            decodedImage,
+            width: 224,
+            height: 224,
+            interpolation: img.Interpolation.cubic,
           );
+          imageBytes = Uint8List.fromList(img.encodeJpg(resized, quality: 85));
         }
       } catch (e) {
-        debugPrint("Image conversion warning: $e - proceeding with original format");
-        // If conversion fails, continue with original bytes
+        debugPrint("Resize failed, sending original (slower): $e");
       }
-      
-      // 6. Call the service
+
+      // 5. Call the service
       final results =
           await _jewelryService.findSimilarProductsByImage(imageBytes);
 
       if (mounted) {
         setState(() {
           _results = results;
-          _searchController.text = "Similar items to your image";
+          _searchController.text = "Visual Matches";
         });
       }
     } catch (e) {
-      debugPrint("Error searching by image: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error searching by image: $e")),
-        );
-      }
+      // Error handling...
+      debugPrint("Error: $e");
     } finally {
-      // 5. Reset loading state
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -287,7 +294,6 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
         body: _buildBody(isSearching),
-        
       ),
     );
   }
