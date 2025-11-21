@@ -256,6 +256,7 @@ class _ProductUploadSectionState extends State<ProductUploadSection>
         for (int i = 0; i < headers.length; i++) {
           if (i < row.length) {
             final String header = headers[i];
+            if (header.isEmpty) continue;
             dynamic value = row[i];
 
             if (header == 'Product Title') {

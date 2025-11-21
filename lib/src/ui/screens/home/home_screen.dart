@@ -133,17 +133,21 @@ class HomeScreenState extends State<HomeScreen> {
       if (_selectedPlain != null) {
         query = query.eq('Plain', _selectedPlain!);
       }
-      if (_selectedStudded != null) {
+     if (_selectedStudded != null) {
         query = query.contains('Studded', ['$_selectedStudded']);
       }
 
-      query = query.limit(500000).order('id', ascending: false);
+      query = query.limit(500000); 
+      
       final response = await query;
 
       if (response is List) {
         final allItems = response
             .map((item) => JewelryItem.fromJson(item as Map<String, dynamic>))
             .toList();
+    
+        allItems.shuffle(); 
+        
         return allItems;
       } else {
         debugPrint(
