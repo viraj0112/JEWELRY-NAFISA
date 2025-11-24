@@ -15,7 +15,7 @@ import 'package:cross_file/cross_file.dart';
 import 'dart:math';
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
 import 'package:jewelry_nafisa/src/widgets/quote_request_dialog.dart';
-
+import 'package:jewelry_nafisa/src/widgets/login_required_dialog.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -168,8 +168,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     final uid = supabase.auth.currentUser?.id;
     if (uid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please log in to interact with items.")),
+    showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => const LoginRequiredDialog(),
       );
       return null;
     }
@@ -207,8 +209,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     final uid = supabase.auth.currentUser?.id;
     if (uid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please log in to like items.")),
+    showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => const LoginRequiredDialog(),
       );
       return;
     }
@@ -391,8 +395,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     final UserProfile? currentUser = userProfileProvider.userProfile;
 
     if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please log in to request a quote.")),
+        showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => const LoginRequiredDialog(),
       );
       return;
     }
@@ -437,11 +443,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     final uid = supabase.auth.currentUser?.id;
 
     if (uid == null) {
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('You must be logged in to use credits.'),
-          backgroundColor: Colors.red,
-        ),
+    showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => const LoginRequiredDialog(),
       );
       return;
     }

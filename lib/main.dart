@@ -27,7 +27,10 @@ import 'package:jewelry_nafisa/src/services/quote_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jewelry_nafisa/src/services/search_history_service.dart';
 import 'package:universal_html/html.dart' as html;
-
+// NEW ONBOARDING IMPORTS
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart'; // Add this
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart'; // Add this
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_categories.dart'; // Add this
 final supabaseClient = Supabase.instance.client;
 final _router = GoRouter(
   initialLocation: '/',
@@ -61,6 +64,19 @@ final _router = GoRouter(
     //   path: '/admin',
     //   builder: (context, state) => const AdminShell(),
     // ),
+    // Onboarding Routes
+    GoRoute(
+      path: '/onboarding/location',
+      builder: (context, state) => const OnboardingScreen1Location(),
+    ),
+    GoRoute(
+      path: '/onboarding/occasions',
+      builder: (context, state) => const OnboardingScreen2Occasions(),
+    ),
+    GoRoute(
+      path: '/onboarding/categories',
+      builder: (context, state) => const OnboardingScreen3Categories(),
+    ),
     GoRoute(
       path: '/auth-callback',
       builder: (context, state) => const AuthCallbackScreen(),

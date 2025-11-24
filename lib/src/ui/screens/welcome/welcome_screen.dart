@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
+import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -16,7 +18,7 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
-  final List<String> _imageUrls = [];
+  final List<JewelryItem> Jeweleries = [];
   bool _isLoading = true;
 
   @override
@@ -24,37 +26,36 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     super.initState();
     _loadImages();
   }
+Future<void> _loadImages() async {
+  if (!mounted) return;
+  setState(() => _isLoading = true);
 
-  Future<void> _loadImages() async {
-    if (!mounted) return;
-    setState(() => _isLoading = true);
+  try {
+    final jewelryService = JewelryService(Supabase.instance.client);
+    final products = await jewelryService.getProducts(limit: 100);
 
-    try {
-      final jewelryService = JewelryService(Supabase.instance.client);
-      final products = await jewelryService.getProducts(limit: 100);
+    // Remove duplicates based on image
+    final uniqueProducts = {
+      for (var p in products) p.image: p
+    }.values.toList();
 
-      // FIX: Changed item.imageUrl to item.image
-      final imageUrls = products.map((item) => item.image).toList();
+    uniqueProducts.shuffle();
 
-      final uniqueImageUrls = imageUrls.toSet().toList();
-
-      uniqueImageUrls.shuffle();
-
-      if (mounted) {
-        setState(() {
-          _imageUrls.clear();
-          // FIX: Ensured the list is of type String
-          _imageUrls.addAll(List<String>.from(uniqueImageUrls));
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading images from Supabase: $e');
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    if (mounted) {
+      setState(() {
+        Jeweleries.clear();
+        Jeweleries.addAll(uniqueProducts);
+        _isLoading = false;
+      });
+    }
+  } catch (e) {
+    debugPrint('Error loading images from Supabase: $e');
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
+
 
   void _navigateToLogin() {
     Navigator.of(
@@ -75,7 +76,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       child: Scaffold(
         body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _imageUrls.isEmpty
+          : Jeweleries.isEmpty
               ? const Center(child: Text("No images found."))
               : LayoutBuilder(
                   builder: (context, constraints) {
@@ -97,8 +98,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildNavigationRail(),
-            const VerticalDivider(thickness: 1, width: 16),
+            // _buildNavigationRail(),
+            // const VerticalDivider(thickness: 1, width: 16),
             Expanded(
               child: Column(
                 children: [
@@ -117,7 +118,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     return Scaffold(
       appBar: _buildAppBar(),
       body: _buildImageGrid(),
-      bottomNavigationBar: _buildFixedNavBar(),
+      // bottomNavigationBar: _buildFixedNavBar(),
     );
   }
 
@@ -185,69 +186,79 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  Widget _buildFixedNavBar() {
-    final theme = Theme.of(context);
-    return BottomNavigationBar(
-      currentIndex: 0,
-      onTap: (index) => _navigateToLogin(),
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: theme.colorScheme.surface,
-      elevation: 8.0,
-      selectedItemColor: theme.colorScheme.primary,
-      unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
-      items: const <BottomNavigationBarItem>[
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.search_outlined),
-          activeIcon: Icon(Icons.search),
-          label: 'Search',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.add_box_outlined),
-          activeIcon: Icon(Icons.add_box_rounded),
-          label: 'Boards',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.notifications_outlined),
-          activeIcon: Icon(Icons.notifications),
-          label: 'Notifications',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          activeIcon: Icon(Icons.person),
-          label: 'Profile',
-        ),
-      ],
-    );
-  }
+  // Widget _buildFixedNavBar() {
+  //   final theme = Theme.of(context);
+  //   return BottomNavigationBar(
+  //     currentIndex: 0,
+  //     onTap: (index) => _navigateToLogin(),
+  //     type: BottomNavigationBarType.fixed,
+  //     backgroundColor: theme.colorScheme.surface,
+  //     elevation: 8.0,
+  //     selectedItemColor: theme.colorScheme.primary,
+  //     unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
+  //     items: const <BottomNavigationBarItem>[
+  //       BottomNavigationBarItem(
+  //         icon: Icon(Icons.home_outlined),
+  //         activeIcon: Icon(Icons.home),
+  //         label: 'Home',
+  //       ),
+  //       BottomNavigationBarItem(
+  //         icon: Icon(Icons.search_outlined),
+  //         activeIcon: Icon(Icons.search),
+  //         label: 'Search',
+  //       ),
+  //       BottomNavigationBarItem(
+  //         icon: Icon(Icons.add_box_outlined),
+  //         activeIcon: Icon(Icons.add_box_rounded),
+  //         label: 'Boards',
+  //       ),
+  //       BottomNavigationBarItem(
+  //         icon: Icon(Icons.notifications_outlined),
+  //         activeIcon: Icon(Icons.notifications),
+  //         label: 'Notifications',
+  //       ),
+  //       BottomNavigationBarItem(
+  //         icon: Icon(Icons.person_outline),
+  //         activeIcon: Icon(Icons.person),
+  //         label: 'Profile',
+  //       ),
+  //     ],
+  //   );
+  // }
 
   PreferredSizeWidget _buildAppBar() {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
-    return AppBar(
-      automaticallyImplyLeading: false,
-      titleSpacing: 16.0,
-      elevation: 0,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      title: _buildSearchBar(Theme.of(context)),
-      actions: [
-        IconButton(
-          icon: Icon(
-            themeProvider.themeMode == ThemeMode.light
-                ? Icons.dark_mode_outlined
-                : Icons.light_mode_outlined,
-          ),
-          onPressed: () => themeProvider.toggleTheme(),
-          tooltip: 'Toggle Theme',
-        ),
-        _buildGuestMenu(context),
-        const SizedBox(width: 12),
-      ],
-    );
+  return AppBar(
+  automaticallyImplyLeading: false,
+  titleSpacing: 16.0,
+  elevation: 0,
+  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+  title: Row(
+    children: [
+      Image.asset(
+        'icons/DDlogo.png',   // <- your logo path
+        height: 32,
+      ),
+      const SizedBox(width: 12),
+      Expanded(child: _buildSearchBar(Theme.of(context))),
+    ],
+  ),
+  actions: [
+    IconButton(
+      icon: Icon(
+        themeProvider.themeMode == ThemeMode.light
+            ? Icons.dark_mode_outlined
+            : Icons.light_mode_outlined,
+      ),
+      onPressed: () => themeProvider.toggleTheme(),
+      tooltip: 'Toggle Theme',
+    ),
+    _buildGuestMenu(context),
+    const SizedBox(width: 12),
+  ],
+);
+
   }
 
   Widget _buildSearchBar(ThemeData theme) {
@@ -319,52 +330,58 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   Widget _buildImageGrid() {
-    return CustomScrollView(
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.all(8.0),
-          sliver: SliverMasonryGrid.count(
-            crossAxisCount:
-                (MediaQuery.of(context).size.width / 200).floor().clamp(2, 8),
-            childCount: _imageUrls.length,
-            itemBuilder: (context, index) {
-              return GestureDetector(
-                onTap: _navigateToLogin,
-                child: _buildImageCard(context, _imageUrls[index]),
-              );
-            },
-            mainAxisSpacing: 8.0,
-            crossAxisSpacing: 8.0,
-          ),
+  return CustomScrollView(
+    slivers: [
+      SliverPadding(
+        padding: const EdgeInsets.all(8.0),
+        sliver: SliverMasonryGrid.count(
+          crossAxisCount:
+              (MediaQuery.of(context).size.width / 200).floor().clamp(2, 8),
+          childCount: Jeweleries.length,
+          itemBuilder: (context, index) {
+            final item = Jeweleries[index];
+            return _buildImageCard(context, item);
+          },
+          mainAxisSpacing: 8.0,
+          crossAxisSpacing: 8.0,
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 
-  Widget _buildImageCard(BuildContext context, String imageUrl) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Image.network(
-        imageUrl,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return Container(
-            color: Theme.of(
-              context,
-            ).colorScheme.surface.withAlpha((255 * 0.1).round()),
-            child: const Center(child: CircularProgressIndicator.adaptive()),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: Theme.of(
-              context,
-            ).colorScheme.surface.withAlpha((255 * 0.1).round()),
-            child: Icon(Icons.error_outline, color: Colors.grey[400]),
-          );
-        },
+
+Widget _buildImageCard(BuildContext context, JewelryItem item) {
+  return GestureDetector(
+ onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => JewelryDetailScreen(jewelryItem: item),
       ),
     );
-  }
+  },
+    child: Card(
+      clipBehavior: Clip.antiAlias,
+      child: AspectRatio(
+        aspectRatio: item.aspectRatio,
+        child: Image.network(
+          item.image,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
+              child: const Center(child: CircularProgressIndicator.adaptive()),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
+            child: Icon(Icons.error_outline, color: Colors.grey[400]),
+          ),
+        ),
+      ),
+    ),
+  );
+}
 }
