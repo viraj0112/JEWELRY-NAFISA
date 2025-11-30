@@ -1,9 +1,12 @@
-// onboarding_screen_1_location.dart - Pinterest Style
+// lib/src/ui/screens/onboarding/onboarding_screen_1_location.dart
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:country_code_picker/country_code_picker.dart';
+// FIX: Use 'as Postcode' to prevent the 'CountryCode' class conflict
+import 'package:postcode_checker/postcode_checker.dart' as Postcode;
 
 class OnboardingScreen1Location extends StatefulWidget {
   const OnboardingScreen1Location({super.key});
@@ -15,24 +18,16 @@ class OnboardingScreen1Location extends StatefulWidget {
 
 class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     with SingleTickerProviderStateMixin {
-  String? _selectedCountry;
-  String? _selectedRegion;
+  
+  // Text Controllers
+  final TextEditingController _countryController = TextEditingController();
+  final TextEditingController _zipController = TextEditingController();
+  
+  // State variable to hold the 2-letter country code for validation
+  String? _selectedCountryCode; 
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-
-  final List<Map<String, dynamic>> countries = [
-    {'name': 'USA', 'flag': '🇺🇸'},
-    {'name': 'Canada', 'flag': '🇨🇦'},
-    {'name': 'India', 'flag': '🇮🇳'},
-    {'name': 'UK', 'flag': '🇬🇧'},
-  ];
-
-  final Map<String, List<String>> regions = {
-    'USA': ['California', 'Texas', 'New York', 'Florida', 'Illinois'],
-    'Canada': ['Ontario', 'Quebec', 'Alberta', 'British Columbia'],
-    'India': ['Maharashtra', 'Delhi', 'Karnataka', 'Tamil Nadu', 'Gujarat'],
-    'UK': ['London', 'Manchester', 'Scotland', 'Wales', 'Birmingham'],
-  };
 
   @override
   void initState() {
@@ -46,20 +41,28 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       curve: Curves.easeInOut,
     );
     _animationController.forward();
+    
+    // Initial selection is intentionally null/empty as requested.
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _countryController.dispose();
+    _zipController.dispose();
     super.dispose();
   }
 
   void _nextStage() async {
-    if (_selectedCountry == null || _selectedRegion == null) {
+    final country = _countryController.text.trim();
+    final zipCode = _zipController.text.trim();
+    
+    // 1. Country Selection Check (This is necessary since no country is pre-selected)
+    if (_selectedCountryCode == null || _selectedCountryCode!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please select both Country and Region'),
-          backgroundColor: Color(0xFF006435),
+          content: const Text('❌ Please select a Country.'),
+          backgroundColor: const Color(0xFF006435),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -67,15 +70,75 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       return;
     }
 
+    // 2. ZIP Code Presence Check
+    if (zipCode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('❌ Please enter your ZIP / Postal Code.'),
+          backgroundColor: const Color(0xFF006435),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    // FIX: Manual lookup of the enum value. 
+    final Postcode.CountryCode? countryEnum = Postcode.CountryCode.values.cast<Postcode.CountryCode?>().firstWhere(
+      // Match the enum's code property (e.g., e.code == "IN") with the selected code string
+      (e) => e?.code == _selectedCountryCode,
+      // If no match is found, return null
+      orElse: () => null, 
+    );
+    
+    // Check if the country code was successfully mapped
+    if (countryEnum == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('⚠️ Selected country is not supported for postal code validation.'),
+          backgroundColor: const Color(0xFFFF5252),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    // 3. ZIP Code Validation using the detailed 'validate' method
+    final validationResult = Postcode.PostcodeChecker.validate(
+      countryEnum, // Pass the correctly resolved CountryCode enum type
+      zipCode,
+    );
+
+    final isZipValid = validationResult.isValid;
+    
+    if (!isZipValid) {
+      // Use the error message from the validation result if available
+      final errorMessage = validationResult.errorMessage ?? 
+          '❌ The ZIP / Postal Code "$zipCode" is not valid for ${countryEnum.code}.';
+          
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: const Color(0xFFFF5252), // Red for error
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    // 4. Save and Navigate
     final provider = Provider.of<UserProfileProvider>(context, listen: false);
 
     await provider.saveOnboardingData(
-      country: _selectedCountry,
-      region: _selectedRegion,
+      country: country,
+      zipCode: zipCode,
       isFinalSubmission: false,
     );
 
     if (mounted) {
+      // SUCCESS: Navigate to the next screen
       GoRouter.of(context).go('/onboarding/occasions');
     }
   }
@@ -100,11 +163,11 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   Widget _buildDesktopLayout() {
     return Row(
       children: [
-        // Left side - Visual
+        // Left side - Visual (Unchanged)
         Expanded(
           flex: 5,
           child: Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -165,7 +228,13 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
           flex: 4,
           child: Container(
             color: Colors.white,
-            child: _buildFormContent(maxWidth: 480),
+            child: Center(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 40),
+                child: _buildFormContent(maxWidth: 480),
+              ),
+            ),
           ),
         ),
       ],
@@ -176,16 +245,20 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Header
+          // Header (Unchanged)
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(isTablet ? 40 : 24),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                 Color(0xFFE8F5E9),
+                  Color(0xFFE8F5E9),
                   Color(0xFFC8E6C9),
                   Color(0xFFA5D6A7),
                 ],
@@ -209,7 +282,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
                   child: Icon(
                     Icons.location_on_rounded,
                     size: isTablet ? 60 : 48,
-                    color: Color(0xFF006435),
+                    color: const Color(0xFF006435),
                   ),
                 ),
                 SizedBox(height: isTablet ? 24 : 16),
@@ -249,7 +322,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Progress indicator
+          // Progress indicator (Unchanged)
           Row(
             children: [
               _buildProgressDot(true),
@@ -270,61 +343,73 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
           ),
           const SizedBox(height: 40),
 
-          // Country Selection
-          Text(
-            'Select your country',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade800,
+          // ------------------------------------
+          // Country Input (CountryCodePicker)
+          // ------------------------------------
+          _buildSectionTitle('Country'),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _selectedCountryCode != null
+                    ? const Color(0xFF006435)
+                    : Colors.transparent,
+                width: 2,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: countries.map((country) {
-              final isSelected = _selectedCountry == country['name'];
-              return _buildCountryChip(
-                country['name'],
-                country['flag'],
-                isSelected,
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 32),
-
-          // Region Selection
-          if (_selectedCountry != null) ...[
-            Text(
-              'Select your region',
-              style: TextStyle(
+            child: CountryCodePicker(
+              onChanged: (CountryCode code) {
+                // Store the selected country name and code
+                _countryController.text = code.name ?? '';
+                _selectedCountryCode = code.code;
+                setState(() {}); // Rebuild to update border color
+              },
+              // ⭐ FIX: Removed initialSelection so it defaults to nothing, as requested
+              // initialSelection: 'US',
+              favorite: const ['+91', 'IN', '+1', 'US', '+44', 'GB'],
+              showCountryOnly: true,
+              showOnlyCountryWhenClosed: true,
+              alignLeft: false,
+              flagWidth: 30,
+              padding: EdgeInsets.zero,
+              dialogSize: const Size(400, 500),
+              searchDecoration: InputDecoration(
+                hintText: 'Search Country',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              textStyle: TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w600,
                 color: Colors.grey.shade800,
               ),
             ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: regions[_selectedCountry]!.map((region) {
-                final isSelected = _selectedRegion == region;
-                return _buildRegionChip(region, isSelected);
-              }).toList(),
-            ),
-            const SizedBox(height: 40),
-          ],
+          ),
+          const SizedBox(height: 24),
 
-          const SizedBox(height: 20),
+          // ------------------------------------
+          // ZIP/Postal Code Input
+          // ------------------------------------
+          _buildSectionTitle('ZIP / Postal Code'),
+          const SizedBox(height: 12),
+          _buildTextField(
+            controller: _zipController,
+            icon: Icons.numbers,
+            keyboardType: TextInputType.text,
+          ),
 
-          // Continue Button
+          const SizedBox(height: 40),
+
+          // Continue Button (Unchanged)
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             child: ElevatedButton(
               onPressed: _nextStage,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF006435),
+                backgroundColor: const Color(0xFF006435),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(
@@ -341,6 +426,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
               ),
             ),
           ),
+          const SizedBox(height: 20),
         ],
       ),
     );
@@ -352,90 +438,44 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       width: isActive ? 24 : 8,
       height: 8,
       decoration: BoxDecoration(
-        color: isActive ? Color(0xFF006435) : Colors.grey.shade300,
+        color: isActive ? const Color(0xFF006435) : Colors.grey.shade300,
         borderRadius: BorderRadius.circular(4),
       ),
     );
   }
 
-  Widget _buildCountryChip(String name, String flag, bool isSelected) {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedCountry = name;
-          _selectedRegion = null;
-        });
-      },
-      borderRadius: BorderRadius.circular(30),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? Color(0xFF006435) : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(
-            color: isSelected ? Color(0xFF006435) : Colors.transparent,
-            width: 2,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Color(0xFF006435).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              flag,
-              style: const TextStyle(fontSize: 20),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              name,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? Colors.white : Colors.grey.shade800,
-              ),
-            ),
-          ],
-        ),
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: Colors.grey.shade800,
       ),
     );
   }
 
-  Widget _buildRegionChip(String region, bool isSelected) {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedRegion = region;
-        });
-      },
-      borderRadius: BorderRadius.circular(30),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? Color(0xFF006435) : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(
-            color: isSelected ? Color(0xFF006435) : Colors.transparent,
-            width: 2,
-          ),
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.grey.shade100,
+        prefixIcon: Icon(icon, color: Colors.grey.shade500),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
         ),
-        child: Text(
-          region,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? Colors.white : Colors.grey.shade800,
-          ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF006435), width: 2),
         ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       ),
     );
   }

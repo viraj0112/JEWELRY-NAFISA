@@ -293,28 +293,30 @@ class _ProductUploadSectionState extends State<ProductUploadSection>
           }
         }
 
-        if (productTitle != null && productTitle.isNotEmpty) {
-          // Find matching image by product title prefix
-          String? matchingImageUrl;
-          for (final entry in _imageNameToUrl.entries) {
-            if (entry.key.startsWith(productTitle)) {
-              matchingImageUrl = entry.value;
-              break;
-            }
-          }
+       if (productTitle != null && productTitle.isNotEmpty) {
+          // Find ALL matching image URLs based on the product title prefix
+          final matchingImageUrls = _imageNameToUrl.entries
+              .where((entry) => entry.key.startsWith(productTitle!))
+              .map((entry) => entry.value)
+              .toList();
 
-          if (matchingImageUrl != null) {
-            product['Image'] = matchingImageUrl;
+          // If Image column is now an Array (TEXT[]):
+          if (matchingImageUrls.isNotEmpty) {
+            // Send the List of URLs to the single 'Image' column
+            product['Image'] = matchingImageUrls;
           } else {
-            // Optional: Uncomment if you want to block upload on missing images
-            // _showErrorSnackBar('Image not found for product: $productTitle');
+            // Send NULL if no images match
             product['Image'] = null;
           }
+
+        } else {
+          // If no title, ensure Image field is null
+          product['Image'] = null;
         }
 
         productList.add(product);
       }
-
+      
       await Supabase.instance.client.from('products').upsert(productList);
 
       _showSuccessSnackBar(

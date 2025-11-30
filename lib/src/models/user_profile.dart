@@ -22,14 +22,17 @@ class UserProfile {
   final String? bio;
 
   // ------------------------------------------------------------------
-  // 🎯 NEW ONBOARDING FIELDS
+  // 🎯 UPDATED ONBOARDING FIELDS
   // ------------------------------------------------------------------
-  final int onboardingStage; // Stage 0, 1, 2, or 3
-  final bool isSetupComplete; // Final flag: true when stage 3 is complete
-  final String? country; // From Screen 1
-  final String? region; // From Screen 1
-  final List<String> selectedOccasions; // From Screen 2 (Occasions)
-  final List<String> selectedCategories; // From Screen 3 (Pinterest-style)
+  final int onboardingStage;
+  final bool isSetupComplete;
+  
+  // NEW: Updated location fields
+  final String? country;          // UPDATED - Now free text input             // UPDATED - Optional free text input
+  final String? zipCode;          // NEW - ZIP/PIN code
+  
+  final List<String> selectedOccasions;
+  final List<String> selectedCategories;
   // ------------------------------------------------------------------
 
   UserProfile({
@@ -52,19 +55,18 @@ class UserProfile {
     this.isApproved = false,
     this.designerProfile,
     this.bio,
-    // NEW FIELDS REQUIRED (with safe defaults)
+    // UPDATED: New location fields with safe defaults
     this.onboardingStage = 0,
     this.isSetupComplete = false,
     this.country,
-    this.region,
+    this.zipCode,
     this.selectedOccasions = const [],
     this.selectedCategories = const [],
   });
 
 // --------------------------------------------------------------------------
-// ## 📝 copyWith Method (Crucial for UserProfileProvider updates)
+// UPDATED: copyWith Method with new location fields
 // --------------------------------------------------------------------------
-
   UserProfile copyWith({
     String? id,
     String? username,
@@ -85,11 +87,12 @@ class UserProfile {
     bool? isApproved,
     DesignerProfile? designerProfile,
     String? bio,
-    // Onboarding fields
+    // UPDATED: Onboarding fields with new location parameters
     int? onboardingStage,
     bool? isSetupComplete,
+    String? continent,
     String? country,
-    String? region,
+    String? zipCode,
     List<String>? selectedOccasions,
     List<String>? selectedCategories,
   }) {
@@ -114,35 +117,32 @@ class UserProfile {
       designerProfile: designerProfile ?? this.designerProfile,
       bio: bio ?? this.bio,
         
-      // Onboarding fields
+      // UPDATED: Onboarding fields with new location parameters
       onboardingStage: onboardingStage ?? this.onboardingStage,
       isSetupComplete: isSetupComplete ?? this.isSetupComplete,
       country: country ?? this.country,
-      region: region ?? this.region,
+      zipCode: zipCode ?? this.zipCode,
       selectedOccasions: selectedOccasions ?? this.selectedOccasions,
       selectedCategories: selectedCategories ?? this.selectedCategories,
     );
   }
 
 // --------------------------------------------------------------------------
-
+// UPDATED: fromMap factory with new location fields
+// --------------------------------------------------------------------------
   factory UserProfile.fromMap(Map<String, dynamic> map) {
-    // Safely parse date strings into DateTime objects
     DateTime? parseDate(String? dateStr) {
       return dateStr == null ? null : DateTime.tryParse(dateStr);
     }
 
-    // Safely parse a dynamic value (which could be null or non-List) into a List<String>
     List<String> parseStringList(dynamic value) {
       if (value == null) return const [];
-      // Supabase arrays often return as List<dynamic>
       if (value is List) {
           return value.map((e) => e.toString()).toList();
       }
       return const [];
     }
 
-    // Check for nested designer profile data
     final designerProfileData = map['designer_profiles'];
 
     return UserProfile(
@@ -170,13 +170,12 @@ class UserProfile {
       bio: map['bio'],
 
       // ------------------------------------------------------------------
-      // 🎯 NEW ONBOARDING FIELDS MAPPED FROM SUPABASE (with defaults)
+      // 🎯 UPDATED: New location fields mapped from Supabase
       // ------------------------------------------------------------------
-      // These keys may not exist in the DB yet, so the '??' operator ensures safety.
       onboardingStage: map['setup_stage'] ?? 0,
       isSetupComplete: map['setup_complete'] ?? false,
       country: map['country'],
-      region: map['region'],
+      zipCode: map['zip_code'],
       selectedOccasions: parseStringList(map['occasions']),
       selectedCategories: parseStringList(map['jewelry_categories']),
       // ------------------------------------------------------------------

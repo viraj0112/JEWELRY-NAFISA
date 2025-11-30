@@ -12,7 +12,7 @@ abstract class LocalKeys {
   
   // Data collected during the flow (if needed)
   static const String country = 'onboarding_country'; 
-  static const String region = 'onboarding_region'; 
+  static const String zipCode = 'onboarding_region'; 
   static const String occasions = 'onboarding_occasions'; 
   static const String categories = 'onboarding_categories'; 
 }
@@ -97,7 +97,7 @@ class UserProfileProvider with ChangeNotifier {
         
         // Retrieve all collected data from local storage
         final String? localCountry = prefs.getString(LocalKeys.country);
-        final String? localRegion = prefs.getString(LocalKeys.region);
+        final String? localZipCode = prefs.getString(LocalKeys.zipCode);
         final List<String> localOccasions = prefs.getStringList(LocalKeys.occasions) ?? [];
         final Set<String> localCategories = (prefs.getStringList(LocalKeys.categories) ?? []).toSet();
 
@@ -106,7 +106,7 @@ class UserProfileProvider with ChangeNotifier {
           onboardingStage: localStage,
           isSetupComplete: localComplete,
           country: localCountry,
-          region: localRegion,
+          zipCode: localZipCode,
           selectedOccasions: localOccasions,
 selectedCategories: (localCategories?.toList() ?? _userProfile!.selectedCategories),        );
       }
@@ -182,7 +182,7 @@ selectedCategories: (localCategories?.toList() ?? _userProfile!.selectedCategori
 /// using local storage.
 Future<void> saveOnboardingData({
   String? country,
-  String? region,
+  String? zipCode,
   List<String>? occasions,
   Set<String>? categories,
   required bool isFinalSubmission,
@@ -201,7 +201,7 @@ Future<void> saveOnboardingData({
   try {
     // 2. --- Write Collected Data to Local Storage ---
     if (country != null) await prefs.setString(LocalKeys.country, country);
-    if (region != null) await prefs.setString(LocalKeys.region, region);
+    if (zipCode != null) await prefs.setString(LocalKeys.zipCode, zipCode);
     if (occasions != null) await prefs.setStringList(LocalKeys.occasions, occasions);
     if (categories != null) await prefs.setStringList(LocalKeys.categories, categories.toList());
 
@@ -217,7 +217,7 @@ Future<void> saveOnboardingData({
       isSetupComplete: isFinalSubmission,
       // Update collected data fields
       country: country ?? _userProfile!.country,
-      region: region ?? _userProfile!.region,
+      zipCode: zipCode ?? _userProfile!.zipCode,
       selectedOccasions: occasions ?? _userProfile!.selectedOccasions,
       selectedCategories: categories?.toList() ?? _userProfile!.selectedCategories,
     );
@@ -249,7 +249,7 @@ Future<void> finalizeOnboardingMigration() async {
     // (Kept for future reference when Supabase is updated)
     final updates = {
       'country': _userProfile!.country,
-      'region': _userProfile!.region,
+      'zipCode': _userProfile!.zipCode,
       'occasions': _userProfile!.selectedOccasions,
       'jewelry_categories': _userProfile!.selectedCategories.toList(),
       'setup_complete': true,
@@ -281,7 +281,7 @@ Future<void> clearOnboardingLocalData() async {
   await prefs.remove(LocalKeys.onboardingStage);
   await prefs.remove(LocalKeys.isSetupComplete);
   await prefs.remove(LocalKeys.country);
-  await prefs.remove(LocalKeys.region);
+  await prefs.remove(LocalKeys.zipCode);
   await prefs.remove(LocalKeys.occasions);
   await prefs.remove(LocalKeys.categories);
 }
