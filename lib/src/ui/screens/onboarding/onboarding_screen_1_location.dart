@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:country_code_picker/country_code_picker.dart';
-// FIX: Use 'as Postcode' to prevent the 'CountryCode' class conflict
 import 'package:postcode_checker/postcode_checker.dart' as Postcode;
 
 class OnboardingScreen1Location extends StatefulWidget {
@@ -19,11 +18,8 @@ class OnboardingScreen1Location extends StatefulWidget {
 class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     with SingleTickerProviderStateMixin {
   
-  // Text Controllers
   final TextEditingController _countryController = TextEditingController();
   final TextEditingController _zipController = TextEditingController();
-  
-  // State variable to hold the 2-letter country code for validation
   String? _selectedCountryCode; 
 
   late AnimationController _animationController;
@@ -41,8 +37,6 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       curve: Curves.easeInOut,
     );
     _animationController.forward();
-    
-    // Initial selection is intentionally null/empty as requested.
   }
 
   @override
@@ -57,12 +51,11 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     final country = _countryController.text.trim();
     final zipCode = _zipController.text.trim();
     
-    // 1. Country Selection Check (This is necessary since no country is pre-selected)
     if (_selectedCountryCode == null || _selectedCountryCode!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('❌ Please select a Country.'),
-          backgroundColor: const Color(0xFF006435),
+          backgroundColor: Theme.of(context).colorScheme.primary,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -70,12 +63,11 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       return;
     }
 
-    // 2. ZIP Code Presence Check
     if (zipCode.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('❌ Please enter your ZIP / Postal Code.'),
-          backgroundColor: const Color(0xFF006435),
+          backgroundColor: Theme.of(context).colorScheme.primary,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -83,15 +75,11 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       return;
     }
 
-    // FIX: Manual lookup of the enum value. 
     final Postcode.CountryCode? countryEnum = Postcode.CountryCode.values.cast<Postcode.CountryCode?>().firstWhere(
-      // Match the enum's code property (e.g., e.code == "IN") with the selected code string
       (e) => e?.code == _selectedCountryCode,
-      // If no match is found, return null
       orElse: () => null, 
     );
     
-    // Check if the country code was successfully mapped
     if (countryEnum == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -104,23 +92,21 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       return;
     }
 
-    // 3. ZIP Code Validation using the detailed 'validate' method
     final validationResult = Postcode.PostcodeChecker.validate(
-      countryEnum, // Pass the correctly resolved CountryCode enum type
+      countryEnum,
       zipCode,
     );
 
     final isZipValid = validationResult.isValid;
     
     if (!isZipValid) {
-      // Use the error message from the validation result if available
       final errorMessage = validationResult.errorMessage ?? 
           '❌ The ZIP / Postal Code "$zipCode" is not valid for ${countryEnum.code}.';
           
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
-          backgroundColor: const Color(0xFFFF5252), // Red for error
+          backgroundColor: const Color(0xFFFF5252),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -128,7 +114,6 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       return;
     }
 
-    // 4. Save and Navigate
     final provider = Provider.of<UserProfileProvider>(context, listen: false);
 
     await provider.saveOnboardingData(
@@ -138,7 +123,6 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     );
 
     if (mounted) {
-      // SUCCESS: Navigate to the next screen
       GoRouter.of(context).go('/onboarding/occasions');
     }
   }
@@ -150,7 +134,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     final isTablet = size.width > 600 && size.width <= 900;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -161,21 +145,30 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   }
 
   Widget _buildDesktopLayout() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Row(
       children: [
-        // Left side - Visual (Unchanged)
+        // Left side - Visual
         Expanded(
           flex: 5,
           child: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFE8F5E9),
-                  Color(0xFFC8E6C9),
-                  Color(0xFFA5D6A7),
-                ],
+                colors: isDark
+                    ? [
+                        const Color(0xFF1E3A2E),
+                        const Color(0xFF2D5A47),
+                        const Color(0xFF3C7A60),
+                      ]
+                    : [
+                        const Color(0xFFE8F5E9),
+                        const Color(0xFFC8E6C9),
+                        const Color(0xFFA5D6A7),
+                      ],
               ),
             ),
             child: Center(
@@ -185,38 +178,31 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: theme.colorScheme.surface,
                       borderRadius: BorderRadius.circular(32),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
                           blurRadius: 40,
                           offset: const Offset(0, 20),
                         ),
                       ],
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.location_on_rounded,
                       size: 80,
-                      color: Color(0xFF006435),
+                      color: theme.colorScheme.primary,
                     ),
                   ),
                   const SizedBox(height: 32),
                   Text(
                     'Where are you from?',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade800,
-                    ),
+                    style: theme.textTheme.displayLarge?.copyWith(fontSize: 36),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     'Help us personalize your jewelry experience',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: theme.textTheme.bodyLarge?.copyWith(fontSize: 18),
                   ),
                 ],
               ),
@@ -227,7 +213,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
         Expanded(
           flex: 4,
           child: Container(
-            color: Colors.white,
+            color: theme.scaffoldBackgroundColor,
             child: Center(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -242,26 +228,35 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   }
 
   Widget _buildMobileLayout(bool isTablet) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Header (Unchanged)
+          // Header
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(isTablet ? 40 : 24),
-            decoration: const BoxDecoration(
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(20),
                 bottomRight: Radius.circular(20),
               ),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFE8F5E9),
-                  Color(0xFFC8E6C9),
-                  Color(0xFFA5D6A7),
-                ],
+                colors: isDark
+                    ? [
+                        const Color(0xFF1E3A2E),
+                        const Color(0xFF2D5A47),
+                        const Color(0xFF3C7A60),
+                      ]
+                    : [
+                        const Color(0xFFE8F5E9),
+                        const Color(0xFFC8E6C9),
+                        const Color(0xFFA5D6A7),
+                      ],
               ),
             ),
             child: Column(
@@ -269,11 +264,11 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
                         blurRadius: 30,
                         offset: const Offset(0, 10),
                       ),
@@ -282,25 +277,22 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
                   child: Icon(
                     Icons.location_on_rounded,
                     size: isTablet ? 60 : 48,
-                    color: const Color(0xFF006435),
+                    color: theme.colorScheme.primary,
                   ),
                 ),
                 SizedBox(height: isTablet ? 24 : 16),
                 Text(
                   'Where are you from?',
-                  style: TextStyle(
+                  style: theme.textTheme.headlineMedium?.copyWith(
                     fontSize: isTablet ? 32 : 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Help us personalize your jewelry experience',
-                  style: TextStyle(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     fontSize: isTablet ? 16 : 14,
-                    color: Colors.grey.shade600,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -315,6 +307,9 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   }
 
   Widget _buildFormContent({required double maxWidth}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Container(
       constraints: BoxConstraints(maxWidth: maxWidth),
       padding: const EdgeInsets.all(32),
@@ -322,7 +317,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Progress indicator (Unchanged)
+          // Progress indicator
           Row(
             children: [
               _buildProgressDot(true),
@@ -333,42 +328,37 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
               const Spacer(),
               Text(
                 '1 of 3',
-                style: TextStyle(
-                  fontSize: 14,
+                style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 40),
 
-          // ------------------------------------
-          // Country Input (CountryCodePicker)
-          // ------------------------------------
+          // Country Input
           _buildSectionTitle('Country'),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: isDark 
+                  ? theme.colorScheme.surface.withOpacity(0.5)
+                  : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _selectedCountryCode != null
-                    ? const Color(0xFF006435)
+                    ? theme.colorScheme.primary
                     : Colors.transparent,
                 width: 2,
               ),
             ),
             child: CountryCodePicker(
               onChanged: (CountryCode code) {
-                // Store the selected country name and code
                 _countryController.text = code.name ?? '';
                 _selectedCountryCode = code.code;
-                setState(() {}); // Rebuild to update border color
+                setState(() {});
               },
-              // ⭐ FIX: Removed initialSelection so it defaults to nothing, as requested
-              // initialSelection: 'US',
               favorite: const ['+91', 'IN', '+1', 'US', '+44', 'GB'],
               showCountryOnly: true,
               showOnlyCountryWhenClosed: true,
@@ -376,23 +366,31 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
               flagWidth: 30,
               padding: EdgeInsets.zero,
               dialogSize: const Size(400, 500),
+              dialogBackgroundColor: theme.colorScheme.surface,
               searchDecoration: InputDecoration(
                 hintText: 'Search Country',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
+                labelStyle: TextStyle(
+                  color: theme.colorScheme.onSurface,
+                ),
+                hintStyle: TextStyle(
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                ),
               ),
               textStyle: TextStyle(
                 fontSize: 16,
-                color: Colors.grey.shade800,
+                color: theme.colorScheme.onSurface,
+              ),
+              searchStyle: TextStyle(
+                color: theme.colorScheme.onSurface,
               ),
             ),
           ),
           const SizedBox(height: 24),
 
-          // ------------------------------------
           // ZIP/Postal Code Input
-          // ------------------------------------
           _buildSectionTitle('ZIP / Postal Code'),
           const SizedBox(height: 12),
           _buildTextField(
@@ -403,14 +401,14 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
 
           const SizedBox(height: 40),
 
-          // Continue Button (Unchanged)
+          // Continue Button
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             child: ElevatedButton(
               onPressed: _nextStage,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF006435),
-                foregroundColor: Colors.white,
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
@@ -433,24 +431,28 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   }
 
   Widget _buildProgressDot(bool isActive) {
+    final theme = Theme.of(context);
+    
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       width: isActive ? 24 : 8,
       height: 8,
       decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF006435) : Colors.grey.shade300,
+        color: isActive 
+            ? theme.colorScheme.primary 
+            : theme.colorScheme.onSurface.withOpacity(0.2),
         borderRadius: BorderRadius.circular(4),
       ),
     );
   }
 
   Widget _buildSectionTitle(String title) {
+    final theme = Theme.of(context);
+    
     return Text(
       title,
-      style: TextStyle(
+      style: theme.textTheme.titleLarge?.copyWith(
         fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: Colors.grey.shade800,
       ),
     );
   }
@@ -460,20 +462,34 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
+      style: TextStyle(
+        color: theme.colorScheme.onSurface,
+      ),
       decoration: InputDecoration(
         filled: true,
-        fillColor: Colors.grey.shade100,
-        prefixIcon: Icon(icon, color: Colors.grey.shade500),
+        fillColor: isDark 
+            ? theme.colorScheme.surface.withOpacity(0.5)
+            : Colors.grey.shade100,
+        prefixIcon: Icon(
+          icon, 
+          color: theme.colorScheme.onSurface.withOpacity(0.6),
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF006435), width: 2),
+          borderSide: BorderSide(
+            color: theme.colorScheme.primary, 
+            width: 2,
+          ),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       ),
