@@ -34,11 +34,6 @@
     for="/index.html"
     [headers.values]
       Cache-Control = "public, max-age=0, must-revalidate"
-  
-[[headers]]
-  for ="/index.html"
-  [headers.value]
-    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for ="/**/*.{js, wasm, woff2, svg, png, jpg, jpeg, gif, webp, ico, css, ttf, otf, json, xml, html, txt}"
