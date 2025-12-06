@@ -21,6 +21,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   final TextEditingController _countryController = TextEditingController();
   final TextEditingController _zipController = TextEditingController();
   String? _selectedCountryCode; 
+  String? _selectedDialCode;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -44,12 +45,14 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     _animationController.dispose();
     _countryController.dispose();
     _zipController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
   void _nextStage() async {
     final country = _countryController.text.trim();
     final zipCode = _zipController.text.trim();
+    final phoneInput = _phoneController.text.trim();
     
     if (_selectedCountryCode == null || _selectedCountryCode!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -119,6 +122,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     await provider.saveOnboardingData(
       country: country,
       zipCode: zipCode,
+      phone: fullPhoneNumber,
       isFinalSubmission: false,
     );
 
@@ -386,6 +390,15 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
               searchStyle: TextStyle(
                 color: theme.colorScheme.onSurface,
               ),
+              dialogTextStyle: TextStyle(
+                color: Colors.grey.shade800,
+                fontSize: 16,
+              ),
+              searchStyle: TextStyle(
+                color: Colors.grey.shade800,
+                fontSize: 16,
+              ),
+              dialogBackgroundColor: Colors.white,
             ),
           ),
           const SizedBox(height: 24),
@@ -397,6 +410,60 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
             controller: _zipController,
             icon: Icons.numbers,
             keyboardType: TextInputType.text,
+          ),
+
+          const SizedBox(height: 24),
+
+          // ------------------------------------
+          // Phone Number Input
+          // ------------------------------------
+          _buildSectionTitle('Phone Number'),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.transparent),
+            ),
+            child: Row(
+              children: [
+                // Country Code Picker for Phone
+                CountryCodePicker(
+                  onChanged: (CountryCode code) {
+                    _selectedDialCode = code.dialCode;
+                  },
+                  initialSelection: 'IN',
+                  favorite: const ['+91', 'IN', '+1', 'US'],
+                  showCountryOnly: false,
+                  showOnlyCountryWhenClosed: false,
+                  alignLeft: false,
+                  showFlag: true,
+                  padding: const EdgeInsets.only(left: 8),
+                  textStyle: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+                  dialogTextStyle: TextStyle(
+                    color: Colors.grey.shade800,
+                    fontSize: 16,
+                  ),
+                  searchStyle: TextStyle(
+                    color: Colors.grey.shade800,
+                    fontSize: 16,
+                  ),
+                  dialogBackgroundColor: Colors.white,
+                ),
+                // Phone Number Text Field
+                Expanded(
+                  child: TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      hintText: 'Phone Number',
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
 
           const SizedBox(height: 40),

@@ -10,7 +10,7 @@ import 'package:csv/csv.dart';
 
 class ProductEntry {
   final int id;
-  XFile? imageFile;
+  List<XFile> imageFiles = [];
   final TextEditingController productTitleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
@@ -153,17 +153,18 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
 
   Future<void> _pickImage(ProductEntry entry) async {
     final picker = ImagePicker();
-    final imageFile = await picker.pickImage(source: ImageSource.gallery);
-    if (imageFile != null) {
+    final List<XFile> pickedFiles = await picker.pickMultiImage();
+    
+    if (pickedFiles.isNotEmpty) {
       setState(() {
-        entry.imageFile = imageFile;
+        entry.imageFiles.addAll(pickedFiles);
       });
     }
   }
 
   void _removeImage(ProductEntry entry) {
     setState(() {
-      entry.imageFile = null;
+      entry.imageFiles.clear();
     });
   }
 
@@ -183,16 +184,25 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
 
     try {
       for (final entry in _productEntries) {
-        if (entry.imageFile == null) continue;
+        if (entry.imageFiles.isEmpty) continue;
 
-        final fileBytes = await entry.imageFile!.readAsBytes();
-        final fileName =
-            '${DateTime.now().millisecondsSinceEpoch}-${entry.imageFile!.name}';
-        await supabase.storage
-            .from('designer-files')
-            .uploadBinary(fileName, fileBytes);
-        final imageUrl =
-            supabase.storage.from('designer-files').getPublicUrl(fileName);
+        List<String> uploadedImageUrls = [];
+
+        // Upload ALL images
+        for (final imageFile in entry.imageFiles) {
+          final fileBytes = await imageFile.readAsBytes();
+          final fileName =
+              '${DateTime.now().millisecondsSinceEpoch}-${imageFile.name}';
+          await supabase.storage
+              .from('designer-files')
+              .uploadBinary(fileName, fileBytes);
+          final imageUrl =
+              supabase.storage.from('designer-files').getPublicUrl(fileName);
+          uploadedImageUrls.add(imageUrl);
+        }
+
+        // Use the first image as the main 'media_url' (thumbnail)
+        final mainImageUrl = uploadedImageUrls.first;
 
         List<String>? textToList(TextEditingController controller) {
           final text = controller.text.trim();
@@ -210,10 +220,13 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           'owner_id': userId,
           'title': entry.productTitleController.text,
           'description': entry.descriptionController.text,
-          'media_url': imageUrl,
+          'media_url': mainImageUrl, // Main thumbnail
           'status': 'pending',
           'source': 'b2b_upload',
           'attributes': {
+            // ⭐️ NEW: Save all images to the 'images' attribute
+            'images': uploadedImageUrls,
+
             // Text fields
             'Price': entry.priceController.text,
             'Gold Weight': entry.goldWeightController.text,
@@ -439,16 +452,29 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
         final row = fields[i];
         final title = row[headers.indexOf('Product Title')];
 
-        final imageFile = _imageFiles!.firstWhere(
+        // Find ALL matching image files
+        final matchingImageFiles = _imageFiles!.where(
           (file) => file.name.split('.').first == title,
-        );
+        ).toList();
 
-        final fileName = '${DateTime.now().millisecondsSinceEpoch}-$title';
-        await supabase.storage
-            .from('designer-files')
-            .uploadBinary(fileName, imageFile.bytes!);
-        final imageUrl =
-            supabase.storage.from('designer-files').getPublicUrl(fileName);
+        if (matchingImageFiles.isEmpty) {
+          debugPrint("No images found for product: $title");
+          continue; // Skip if no images found
+        }
+
+        List<String> uploadedImageUrls = [];
+
+        for (final imageFile in matchingImageFiles) {
+          final fileName = '${DateTime.now().millisecondsSinceEpoch}-${imageFile.name}';
+          await supabase.storage
+              .from('designer-files')
+              .uploadBinary(fileName, imageFile.bytes!);
+          final imageUrl =
+              supabase.storage.from('designer-files').getPublicUrl(fileName);
+          uploadedImageUrls.add(imageUrl);
+        }
+
+        final mainImageUrl = uploadedImageUrls.first;
 
         final Map<String, dynamic> attributes = {};
         for (int j = 0; j < headers.length; j++) {
@@ -482,10 +508,13 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
           'owner_id': userId,
           'title': title,
           'description': row[headers.indexOf('Description')],
-          'media_url': imageUrl,
+          'media_url': mainImageUrl,
           'status': 'pending',
           'source': 'b2b_bulk_upload',
-          'attributes': attributes, // <-- Use the new attributes map
+          'attributes': {
+            ...attributes,
+            'images': uploadedImageUrls, // ⭐️ NEW: Save all images
+          },
         });
       }
 
@@ -656,7 +685,7 @@ class _ProductFormCardState extends State<ProductFormCard> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey.shade300),
             ),
-            child: widget.entry.imageFile == null
+            child: widget.entry.imageFiles.isEmpty
                 ? InkWell(
                     onTap: widget.onPickImage,
                     child: const Center(
@@ -665,22 +694,41 @@ class _ProductFormCardState extends State<ProductFormCard> {
                         children: [
                           Icon(Icons.add_photo_alternate_outlined, size: 48),
                           SizedBox(height: 8),
-                          Text("Select Image"),
+                          Text("Select Images"),
                         ],
                       ),
                     ),
                   )
                 : Stack(
-                    fit: StackFit.expand,
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: kIsWeb
-                            ? Image.network(widget.entry.imageFile!.path,
-                                fit: BoxFit.cover)
-                            : Image.file(File(widget.entry.imageFile!.path),
-                                fit: BoxFit.cover),
+                      // Show the first image as preview
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: kIsWeb
+                              ? Image.network(widget.entry.imageFiles.first.path,
+                                  fit: BoxFit.cover)
+                              : Image.file(File(widget.entry.imageFiles.first.path),
+                                  fit: BoxFit.cover),
+                        ),
                       ),
+                      // Badge showing count
+                      if (widget.entry.imageFiles.length > 1)
+                        Positioned(
+                          bottom: 8,
+                          left: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '+${widget.entry.imageFiles.length - 1} more',
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                            ),
+                          ),
+                        ),
                       Positioned(
                         top: 8,
                         right: 8,

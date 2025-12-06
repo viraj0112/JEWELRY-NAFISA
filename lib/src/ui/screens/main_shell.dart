@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
@@ -193,6 +195,14 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  Widget _buildNarrowLayout() {
+    return Scaffold(
+      appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
+      body: _buildContent(),
+      bottomNavigationBar: _buildFixedNavBar(),
+    );
+  }
+
   Widget _buildWideLayout() {
     final userProfile = Provider.of<UserProfileProvider>(context);
     final theme = Theme.of(context);
@@ -262,25 +272,6 @@ class _MainShellState extends State<MainShell> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildNarrowLayout() {
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) {
-        if (didPop) return;
-        if (_selectedIndex != 0) {
-          _onItemTapped(0);
-        } else {
-          _showExitConfirmationDialog(context);
-        }
-      },
-      child: Scaffold(
-        appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
-        body: _buildContent(),
-        bottomNavigationBar: _buildFixedNavBar(),
       ),
     );
   }
@@ -457,7 +448,7 @@ class _MainShellState extends State<MainShell> {
             themeProvider.themeMode == ThemeMode.light
                 ? Icons.dark_mode_outlined
                 : Icons.light_mode_outlined,
-            color: theme.colorScheme.onSurface,
+                color: theme.colorScheme.onSurface,
           ),
           onPressed: () => themeProvider.toggleTheme(),
           tooltip: 'Toggle Theme',
@@ -502,7 +493,7 @@ class _MainShellState extends State<MainShell> {
         _onItemTapped(4);
       },
       child: CircleAvatar(
-        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+        backgroundImage: avatarUrl != null ? CachedNetworkImageProvider(avatarUrl) : null,
         backgroundColor: Theme.of(context).colorScheme.primary,
         // --- FIX: Removed user.isLoading check ---
         child: (avatarUrl == null)

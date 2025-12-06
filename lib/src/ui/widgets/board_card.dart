@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 // Import the new board model
 import 'package:jewelry_nafisa/src/models/board.dart';
 
@@ -60,7 +61,12 @@ class BoardCard extends StatelessWidget {
   }
 
   Widget _buildSingleImage(String url) {
-    return Image.network(url, fit: BoxFit.cover);
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      placeholder: (context, url) => Container(color: Colors.grey[200]),
+      errorWidget: (context, url, error) => const Icon(Icons.error),
+    );
   }
 
   Widget _buildCollage(List<String> images) {

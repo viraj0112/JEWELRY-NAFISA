@@ -7,7 +7,8 @@ class JewelryItem {
   final String image;
 
   // ⭐️ NEW FIELD: Array of images (Ready for future use)
-  // final List<String>? image; 
+  // ⭐️ NEW FIELD: Array of images
+  final List<String>? images; 
   
   final String description;
   final double? price;
@@ -49,6 +50,7 @@ class JewelryItem {
     required this.id,
     required this.productTitle,
     required this.image,
+    this.images,
     required this.description,
     this.price,
     this.isDesignerProduct = false,
@@ -83,113 +85,24 @@ class JewelryItem {
     this.aspectRatio = 1.0,
   });
 
-  static double? _parseDouble(dynamic value) {
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) {
-      final cleanedString =
-          value.replaceAll('₹', '').replaceAll(',', '').trim();
-      return double.tryParse(cleanedString);
-    }
-    return null;
-  }
-
-  static String? _parseString(dynamic value) {
-    String? val;
-
-    if (value is String) {
-      val = value;
-    } else if (value is List) {
-      if (value.isNotEmpty) {
-        val = value[0]?.toString();
-      }
-    } else if (value != null) {
-      val = value.toString();
-    }
-
-    if (val == null) {
-      return null;
-    }
-
-    val = val.trim(); // Trim whitespace
-
-    // Strip outer brackets OR braces
-    if ((val.startsWith('[') && val.endsWith(']')) ||
-        (val.startsWith('{') && val.endsWith('}'))) {
-      if (val.length <= 2) return null; // Handles "[]" or "{}"
-      val = val.substring(1, val.length - 1);
-    }
-
-    val = val.trim(); // Trim again after stripping
-
-    // Check for "null" or empty
-    if (val == 'null' || val.isEmpty) {
-      return null;
-    }
-
-    return val;
-  }
-
-  static List<String>? _parseList(dynamic value) {
-    List<String> rawList = [];
-
-    if (value is String) {
-      String listString = value.trim(); // Trim string
-
-      // Strip outer brackets OR braces
-      if ((listString.startsWith('[') && listString.endsWith(']')) ||
-          (listString.startsWith('{') && listString.endsWith('}'))) {
-        if (listString.length <= 2) return null; // "[]" or "{}"
-        listString = listString.substring(1, listString.length - 1);
-      }
-
-      rawList = listString.split(',').map((t) => t.trim()).toList();
-    } else if (value is List) {
-      rawList = value.map((e) => e?.toString().trim() ?? '').toList();
-    }
-
-    // Final Cleanup
-    final List<String> cleanedList = rawList
-        .map((s) {
-          String item = s.trim();
-          // Strip brackets OR braces from *each item*
-          if ((item.startsWith('[') && item.endsWith(']')) ||
-              (item.startsWith('{') && item.endsWith('}'))) {
-            if (item.length <= 2) return ''; // "[]" or "{}"
-            item = item.substring(1, item.length - 1);
-          }
-          return item.trim();
-        })
-        .where(
-            (s) => s.isNotEmpty && s != 'null') // Filter out empty and "null"
-        .toList();
-
-    return cleanedList.isNotEmpty ? cleanedList : null;
-  }
-
-  factory JewelryItem.fromJson(Map<String, dynamic> json, {bool isDesignerProduct = false}) {
+  factory JewelryItem.fromJson(Map<String, dynamic> json) {
     return JewelryItem(
-      id: json['id'].toString(),
-      isDesignerProduct: isDesignerProduct,
-      productTitle:
-          json['Product Title'] ?? json['title'] ?? json['product_title'] ?? '',
-      image: json['Image'] ?? json['image'] ?? json['image_url'] ?? '',
-      
-      // // ⭐️ NEW FIELD IN FACTORY: 'images' array field
-      // image: 
-      // /*
-      // _parseList(
-      //     json['Images Array'] ??
-      //         json['image'] ??
-      //         json['image_url']),
-      // */
-      // null, // Returning null for now as per request
-
-      description: json['Description'] ?? json['description'] ?? '',
+      id: json['id']?.toString() ?? '',
+      productTitle: json['title'] ?? json['product_title'] ?? '',
+      // Handle both single string and array for image
+      image: json['Image'] is List
+          ? (json['Image'] as List).firstOrNull ?? ''
+          : json['Image'] ?? json['image'] ?? json['image_url'] ?? '',
+      // Parse the new 'images' array
+      images: (json['images'] is List)
+          ? (json['images'] as List).map((e) => e.toString()).toList()
+          : (json['Image'] is List)
+              ? (json['Image'] as List).map((e) => e.toString()).toList()
+              : null,
+      description: json['description'] ?? '',
       price: _parseDouble(json['Price'] ?? json['price']),
-
-      // --- APPLY THE FIX HERE ---
-      tags: _parseList(json['Product Tags'] ?? json['tags']), // Keep _parseList
+      isDesignerProduct: json['is_designer_product'] ?? false,
+      tags: _parseList(json['Product Tags'] ?? json['tags']),
       goldWeight: _parseString(
           json['Gold Weight'] ?? json['gold_weight']), // Use _parseString
       metalPurity: _parseString(
@@ -247,5 +160,24 @@ class JewelryItem {
           : (json['Customizable'] == 'Yes' || json['customizable'] == true),
       aspectRatio: (json['aspect_ratio'] as num?)?.toDouble() ?? 1.0,
     );
+  }
+
+  static String? _parseString(dynamic value) {
+    if (value == null) return null;
+    return value.toString();
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  static List<String>? _parseList(dynamic value) {
+    if (value == null) return null;
+    if (value is List) return value.map((e) => e.toString()).toList();
+    if (value is String) return [value];
+    return null;
   }
 }
