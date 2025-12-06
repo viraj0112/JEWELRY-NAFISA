@@ -20,6 +20,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   
   final TextEditingController _countryController = TextEditingController();
   final TextEditingController _zipController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   String? _selectedCountryCode; 
   String? _selectedDialCode;
 
@@ -53,6 +54,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     final country = _countryController.text.trim();
     final zipCode = _zipController.text.trim();
     final phoneInput = _phoneController.text.trim();
+    final fullPhoneNumber = '${_selectedDialCode ?? "+91"}$phoneInput';
     
     if (_selectedCountryCode == null || _selectedCountryCode!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -394,11 +396,6 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
                 color: Colors.grey.shade800,
                 fontSize: 16,
               ),
-              searchStyle: TextStyle(
-                color: Colors.grey.shade800,
-                fontSize: 16,
-              ),
-              dialogBackgroundColor: Colors.white,
             ),
           ),
           const SizedBox(height: 24),

@@ -116,6 +116,18 @@ class _OnboardingScreen3CategoriesState
    isFinalSubmission: true,
   );
 
+  // 2. Trigger the final DB write
+  try {
+    await provider.finalizeOnboardingMigration();
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving profile: $e')),
+      );
+    }
+    return;
+  }
+
   if (mounted) {
    GoRouter.of(context).go('/');
   }

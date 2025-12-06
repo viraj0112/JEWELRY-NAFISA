@@ -230,7 +230,7 @@ Future<void> saveOnboardingData({
 // --------------------------------------------------------------------------
 
 /// FINAL STEP: Writes collected local data to Supabase and clears local cache.
-/// *SUPABASE WRITE IS CURRENTLY DISABLED BECAUSE SCHEMA IS UNAVAILABLE.*
+/// FINAL STEP: Writes collected local data to Supabase and clears local cache.
 Future<void> finalizeOnboardingMigration() async {
   if (_userProfile == null || _userProfile!.isSetupComplete == false) {
     throw Exception("Onboarding not yet complete or user not loaded.");

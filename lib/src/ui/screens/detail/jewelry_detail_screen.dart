@@ -39,6 +39,7 @@ class JewelryDetailScreen extends StatefulWidget {
 
 class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     final ScrollController _thumbnailScrollController = ScrollController();
+  late final PageController _pageController; // Add PageController
   int _thumbnailStartIndex = 0; // Track which thumbnails to show
 
   final supabase = Supabase.instance.client;
@@ -79,9 +80,11 @@ late List<String> _imageUrls;
     } else {
       _imageUrls = [widget.jewelryItem.image];
     }
+    _pageController = PageController(initialPage: _selectedImageIndex); // Initialize PageController
     _initializeInteractionState();
- void dispose() {
+  void dispose() {
     _thumbnailScrollController.dispose();
+    _pageController.dispose(); // Dispose PageController
     super.dispose();
   }
     _similarItemsFuture = _jewelryService.fetchSimilarItems(
@@ -566,54 +569,117 @@ Widget _buildWideLayout(BuildContext context) {
                       builder: (context, userProfile, child) {
                         final bool isLocked = !userProfile.isMember && _selectedImageIndex > 0;
                         
-                        return Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            InteractiveViewer(
-                              minScale: 1.0,
-                              maxScale: isLocked ? 1.0 : 4.0, // Disable zoom if locked
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: ImageFiltered(
-                                  imageFilter: ImageFilter.blur(
-                                    sigmaX: isLocked ? 10.0 : 0.0,
-                                    sigmaY: isLocked ? 10.0 : 0.0,
-                                  ),
-                                  child: CachedNetworkImage(
-                                    imageUrl: _imageUrls[_selectedImageIndex],
-                                    fit: BoxFit.cover,
-                                    errorWidget: (_, __, ___) => const Center(
-                                        child: Icon(Icons.broken_image, size: 48)),
-                                    placeholder: (context, url) =>
-                                        const Center(
-                                            child: CircularProgressIndicator()),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (isLocked)
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.6),
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.lock, color: Colors.white),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      "Members Only",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
+                        return AspectRatio(
+                          aspectRatio: widget.jewelryItem.aspectRatio,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              PageView.builder(
+                                controller: _pageController,
+                                itemCount: _imageUrls.length,
+                                onPageChanged: (index) {
+                                  setState(() {
+                                    _selectedImageIndex = index;
+                                    // Update thumbnail scroll if needed
+                                    if (index < _thumbnailStartIndex) {
+                                      _thumbnailStartIndex = index;
+                                    } else if (index >= _thumbnailStartIndex + 3) {
+                                      _thumbnailStartIndex = index - 2;
+                                    }
+                                  });
+                                },
+                                itemBuilder: (context, index) {
+                                  // Lock logic per image
+                                  final bool isImageLocked = !userProfile.isMember && index > 0;
+                                  
+                                  return InteractiveViewer(
+                                    minScale: 1.0,
+                                    maxScale: isImageLocked ? 1.0 : 4.0, // Disable zoom if locked
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: ImageFiltered(
+                                        imageFilter: ImageFilter.blur(
+                                          sigmaX: isImageLocked ? 10.0 : 0.0,
+                                          sigmaY: isImageLocked ? 10.0 : 0.0,
+                                        ),
+                                        child: CachedNetworkImage(
+                                          imageUrl: _imageUrls[index],
+                                          fit: BoxFit.cover,
+                                          errorWidget: (_, __, ___) => const Center(
+                                              child: Icon(Icons.broken_image, size: 48)),
+                                          placeholder: (context, url) =>
+                                              const Center(
+                                                  child: CircularProgressIndicator()),
+                                        ),
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  );
+                                },
                               ),
-                          ],
+                              if (isLocked)
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.6),
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.lock, color: Colors.white),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "Members Only",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              // --- ADDITION: Desktop Navigation Arrows ---
+                              if (_imageUrls.length > 1) ...[
+                                Positioned(
+                                  left: 16,
+                                  child: IconButton(
+                                    onPressed: _selectedImageIndex > 0
+                                        ? () {
+                                            _pageController.previousPage(
+                                              duration: const Duration(milliseconds: 300),
+                                              curve: Curves.easeInOut,
+                                            );
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.black.withOpacity(0.5),
+                                      padding: const EdgeInsets.all(12),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 16,
+                                  child: IconButton(
+                                    onPressed: _selectedImageIndex < _imageUrls.length - 1
+                                        ? () {
+                                            _pageController.nextPage(
+                                              duration: const Duration(milliseconds: 300),
+                                              curve: Curves.easeInOut,
+                                            );
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.black.withOpacity(0.5),
+                                      padding: const EdgeInsets.all(12),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              // --- END ADDITION ---
+                            ],
+                          ),
                         );
                       },
                     ),
@@ -697,23 +763,41 @@ Widget _buildNarrowLayout() {
                 return Stack(
                   alignment: Alignment.center,
                   children: [
-                    InteractiveViewer(
-                      minScale: 1.0,
-                      maxScale: isLocked ? 1.0 : 4.0,
-                      child: ImageFiltered(
-                        imageFilter: ImageFilter.blur(
-                          sigmaX: isLocked ? 10.0 : 0.0,
-                          sigmaY: isLocked ? 10.0 : 0.0,
-                        ),
-                        child: CachedNetworkImage(
-                          imageUrl: _imageUrls[_selectedImageIndex],
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) =>
-                              const Center(child: Icon(Icons.broken_image)),
-                          placeholder: (context, url) =>
-                              const Center(child: CircularProgressIndicator()),
-                        ),
-                      ),
+                    PageView.builder(
+                      controller: _pageController,
+                      itemCount: _imageUrls.length,
+                      onPageChanged: (index) {
+                        setState(() {
+                          _selectedImageIndex = index;
+                           // Update thumbnail scroll if needed
+                            if (index < _thumbnailStartIndex) {
+                              _thumbnailStartIndex = index;
+                            } else if (index >= _thumbnailStartIndex + 3) {
+                              _thumbnailStartIndex = index - 2;
+                            }
+                        });
+                      },
+                      itemBuilder: (context, index) {
+                         final bool isImageLocked = !userProfile.isMember && index > 0;
+                         return InteractiveViewer(
+                          minScale: 1.0,
+                          maxScale: isImageLocked ? 1.0 : 4.0,
+                          child: ImageFiltered(
+                            imageFilter: ImageFilter.blur(
+                              sigmaX: isImageLocked ? 10.0 : 0.0,
+                              sigmaY: isImageLocked ? 10.0 : 0.0,
+                            ),
+                            child: CachedNetworkImage(
+                              imageUrl: _imageUrls[index],
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) =>
+                                  const Center(child: Icon(Icons.broken_image)),
+                              placeholder: (context, url) =>
+                                  const Center(child: CircularProgressIndicator()),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     if (isLocked)
                       Container(
@@ -929,6 +1013,11 @@ Widget _buildImageThumbnails() {
               setState(() {
                 _selectedImageIndex = index;
               });
+              _pageController.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
             },
             child: Container(
               width: 60,

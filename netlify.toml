@@ -10,6 +10,8 @@
     ./flutter/bin/flutter pub get && \
     # 5. Run the actual build with compile-time variables
     ./flutter/bin/flutter build web --release \
+      --web-renderer-canvaskit \
+      --pwa-strategy-offline-first \
       --dart-define=SUPABASE_URL=${SUPABASE_URL} \
       --dart-define=SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY} \
       --dart-define=GOOGLE_SIGN_IN_WEB_CLIENT_ID=${GOOGLE_SIGN_IN_WEB_CLIENT_ID} \
@@ -21,3 +23,25 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+[[headers]]
+  for="/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Content-Encoding = "gzip, br"
+
+[[headers]]
+    for="/index.html"
+    [headers.values]
+      Cache-Control = "public, max-age=0, must-revalidate"
+  
+[[headers]]
+  for ="/index.html"
+  [headers.value]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for ="/**/*.{js, wasm, woff2, svg, png, jpg, jpeg, gif, webp, ico, css, ttf, otf, json, xml, html, txt}"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    
