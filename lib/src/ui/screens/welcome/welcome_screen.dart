@@ -9,6 +9,7 @@ import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
+import 'package:jewelry_nafisa/src/widgets/login_required_dialog.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -263,7 +264,13 @@ Future<void> _loadImages() async {
 
   Widget _buildSearchBar(ThemeData theme) {
     return InkWell(
-      onTap: _navigateToLogin,
+      onTap:(){
+   showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => const LoginRequiredDialog(),
+      );
+      },
       borderRadius: BorderRadius.circular(12.0),
       autofocus: true,
       hoverColor: Colors.grey.withOpacity(0.5),

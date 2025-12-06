@@ -5,6 +5,10 @@ class JewelryItem {
   final bool isDesignerProduct;
   final String productTitle;
   final String image;
+
+  // ⭐️ NEW FIELD: Array of images (Ready for future use)
+  // final List<String>? image; 
+  
   final String description;
   final double? price;
   final List<String>? tags;
@@ -170,6 +174,17 @@ class JewelryItem {
       productTitle:
           json['Product Title'] ?? json['title'] ?? json['product_title'] ?? '',
       image: json['Image'] ?? json['image'] ?? json['image_url'] ?? '',
+      
+      // // ⭐️ NEW FIELD IN FACTORY: 'images' array field
+      // image: 
+      // /*
+      // _parseList(
+      //     json['Images Array'] ??
+      //         json['image'] ??
+      //         json['image_url']),
+      // */
+      // null, // Returning null for now as per request
+
       description: json['Description'] ?? json['description'] ?? '',
       price: _parseDouble(json['Price'] ?? json['price']),
 

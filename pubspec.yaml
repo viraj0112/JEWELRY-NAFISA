@@ -55,6 +55,8 @@ dependencies:
   file_picker: ^8.3.3
   csv: ^6.0.0
   mime: ^1.0.4
+  country_code_picker: ^3.4.1
+  postcode_checker: ^1.0.2
   # REMOVED: url_launcher_web, _ios, _android (not needed)
   # REMOVED: web, universal_html (not needed by most apps)
 
