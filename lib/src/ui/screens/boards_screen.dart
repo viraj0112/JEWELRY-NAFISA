@@ -87,38 +87,31 @@ class _BoardsScreenState extends State<BoardsScreen> {
       if (!mounted) return;
       setState(() => _isLoadingBoards = true);
 
+      // --- OPTIMIZED: Fetch boards and pins in one query ---
       final res = await _supabase
           .from('boards')
-          .select('id, name, is_secret')
+          .select('*, pins(image_url)')
           .eq('user_id', user.id)
           .order('created_at', ascending: false);
 
       final rows = List<Map<String, dynamic>>.from(res as List<dynamic>);
-      final result = <Board>[];
-
-      await Future.wait(rows.map((r) async {
-        final id = r['id'] as int;
-        final pinRes = await _supabase
-            .from('boards_pins')
-            .select('pins(image_url)')
-            .eq('board_id', id)
-            .limit(3);
-
-        final imageUrls = (pinRes as List<dynamic>)
-            .map((e) => e['pins']['image_url'] as String?)
+      
+      final result = rows.map((r) {
+        final pinsData = (r['pins'] as List<dynamic>?) ?? [];
+        final imageUrls = pinsData
+            .map((e) => e['image_url'] as String?)
             .where((url) => url != null)
             .cast<String>()
+            .take(3) // Limit to 3 images for the preview
             .toList();
 
-        result.add(
-          Board(
-            id: id,
-            name: r['name'] as String,
-            coverUrls: imageUrls,
-            isSecret: r['is_secret'] as bool? ?? false,
-          ),
+        return Board(
+          id: r['id'] as int,
+          name: r['name'] as String,
+          coverUrls: imageUrls,
+          isSecret: r['is_secret'] as bool? ?? false,
         );
-      }));
+      }).toList();
 
       // Sort boards after fetching covers to maintain order
       result.sort((a, b) => b.id.compareTo(a.id));

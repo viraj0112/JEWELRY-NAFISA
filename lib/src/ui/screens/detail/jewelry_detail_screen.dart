@@ -1,4 +1,8 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:go_router/go_router.dart';
+import 'dart:ui'; // For ImageFilter
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
@@ -69,25 +73,12 @@ late List<String> _imageUrls;
         widget.jewelryItem.isDesignerProduct ? 'designerproducts' : 'products';
 
     _jewelryService = JewelryService(supabase);
-      _imageUrls = [
-    widget.jewelryItem.image,
-      // "https://cxnkagfbymztpwszfaiw.supabase.co/storage/v1/object/public/product-images/Raindrop%20Radiance%20Gold%20&%20Diamond%20Hoops%20&%20Huggies%20Earring.webp",
-      //  "https://cxnkagfbymztpwszfaiw.supabase.co/storage/v1/object/public/product-images/Ovalis%20Dazzle%20Gold%20&%20Diamond%20Hoops%20&%20Huggies%20Earring.webp",
-      //    "https://cxnkagfbymztpwszfaiw.supabase.co/storage/v1/object/public/product-images/Divine%20Om%2022KT%20Gold%20Pendant%20for%20Men.jpg",
-      //            "https://cxnkagfbymztpwszfaiw.supabase.co/storage/v1/object/public/product-images/Doraemon%20Alphabet%20C%20Gold%20%20Pendant.jpg",
-      //   "https://cxnkagfbymztpwszfaiw.supabase.co/storage/v1/object/public/product-images/Infinity%20Love%20Diamond%20Pendant.jpg",
-      //   "https://cxnkagfbymztpwszfaiw.supabase.co/storage/v1/object/public/product-images/Doraemon%20Alphabet%20X%20Gold%20%20Pendant.jpg",
-      //   "https://cxnkagfbymztpwszfaiw.supabase.co/storage/v1/object/public/product-images/East%20West%20Emerald-Cut%20Emerald%20Solitaire%20Ring%20with%20Diamond%20Accents.jpg",
-      //   "https://cxnkagfbymztpwszfaiw.supabase.co/storage/v1/object/public/product-images/Enamel%20Worked%20And%20Detailed%2022KT%20Gold%20Baby%20Bangles%20With%20Screw.webp",
-      //   "https://cxnkagfbymztpwszfaiw.supabase.co/storage/v1/object/public/product-images/Kaveh%20Gold%20Pendant.png",
-
-        //     widget.jewelryItem.image,
-        //         widget.jewelryItem.image
-
-        // Add more images when available
-    // 'https://example.com/image2.jpg',
-    // 'https://example.com/image3.jpg',
-  ];
+    // Use the images list if available, otherwise fallback to the single image
+    if (widget.jewelryItem.images != null && widget.jewelryItem.images!.isNotEmpty) {
+      _imageUrls = widget.jewelryItem.images!;
+    } else {
+      _imageUrls = [widget.jewelryItem.image];
+    }
     _initializeInteractionState();
  void dispose() {
     _thumbnailScrollController.dispose();
@@ -470,7 +461,7 @@ late List<String> _imageUrls;
     final uid = supabase.auth.currentUser?.id;
 
     if (uid == null) {
-    showDialog(
+      showDialog(
         context: context,
         barrierDismissible: true,
         builder: (_) => const LoginRequiredDialog(),
@@ -479,41 +470,32 @@ late List<String> _imageUrls;
     }
 
     try {
-      await supabase.rpc('decrement_credit');
-      profile.decrementCredit();
-      final expiration = DateTime.now().add(_unlockDuration);
-
-      await supabase.from('quotes').insert({
-        'user_id': uid,
-        'product_id': widget.jewelryItem.id.toString(),
-        'status': 'valid',
-        'expires_at': expiration.toIso8601String(),
+      // --- SECURE: Use RPC to deduct credit and create quote on server ---
+      final response = await supabase.rpc('redeem_quote_credit', params: {
+        'p_product_id': widget.jewelryItem.id.toString(),
+        'p_is_designer': widget.jewelryItem.isDesignerProduct,
       });
-      if (widget.jewelryItem.isDesignerProduct) {
-        // <-- ADD THIS CHECK
-        await supabase.from('views').insert({
-          'user_id': uid,
-          'product_id': int.tryParse(widget.jewelryItem
-              .id), // Also, ensure this is an int, since views.product_id is bigint
-          'pin_id': null,
-        });
-      }
 
-      if (mounted) {
-        setState(() => _detailsRevealed = true);
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('Details revealed! One credit used.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+      // Update local state based on server response
+      if (response != null && response['success'] == true) {
+        profile.decrementCredit(); // Optimistic update or sync with response
+        
+        if (mounted) {
+          setState(() => _detailsRevealed = true);
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Details revealed! One credit used.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('Error using quote credit: $e');
       if (mounted) {
         scaffoldMessenger.showSnackBar(
           SnackBar(
-            content: Text('Could not get details. Please try again. Error: $e'),
+            content: Text('Could not get details. Please try again. Error: ${e is PostgrestException ? e.message : e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -580,23 +562,60 @@ Widget _buildWideLayout(BuildContext context) {
                 child: Column(
                   children: [
                     // --- ADDITION: Wrapped image with InteractiveViewer for zoom ---
-                    InteractiveViewer(
-                      minScale: 1.0,
-                      maxScale: 4.0, // Allow zooming up to 4x
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.network(
-                          _imageUrls[_selectedImageIndex], // Changed
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Center(
-                              child: Icon(Icons.broken_image, size: 48)),
-                          loadingBuilder: (context, child, progress) =>
-                              progress == null
-                                  ? child
-                                  : const Center(
-                                      child: CircularProgressIndicator()),
-                        ),
-                      ),
+                    Consumer<UserProfileProvider>(
+                      builder: (context, userProfile, child) {
+                        final bool isLocked = !userProfile.isMember && _selectedImageIndex > 0;
+                        
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            InteractiveViewer(
+                              minScale: 1.0,
+                              maxScale: isLocked ? 1.0 : 4.0, // Disable zoom if locked
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: ImageFiltered(
+                                  imageFilter: ImageFilter.blur(
+                                    sigmaX: isLocked ? 10.0 : 0.0,
+                                    sigmaY: isLocked ? 10.0 : 0.0,
+                                  ),
+                                  child: CachedNetworkImage(
+                                    imageUrl: _imageUrls[_selectedImageIndex],
+                                    fit: BoxFit.cover,
+                                    errorWidget: (_, __, ___) => const Center(
+                                        child: Icon(Icons.broken_image, size: 48)),
+                                    placeholder: (context, url) =>
+                                        const Center(
+                                            child: CircularProgressIndicator()),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (isLocked)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.6),
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.lock, color: Colors.white),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      "Members Only",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
                     // --- END ADDITION ---
                     const SizedBox(height: 16),
@@ -671,18 +690,56 @@ Widget _buildNarrowLayout() {
             ),
           ),
           flexibleSpace: FlexibleSpaceBar(
-            background: InteractiveViewer(
-              minScale: 1.0,
-              maxScale: 4.0,
-              child: Image.network(
-                _imageUrls[_selectedImageIndex], // Changed
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    const Center(child: Icon(Icons.broken_image)),
-                loadingBuilder: (context, child, progress) => progress == null
-                    ? child
-                    : const Center(child: CircularProgressIndicator()),
-              ),
+            background: Consumer<UserProfileProvider>(
+              builder: (context, userProfile, child) {
+                final bool isLocked = !userProfile.isMember && _selectedImageIndex > 0;
+
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    InteractiveViewer(
+                      minScale: 1.0,
+                      maxScale: isLocked ? 1.0 : 4.0,
+                      child: ImageFiltered(
+                        imageFilter: ImageFilter.blur(
+                          sigmaX: isLocked ? 10.0 : 0.0,
+                          sigmaY: isLocked ? 10.0 : 0.0,
+                        ),
+                        child: CachedNetworkImage(
+                          imageUrl: _imageUrls[_selectedImageIndex],
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) =>
+                              const Center(child: Icon(Icons.broken_image)),
+                          placeholder: (context, url) =>
+                              const Center(child: CircularProgressIndicator()),
+                        ),
+                      ),
+                    ),
+                    if (isLocked)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.lock, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text(
+                              "Members Only",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
           leading: Container(
@@ -886,10 +943,11 @@ Widget _buildImageThumbnails() {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: Image.network(
-                  _imageUrls[index],
+                child: CachedNetworkImage(
+                  imageUrl: _imageUrls[index],
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 20),
+                  errorWidget: (_, __, ___) => const Icon(Icons.broken_image, size: 20),
+                  placeholder: (context, url) => Container(color: Colors.grey[200]),
                 ),
               ),
             ),
@@ -1001,25 +1059,20 @@ Widget _buildImageThumbnails() {
             final item = items[index];
             return GestureDetector(
               onTap: () {
-                // --- FIX: Use push instead of pushReplacement ---
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => JewelryDetailScreen(jewelryItem: item)),
-                );
+                // --- FIX: Use GoRouter push for deep linking support ---
+                context.push('/product/${item.id}');
                 // --- END FIX ---
               },
               child: Card(
                 clipBehavior: Clip.antiAlias,
-                child: Image.network(
-                  item.image,
+                child: CachedNetworkImage(
+                  imageUrl: item.image,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+                  errorWidget: (_, __, ___) => Container(
                       color: Colors.grey[200],
                       child: const Icon(Icons.broken_image)),
-                  loadingBuilder: (context, child, progress) => progress == null
-                      ? child
-                      : const Center(child: CircularProgressIndicator()),
+                  placeholder: (context, url) =>
+                      const Center(child: CircularProgressIndicator()),
                 ),
               ),
             );

@@ -15,6 +15,7 @@ abstract class LocalKeys {
   static const String zipCode = 'onboarding_region'; 
   static const String occasions = 'onboarding_occasions'; 
   static const String categories = 'onboarding_categories'; 
+  static const String phone = 'onboarding_phone'; 
 }
 
 class UserProfileProvider with ChangeNotifier {
@@ -92,29 +93,20 @@ class UserProfileProvider with ChangeNotifier {
       final int localStage = prefs.getInt(LocalKeys.onboardingStage) ?? 0;
       final bool localComplete = prefs.getBool(LocalKeys.isSetupComplete) ?? false;
       
-      // Override if the DB state shows incomplete and local data exists.
-      if (_userProfile!.isSetupComplete == false && (localStage > 0 || localComplete == true)) {
-        
-        // Retrieve all collected data from local storage
-        final String? localCountry = prefs.getString(LocalKeys.country);
-        final String? localZipCode = prefs.getString(LocalKeys.zipCode);
-        final List<String> localOccasions = prefs.getStringList(LocalKeys.occasions) ?? [];
-        final Set<String> localCategories = (prefs.getStringList(LocalKeys.categories) ?? []).toSet();
-
-        // Create a new UserProfile object with local data to resume the flow.
-        _userProfile = _userProfile!.copyWith(
-          onboardingStage: localStage,
-          isSetupComplete: localComplete,
-          country: localCountry,
-          zipCode: localZipCode,
-          selectedOccasions: localOccasions,
-selectedCategories: (localCategories?.toList() ?? _userProfile!.selectedCategories),        );
+      // Check if local state is ahead of remote state OR if local is complete
+      if (localComplete || localStage > _userProfile!.onboardingStage) {
+         _userProfile = _userProfile!.copyWith(
+           onboardingStage: localStage,
+           isSetupComplete: localComplete,
+           // Also try to restore other fields if they are missing in the DB profile but exist locally
+           country: _userProfile!.country ?? prefs.getString(LocalKeys.country),
+           zipCode: _userProfile!.zipCode ?? prefs.getString(LocalKeys.zipCode),
+           phone: _userProfile!.phone ?? prefs.getString(LocalKeys.phone),
+         );
       }
-
-      // 3. Process unlocked items (unchanged)
+      
       final unlockedData = responses[1] as List<dynamic>;
-      _unlockedItemIds =
-          unlockedData.map((e) => e['item_id'] as String).toSet();
+      _unlockedItemIds = unlockedData.map((e) => e['item_id'] as String).toSet();
       
     } catch (e) {
       debugPrint("Error loading user profile: $e");
@@ -183,6 +175,7 @@ selectedCategories: (localCategories?.toList() ?? _userProfile!.selectedCategori
 Future<void> saveOnboardingData({
   String? country,
   String? zipCode,
+  String? phone,
   List<String>? occasions,
   Set<String>? categories,
   required bool isFinalSubmission,
@@ -202,6 +195,7 @@ Future<void> saveOnboardingData({
     // 2. --- Write Collected Data to Local Storage ---
     if (country != null) await prefs.setString(LocalKeys.country, country);
     if (zipCode != null) await prefs.setString(LocalKeys.zipCode, zipCode);
+    if (phone != null) await prefs.setString(LocalKeys.phone, phone);
     if (occasions != null) await prefs.setStringList(LocalKeys.occasions, occasions);
     if (categories != null) await prefs.setStringList(LocalKeys.categories, categories.toList());
 
@@ -218,6 +212,7 @@ Future<void> saveOnboardingData({
       // Update collected data fields
       country: country ?? _userProfile!.country,
       zipCode: zipCode ?? _userProfile!.zipCode,
+      phone: phone ?? _userProfile!.phone,
       selectedOccasions: occasions ?? _userProfile!.selectedOccasions,
       selectedCategories: categories?.toList() ?? _userProfile!.selectedCategories,
     );
@@ -247,20 +242,22 @@ Future<void> finalizeOnboardingMigration() async {
   try {
     // 1. Construct the final updates map from the current local profile state
     // (Kept for future reference when Supabase is updated)
+    // 1. Construct the final updates map from the current local profile state
     final updates = {
       'country': _userProfile!.country,
-      'zipCode': _userProfile!.zipCode,
+      'zip_code': _userProfile!.zipCode, // Corrected column name
+      'phone': _userProfile!.phone,
       'occasions': _userProfile!.selectedOccasions,
       'jewelry_categories': _userProfile!.selectedCategories.toList(),
       'setup_complete': true,
       'setup_stage': 3,
     };
 
-    // 2. ❌ TEMPORARILY DISABLED: Supabase write operation is removed. ❌
-    // await _supabase
-    //     .from('users') 
-    //     .update(updates)
-    //     .eq('id', userId);
+    // 2. Write to Supabase
+    await _supabase
+        .from('users') 
+        .update(updates)
+        .eq('id', userId);
 
     // 3. Clear the local storage cache for onboarding
     await clearOnboardingLocalData();
@@ -282,6 +279,7 @@ Future<void> clearOnboardingLocalData() async {
   await prefs.remove(LocalKeys.isSetupComplete);
   await prefs.remove(LocalKeys.country);
   await prefs.remove(LocalKeys.zipCode);
+  await prefs.remove(LocalKeys.phone);
   await prefs.remove(LocalKeys.occasions);
   await prefs.remove(LocalKeys.categories);
 }

@@ -22,9 +22,11 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   // Text Controllers
   final TextEditingController _countryController = TextEditingController();
   final TextEditingController _zipController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   
   // State variable to hold the 2-letter country code for validation
   String? _selectedCountryCode; 
+  String? _selectedDialCode;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -50,12 +52,14 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     _animationController.dispose();
     _countryController.dispose();
     _zipController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
   void _nextStage() async {
     final country = _countryController.text.trim();
     final zipCode = _zipController.text.trim();
+    final phoneInput = _phoneController.text.trim();
     
     // 1. Country Selection Check (This is necessary since no country is pre-selected)
     if (_selectedCountryCode == null || _selectedCountryCode!.isEmpty) {
@@ -83,6 +87,24 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       return;
     }
 
+    // 3. Phone Number Check
+    if (phoneInput.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('❌ Please enter your Phone Number.'),
+          backgroundColor: const Color(0xFF006435),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    // Combine dial code and phone number
+    // Default to +91 if not selected (matching initialSelection 'IN')
+    final dialCode = _selectedDialCode ?? '+91';
+    final fullPhoneNumber = '$dialCode $phoneInput';
+
     // FIX: Manual lookup of the enum value. 
     final Postcode.CountryCode? countryEnum = Postcode.CountryCode.values.cast<Postcode.CountryCode?>().firstWhere(
       // Match the enum's code property (e.g., e.code == "IN") with the selected code string
@@ -104,7 +126,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       return;
     }
 
-    // 3. ZIP Code Validation using the detailed 'validate' method
+    // 4. ZIP Code Validation using the detailed 'validate' method
     final validationResult = Postcode.PostcodeChecker.validate(
       countryEnum, // Pass the correctly resolved CountryCode enum type
       zipCode,
@@ -128,12 +150,13 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       return;
     }
 
-    // 4. Save and Navigate
+    // 5. Save and Navigate
     final provider = Provider.of<UserProfileProvider>(context, listen: false);
 
     await provider.saveOnboardingData(
       country: country,
       zipCode: zipCode,
+      phone: fullPhoneNumber,
       isFinalSubmission: false,
     );
 
@@ -386,6 +409,15 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
                 fontSize: 16,
                 color: Colors.grey.shade800,
               ),
+              dialogTextStyle: TextStyle(
+                color: Colors.grey.shade800,
+                fontSize: 16,
+              ),
+              searchStyle: TextStyle(
+                color: Colors.grey.shade800,
+                fontSize: 16,
+              ),
+              dialogBackgroundColor: Colors.white,
             ),
           ),
           const SizedBox(height: 24),
@@ -399,6 +431,60 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
             controller: _zipController,
             icon: Icons.numbers,
             keyboardType: TextInputType.text,
+          ),
+
+          const SizedBox(height: 24),
+
+          // ------------------------------------
+          // Phone Number Input
+          // ------------------------------------
+          _buildSectionTitle('Phone Number'),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.transparent),
+            ),
+            child: Row(
+              children: [
+                // Country Code Picker for Phone
+                CountryCodePicker(
+                  onChanged: (CountryCode code) {
+                    _selectedDialCode = code.dialCode;
+                  },
+                  initialSelection: 'IN',
+                  favorite: const ['+91', 'IN', '+1', 'US'],
+                  showCountryOnly: false,
+                  showOnlyCountryWhenClosed: false,
+                  alignLeft: false,
+                  showFlag: true,
+                  padding: const EdgeInsets.only(left: 8),
+                  textStyle: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+                  dialogTextStyle: TextStyle(
+                    color: Colors.grey.shade800,
+                    fontSize: 16,
+                  ),
+                  searchStyle: TextStyle(
+                    color: Colors.grey.shade800,
+                    fontSize: 16,
+                  ),
+                  dialogBackgroundColor: Colors.white,
+                ),
+                // Phone Number Text Field
+                Expanded(
+                  child: TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      hintText: 'Phone Number',
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
 
           const SizedBox(height: 40),

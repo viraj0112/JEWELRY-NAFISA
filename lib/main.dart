@@ -199,7 +199,8 @@ class ProductDetailLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final jewelryService = JewelryService(Supabase.instance.client);
+    // --- FIXED: Use the existing provider instead of creating a new instance ---
+    final jewelryService = provider_pkg.Provider.of<JewelryService>(context, listen: false);
 
     return FutureBuilder<JewelryItem?>(
       future: jewelryService.getJewelryItem(productId),

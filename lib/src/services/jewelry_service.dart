@@ -30,13 +30,15 @@ class JewelryService {
       final List<dynamic> designerProductsData = responses[1] as List<dynamic>;
 
       final List<JewelryItem> productItems = productsData
-          .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>,
-              isDesignerProduct: false)) // <-- SET FLAG
+          .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>)) // <-- SET FLAG
           .toList();
 
       final List<JewelryItem> designerProductItems = designerProductsData
-          .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>,
-              isDesignerProduct: true)) // <-- SET FLAG
+          .map((json) {
+            final map = json as Map<String, dynamic>;
+            map['is_designer_product'] = true;
+            return JewelryItem.fromJson(map);
+          }) // <-- SET FLAG
           .toList();
 
       // Combine and parse
@@ -55,78 +57,27 @@ class JewelryService {
   Future<List<JewelryItem>> searchProducts(String query) async {
     if (query.isEmpty) return [];
 
-    // Prepare the query term for ilike and array contains
-    final String ilikeQuery = '%$query%';
-    final String arrayQuery = '{${query.toLowerCase()}}'; // For .cs operator
-
     try {
-      // Query 'products' table
-      final productsResponse = await _supabaseClient
-          .from('products')
-          .select()
-          .or(
-            // Case-insensitive text search on relevant columns
-            '"Product Title".ilike.$ilikeQuery,'
-            'Description.ilike.$ilikeQuery,'
-            '"Collection Name".ilike.$ilikeQuery,'
-            '"Product Type".ilike.$ilikeQuery,'
-            'Category.ilike.$ilikeQuery,'
-            '"Sub Category".ilike.$ilikeQuery,'
-            '"Metal Type".ilike.$ilikeQuery,'
-            '"Metal Color".ilike.$ilikeQuery,'
-            // Array contains search (case-sensitive by default, use lowercase)
-            '"Product Tags".cs.$arrayQuery,'
-            '"Stone Type".cs.$arrayQuery,'
-            '"Stone Color".cs.$arrayQuery',
-          )
-          .limit(50); // Limit results for performance
+      // --- OPTIMIZED: Use Full Text Search RPC ---
+      final response = await _supabaseClient.rpc(
+        'search_products_fts',
+        params: {
+          'search_query': query,
+          'limit_count': 50,
+        },
+      );
 
-      // Query 'designerproducts' table
-      final designerResponse = await _supabaseClient
-          .from('designerproducts')
-          .select()
-          .or(
-            // FIX: Columns must be quoted and capitalized
-            '"Product Title".ilike.$ilikeQuery,' // Assumes 'title' in designerproducts
-            'Description.ilike.$ilikeQuery,'
-            '"Collection Name".ilike.$ilikeQuery,'
-            '"Product Type".ilike.$ilikeQuery,'
-            'Category.ilike.$ilikeQuery,'
-            '"Sub Category".ilike.$ilikeQuery,'
-            '"Metal Type".ilike.$ilikeQuery,'
-            '"Metal Color".ilike.$ilikeQuery,'
-            // Array columns
-            '"Product Tags".cs.$arrayQuery,'
-            '"Stone Type".cs.$arrayQuery,'
-            '"Stone Color".cs.$arrayQuery',
-          )
-          .limit(50); // Limit results for performance
-
-      // Combine results
-      final List<dynamic> combinedData = [
-        ...productsResponse,
-        ...designerResponse,
-      ];
-
-      // Remove duplicates
-      final uniqueResults = {
-        for (var json in combinedData)
-          (json as Map<String, dynamic>)['id'].toString(): json
-      }.values.toList();
-
-      if (uniqueResults.isNotEmpty) {
-        // Need to check which table it came from to set isDesignerProduct
-        return uniqueResults.map((json) {
+      if (response is List) {
+        return response.map((json) {
           final map = json as Map<String, dynamic>;
-          // Simple check: if designer_id exists, it's a designer product
-          final isDesigner = map.containsKey('designer_id');
-          return JewelryItem.fromJson(map, isDesignerProduct: isDesigner);
+          // The RPC returns 'is_designer_product' directly
+          return JewelryItem.fromJson(map);
         }).toList();
-      } else {
-        return [];
       }
+      return [];
     } catch (e) {
       debugPrint('Error searching products: $e');
+      // Fallback to old method if RPC fails (optional, but good for safety)
       return [];
     }
   }
@@ -143,8 +94,11 @@ class JewelryService {
       if (response is List) {
         // The RPC returns JSON, so we parse it directly
         return response
-            .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>,
-                isDesignerProduct: true)) // Assuming trending are designer
+            .map((json) {
+              final map = json as Map<String, dynamic>;
+              map['is_designer_product'] = true;
+              return JewelryItem.fromJson(map);
+            }) // Assuming trending are designer
             .toList();
       }
       return [];
@@ -185,9 +139,11 @@ class JewelryService {
       ) as List<dynamic>;
 
       return response
-          .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>,
-              isDesignerProduct:
-                  isDesigner)) // Pass flag based on original item
+          .map((json) {
+            final map = json as Map<String, dynamic>;
+            map['is_designer_product'] = isDesigner;
+            return JewelryItem.fromJson(map);
+          }) // Pass flag based on original item
           .toList();
     } catch (e) {
       debugPrint('Error fetching similar products via RPC: $e');
@@ -197,33 +153,35 @@ class JewelryService {
 
   Future<JewelryItem?> getJewelryItem(String id) async {
     try {
-      // Try fetching from 'designerproducts' first (since UUIDs are common)
-      final designerResponse = await _supabaseClient
-          .from('designerproducts')
-          .select()
-          .eq('id', id)
-          .maybeSingle(); // Use maybeSingle
-
-      if (designerResponse != null) {
-        return JewelryItem.fromJson(designerResponse, isDesignerProduct: true);
-      }
-
-      // If not found, try fetching from 'products' (assuming integer ID)
+      // --- OPTIMIZED: Check ID format to decide which table to query ---
       final intId = int.tryParse(id);
+      
       if (intId != null) {
+        // It's an integer, so it must be from 'products'
         final productResponse = await _supabaseClient
             .from('products')
             .select()
             .eq('id', intId)
-            .maybeSingle(); // Use maybeSingle for potentially null result
+            .maybeSingle();
 
         if (productResponse != null) {
-          return JewelryItem.fromJson(productResponse,
-              isDesignerProduct: false);
+          return JewelryItem.fromJson(productResponse);
+        }
+      } else {
+        // It's not an integer (likely UUID), so it must be from 'designerproducts'
+        final designerResponse = await _supabaseClient
+            .from('designerproducts')
+            .select()
+            .eq('id', id)
+            .maybeSingle();
+
+        if (designerResponse != null) {
+          designerResponse['is_designer_product'] = true;
+          return JewelryItem.fromJson(designerResponse);
         }
       }
 
-      debugPrint('JewelryItem with ID $id not found in either table.');
+      debugPrint('JewelryItem with ID $id not found.');
       return null;
     } catch (e) {
       debugPrint('Error fetching single product (ID: $id): $e');
@@ -366,7 +324,6 @@ class JewelryService {
           // This works because your SQL returns "Product Title", "Image", etc.
           return JewelryItem.fromJson(
             json as Map<String, dynamic>,
-            isDesignerProduct: isDesigner,
           );
         }).toList();
       }

@@ -302,10 +302,14 @@ class _ProductUploadSectionState extends State<ProductUploadSection>
 
           // If Image column is now an Array (TEXT[]):
           if (matchingImageUrls.isNotEmpty) {
-            // Send the List of URLs to the single 'Image' column
-            product['Image'] = matchingImageUrls;
+            // 1. Send the List of URLs to the new 'images' column (Array)
+            product['images'] = matchingImageUrls;
+            
+            // 2. Send the FIRST URL to the old 'Image' column (Text/Thumbnail)
+            // This ensures backward compatibility with the rest of the app
+            product['Image'] = matchingImageUrls.first;
           } else {
-            // Send NULL if no images match
+            product['images'] = null;
             product['Image'] = null;
           }
 

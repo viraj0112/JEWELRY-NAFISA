@@ -11,11 +11,23 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data?.session != null) {
-          return ProfileLoader(key: ValueKey(snapshot.data!.session!.user.id));
-        } else {
-          return const WelcomeScreen();
+        // If the stream has emitted data, use it
+        if (snapshot.hasData) {
+          final session = snapshot.data?.session;
+          if (session != null) {
+            return ProfileLoader(key: ValueKey(session.user.id));
+          } else {
+            return const WelcomeScreen();
+          }
         }
+
+        // Fallback: Check current session directly if stream hasn't emitted yet
+        final currentSession = Supabase.instance.client.auth.currentSession;
+        if (currentSession != null) {
+          return ProfileLoader(key: ValueKey(currentSession.user.id));
+        }
+
+        return const WelcomeScreen();
       },
     );
   }
