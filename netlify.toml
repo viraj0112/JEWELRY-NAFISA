@@ -1,18 +1,16 @@
-[build]
+  [build]
   command = """
-    rm -rf flutter && \
-    git clone https://github.com/flutter/flutter.git && \
-    ./flutter/bin/flutter config --enable-web && \
-    ./flutter/bin/flutter pub get && \
-    ./flutter/bin/flutter build web --release \
-      --web-renderer-canvaskit \
-      --pwa-strategy-offline-first \
+    rm -rf flutter &&
+    git clone --depth 1 -b stable https://github.com/flutter/flutter.git &&
+    ./flutter/bin/flutter config --enable-web &&
+    ./flutter/bin/flutter build web --release --web-renderer=canvaskit --pwa-strategy=offline-first \
       --dart-define=SUPABASE_URL=${SUPABASE_URL} \
       --dart-define=SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY} \
       --dart-define=GOOGLE_SIGN_IN_WEB_CLIENT_ID=${GOOGLE_SIGN_IN_WEB_CLIENT_ID} \
       --dart-define=GOOGLE_FORM=${GOOGLE_FORM}
   """
   publish = "build/web"
+
 
 [[redirects]]
   from = "/*"
