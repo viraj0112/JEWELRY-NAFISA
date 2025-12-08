@@ -8,6 +8,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class Debouncer {
   final int milliseconds;
@@ -124,6 +125,13 @@ class _SearchScreenState extends State<SearchScreen> {
 
     if (_currentSearchQuery.isEmpty) {
       setState(() {
+        FirebaseAnalytics.instance.logEvent(
+          name: 'search',
+          parameters: {
+            'query': _currentSearchQuery,
+            'result_count': 0,
+          },
+        );
         _searchResults = [];
         _isLoadingSearch = false;
         if (_trendingItems.isEmpty || _latestItems.isEmpty) {

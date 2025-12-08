@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class BuyMembershipScreen extends StatelessWidget {
   const BuyMembershipScreen({super.key});
@@ -40,7 +41,15 @@ class BuyMembershipScreen extends StatelessWidget {
               child: SizedBox(
                 width: 300,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    await FirebaseAnalytics.instance.logEvent(
+      name: 'begin_checkout', // Standard e-commerce event name
+      parameters: {
+        'item_name': 'Lifetime Membership',
+        'currency': 'INR', // Or your currency
+        'value': 25000,    // Put the actual price here if known
+      },
+    );
                     launchUrl(Uri.parse('https://members.daginawala.in'));
                     debugPrint("Redirecting to daginawala.in...");
                   },

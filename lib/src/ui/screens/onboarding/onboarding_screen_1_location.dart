@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:postcode_checker/postcode_checker.dart' as Postcode;
+import "package:supabase_flutter/supabase_flutter.dart";
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class OnboardingScreen1Location extends StatefulWidget {
   const OnboardingScreen1Location({super.key});
@@ -30,6 +32,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   @override
   void initState() {
     super.initState();
+    FirebaseAnalytics.instance.logTutorialBegin();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,

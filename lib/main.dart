@@ -1,3 +1,7 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'firebase_options.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
@@ -28,13 +32,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jewelry_nafisa/src/services/search_history_service.dart';
 import 'package:universal_html/html.dart' as html;
 // NEW ONBOARDING IMPORTS
-import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart'; // Add this
-import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart'; // Add this
-import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_categories.dart'; // Add this
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart'; 
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart'; 
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_categories.dart'; 
+
 final supabaseClient = Supabase.instance.client;
+
+// 1. DEFINE ANALYTICS VARIABLES HERE
+FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+FirebaseAnalyticsObserver observer = FirebaseAnalyticsObserver(analytics: analytics);
+
 final _router = GoRouter(
   initialLocation: '/',
-  // observers: [_analyticsObserver],
+  // 2. ENABLE THE OBSERVER HERE
+  observers: [observer], 
   routes: [
     GoRoute(
       path: '/admin',
@@ -60,11 +71,6 @@ final _router = GoRouter(
       path: '/designer',
       builder: (context, state) => const DesignerShell(),
     ),
-    // GoRoute(
-    //   path: '/admin',
-    //   builder: (context, state) => const AdminShell(),
-    // ),
-    // Onboarding Routes
     GoRoute(
       path: '/onboarding/location',
       builder: (context, state) => const OnboardingScreen1Location(),
@@ -115,6 +121,12 @@ final _router = GoRouter(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 3. INITIALIZE FIREBASE
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
 // await dotenv.load(fileName: ".env");
   final supabaseUrl =
       const String.fromEnvironment('SUPABASE_URL', defaultValue: '').isNotEmpty
@@ -160,9 +172,6 @@ Future<void> main() async {
           ),
 
           provider_pkg.Provider<QuoteService>(create: (_) => QuoteService()),
-          // Provider<SupabaseAuthService>(create: (_) => authService),
-          // Provider<JewelryService>(create: (_) => JewelryService(supabase)),
-          // Provider<QuoteService>(create: (_) => QuoteService(supabase)),
         ],
         child: const MyApp(),
       ),
@@ -199,7 +208,6 @@ class ProductDetailLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // --- FIXED: Use the existing provider instead of creating a new instance ---
     final jewelryService = provider_pkg.Provider.of<JewelryService>(context, listen: false);
 
     return FutureBuilder<JewelryItem?>(

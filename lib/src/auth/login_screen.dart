@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,7 +42,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signIn() async {
     if (_formKey.currentState!.validate()) {
+      await FirebaseAnalytics.instance.logLogin(loginMethod: 'email');
       setState(() => _isLoading = true);
+      
       final user = await _authService.signInWithEmailOrUsername(
         _emailOrUsernameController.text.trim(),
         _passwordController.text.trim(),
@@ -65,6 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    await FirebaseAnalytics.instance.logLogin(loginMethod: 'google');
     setState(() => _isLoading = true);
     try {
       await _authService.signInWithGoogle();

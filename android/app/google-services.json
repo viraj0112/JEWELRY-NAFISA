@@ -1,36 +1,26 @@
 {
   "project_info": {
-    "project_number": "498124910842",
-    "project_id": "jewellery-nafisa",
-    "storage_bucket": "jewellery-nafisa.firebasestorage.app"
+    "project_number": "367777430992",
+    "project_id": "dagina-designs",
+    "storage_bucket": "dagina-designs.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:498124910842:android:41d2e6870adb1dd941d943",
+        "mobilesdk_app_id": "1:367777430992:android:9bf2d82479435539468dd5",
         "android_client_info": {
           "package_name": "com.example.jewelry_nafisa"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "498124910842-677a2arq1ah2veu0n9comp82cisc5qc4.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCycwT96bAxii5poriygbQA79L6ZSJKKCE"
+          "current_key": "AIzaSyB1Pv0rmEInD1oUve9DbtxxKRSHOgad7Tc"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "498124910842-677a2arq1ah2veu0n9comp82cisc5qc4.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

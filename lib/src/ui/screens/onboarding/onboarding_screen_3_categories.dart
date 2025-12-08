@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class OnboardingScreen3Categories extends StatefulWidget {
  const OnboardingScreen3Categories({super.key});
@@ -118,6 +119,7 @@ class _OnboardingScreen3CategoriesState
 
   // 2. Trigger the final DB write
   try {
+    await FirebaseAnalytics.instance.logTutorialComplete();
     await provider.finalizeOnboardingMigration();
   } catch (e) {
     if (mounted) {
@@ -490,8 +492,8 @@ class _OnboardingScreen3CategoriesState
         transform: Matrix4.identity()
          ..scale(_selectedCategories.isNotEmpty ? 1.0 : 0.95),
         child: ElevatedButton(
-         onPressed: _finishSetup,
-         // Remove style block to use ElevatedButtonThemeData from AppTheme
+          onPressed: _finishSetup,
+          // Remove style block to use ElevatedButtonThemeData from AppTheme
          child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

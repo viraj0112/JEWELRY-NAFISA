@@ -17,6 +17,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cross_file/cross_file.dart';
 import 'dart:math';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
 import 'package:jewelry_nafisa/src/widgets/quote_request_dialog.dart';
 import 'package:jewelry_nafisa/src/widgets/login_required_dialog.dart';
@@ -247,6 +248,14 @@ late List<String> _imageUrls;
 
         _likeCount--;
       } else {
+        FirebaseAnalytics.instance.logEvent(
+        name: 'like_item',
+        parameters: {
+          'item_id': _itemId,
+          'item_name': widget.jewelryItem.productTitle,
+          'content_type': 'jewelry',
+        },
+      );
         await supabase.from('likes').insert(
             {'user_id': uid, 'item_id': _itemId, 'item_table': _itemTable});
 
@@ -331,6 +340,12 @@ late List<String> _imageUrls;
 
   Future<void> _shareItem() async {
     if (_isSharing) return;
+
+    FirebaseAnalytics.instance.logShare(
+    contentType: 'jewelry_item',
+    itemId: _itemId,
+    method: kIsWeb ? 'web_share' : 'mobile_share',
+  );
 
     setState(() {
       _isSharing = true;
@@ -483,6 +498,22 @@ late List<String> _imageUrls;
       if (response != null && response['success'] == true) {
         profile.decrementCredit(); // Optimistic update or sync with response
         
+
+        await FirebaseAnalytics.instance.logSpendVirtualCurrency(
+        itemName: 'reveal_details', // What they bought
+        virtualCurrencyName: 'credits', // Currency type
+        value: 1, // Amount spent
+      );
+      
+      // Optional: Track specifically as a "lead" generation
+      await FirebaseAnalytics.instance.logEvent(
+        name: 'get_quote_unlocked',
+        parameters: {
+          'item_id': widget.jewelryItem.id,
+          'item_name': widget.jewelryItem.productTitle,
+        },
+      );
+      
         if (mounted) {
           setState(() => _detailsRevealed = true);
           scaffoldMessenger.showSnackBar(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class JewelryDetailScreen extends StatelessWidget {
   final JewelryItem jewelryItem;
@@ -47,12 +48,22 @@ class JewelryDetailScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Center(
                     child: ElevatedButton(
-                      onPressed: () {
-                        context.push('/signup');
-                      },
-                      child: const Text('Sign Up'),
+  onPressed: () async {
+
+    await FirebaseAnalytics.instance.logEvent(
+      name: 'click_signup_from_product', 
+      parameters: {
+        'product_id': jewelryItem.id,
+        'product_name': jewelryItem.productTitle,
+      },
+    );
+
+    context.push('/signup');
+  },
+  child: const Text('Sign Up'),
+),
                     ),
-                  ),
+
                 ],
               ),
             ),

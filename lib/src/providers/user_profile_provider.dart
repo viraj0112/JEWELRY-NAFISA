@@ -170,60 +170,77 @@ class UserProfileProvider with ChangeNotifier {
 // --- NEW: saveOnboardingData (Writes to Local Storage) ---
 // --------------------------------------------------------------------------
 
-/// Saves the collected data for the current step and advances the stage counter
-/// using local storage.
-Future<void> saveOnboardingData({
-  String? country,
-  String? zipCode,
-  String? phone,
-  List<String>? occasions,
-  Set<String>? categories,
-  required bool isFinalSubmission,
-}) async {
-  if (_userProfile == null) {
-    throw Exception('User profile not loaded or authenticated.');
-  }
-
-  // 1. Get the local storage instance
-  final SharedPreferences prefs = await SharedPreferences.getInstance();
-  
-  // ✅ FIXED: Automatic stage progression
-  final currentStage = _userProfile!.onboardingStage;
-  final nextStage = isFinalSubmission ? 3 : (currentStage < 3 ? currentStage + 1 : currentStage);
-  
-  try {
-    // 2. --- Write Collected Data to Local Storage ---
-    if (country != null) await prefs.setString(LocalKeys.country, country);
-    if (zipCode != null) await prefs.setString(LocalKeys.zipCode, zipCode);
-    if (phone != null) await prefs.setString(LocalKeys.phone, phone);
-    if (occasions != null) await prefs.setStringList(LocalKeys.occasions, occasions);
-    if (categories != null) await prefs.setStringList(LocalKeys.categories, categories.toList());
-
-    // 3. --- Write Stage and Completion Flags ---
-    await prefs.setInt(LocalKeys.onboardingStage, nextStage);
-    if (isFinalSubmission) {
-      await prefs.setBool(LocalKeys.isSetupComplete, true);
+  /// Saves the collected data for the current step and advances the stage counter
+  /// using local storage AND updates Supabase immediately.
+  Future<void> saveOnboardingData({
+    String? country,
+    String? zipCode,
+    String? phone,
+    List<String>? occasions,
+    Set<String>? categories,
+    required bool isFinalSubmission,
+  }) async {
+    if (_userProfile == null) {
+      throw Exception('User profile not loaded or authenticated.');
     }
 
-    // 4. --- Update Local Profile State and Notify Listeners ---
-    _userProfile = _userProfile!.copyWith(
-      onboardingStage: nextStage,
-      isSetupComplete: isFinalSubmission,
-      // Update collected data fields
-      country: country ?? _userProfile!.country,
-      zipCode: zipCode ?? _userProfile!.zipCode,
-      phone: phone ?? _userProfile!.phone,
-      selectedOccasions: occasions ?? _userProfile!.selectedOccasions,
-      selectedCategories: categories?.toList() ?? _userProfile!.selectedCategories,
-    );
+    final userId = _userProfile!.id;
 
-    notifyListeners();
+    // 1. Get the local storage instance
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
     
-  } catch (e) {
-    debugPrint('Error saving onboarding data to local storage: $e');
-    rethrow;
+    // Automatic stage progression
+    final currentStage = _userProfile!.onboardingStage;
+    final nextStage = isFinalSubmission ? 3 : (currentStage < 3 ? currentStage + 1 : currentStage);
+    
+    try {
+      // 2. --- Write Collected Data to Local Storage ---
+      if (country != null) await prefs.setString(LocalKeys.country, country);
+      if (zipCode != null) await prefs.setString(LocalKeys.zipCode, zipCode);
+      if (phone != null) await prefs.setString(LocalKeys.phone, phone);
+      if (occasions != null) await prefs.setStringList(LocalKeys.occasions, occasions);
+      if (categories != null) await prefs.setStringList(LocalKeys.categories, categories.toList());
+
+      // 3. --- Write Stage and Completion Flags ---
+      await prefs.setInt(LocalKeys.onboardingStage, nextStage);
+      if (isFinalSubmission) {
+        await prefs.setBool(LocalKeys.isSetupComplete, true);
+      }
+
+      // 4. --- Update Local Profile State ---
+      _userProfile = _userProfile!.copyWith(
+        onboardingStage: nextStage,
+        isSetupComplete: isFinalSubmission,
+        // Update collected data fields
+        country: country ?? _userProfile!.country,
+        zipCode: zipCode ?? _userProfile!.zipCode,
+        phone: phone ?? _userProfile!.phone,
+        selectedOccasions: occasions ?? _userProfile!.selectedOccasions,
+        selectedCategories: categories?.toList() ?? _userProfile!.selectedCategories,
+      );
+
+      notifyListeners();
+
+      // 5. --- NEW: Immediate Write to Supabase ---
+      final Map<String, dynamic> updates = {
+        'setup_stage': nextStage,
+        if (isFinalSubmission) 'setup_complete': true,
+        if (country != null) 'country': country,
+        if (zipCode != null) 'zip_code': zipCode,
+        if (phone != null) 'phone': phone,
+        if (occasions != null) 'occasions': occasions,
+        if (categories != null) 'jewelry_categories': categories.toList(),
+      };
+
+      if (updates.isNotEmpty) {
+        await _supabase.from('users').update(updates).eq('id', userId);
+      }
+      
+    } catch (e) {
+      debugPrint('Error saving onboarding data: $e');
+      rethrow;
+    }
   }
-}
 
 // --------------------------------------------------------------------------
 // --- NEW: finalizeOnboardingMigration (Supabase WRITE DISABLED) ---

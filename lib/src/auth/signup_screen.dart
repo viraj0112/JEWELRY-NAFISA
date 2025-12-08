@@ -9,6 +9,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+
 // A utility class for brand-specific icons
 class BrandIcons {
   static const IconData google = Icons.g_mobiledata_rounded;
@@ -80,6 +82,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
       }
     } else {
       // Sign out immediately after signup to force the user to log in
+      FirebaseAnalytics.instance.logEvent(
+        name: 'sign_up',
+        parameters: {
+          'email': _emailController.text.trim(),
+          'username': _usernameController.text.trim(),
+          'full_phone_number': _fullPhoneNumber,
+          'birthdate': _birthdateController.text.trim(),
+          'referral_code': _referralCodeController.text.trim(),
+        },
+      );
       await _authService.signOut();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

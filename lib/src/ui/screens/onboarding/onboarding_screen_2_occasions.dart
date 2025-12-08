@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class OnboardingScreen2Occasions extends StatefulWidget {
 const OnboardingScreen2Occasions({super.key});
@@ -50,6 +51,10 @@ class _OnboardingScreen2OccasionsState extends State<OnboardingScreen2Occasions>
  @override
  void initState() {
   super.initState();
+  FirebaseAnalytics.instance.logEvent(
+    name: 'tutorial_progress', 
+    parameters: {'step': 2, 'name': 'occasions'},
+  );
   _animationController = AnimationController(
    duration: const Duration(milliseconds: 600),
    vsync: this,
