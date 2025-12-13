@@ -22,7 +22,6 @@ import 'package:jewelry_nafisa/src/admin2/providers/app_state.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 import 'package:url_strategy/url_strategy.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
-import 'package:jewelry_nafisa/src/ui/screens/jewelry_detail_screen.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/product_page_loader.dart';
@@ -31,6 +30,7 @@ import 'package:jewelry_nafisa/src/services/quote_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jewelry_nafisa/src/services/search_history_service.dart';
 import 'package:universal_html/html.dart' as html;
+import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 // NEW ONBOARDING IMPORTS
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart'; 
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart'; 

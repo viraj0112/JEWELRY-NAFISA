@@ -24,7 +24,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authService = SupabaseAuthService();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-
+  bool _rememberMe = false; // This variable is declared but not used in the UI/logic.
+  
   @override
   void dispose() {
     _emailOrUsernameController.dispose();
@@ -44,7 +45,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       await FirebaseAnalytics.instance.logLogin(loginMethod: 'email');
       setState(() => _isLoading = true);
-      
+
+      // NOTE: Assuming _authService.signInWithEmailOrUsername is properly implemented.
       final user = await _authService.signInWithEmailOrUsername(
         _emailOrUsernameController.text.trim(),
         _passwordController.text.trim(),
@@ -188,7 +190,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 : const Color.fromRGBO(0, 0, 0, 0.1),
                           ),
                         ),
-                        child: _buildFormContents(theme),
+                        // KEY CHANGE: Wrap the form contents in an AutofillGroup
+                        child: AutofillGroup(
+                          child: _buildFormContents(theme),
+                        ),
                       ),
                     ),
                   ),
@@ -209,6 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Image.asset(
+            // NOTE: Assuming 'assets/icons/dagina2.png' exists
             'assets/icons/dagina2.png',
             height: 130,
             fit: BoxFit.contain,
@@ -224,8 +230,11 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
           const SizedBox(height: 32),
+          // KEY CHANGE: Added autofillHints
           TextFormField(
             controller: _emailOrUsernameController,
+            keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.email, AutofillHints.username],
             decoration: InputDecoration(
               labelText: 'Email or Username',
               border: OutlineInputBorder(
@@ -237,9 +246,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 : null,
           ),
           const SizedBox(height: 16),
+          // KEY CHANGE: Added autofillHints
           TextFormField(
             controller: _passwordController,
             obscureText: !_isPasswordVisible,
+            autofillHints: const [AutofillHints.password],
             decoration: InputDecoration(
               labelText: 'Password',
               border: OutlineInputBorder(

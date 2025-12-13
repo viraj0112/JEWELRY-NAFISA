@@ -42,6 +42,9 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       curve: Curves.easeInOut,
     );
     _animationController.forward();
+    
+    // Initialize the default dial code
+    _selectedDialCode = '+91';
   }
 
   @override
@@ -83,6 +86,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       return;
     }
 
+    // Attempt to find the Postcode.CountryCode enum from the selected country code
     final Postcode.CountryCode? countryEnum = Postcode.CountryCode.values.cast<Postcode.CountryCode?>().firstWhere(
       (e) => e?.code == _selectedCountryCode,
       orElse: () => null, 
@@ -100,6 +104,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       return;
     }
 
+    // Postcode validation
     final validationResult = Postcode.PostcodeChecker.validate(
       countryEnum,
       zipCode,
@@ -122,6 +127,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       return;
     }
 
+    // Save data
     final provider = Provider.of<UserProfileProvider>(context, listen: false);
 
     await provider.saveOnboardingData(
@@ -319,6 +325,11 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     
+    // Define the input fill color based on the theme
+    final inputFillColor = isDark 
+        ? theme.colorScheme.surface.withOpacity(0.5)
+        : Colors.grey.shade100;
+
     return Container(
       constraints: BoxConstraints(maxWidth: maxWidth),
       padding: const EdgeInsets.all(32),
@@ -351,9 +362,8 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
           Container(
             padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
             decoration: BoxDecoration(
-              color: isDark 
-                  ? theme.colorScheme.surface.withOpacity(0.5)
-                  : Colors.grey.shade100,
+              // Use the consistent input fill color
+              color: inputFillColor, 
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _selectedCountryCode != null
@@ -388,15 +398,17 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
                   color: theme.colorScheme.onSurface.withOpacity(0.5),
                 ),
               ),
+              // FIX: Ensure the text color is good for the background
               textStyle: TextStyle(
                 fontSize: 16,
-                color: theme.colorScheme.onSurface,
+                color: theme.colorScheme.onSurface, 
               ),
               searchStyle: TextStyle(
                 color: theme.colorScheme.onSurface,
               ),
+              // FIX: Ensure the dialog list text color is visible in dark mode
               dialogTextStyle: TextStyle(
-                color: Colors.grey.shade800,
+                color: theme.colorScheme.onSurface,
                 fontSize: 16,
               ),
             ),
@@ -410,6 +422,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
             controller: _zipController,
             icon: Icons.numbers,
             keyboardType: TextInputType.text,
+            hintText: 'Enter your postal or zip code',
           ),
 
           const SizedBox(height: 24),
@@ -419,9 +432,10 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
           // ------------------------------------
           _buildSectionTitle('Phone Number'),
           const SizedBox(height: 12),
+          // FIX: Apply inputFillColor to the container holding the phone input
           Container(
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: inputFillColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.transparent),
             ),
@@ -439,26 +453,39 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
                   alignLeft: false,
                   showFlag: true,
                   padding: const EdgeInsets.only(left: 8),
-                  textStyle: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+                  // FIX: Set text color for closed state
+                  textStyle: TextStyle(
+                    fontSize: 16, 
+                    color: theme.colorScheme.onSurface
+                  ), 
+                  // FIX: Set text color for dialog list
                   dialogTextStyle: TextStyle(
-                    color: Colors.grey.shade800,
+                    color: theme.colorScheme.onSurface,
                     fontSize: 16,
                   ),
+                  // FIX: Set search text color
                   searchStyle: TextStyle(
-                    color: Colors.grey.shade800,
+                    color: theme.colorScheme.onSurface,
                     fontSize: 16,
                   ),
-                  dialogBackgroundColor: Colors.white,
+                  dialogBackgroundColor: theme.colorScheme.surface,
                 ),
                 // Phone Number Text Field
                 Expanded(
                   child: TextField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
+                    // FIX: Set text style for dark mode
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface,
+                    ),
+                    decoration: InputDecoration(
                       hintText: 'Phone Number',
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                      hintStyle: TextStyle(
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                      ),
                     ),
                   ),
                 ),
@@ -528,21 +555,28 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     required TextEditingController controller,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
+    String hintText = '', // Added optional hint text
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    
+    final inputFillColor = isDark 
+        ? theme.colorScheme.surface.withOpacity(0.5)
+        : Colors.grey.shade100;
     
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
       style: TextStyle(
-        color: theme.colorScheme.onSurface,
+        color: theme.colorScheme.onSurface, // Ensures text is visible
       ),
       decoration: InputDecoration(
         filled: true,
-        fillColor: isDark 
-            ? theme.colorScheme.surface.withOpacity(0.5)
-            : Colors.grey.shade100,
+        fillColor: inputFillColor, // Use consistent fill color
+        hintText: hintText, // Use the optional hint text
+        hintStyle: TextStyle(
+          color: theme.colorScheme.onSurface.withOpacity(0.5),
+        ),
         prefixIcon: Icon(
           icon, 
           color: theme.colorScheme.onSurface.withOpacity(0.6),
