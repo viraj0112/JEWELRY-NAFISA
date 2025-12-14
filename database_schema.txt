@@ -1,0 +1,336 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.analytics_daily (
+  date date NOT NULL,
+  asset_id uuid NOT NULL,
+  views integer DEFAULT 0,
+  likes integer DEFAULT 0,
+  saves integer DEFAULT 0,
+  quotes_requested integer DEFAULT 0,
+  shares integer DEFAULT 0,
+  region_counts jsonb,
+  CONSTRAINT analytics_daily_pkey PRIMARY KEY (date, asset_id)
+);
+CREATE TABLE public.assets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  owner_id uuid NOT NULL,
+  title text NOT NULL,
+  description text,
+  media_url text NOT NULL,
+  thumb_url text,
+  category text,
+  tags ARRAY,
+  sku text,
+  attributes jsonb,
+  visibility USER-DEFINED DEFAULT 'public'::asset_visibility,
+  status USER-DEFINED DEFAULT 'pending'::asset_status,
+  source text DEFAULT 'uploaded'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT assets_pkey PRIMARY KEY (id),
+  CONSTRAINT assets_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.board_collaborators (
+  board_id integer NOT NULL,
+  user_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT board_collaborators_pkey PRIMARY KEY (board_id, user_id),
+  CONSTRAINT board_collaborators_board_id_fkey FOREIGN KEY (board_id) REFERENCES public.boards(id),
+  CONSTRAINT board_collaborators_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.board_sections (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  board_id integer NOT NULL,
+  name text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT board_sections_pkey PRIMARY KEY (id),
+  CONSTRAINT board_sections_board_id_fkey FOREIGN KEY (board_id) REFERENCES public.boards(id)
+);
+CREATE TABLE public.boards (
+  id integer NOT NULL DEFAULT nextval('boards_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  is_secret boolean NOT NULL DEFAULT false,
+  CONSTRAINT boards_pkey PRIMARY KEY (id),
+  CONSTRAINT boards_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.boards_pins (
+  board_id integer NOT NULL,
+  pin_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT boards_pins_pkey PRIMARY KEY (board_id, pin_id),
+  CONSTRAINT boards_pins_board_id_fkey FOREIGN KEY (board_id) REFERENCES public.boards(id),
+  CONSTRAINT boards_pins_pin_id_fkey FOREIGN KEY (pin_id) REFERENCES public.pins(id)
+);
+CREATE TABLE public.designer-files (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  file_type text NOT NULL,
+  file_url text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT designer-files_pkey PRIMARY KEY (id),
+  CONSTRAINT designer-files_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.designer_profiles (
+  user_id uuid NOT NULL,
+  business_name text NOT NULL,
+  business_type text,
+  phone text,
+  address text,
+  gst_number text,
+  work_file_url text,
+  business_card_url text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT designer_profiles_pkey PRIMARY KEY (user_id),
+  CONSTRAINT designer_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.designerproducts (
+  id integer NOT NULL DEFAULT nextval('designerproducts_id_seq'::regclass),
+  Product Title text,
+  Image ARRAY,
+  Description text,
+  Price text,
+  Product Tags ARRAY,
+  Gold Weight text,
+  Metal Purity text,
+  Metal Finish text,
+  Stone Weight ARRAY,
+  Stone Type ARRAY,
+  Stone Used ARRAY,
+  Stone Setting ARRAY,
+  Stone Count ARRAY,
+  Scraped URL text,
+  Collection Name text,
+  Product Type text,
+  Gender text,
+  Theme text,
+  Metal Type text,
+  Metal Color text,
+  Net Weight text,
+  Stone Color ARRAY,
+  Stone Cut ARRAY,
+  Dimension text,
+  Design Type text,
+  Art Form text,
+  Plating text,
+  Enamel Work ARRAY,
+  Customizable ARRAY,
+  Category text,
+  Sub Category text,
+  Plain text,
+  Studded ARRAY,
+  Stone Purity ARRAY,
+  created_at timestamp with time zone DEFAULT now(),
+  embedding USER-DEFINED,
+  Category1 text,
+  Category2 text,
+  Category3 text,
+  CONSTRAINT designerproducts_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.likes (
+  id bigint NOT NULL DEFAULT nextval('likes_id_seq'::regclass),
+  created_at timestamp with time zone DEFAULT now(),
+  user_id uuid NOT NULL,
+  item_id text,
+  item_table text,
+  CONSTRAINT likes_pkey PRIMARY KEY (id),
+  CONSTRAINT likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  message text NOT NULL,
+  is_read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.pins (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  owner_id uuid NOT NULL,
+  title text NOT NULL,
+  description text,
+  image_url text NOT NULL,
+  like_count integer DEFAULT 0,
+  share_slug text UNIQUE,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  section_id uuid,
+  embedding USER-DEFINED,
+  CONSTRAINT pins_pkey PRIMARY KEY (id),
+  CONSTRAINT pins_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.users(id),
+  CONSTRAINT pins_section_id_fkey FOREIGN KEY (section_id) REFERENCES public.board_sections(id)
+);
+CREATE TABLE public.products (
+  id integer NOT NULL DEFAULT nextval('products_id_seq'::regclass),
+  Product Title text,
+  Images text,
+  Description text,
+  Price text,
+  Product Tags ARRAY,
+  Gold Weight text,
+  Metal Purity text,
+  Metal Finish text,
+  Stone Weight ARRAY,
+  Stone Type ARRAY,
+  Stone Used ARRAY,
+  Stone Setting ARRAY,
+  Stone Count ARRAY,
+  Scraped URL text,
+  Collection Name text,
+  Product Type text,
+  Gender text,
+  Theme text,
+  Metal Type text,
+  Metal Color text,
+  Net Weight text,
+  Stone Color ARRAY,
+  Stone Cut ARRAY,
+  Dimension text,
+  Design Type text,
+  Art Form text,
+  Plating text,
+  Enamel Work ARRAY,
+  Customizable ARRAY,
+  Category text,
+  Sub Category text,
+  Plain text,
+  Studded ARRAY,
+  Stone Purity ARRAY,
+  Metal Weight text,
+  embedding USER-DEFINED,
+  user_id uuid DEFAULT auth.uid(),
+  Image ARRAY,
+  CONSTRAINT products_pkey PRIMARY KEY (id),
+  CONSTRAINT products_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.quote_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT now(),
+  user_id uuid NOT NULL,
+  user_name text,
+  user_email text,
+  user_phone text,
+  product_id bigint NOT NULL,
+  product_table text NOT NULL CHECK (product_table = ANY (ARRAY['products'::text, 'designerproducts'::text])),
+  product_title text,
+  metal_purity text,
+  gold_weight text,
+  metal_color text,
+  metal_finish text,
+  metal_type text,
+  stone_type ARRAY,
+  stone_color ARRAY,
+  stone_count ARRAY,
+  stone_purity ARRAY,
+  stone_cut ARRAY,
+  stone_used ARRAY,
+  stone_weight ARRAY,
+  stone_setting ARRAY,
+  additional_notes text,
+  phone_number text,
+  product_url text,
+  CONSTRAINT quote_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT quote_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.quotes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  product_id text,
+  status text DEFAULT 'valid'::text,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT quotes_pkey PRIMARY KEY (id),
+  CONSTRAINT quotes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.referrals (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  referrer_id uuid NOT NULL,
+  referred_id uuid NOT NULL,
+  credits_awarded integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT referrals_pkey PRIMARY KEY (id),
+  CONSTRAINT referrals_referrer_id_fkey FOREIGN KEY (referrer_id) REFERENCES public.users(id),
+  CONSTRAINT referrals_referred_id_fkey FOREIGN KEY (referred_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.settings (
+  key text NOT NULL,
+  value text NOT NULL,
+  description text,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT settings_pkey PRIMARY KEY (key)
+);
+CREATE TABLE public.shares (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  user_id uuid,
+  item_id text NOT NULL,
+  item_table text NOT NULL,
+  share_platform text,
+  CONSTRAINT shares_pkey PRIMARY KEY (id),
+  CONSTRAINT shares_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.user_likes (
+  user_id uuid NOT NULL,
+  pin_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_likes_pkey PRIMARY KEY (user_id, pin_id),
+  CONSTRAINT user_likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_likes_pin_id_fkey FOREIGN KEY (pin_id) REFERENCES public.pins(id)
+);
+CREATE TABLE public.user_unlocked_items (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  item_id text NOT NULL,
+  unlocked_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_unlocked_items_pkey PRIMARY KEY (id),
+  CONSTRAINT user_unlocked_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.users (
+  id uuid NOT NULL,
+  username text UNIQUE,
+  full_name text,
+  email text,
+  birthdate date,
+  avatar_url text,
+  gender text,
+  role USER-DEFINED DEFAULT 'member'::user_role,
+  business_name text,
+  business_type text,
+  phone text,
+  approval_status text NOT NULL DEFAULT 'pending'::text,
+  is_member boolean DEFAULT false,
+  membership_plan text,
+  credits_remaining integer NOT NULL DEFAULT 0,
+  last_credit_refresh timestamp with time zone,
+  referral_code text UNIQUE,
+  referred_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  address text,
+  gst_number text,
+  bio text,
+  is_approved boolean DEFAULT false,
+  country text,
+  zip_code text,
+  occasions ARRAY,
+  jewelry_categories ARRAY,
+  setup_stage integer DEFAULT 0,
+  setup_complete boolean DEFAULT false,
+  CONSTRAINT users_pkey PRIMARY KEY (id),
+  CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT users_referred_by_fkey FOREIGN KEY (referred_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.views (
+  id bigint NOT NULL DEFAULT nextval('views_id_seq'::regclass),
+  created_at timestamp with time zone DEFAULT now(),
+  user_id uuid,
+  country text,
+  item_id text,
+  item_table text,
+  CONSTRAINT views_pkey PRIMARY KEY (id),
+  CONSTRAINT views_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);

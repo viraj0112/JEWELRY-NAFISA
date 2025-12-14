@@ -115,45 +115,72 @@ class HomeScreenState extends State<HomeScreen> {
       setState(() => _isLoadingProducts = true);
     }
     try {
-      dynamic query = _supabase.from('products').select();
+      // Build query for 'products' table
+      dynamic productsQuery = _supabase.from('products').select();
+      
+      // Build query for 'designerproducts' table
+      dynamic designerQuery = _supabase.from('designerproducts').select();
 
-      // Apply filters
+      // Apply filters to both queries
       if (_selectedProductType != 'All') {
-        query = query.eq('Product Type', _selectedProductType);
+        productsQuery = productsQuery.eq('Product Type', _selectedProductType);
+        designerQuery = designerQuery.eq('Product Type', _selectedProductType);
       }
       if (_selectedCategory != 'All') {
-        query = query.eq('Category', _selectedCategory);
+        productsQuery = productsQuery.eq('Category', _selectedCategory);
+        designerQuery = designerQuery.eq('Category', _selectedCategory);
       }
       if (_selectedSubCategory != 'All') {
-        query = query.eq('"Sub Category"', _selectedSubCategory);
+        productsQuery = productsQuery.eq('"Sub Category"', _selectedSubCategory);
+        designerQuery = designerQuery.eq('"Sub Category"', _selectedSubCategory);
       }
       if (_selectedMetalPurity != 'All') {
-        query = query.eq('Metal Purity', _selectedMetalPurity);
+        productsQuery = productsQuery.eq('Metal Purity', _selectedMetalPurity);
+        designerQuery = designerQuery.eq('Metal Purity', _selectedMetalPurity);
       }
       if (_selectedPlain != null) {
-        query = query.eq('Plain', _selectedPlain!);
+        productsQuery = productsQuery.eq('Plain', _selectedPlain!);
+        designerQuery = designerQuery.eq('Plain', _selectedPlain!);
       }
-     if (_selectedStudded != null) {
-        query = query.contains('Studded', ['$_selectedStudded']);
+      if (_selectedStudded != null) {
+        productsQuery = productsQuery.contains('Studded', ['$_selectedStudded']);
+        designerQuery = designerQuery.contains('Studded', ['$_selectedStudded']);
       }
 
-      query = query.limit(500000); 
+      productsQuery = productsQuery.limit(500000);
+      designerQuery = designerQuery.limit(500000);
       
-      final response = await query;
+      // Fetch from both tables in parallel
+      // Execute queries and cast to Future<dynamic> for Future.wait
+      final responses = await Future.wait<dynamic>([
+        productsQuery as Future<dynamic>,
+        designerQuery as Future<dynamic>,
+      ]);
 
-      if (response is List) {
-        final allItems = response
-            .map((item) => JewelryItem.fromJson(item as Map<String, dynamic>))
-            .toList();
-    
-        allItems.shuffle(); 
-        
-        return allItems;
-      } else {
-        debugPrint(
-            'Unexpected response type from products query: ${response.runtimeType}');
-        return [];
+      final List<JewelryItem> allItems = [];
+
+      // Parse products
+      if (responses[0] is List) {
+        allItems.addAll(
+          (responses[0] as List).map((item) => 
+            JewelryItem.fromJson(item as Map<String, dynamic>)
+          ),
+        );
       }
+
+      // Parse designer products with flag
+      if (responses[1] is List) {
+        allItems.addAll(
+          (responses[1] as List).map((item) {
+            final map = item as Map<String, dynamic>;
+            map['is_designer_product'] = true;
+            return JewelryItem.fromJson(map);
+          }),
+        );
+      }
+
+      allItems.shuffle();
+      return allItems;
     } catch (e) {
       debugPrint('Error fetching filtered products: $e');
       if (mounted) {

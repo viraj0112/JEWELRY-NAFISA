@@ -46,7 +46,8 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
 
         final imageUrl = supabase.storage.from('assets').getPublicUrl(fileName);
 
-        await supabase.from('assets').insert({
+        // Use .select() to verify the insert worked - RLS can silently reject inserts
+        final insertResult = await supabase.from('assets').insert({
           'owner_id': userId,
           'title': _titleController.text,
           'description': _descriptionController.text,
@@ -54,11 +55,17 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
           'tags': _tagsController.text.split(','),
           'sku': _skuController.text,
           'media_url': imageUrl,
-        });
+          'status': 'pending',
+          'source': 'uploaded',
+        }).select();
+
+        if (insertResult.isEmpty) {
+          throw Exception('Insert was rejected. Please ensure your account is properly set up.');
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Asset uploaded successfully!")),
+            const SnackBar(content: Text("Asset uploaded successfully!"), backgroundColor: Colors.green),
           );
         }
         _formKey.currentState!.reset();

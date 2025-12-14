@@ -55,6 +55,7 @@ class FilterService {
   }
 
   /// **FIXED:** Fetches distinct values for a column based on other filters.
+  /// Now queries both 'products' and 'designerproducts' tables.
   Future<List<String>> getDependentDistinctValues(
       String columnName, Map<String, String?> filters) async {
     // Check if all filters are 'All' or null
@@ -64,38 +65,48 @@ class FilterService {
     }
 
     try {
-      // 1. Start the query.
+      // 1. Start queries for both tables.
       // **FIX: Force quotes around the column name to handle spaces.**
-      var query = _supabase.from('products').select('"$columnName"');
+      var productsQuery = _supabase.from('products').select('"$columnName"');
+      var designerQuery = _supabase.from('designerproducts').select('"$columnName"');
 
-      // 2. Apply dependent filters
+      // 2. Apply dependent filters to both queries
       for (var filter in filters.entries) {
         if (filter.value != null && filter.value != 'All') {
           // Use quotes for filter keys if they contain spaces
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
-          query = query.eq(filterKey, filter.value!);
+          productsQuery = productsQuery.eq(filterKey, filter.value!);
+          designerQuery = designerQuery.eq(filterKey, filter.value!);
         }
       }
 
-      // 3. Execute the query
-      final response = await query;
+      // 3. Execute both queries in parallel
+      final responses = await Future.wait([productsQuery, designerQuery]);
 
-      if (response is List) {
-        // 4. Process the results client-side to get distinct values
-        // The response map key will be the unquoted column name.
-        final values = response
-            .map((item) => item[columnName]?.toString())
-            .where((item) => item != null && item.isNotEmpty)
-            .cast<String>()
-            .toSet() // Use toSet() to get unique values
-            .toList(); // Convert back to list
-        return values;
-      } else {
-        debugPrint(
-            'No distinct values found for column: $columnName, unexpected response type: ${response.runtimeType}');
-        return [];
+      final Set<String> values = {};
+
+      // 4. Process products results
+      if (responses[0] is List) {
+        values.addAll(
+          (responses[0] as List)
+              .map((item) => item[columnName]?.toString())
+              .where((item) => item != null && item.isNotEmpty)
+              .cast<String>(),
+        );
       }
+
+      // 5. Process designerproducts results
+      if (responses[1] is List) {
+        values.addAll(
+          (responses[1] as List)
+              .map((item) => item[columnName]?.toString())
+              .where((item) => item != null && item.isNotEmpty)
+              .cast<String>(),
+        );
+      }
+
+      return values.toList();
     } catch (e) {
       debugPrint(
           'Error fetching dependent distinct values for column $columnName: $e');
