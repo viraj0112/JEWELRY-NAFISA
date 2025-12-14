@@ -1,4 +1,17 @@
+# -----------------------
+# Secrets & Environment (CRITICAL)
+# -----------------------
+.env
+.env.local
+.env.production
+# Android Firebase Config (Optional: Uncomment if open-sourcing)
+android/app/google-services.json
+# iOS Firebase Config (Optional: Uncomment if open-sourcing)
+ios/Runner/GoogleService-Info.plist
+
+# -----------------------
 # Miscellaneous
+# -----------------------
 *.class
 *.log
 *.pyc
@@ -11,29 +24,22 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
-.env
-.env.local
-.env.production
-.vscode
 
-WHATSAPP_IMAGE_PREVIEW_EXPLANATION.md
-WHATSAPP_SHARING_GUIDE.md
-# IntelliJ related
+# Local Netlify folder
+.netlify
+
+# -----------------------
+# IntelliJ / IDEs
+# -----------------------
 *.iml
 *.ipr
 *.iws
 .idea/
-*.csv
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-*.txt
-*.sql
-*.exe
-*.js
+.vscode/
 
-# Flutter/Dart/Pub related
+# -----------------------
+# Flutter/Dart/Pub
+# -----------------------
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
@@ -43,12 +49,29 @@ WHATSAPP_SHARING_GUIDE.md
 .pub/
 /build/
 
+# -----------------------
+# Supabase & Database
+# -----------------------
+# Do NOT ignore *.sql files if you want to save your migrations!
+# *.sql  <-- REMOVED THIS so your Supabase migrations are saved.
+
+# -----------------------
+# Web / Javascript
+# -----------------------
+# Be careful ignoring *.js if you write Cloud Functions in JS. 
+# If using TypeScript (Supabase/Deno), ignoring generated .js is fine.
+*.js
+node_modules/
+
+# -----------------------
+# Platform Specifics
+# -----------------------
 # Ignore all Windows executables
 *.exe
-*txt
 
-# Ignore all tarballs
+# Ignore all tarballs & zips
 *.tar.gz
+*.zip
 
 # Symbolication related
 app.*.symbols
@@ -56,18 +79,8 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android Studio artifacts
 /android/app/debug
 /android/app/profile
 /android/app/release
-
-# Local Netlify folder
-.netlify
-
-# Ignore build artifacts
-build/
-
-*.txt
-*.zip
-*.sql
-*.js
+/android/local.properties

@@ -180,15 +180,16 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
 
     setState(() => _isLoading = true);
     final supabase = Supabase.instance.client;
-    final userId = supabase.auth.currentUser!.id;
 
     try {
+      int successCount = 0;
+      
       for (final entry in _productEntries) {
         if (entry.imageFiles.isEmpty) continue;
 
         List<String> uploadedImageUrls = [];
 
-        // Upload ALL images
+        // Upload ALL images to designer-files bucket
         for (final imageFile in entry.imageFiles) {
           final fileBytes = await imageFile.readAsBytes();
           final fileName =
@@ -201,9 +202,7 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           uploadedImageUrls.add(imageUrl);
         }
 
-        // Use the first image as the main 'media_url' (thumbnail)
-        final mainImageUrl = uploadedImageUrls.first;
-
+        // Helper functions for array fields
         List<String>? textToList(TextEditingController controller) {
           final text = controller.text.trim();
           return text.isEmpty ? null : [text];
@@ -213,62 +212,56 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           final text = controller.text.trim();
           return text.isEmpty
               ? null
-              : text.split(',').map((t) => t.trim()).toList();
+              : text.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
         }
 
-        await supabase.from('assets').insert({
-          'owner_id': userId,
-          'title': entry.productTitleController.text,
-          'description': entry.descriptionController.text,
-          'media_url': mainImageUrl, // Main thumbnail
-          'status': 'pending',
-          'source': 'b2b_upload',
-          'attributes': {
-            // ⭐️ NEW: Save all images to the 'images' attribute
-            'images': uploadedImageUrls,
+        String? getTextValue(TextEditingController controller) {
+          final text = controller.text.trim();
+          return text.isEmpty ? null : text;
+        }
 
-            // Text fields
-            'Price': entry.priceController.text,
-            'Gold Weight': entry.goldWeightController.text,
-            'Metal Purity': entry.metalPurityController.text,
-            'Metal Finish': entry.metalFinishController.text,
-            'Collection Name': entry.collectionNameController.text,
-            'Product Type': entry.productTypeController.text,
-            'Theme': entry.themeController.text,
-            'Metal Type': entry.metalTypeController.text,
-            'Metal Color': entry.metalColorController.text,
-            'NET WEIGHT': entry.netWeightController.text,
-            'Dimension': entry.dimensionController.text,
-            'Art Form': entry.artFormController.text,
-            'Plating': entry.platingController.text,
-            'Enamel Work': entry.enamelWorkController.text,
-
-            // Dropdowns (Single Value)
-            'Gender': entry.gender,
-            'Design Type': entry.designType,
-
-            // Booleans
-            'Customizable': entry.customizable == 'Yes',
-
-            // --- FIELDS THAT MUST BE ARRAYS ---
-            'Product Tags':
-                tagsToList(entry.productTagsController), // Comma-separated
-            'Stone Weight': textToList(entry.stoneWeightController), // Array
-            'Stone Type': textToList(entry.stoneTypeController), // Array
-            'Stone Used':
-                (entry.stoneUsed == null) ? null : [entry.stoneUsed], // Array
-            'Stone Setting': textToList(entry.stoneSettingController), // Array
-            'Stone Count': textToList(entry.stoneCountController), // Array
-            'Stone Color': textToList(entry.stoneColorController), // Array
-            'Stone Cut': textToList(entry.stoneCutController), // Array
-            // Note: Stone Purity is missing from your manual form, so it's not included here.
-          },
-        });
+        // Insert directly into designerproducts table with proper column names
+        final insertResult = await supabase.from('designerproducts').insert({
+          'Product Title': entry.productTitleController.text.trim(),
+          'Description': getTextValue(entry.descriptionController),
+          'Image': uploadedImageUrls.isEmpty ? null : uploadedImageUrls,
+          'Price': getTextValue(entry.priceController),
+          'Product Tags': tagsToList(entry.productTagsController),
+          'Gold Weight': getTextValue(entry.goldWeightController),
+          'Metal Purity': getTextValue(entry.metalPurityController),
+          'Metal Finish': getTextValue(entry.metalFinishController),
+          'Stone Weight': textToList(entry.stoneWeightController),
+          'Stone Type': textToList(entry.stoneTypeController),
+          'Stone Used': entry.stoneUsed == null ? null : [entry.stoneUsed],
+          'Stone Setting': textToList(entry.stoneSettingController),
+          'Stone Count': textToList(entry.stoneCountController),
+          'Collection Name': getTextValue(entry.collectionNameController),
+          'Product Type': getTextValue(entry.productTypeController),
+          'Gender': entry.gender,
+          'Theme': getTextValue(entry.themeController),
+          'Metal Type': getTextValue(entry.metalTypeController),
+          'Metal Color': getTextValue(entry.metalColorController),
+          'Net Weight': getTextValue(entry.netWeightController),
+          'Stone Color': textToList(entry.stoneColorController),
+          'Stone Cut': textToList(entry.stoneCutController),
+          'Dimension': getTextValue(entry.dimensionController),
+          'Design Type': entry.designType,
+          'Art Form': getTextValue(entry.artFormController),
+          'Plating': getTextValue(entry.platingController),
+          'Enamel Work': textToList(entry.enamelWorkController),
+          'Customizable': entry.customizable == null ? null : [entry.customizable],
+        }).select();
+        
+        if (insertResult.isEmpty) {
+          throw Exception('Insert was rejected for "${entry.productTitleController.text}". Please check your permissions.');
+        }
+        successCount++;
       }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("All products submitted for approval!"),
+          SnackBar(
+              content: Text("$successCount product(s) uploaded successfully!"),
               backgroundColor: Colors.green),
         );
         setState(() {
@@ -352,9 +345,10 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
   bool _isLoading = false;
 
   void _downloadSampleCsv() {
+    // Headers matching the designerproducts table schema
+    // Note: 'Image' column is not needed in CSV - images are matched by file name
     final List<String> headers = [
       'Product Title',
-      'Image',
       'Description',
       'Price',
       'Product Tags',
@@ -366,22 +360,29 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
       'Stone Used',
       'Stone Setting',
       'Stone Count',
-      'Scraped URL',
+      'Stone Color',
+      'Stone Cut',
+      'Stone Purity',
       'Collection Name',
       'Product Type',
       'Gender',
       'Theme',
       'Metal Type',
       'Metal Color',
-      'NET WEIGHT',
-      'Stone Color',
-      'Stone Cut',
+      'Net Weight',
       'Dimension',
       'Design Type',
       'Art Form',
       'Plating',
       'Enamel Work',
-      'Customizable'
+      'Customizable',
+      'Category',
+      'Sub Category',
+      'Plain',
+      'Studded',
+      'Category1',
+      'Category2',
+      'Category3',
     ];
 
     final String csvContent = const ListToCsvConverter().convert([headers]);
@@ -427,6 +428,7 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
       return;
     }
 
+    // Headers that should be stored as arrays in designerproducts table
     const arrayHeaders = {
       'Product Tags',
       'Stone Weight',
@@ -436,93 +438,143 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
       'Stone Count',
       'Stone Color',
       'Stone Cut',
-      'Stone Purity', // Assuming this might be in your CSV
+      'Stone Purity',
+      'Enamel Work',
+      'Customizable',
+      'Studded',
     };
 
     setState(() => _isLoading = true);
     final supabase = Supabase.instance.client;
-    final userId = supabase.auth.currentUser!.id;
 
     try {
       final input = utf8.decode(_csvFiles!.first.bytes!);
       final fields = const CsvToListConverter().convert(input);
       final headers = fields[0].map((e) => e.toString().trim()).toList();
 
+      int successCount = 0;
+      int failCount = 0;
+
       for (int i = 1; i < fields.length; i++) {
         final row = fields[i];
-        final title = row[headers.indexOf('Product Title')];
-
-        // Find ALL matching image files
-        final matchingImageFiles = _imageFiles!.where(
-          (file) => file.name.split('.').first == title,
-        ).toList();
-
-        if (matchingImageFiles.isEmpty) {
-          debugPrint("No images found for product: $title");
-          continue; // Skip if no images found
+        final titleIndex = headers.indexOf('Product Title');
+        if (titleIndex == -1 || titleIndex >= row.length) {
+          debugPrint("Row $i: Missing Product Title");
+          failCount++;
+          continue;
         }
+        
+        final title = row[titleIndex].toString().trim();
+        if (title.isEmpty) {
+          debugPrint("Row $i: Empty Product Title");
+          failCount++;
+          continue;
+        }
+
+        // Find ALL matching image files using pattern: {Product Title}-Image*
+        // This matches files like "Gold Ring-Image1.jpg", "Gold Ring-Image2.png", etc.
+        final matchingImageFiles = _imageFiles!.where((file) {
+          final fileNameWithoutExt = file.name.split('.').first;
+          // Match exact title OR title followed by -Image (for multiple images)
+          return fileNameWithoutExt == title || 
+                 fileNameWithoutExt.startsWith('$title-Image') ||
+                 fileNameWithoutExt.startsWith('$title-image');
+        }).toList();
+
+        // Sort to ensure consistent ordering (Image1, Image2, etc.)
+        matchingImageFiles.sort((a, b) => a.name.compareTo(b.name));
 
         List<String> uploadedImageUrls = [];
 
+        // Upload all matching images to designer-files bucket
         for (final imageFile in matchingImageFiles) {
-          final fileName = '${DateTime.now().millisecondsSinceEpoch}-${imageFile.name}';
-          await supabase.storage
-              .from('designer-files')
-              .uploadBinary(fileName, imageFile.bytes!);
-          final imageUrl =
-              supabase.storage.from('designer-files').getPublicUrl(fileName);
-          uploadedImageUrls.add(imageUrl);
-        }
-
-        final mainImageUrl = uploadedImageUrls.first;
-
-        final Map<String, dynamic> attributes = {};
-        for (int j = 0; j < headers.length; j++) {
-          final header = headers[j];
-          dynamic value = (j < row.length) ? row[j] : null;
-
-          if (arrayHeaders.contains(header)) {
-            // This is the same logic from the admin upload fix
-            if (value == null) {
-              attributes[header] = null;
-            } else if (value is String) {
-              if (value.isEmpty) {
-                attributes[header] = null;
-              } else {
-                attributes[header] =
-                    value.split(',').map((t) => t.trim()).toList();
-              }
-            } else {
-              attributes[header] = [value.toString()];
-            }
-          } else if (header != 'Product Title' &&
-              header != 'Image' &&
-              header != 'Description') {
-            // Don't add Title/Image/Description to attributes
-            // (Description is already a top-level field)
-            attributes[header] = value;
+          try {
+            final fileName = '${DateTime.now().millisecondsSinceEpoch}-${imageFile.name}';
+            await supabase.storage
+                .from('designer-files')
+                .uploadBinary(fileName, imageFile.bytes!);
+            final imageUrl =
+                supabase.storage.from('designer-files').getPublicUrl(fileName);
+            uploadedImageUrls.add(imageUrl);
+          } catch (e) {
+            debugPrint("Failed to upload image ${imageFile.name}: $e");
           }
         }
 
-        await supabase.from('assets').insert({
-          'owner_id': userId,
-          'title': title,
-          'description': row[headers.indexOf('Description')],
-          'media_url': mainImageUrl,
-          'status': 'pending',
-          'source': 'b2b_bulk_upload',
-          'attributes': {
-            ...attributes,
-            'images': uploadedImageUrls, // ⭐️ NEW: Save all images
-          },
-        });
+        if (uploadedImageUrls.isEmpty) {
+          debugPrint("No images uploaded for product: $title");
+          // Continue without images - some products might not have images
+        }
+
+        // Helper function to convert comma-separated values to array
+        List<String>? parseArrayValue(dynamic value) {
+          if (value == null) return null;
+          if (value is String) {
+            if (value.isEmpty) return null;
+            return value.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+          }
+          return [value.toString()];
+        }
+
+        // Helper function to get string value
+        String? getStringValue(dynamic value) {
+          if (value == null) return null;
+          final str = value.toString().trim();
+          return str.isEmpty ? null : str;
+        }
+
+        // Build the product data matching designerproducts table schema
+        final Map<String, dynamic> productData = {
+          'Product Title': title,
+          'Image': uploadedImageUrls.isEmpty ? null : uploadedImageUrls,
+        };
+
+        // Map CSV columns to designerproducts columns
+        for (int j = 0; j < headers.length; j++) {
+          if (j >= row.length) continue;
+          
+          final header = headers[j];
+          final value = row[j];
+
+          // Skip Product Title and Image - already handled
+          if (header == 'Product Title' || header == 'Image') continue;
+
+          if (arrayHeaders.contains(header)) {
+            productData[header] = parseArrayValue(value);
+          } else {
+            productData[header] = getStringValue(value);
+          }
+        }
+
+        try {
+          // Insert directly into designerproducts table
+          final insertResult = await supabase
+              .from('designerproducts')
+              .insert(productData)
+              .select();
+          
+          if (insertResult.isNotEmpty) {
+            successCount++;
+            debugPrint("Successfully inserted product: $title");
+          } else {
+            failCount++;
+            debugPrint("Failed to insert product: $title - Insert returned empty");
+          }
+        } catch (e) {
+          failCount++;
+          debugPrint("Error inserting product $title: $e");
+        }
       }
 
       if (mounted) {
+        final message = failCount == 0
+            ? "Bulk upload successful! $successCount products uploaded."
+            : "Upload completed. $successCount succeeded, $failCount failed.";
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("Bulk upload successful!"),
-              backgroundColor: Colors.green),
+          SnackBar(
+            content: Text(message),
+            backgroundColor: failCount == 0 ? Colors.green : Colors.orange,
+          ),
         );
         setState(() {
           _csvFiles = null;
@@ -560,10 +612,22 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
                       const Icon(Icons.info_outline, color: Colors.blue),
                       const SizedBox(height: 8),
                       const Text(
-                        "Image names must be the same as the 'Product Title' in your CSV file (without the file extension).",
+                        "Image Naming Convention:",
+                        style: TextStyle(fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
+                      const Text(
+                        "For single image: {Product Title}.jpg\n"
+                        "For multiple images: {Product Title}-Image1.jpg, {Product Title}-Image2.jpg, etc.\n\n"
+                        "Example: If your product title is 'Gold Ring', name your images:\n"
+                        "• Gold Ring.jpg (or Gold Ring-Image1.jpg)\n"
+                        "• Gold Ring-Image2.jpg\n"
+                        "• Gold Ring-Image3.jpg",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13),
+                      ),
+                      const SizedBox(height: 12),
                       TextButton(
                         onPressed: _downloadSampleCsv,
                         child: const Text("Download Sample CSV"),
@@ -930,3 +994,4 @@ class _ProductFormCardState extends State<ProductFormCard> {
     );
   }
 }
+
