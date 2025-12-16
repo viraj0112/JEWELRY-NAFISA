@@ -127,8 +127,10 @@ class HomeScreenState extends State<HomeScreen> {
         designerQuery = designerQuery.eq('Product Type', _selectedProductType);
       }
       if (_selectedCategory != 'All') {
-        productsQuery = productsQuery.eq('Category', _selectedCategory);
-        designerQuery = designerQuery.eq('Category', _selectedCategory);
+        // Filter by Category OR Category1 OR Category2 OR Category3 for both tables
+        final categoryFilter = 'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
+        productsQuery = productsQuery.or(categoryFilter);
+        designerQuery = designerQuery.or(categoryFilter);
       }
       if (_selectedSubCategory != 'All') {
         productsQuery = productsQuery.eq('"Sub Category"', _selectedSubCategory);
