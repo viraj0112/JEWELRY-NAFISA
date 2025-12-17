@@ -11,6 +11,7 @@ import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,10 +30,18 @@ class HomeScreenState extends State<HomeScreen> {
   List<JewelryItem> _products = [];
   bool _isLoadingFilters = true;
   bool _isLoadingProducts = true;
+  bool _isLoadingProductTypes = false;
   bool _isLoadingCategories = false;
   bool _isLoadingSubCategories = false;
+  
+  // Pagination state
+  static const int _pageSize = 50; // Load 50 products at a time
+  int _currentOffset = 0;
+  bool _hasMoreProducts = true;
+  bool _isLoadingMore = false;
 
   // Filter options
+  List<String> _metalTypeOptions = ['All', 'Gold', 'Silver', 'Platinum'];
   List<String> _productTypeOptions = ['All'];
   List<String> _categoryOptions = ['All'];
   List<String> _subCategoryOptions = ['All'];
@@ -41,6 +50,7 @@ class HomeScreenState extends State<HomeScreen> {
   List<String> _studdedOptions = [];
 
   // Selected filter values
+  String _selectedMetalType = 'All';
   String _selectedProductType = 'All';
   String _selectedCategory = 'All';
   String _selectedSubCategory = 'All';
@@ -57,43 +67,51 @@ class HomeScreenState extends State<HomeScreen> {
     super.initState();
     _jewelryService = JewelryService(_supabase);
     _loadInitialData();
+    // Add scroll listener for infinite scroll
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    // Load more when user scrolls near the bottom (80% of the way)
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent * 0.8) {
+      if (!_isLoadingMore && _hasMoreProducts && !_isLoadingProducts) {
+        _loadMoreProducts();
+      }
+    }
   }
 
   Future<void> _loadInitialData() async {
     setState(() {
       _isLoadingFilters = true;
       _isLoadingProducts = true;
+      _isLoadingProductTypes = true;
     });
     try {
-      // 1. Load Initial Filter Options (Independent filters only)
-      final options = await _filterService.getInitialFilterOptions();
-      options.updateAll((key, value) {
-        if (value.isNotEmpty && !value.contains('All')) {
-          if (key == 'Product Type') {
-            return ['All', ...value];
-          }
-        }
-        return value;
-      });
-
-      // 2. Load Initial Products (with default filters)
-      final productList = await _fetchFilteredProducts();
+      // 1. Load Initial Filter Options
+      // Metal Type is hardcoded, so we don't need to fetch it
+      // Load all Product Types initially (when Metal Type is 'All')
+      final allProductTypes = await _filterService.getDistinctValues('Product Type');
+      
+      // 2. Load Initial Products (with default filters) - First page only
+      final productList = await _fetchFilteredProducts(offset: 0, limit: _pageSize);
 
       if (mounted) {
         setState(() {
-          _productTypeOptions = options['Product Type'] ?? ['All'];
-          _plainOptions = options['Plain'] ?? [];
-          _metalPurity = options['Metal Purity'] ?? [];
-          _studdedOptions = options['Studded'] ?? [];
+          _productTypeOptions = ['All', ...allProductTypes];
           _products = productList;
+          _currentOffset = productList.length;
+          _hasMoreProducts = productList.length >= _pageSize;
           _isLoadingFilters = false;
           _isLoadingProducts = false;
+          _isLoadingProductTypes = false;
         });
       }
     } catch (e) {
@@ -110,18 +128,39 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<List<JewelryItem>> _fetchFilteredProducts() async {
-    if (mounted) {
+  Future<List<JewelryItem>> _fetchFilteredProducts({int offset = 0, int limit = _pageSize}) async {
+    if (mounted && offset == 0) {
       setState(() => _isLoadingProducts = true);
     }
     try {
-      // Build query for 'products' table
-      dynamic productsQuery = _supabase.from('products').select();
+      // OPTIMIZED: Select only essential columns for list view
+      // This reduces data transfer significantly
+      // Note: 'products' table doesn't have 'created_at' or 'aspect_ratio'
+      // Note: 'designerproducts' table has 'created_at' but not 'aspect_ratio'
+      // The model will default aspectRatio to 1.0 if not present
+      const selectColumns = 'id, "Product Title", Image, Description, "Product Type", '
+          'Category, Category1, Category2, Category3, "Sub Category", '
+          '"Metal Type", "Metal Purity", Plain, Studded';
       
-      // Build query for 'designerproducts' table
-      dynamic designerQuery = _supabase.from('designerproducts').select();
+      // For designerproducts, we can include created_at
+      const designerSelectColumns = '$selectColumns, created_at';
+      
+      // Build query for 'products' table
+      dynamic productsQuery = _supabase
+          .from('products')
+          .select(selectColumns);
+      
+      // Build query for 'designerproducts' table (includes created_at)
+      dynamic designerQuery = _supabase
+          .from('designerproducts')
+          .select(designerSelectColumns);
 
       // Apply filters to both queries
+      // Metal Type filter (first in hierarchy)
+      if (_selectedMetalType != 'All') {
+        productsQuery = productsQuery.eq('"Metal Type"', _selectedMetalType);
+        designerQuery = designerQuery.eq('"Metal Type"', _selectedMetalType);
+      }
       if (_selectedProductType != 'All') {
         productsQuery = productsQuery.eq('Product Type', _selectedProductType);
         designerQuery = designerQuery.eq('Product Type', _selectedProductType);
@@ -149,11 +188,17 @@ class HomeScreenState extends State<HomeScreen> {
         designerQuery = designerQuery.contains('Studded', ['$_selectedStudded']);
       }
 
-      productsQuery = productsQuery.limit(500000);
-      designerQuery = designerQuery.limit(500000);
+      // OPTIMIZED: Use pagination instead of loading all products
+      // Note: 'products' table doesn't have 'created_at', so order by id instead
+      productsQuery = productsQuery
+          .order('id', ascending: false)
+          .range(offset, offset + limit - 1);
+      // 'designerproducts' table has 'created_at' column
+      designerQuery = designerQuery
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
       
       // Fetch from both tables in parallel
-      // Execute queries and cast to Future<dynamic> for Future.wait
       final responses = await Future.wait<dynamic>([
         productsQuery as Future<dynamic>,
         designerQuery as Future<dynamic>,
@@ -181,7 +226,11 @@ class HomeScreenState extends State<HomeScreen> {
         );
       }
 
-      allItems.shuffle();
+      // Shuffle only on first load, keep order for pagination
+      if (offset == 0) {
+        allItems.shuffle();
+      }
+
       return allItems;
     } catch (e) {
       debugPrint('Error fetching filtered products: $e');
@@ -192,21 +241,105 @@ class HomeScreenState extends State<HomeScreen> {
       }
       return [];
     } finally {
-      if (mounted) {
+      if (mounted && offset == 0) {
         setState(() => _isLoadingProducts = false);
+      }
+    }
+  }
+
+  Future<void> _loadMoreProducts() async {
+    if (_isLoadingMore || !_hasMoreProducts) return;
+
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final newProducts = await _fetchFilteredProducts(
+        offset: _currentOffset,
+        limit: _pageSize,
+      );
+
+      if (mounted) {
+        setState(() {
+          if (newProducts.isEmpty) {
+            _hasMoreProducts = false;
+          } else {
+            _products.addAll(newProducts);
+            _currentOffset += newProducts.length;
+            // If we got fewer products than requested, we've reached the end
+            if (newProducts.length < _pageSize) {
+              _hasMoreProducts = false;
+            }
+          }
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading more products: $e');
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
       }
     }
   }
 
   // This function just applies the filters and updates the product list
   Future<void> _applyFilters() async {
-    final productList = await _fetchFilteredProducts();
+    // Reset pagination when filters change
+    _currentOffset = 0;
+    _hasMoreProducts = true;
+    
+    final productList = await _fetchFilteredProducts(offset: 0, limit: _pageSize);
     if (mounted) {
-      setState(() => _products = productList);
+      setState(() {
+        _products = productList;
+        _currentOffset = productList.length;
+        // If we got fewer products than page size, no more to load
+        if (productList.length < _pageSize) {
+          _hasMoreProducts = false;
+        }
+      });
     }
   }
 
   // Handlers for dependent dropdowns
+
+  /// Called when "Metal Type" filter changes
+  Future<void> _onMetalTypeChanged(String value) async {
+    setState(() {
+      _selectedMetalType = value;
+      // Reset all dependent filters
+      _selectedProductType = 'All';
+      _selectedCategory = 'All';
+      _selectedSubCategory = 'All';
+      _selectedMetalPurity = 'All';
+      // Clear options and show loading
+      _productTypeOptions = ['All'];
+      _categoryOptions = ['All'];
+      _subCategoryOptions = ['All'];
+      _metalPurity = ['All'];
+      _isLoadingProductTypes = true;
+    });
+
+    // Fetch Product Types based on Metal Type
+    List<String> newProductTypes;
+    if (value == 'All') {
+      // If Metal Type is 'All', get all Product Types
+      newProductTypes = await _filterService.getDistinctValues('Product Type');
+    } else {
+      // Otherwise, get Product Types filtered by Metal Type
+      final filters = {'Metal Type': value};
+      newProductTypes =
+          await _filterService.getDependentDistinctValues('Product Type', filters);
+    }
+
+    if (mounted) {
+      setState(() {
+        _productTypeOptions = ['All', ...newProductTypes];
+        _isLoadingProductTypes = false;
+      });
+    }
+    // Refetch products
+    _applyFilters();
+  }
 
   /// Called when "Product Type" dropdown changes
   Future<void> _onProductTypeChanged(String? value) async {
@@ -225,7 +358,13 @@ class HomeScreenState extends State<HomeScreen> {
       _isLoadingCategories = true;
     });
 
-    final filters = {'Product Type': value};
+    // Build filters including Metal Type if selected
+    final filters = <String, String?>{};
+    if (_selectedMetalType != 'All') {
+      filters['Metal Type'] = _selectedMetalType;
+    }
+    filters['Product Type'] = value;
+    
     final newCategories =
         await _filterService.getDependentDistinctValues('Category', filters);
 
@@ -253,10 +392,15 @@ class HomeScreenState extends State<HomeScreen> {
     });
 
     // Fetch new options for 'Sub Category'
-    final filters = {
-      'Product Type': _selectedProductType,
-      'Category': value,
-    };
+    final filters = <String, String?>{};
+    if (_selectedMetalType != 'All') {
+      filters['Metal Type'] = _selectedMetalType;
+    }
+    if (_selectedProductType != 'All') {
+      filters['Product Type'] = _selectedProductType;
+    }
+    filters['Category'] = value;
+    
     final newSubCategories = await _filterService.getDependentDistinctValues(
         'Sub Category', filters);
 
@@ -282,6 +426,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   void _resetFilters() {
     setState(() {
+      _selectedMetalType = 'All';
       _selectedProductType = 'All';
       _selectedCategory = 'All';
       _selectedSubCategory = 'All';
@@ -289,6 +434,7 @@ class HomeScreenState extends State<HomeScreen> {
       _selectedStudded = null;
 
       // Reset option lists to default
+      _productTypeOptions = ['All'];
       _categoryOptions = ['All'];
       _subCategoryOptions = ['All'];
     });
@@ -401,16 +547,28 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeGrid() {
     return RefreshIndicator(
-      onRefresh: _loadInitialData,
-      child: _products.isEmpty
+      onRefresh: () async {
+        // Reset pagination on refresh
+        _currentOffset = 0;
+        _hasMoreProducts = true;
+        await _loadInitialData();
+      },
+      child: _products.isEmpty && !_isLoadingProducts
           ? const Center(child: Text('No products found matching your filters.'))
           : MasonryGridView.count(
               controller: _scrollController,
               padding: const EdgeInsets.all(8.0),
               crossAxisCount:
                   (MediaQuery.of(context).size.width / 200).floor().clamp(2, 6),
-              itemCount: _products.length,
+              itemCount: _products.length + (_isLoadingMore ? 1 : 0),
               itemBuilder: (context, index) {
+                // Show loading indicator at the bottom when loading more
+                if (index == _products.length) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
                 return _buildImageCard(context, _products[index]);
               },
               mainAxisSpacing: 8.0,
@@ -422,80 +580,258 @@ class HomeScreenState extends State<HomeScreen> {
   Widget _buildFilterBar() {
     if (_isLoadingFilters) {
       return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Center(child: LinearProgressIndicator()),
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Wrap(
-        spacing: 8.0,
-        runSpacing: 4.0,
-        alignment: WrapAlignment.start,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildDropdownFilter(
-            hint: 'Product Type',
-            options: _productTypeOptions,
-            selectedValue: _selectedProductType,
-            onChanged: _onProductTypeChanged,
+          // Heading - compact
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: Text(
+              'Choose Your Style',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: const Color(0xFF006435),
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
           ),
-          _buildDropdownFilter(
-            hint: 'Category',
-            options: _categoryOptions,
-            selectedValue: _selectedCategory,
-            onChanged: _onCategoryChanged,
-            isLoading: _isLoadingCategories,
+          
+          // Metal Type Filter - Compact buttons
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
+                const SizedBox(width: 6.0),
+                _buildMetalTypeButton('Silver', _selectedMetalType == 'Silver'),
+                const SizedBox(width: 6.0),
+                _buildMetalTypeButton('Platinum', _selectedMetalType == 'Platinum'),
+              ],
+            ),
           ),
-          _buildDropdownFilter(
-            hint: 'Sub Category',
-            options: _subCategoryOptions,
-            selectedValue: _selectedSubCategory,
-            onChanged: _onSubCategoryChanged,
-            isLoading: _isLoadingSubCategories,
-          ),
-          _buildDropdownFilter(
-            hint: 'Metal Purity',
-            options: _metalPurity,
-            selectedValue: _selectedMetalPurity,
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() {
-                _selectedMetalPurity = value;
-              });
-              _applyFilters();
-            },
-          ),
-          _buildChoiceChipFilter(
-            label: 'Plain',
-            options: _plainOptions,
-            selectedOption: _selectedPlain,
-            onSelected: (value) {
-              setState(() => _selectedPlain = value);
-              _applyFilters();
-            },
-          ),
-          _buildChoiceChipFilter(
-            label: 'Studded',
-            options: _studdedOptions,
-            selectedOption: _selectedStudded,
-            onSelected: (value) {
-              setState(() => _selectedStudded = value);
-              _applyFilters();
-            },
-          ),
-          if (_selectedProductType != 'All' ||
+          
+          // Product Type Filter - Bubble chips
+          if (_productTypeOptions.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: _buildBubbleFilter(
+                options: _productTypeOptions,
+                selectedValue: _selectedProductType,
+                onChanged: _onProductTypeChanged,
+                isLoading: _isLoadingProductTypes,
+              ),
+            ),
+          
+          // Category Filter - Bubble chips
+          if (_categoryOptions.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: _buildBubbleFilter(
+                options: _categoryOptions,
+                selectedValue: _selectedCategory,
+                onChanged: _onCategoryChanged,
+                isLoading: _isLoadingCategories,
+              ),
+            ),
+          
+          // Sub Category Filter - Bubble chips
+          if (_subCategoryOptions.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: _buildBubbleFilter(
+                options: _subCategoryOptions,
+                selectedValue: _selectedSubCategory,
+                onChanged: _onSubCategoryChanged,
+                isLoading: _isLoadingSubCategories,
+              ),
+            ),
+          
+          // Reset button - compact
+          if (_selectedMetalType != 'All' ||
+              _selectedProductType != 'All' ||
               _selectedCategory != 'All' ||
               _selectedSubCategory != 'All' ||
               _selectedMetalPurity != 'All' ||
               _selectedPlain != null ||
               _selectedStudded != null)
-            ActionChip(
-              avatar: const Icon(Icons.clear, size: 18),
-              label: const Text('Reset'),
-              onPressed: _resetFilters,
+            Padding(
+              padding: const EdgeInsets.only(top: 6.0),
+              child: _buildResetButton(),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMetalTypeButton(String metalType, bool isSelected) {
+    Color textColor;
+    BoxDecoration decoration;
+    
+    if (isSelected) {
+      textColor = Colors.white;
+      switch (metalType) {
+        case 'Gold':
+          decoration = BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFFD700), Color(0xFFFFB84D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18.0),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFFD700).withOpacity(0.25),
+                blurRadius: 3,
+                offset: const Offset(0, 1.5),
+              ),
+            ],
+          );
+          break;
+        case 'Silver':
+          decoration = BoxDecoration(
+            color: const Color(0xFFB8B8B8),
+            borderRadius: BorderRadius.circular(18.0),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFB8B8B8).withOpacity(0.25),
+                blurRadius: 3,
+                offset: const Offset(0, 1.5),
+              ),
+            ],
+          );
+          break;
+        case 'Platinum':
+          decoration = BoxDecoration(
+            color: const Color(0xFFD3D3D3),
+            borderRadius: BorderRadius.circular(18.0),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFD3D3D3).withOpacity(0.25),
+                blurRadius: 3,
+                offset: const Offset(0, 1.5),
+              ),
+            ],
+          );
+          break;
+        default:
+          decoration = BoxDecoration(
+            color: const Color(0xFF9E9E9E),
+            borderRadius: BorderRadius.circular(18.0),
+          );
+      }
+    } else {
+      textColor = const Color(0xFF424242);
+      decoration = BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18.0),
+        border: Border.all(
+          color: const Color(0xFFE0E0E0),
+          width: 1.5,
+        ),
+      );
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          if (isSelected) {
+            _onMetalTypeChanged('All');
+          } else {
+            _onMetalTypeChanged(metalType);
+          }
+        },
+        borderRadius: BorderRadius.circular(18.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 18.0),
+          decoration: decoration,
+          child: Text(
+            metalType,
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBubbleFilter({
+    required List<String> options,
+    required String selectedValue,
+    required ValueChanged<String?> onChanged,
+    bool isLoading = false,
+  }) {
+    if (isLoading) {
+      return const SizedBox(
+        height: 32,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    // Filter out 'All' from display completely
+    final displayOptions = options.where((opt) => opt != 'All').toList();
+    
+    if (displayOptions.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 6.0,
+      runSpacing: 6.0,
+      children: displayOptions.map((option) => _buildBubbleChip(
+        option,
+        selectedValue == option,
+        () => onChanged(option),
+      )).toList(),
+    );
+  }
+
+  Widget _buildBubbleChip(String label, bool isSelected, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 6.0),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF006435) : Colors.white,
+            borderRadius: BorderRadius.circular(16.0),
+            border: Border.all(
+              color: isSelected 
+                  ? const Color(0xFF006435) 
+                  : const Color(0xFFE0E0E0),
+              width: 1.5,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF006435).withOpacity(0.15),
+                      blurRadius: 3,
+                      offset: const Offset(0, 1.5),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : const Color(0xFF424242),
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              fontSize: 12,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -535,16 +871,59 @@ class HomeScreenState extends State<HomeScreen> {
             ? 'All'
             : selectedValue;
 
-    return DropdownButton<String>(
-      hint: Text(hint),
-      value: currentSelection,
-      onChanged: onChanged,
-      items: displayOptions.map<DropdownMenuItem<String>>((String value) {
-        return DropdownMenuItem<String>(
-          value: value,
-          child: Text(value),
-        );
-      }).toList(),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(
+          color: const Color(0xFFE0E0E0),
+          width: 1.5,
+        ),
+      ),
+      child: DropdownButton<String>(
+        hint: Text(
+          hint,
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 15,
+          ),
+        ),
+        value: currentSelection,
+        onChanged: onChanged,
+        isExpanded: true,
+        underline: const SizedBox.shrink(),
+        icon: Icon(
+          Icons.keyboard_arrow_down,
+          color: Colors.grey.shade600,
+          size: 20,
+        ),
+        iconSize: 20,
+        style: const TextStyle(
+          color: Color(0xFF212121),
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
+        dropdownColor: Colors.white,
+        items: displayOptions.map<DropdownMenuItem<String>>((String value) {
+          return DropdownMenuItem<String>(
+            value: value,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              child: Text(
+                value,
+                style: TextStyle(
+                  color: value == 'All' 
+                      ? Colors.grey.shade600 
+                      : const Color(0xFF212121),
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -557,29 +936,76 @@ class HomeScreenState extends State<HomeScreen> {
     if (options.isEmpty) return const SizedBox.shrink();
 
     return Wrap(
-      spacing: 8.0,
+      spacing: 10.0,
+      runSpacing: 10.0,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         if (label.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
-            child: Text('$label:',
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: Colors.grey.shade700,
+              ),
+            ),
           ),
         ...options.map((option) {
           final isSelected = selectedOption == option;
-          return ChoiceChip(
-            label: Text(option),
+          return FilterChip(
+            label: Text(
+              option,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? Colors.white : const Color(0xFF424242),
+              ),
+            ),
             selected: isSelected,
             onSelected: (selected) {
               onSelected(selected ? option : null);
             },
-            selectedColor:
-                Theme.of(context).colorScheme.primary.withOpacity(0.2),
-            checkmarkColor: Theme.of(context).colorScheme.primary,
+            selectedColor: const Color(0xFF006435),
+            backgroundColor: Colors.white,
+            checkmarkColor: Colors.white,
+            side: BorderSide(
+              color: isSelected 
+                  ? const Color(0xFF006435) 
+                  : const Color(0xFFE0E0E0),
+              width: 1.5,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.0),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
           );
         }).toList(),
       ],
+    );
+  }
+
+  Widget _buildResetButton() {
+    return OutlinedButton.icon(
+      onPressed: _resetFilters,
+      icon: const Icon(Icons.clear, size: 12),
+      label: const Text(
+        'Reset',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFF424242),
+        side: const BorderSide(color: Color(0xFFE0E0E0), width: 1.5),
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+        minimumSize: const Size(0, 28),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+      ),
     );
   }
 
@@ -611,14 +1037,21 @@ class HomeScreenState extends State<HomeScreen> {
           child: Stack(
             alignment: Alignment.bottomCenter,
             children: [
-              Image.network(
-                item.image,
+              // OPTIMIZED: Use CachedNetworkImage for better performance and caching
+              CachedNetworkImage(
+                imageUrl: item.image,
                 fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) => progress == null
-                    ? child
-                    : const Center(child: CircularProgressIndicator.adaptive()),
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.error_outline, color: Colors.grey),
+                placeholder: (context, url) => const Center(
+                  child: CircularProgressIndicator.adaptive(),
+                ),
+                errorWidget: (context, url, error) => const Icon(
+                  Icons.error_outline,
+                  color: Colors.grey,
+                ),
+                // Cache images for 7 days
+                cacheKey: item.image,
+                maxWidthDiskCache: 800, // Limit cached image size
+                maxHeightDiskCache: 1200,
               ),
               if (isHovered || isTapped)
                 Container(
