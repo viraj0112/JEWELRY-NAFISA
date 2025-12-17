@@ -47,7 +47,7 @@ class BuyMembershipScreen extends StatelessWidget {
       parameters: {
         'item_name': 'Lifetime Membership',
         'currency': 'INR', // Or your currency
-        'value': null,    // Put the actual price here if known
+        'value': 5000,    // Put the actual price here if known
       },
     );
                     launchUrl(Uri.parse('https://members.daginawala.in'));
