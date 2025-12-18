@@ -229,12 +229,12 @@ Future<void> _loadImages() async {
 
   PreferredSizeWidget _buildAppBar() {
     final themeProvider = Provider.of<ThemeProvider>(context);
-
+    const Color customGreen = Color(0xFF336B43);
   return AppBar(
   automaticallyImplyLeading: false,
   titleSpacing: 16.0,
   elevation: 0,
-  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+  backgroundColor: customGreen,
   title: Row(
     children: [
       Image.asset(

@@ -138,7 +138,7 @@ class _OnboardingScreen2OccasionsState extends State<OnboardingScreen2Occasions>
      Row(
       children: [
        IconButton(
-        onPressed: () => GoRouter.of(context).go('/onboarding/location'),
+        onPressed: () => GoRouter.of(context).go('/onboarding/age'),
         icon: Icon(Icons.arrow_back_rounded, color: colorScheme.onBackground), // FIX: Use onBackground for icon color
         iconSize: 28,
        ),
