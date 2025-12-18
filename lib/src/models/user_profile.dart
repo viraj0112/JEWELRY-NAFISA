@@ -20,7 +20,7 @@ class UserProfile {
   final bool isApproved;
   final DesignerProfile? designerProfile;
   final String? bio;
-
+  final int age;
   // ------------------------------------------------------------------
   // 🎯 UPDATED ONBOARDING FIELDS
   // ------------------------------------------------------------------
@@ -43,6 +43,7 @@ class UserProfile {
     this.birthdate,
     this.avatarUrl,
     this.gender,
+    this.age = 0 ,
     required this.role,
     this.phone,
     required this.isMember,
@@ -95,6 +96,7 @@ class UserProfile {
     String? zipCode,
     List<String>? selectedOccasions,
     List<String>? selectedCategories,
+    int? age
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -124,6 +126,7 @@ class UserProfile {
       zipCode: zipCode ?? this.zipCode,
       selectedOccasions: selectedOccasions ?? this.selectedOccasions,
       selectedCategories: selectedCategories ?? this.selectedCategories,
+      age: age ?? this.age,
     );
   }
 
@@ -178,6 +181,7 @@ class UserProfile {
       zipCode: map['zip_code'],
       selectedOccasions: parseStringList(map['occasions']),
       selectedCategories: parseStringList(map['jewelry_categories']),
+      age: map['age'] ?? 0,
       // ------------------------------------------------------------------
     );
   }

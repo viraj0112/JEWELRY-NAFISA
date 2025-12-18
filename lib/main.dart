@@ -1,5 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_gender.dart';
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_age.dart';
 import 'firebase_options.dart';
 
 import 'package:flutter/material.dart';
@@ -74,6 +76,12 @@ final _router = GoRouter(
     GoRoute(
       path: '/onboarding/location',
       builder: (context, state) => const OnboardingScreen1Location(),
+    ),
+    GoRoute(path: '/onboarding/gender',
+    builder:(context,state)=> const OnboardingScreen2Gender(),
+    ),
+       GoRoute(path: '/onboarding/age',
+    builder:(context,state)=> const OnboardingScreen3Age(),
     ),
     GoRoute(
       path: '/onboarding/occasions',

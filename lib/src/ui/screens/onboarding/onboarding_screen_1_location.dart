@@ -138,7 +138,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     );
 
     if (mounted) {
-      GoRouter.of(context).go('/onboarding/occasions');
+      GoRouter.of(context).go('/onboarding/gender');
     }
   }
 
@@ -146,79 +146,33 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 900;
-    final isTablet = size.width > 600 && size.width <= 900;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
-          child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(isTablet),
+          child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
         ),
       ),
     );
   }
 
   Widget _buildDesktopLayout() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    
     return Row(
       children: [
-        // Left side - Visual
+        // Left side - Logo and branding
         Expanded(
-          flex: 5,
+          flex: 1,
           child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDark
-                    ? [
-                        const Color(0xFF1E3A2E),
-                        const Color(0xFF2D5A47),
-                        const Color(0xFF3C7A60),
-                      ]
-                    : [
-                        const Color(0xFFE8F5E9),
-                        const Color(0xFFC8E6C9),
-                        const Color(0xFFA5D6A7),
-                      ],
-              ),
-            ),
+            color: Colors.white,
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(32),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
-                          blurRadius: 40,
-                          offset: const Offset(0, 20),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.location_on_rounded,
-                      size: 80,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    'Where are you from?',
-                    style: theme.textTheme.displayLarge?.copyWith(fontSize: 36),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Help us personalize your jewelry experience',
-                    style: theme.textTheme.bodyLarge?.copyWith(fontSize: 18),
-                  ),
+                  _buildLogoSection(),
+                  const SizedBox(height: 60),
+                  _buildProgressIndicator(),
                 ],
               ),
             ),
@@ -226,14 +180,14 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
         ),
         // Right side - Form
         Expanded(
-          flex: 4,
+          flex: 1,
           child: Container(
-            color: theme.scaffoldBackgroundColor,
+            color: Colors.white,
             child: Center(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 40),
-                child: _buildFormContent(maxWidth: 480),
+                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 60),
+                child: _buildFormContent(),
               ),
             ),
           ),
@@ -242,357 +196,292 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     );
   }
 
-  Widget _buildMobileLayout(bool isTablet) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    
+  Widget _buildMobileLayout() {
     return SingleChildScrollView(
-      child: Column(
-        children: [
-          // Header
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(isTablet ? 40 : 24),
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(20),
-                bottomRight: Radius.circular(20),
-              ),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDark
-                    ? [
-                        const Color(0xFF1E3A2E),
-                        const Color(0xFF2D5A47),
-                        const Color(0xFF3C7A60),
-                      ]
-                    : [
-                        const Color(0xFFE8F5E9),
-                        const Color(0xFFC8E6C9),
-                        const Color(0xFFA5D6A7),
-                      ],
-              ),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
-                        blurRadius: 30,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.location_on_rounded,
-                    size: isTablet ? 60 : 48,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-                SizedBox(height: isTablet ? 24 : 16),
-                Text(
-                  'Where are you from?',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontSize: isTablet ? 32 : 24,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Help us personalize your jewelry experience',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontSize: isTablet ? 16 : 14,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-          // Form
-          _buildFormContent(maxWidth: isTablet ? 600 : double.infinity),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40),
+        child: Column(
+          children: [
+            _buildLogoSection(),
+            const SizedBox(height: 32),
+            _buildProgressIndicator(),
+            const SizedBox(height: 40),
+            _buildFormContent(),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildFormContent({required double maxWidth}) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    
-    // Define the input fill color based on the theme
-    final inputFillColor = isDark 
-        ? theme.colorScheme.surface.withOpacity(0.5)
-        : Colors.grey.shade100;
-
-    return Container(
-      constraints: BoxConstraints(maxWidth: maxWidth),
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Progress indicator
-          Row(
-            children: [
-              _buildProgressDot(true),
-              const SizedBox(width: 8),
-              _buildProgressDot(false),
-              const SizedBox(width: 8),
-              _buildProgressDot(false),
-              const Spacer(),
-              Text(
-                '1 of 3',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+  Widget _buildLogoSection() {
+    return Column(
+      children: [
+        // Add your logo image here
+        Image.asset(
+          'assets/icons/dagina2.png',
+          // 'assets/images/logo.png', // Replace with your actual logo path
+          height: 80,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              height: 80,
+              width: 80,
+              decoration: BoxDecoration(
+                color: const Color(0xFF006435),
+                borderRadius: BorderRadius.circular(16),
               ),
-            ],
+              child: const Icon(
+                Icons.diamond,
+                size: 40,
+                color: Colors.white,
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'FIND THE PERFECT JEWELRY FOR ANY OCCASION',
+          style: TextStyle(
+            fontSize: 10,
+            letterSpacing: 1.2,
+            color: Color(0xFF006435),
+            fontWeight: FontWeight.w500,
           ),
-          const SizedBox(height: 40),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
 
-          // Country Input
-          _buildSectionTitle('Country'),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-            decoration: BoxDecoration(
-              // Use the consistent input fill color
-              color: inputFillColor, 
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: _selectedCountryCode != null
-                    ? theme.colorScheme.primary
-                    : Colors.transparent,
-                width: 2,
-              ),
-            ),
-            child: CountryCodePicker(
-              onChanged: (CountryCode code) {
-                _countryController.text = code.name ?? '';
-                _selectedCountryCode = code.code;
-                setState(() {});
-              },
-              favorite: const ['+91', 'IN', '+1', 'US', '+44', 'GB'],
-              showCountryOnly: true,
-              showOnlyCountryWhenClosed: true,
-              alignLeft: false,
-              flagWidth: 30,
-              padding: EdgeInsets.zero,
-              dialogSize: const Size(400, 500),
-              dialogBackgroundColor: theme.colorScheme.surface,
-              searchDecoration: InputDecoration(
-                hintText: 'Search Country',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                labelStyle: TextStyle(
-                  color: theme.colorScheme.onSurface,
-                ),
-                hintStyle: TextStyle(
-                  color: theme.colorScheme.onSurface.withOpacity(0.5),
-                ),
-              ),
-              // FIX: Ensure the text color is good for the background
-              textStyle: TextStyle(
-                fontSize: 16,
-                color: theme.colorScheme.onSurface, 
-              ),
-              searchStyle: TextStyle(
-                color: theme.colorScheme.onSurface,
-              ),
-              // FIX: Ensure the dialog list text color is visible in dark mode
-              dialogTextStyle: TextStyle(
-                color: theme.colorScheme.onSurface,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // ZIP/Postal Code Input
-          _buildSectionTitle('ZIP / Postal Code'),
-          const SizedBox(height: 12),
-          _buildTextField(
-            controller: _zipController,
-            icon: Icons.numbers,
-            keyboardType: TextInputType.text,
-            hintText: 'Enter your postal or zip code',
-          ),
-
-          const SizedBox(height: 24),
-
-          // ------------------------------------
-          // Phone Number Input
-          // ------------------------------------
-          _buildSectionTitle('Phone Number'),
-          const SizedBox(height: 12),
-          // FIX: Apply inputFillColor to the container holding the phone input
-          Container(
-            decoration: BoxDecoration(
-              color: inputFillColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.transparent),
-            ),
-            child: Row(
-              children: [
-                // Country Code Picker for Phone
-                CountryCodePicker(
-                  onChanged: (CountryCode code) {
-                    _selectedDialCode = code.dialCode;
-                  },
-                  initialSelection: 'IN',
-                  favorite: const ['+91', 'IN', '+1', 'US'],
-                  showCountryOnly: false,
-                  showOnlyCountryWhenClosed: false,
-                  alignLeft: false,
-                  showFlag: true,
-                  padding: const EdgeInsets.only(left: 8),
-                  // FIX: Set text color for closed state
-                  textStyle: TextStyle(
-                    fontSize: 16, 
-                    color: theme.colorScheme.onSurface
-                  ), 
-                  // FIX: Set text color for dialog list
-                  dialogTextStyle: TextStyle(
-                    color: theme.colorScheme.onSurface,
-                    fontSize: 16,
-                  ),
-                  // FIX: Set search text color
-                  searchStyle: TextStyle(
-                    color: theme.colorScheme.onSurface,
-                    fontSize: 16,
-                  ),
-                  dialogBackgroundColor: theme.colorScheme.surface,
-                ),
-                // Phone Number Text Field
-                Expanded(
-                  child: TextField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    // FIX: Set text style for dark mode
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurface,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Phone Number',
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                      hintStyle: TextStyle(
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 40),
-
-          // Continue Button
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            child: ElevatedButton(
-              onPressed: _nextStage,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Continue',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
+  Widget _buildProgressIndicator() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildProgressDot(true),
+        const SizedBox(width: 8),
+        _buildProgressDot(false),
+        const SizedBox(width: 8),
+        _buildProgressDot(false),
+      ],
     );
   }
 
   Widget _buildProgressDot(bool isActive) {
-    final theme = Theme.of(context);
-    
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
-      width: isActive ? 24 : 8,
+      width: isActive ? 32 : 8,
       height: 8,
       decoration: BoxDecoration(
-        color: isActive 
-            ? theme.colorScheme.primary 
-            : theme.colorScheme.onSurface.withOpacity(0.2),
+        color: isActive ? const Color(0xFF006435) : const Color(0xFFE0E0E0),
         borderRadius: BorderRadius.circular(4),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    final theme = Theme.of(context);
-    
+  Widget _buildFormContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Pick your country',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'This helps us find you more relevant content.\nWe won\'t show it on your profile.',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.black54,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 32),
+
+        // Country Dropdown
+        _buildLabel('Country'),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE0E0E0)),
+          ),
+          child: CountryCodePicker(
+            onChanged: (CountryCode code) {
+              _countryController.text = code.name ?? '';
+              _selectedCountryCode = code.code;
+              setState(() {});
+            },
+            favorite: const ['+91', 'IN', '+1', 'US', '+44', 'GB'],
+            showCountryOnly: true,
+            showOnlyCountryWhenClosed: true,
+            alignLeft: true,
+            flagWidth: 30,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            dialogSize: const Size(400, 500),
+            dialogBackgroundColor: Colors.white,
+            searchDecoration: InputDecoration(
+              hintText: 'Search Country',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              color: Colors.black87,
+            ),
+            searchStyle: const TextStyle(
+              color: Colors.black87,
+            ),
+            dialogTextStyle: const TextStyle(
+              color: Colors.black87,
+              fontSize: 16,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Pin Code
+        _buildLabel('Pin Code'),
+        const SizedBox(height: 8),
+        _buildTextField(
+          controller: _zipController,
+          hintText: 'Value',
+          keyboardType: TextInputType.text,
+        ),
+        const SizedBox(height: 24),
+
+        // Phone Number
+        _buildLabel('Phone Number'),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE0E0E0)),
+          ),
+          child: Row(
+            children: [
+              CountryCodePicker(
+                onChanged: (CountryCode code) {
+                  _selectedDialCode = code.dialCode;
+                },
+                initialSelection: 'IN',
+                favorite: const ['+91', 'IN', '+1', 'US'],
+                showCountryOnly: false,
+                showOnlyCountryWhenClosed: false,
+                alignLeft: false,
+                showFlag: true,
+                padding: const EdgeInsets.only(left: 12),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+                dialogTextStyle: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 16,
+                ),
+                searchStyle: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 16,
+                ),
+                dialogBackgroundColor: Colors.white,
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 16,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: '',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                    hintStyle: TextStyle(
+                      color: Colors.black38,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 40),
+
+        // Next Button
+        SizedBox(
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _nextStage,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF006435),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Next',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLabel(String text) {
     return Text(
-      title,
-      style: theme.textTheme.titleLarge?.copyWith(
-        fontSize: 16,
+      text,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
       ),
     );
   }
 
   Widget _buildTextField({
     required TextEditingController controller,
-    required IconData icon,
+    required String hintText,
     TextInputType keyboardType = TextInputType.text,
-    String hintText = '', // Added optional hint text
   }) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    
-    final inputFillColor = isDark 
-        ? theme.colorScheme.surface.withOpacity(0.5)
-        : Colors.grey.shade100;
-    
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
-      style: TextStyle(
-        color: theme.colorScheme.onSurface, // Ensures text is visible
+      style: const TextStyle(
+        color: Colors.black87,
+        fontSize: 16,
       ),
       decoration: InputDecoration(
         filled: true,
-        fillColor: inputFillColor, // Use consistent fill color
-        hintText: hintText, // Use the optional hint text
-        hintStyle: TextStyle(
-          color: theme.colorScheme.onSurface.withOpacity(0.5),
-        ),
-        prefixIcon: Icon(
-          icon, 
-          color: theme.colorScheme.onSurface.withOpacity(0.6),
+        fillColor: Colors.white,
+        hintText: hintText,
+        hintStyle: const TextStyle(
+          color: Colors.black38,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: theme.colorScheme.primary, 
-            width: 2,
-          ),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF006435), width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }

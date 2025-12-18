@@ -44,8 +44,8 @@ class _MainShellState extends State<MainShell> {
     super.initState();
     _pages = <Widget>[
       HomeScreen(),
-      SearchScreen(searchController: _searchController),
       const BoardsScreen(),
+      SearchScreen(searchController: _searchController),
       const NotificationsScreen(),
       const ProfileScreen(),
     ];
@@ -65,12 +65,17 @@ class _MainShellState extends State<MainShell> {
 
   Future<void> _signOut() async {
     try {
+      await Provider.of<ThemeProvider>(context, listen: false).setThemeMode(ThemeMode.light);
+
       await SupabaseAuthService().signOut();
       if (mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Provider.of<UserProfileProvider>(context, listen: false).reset();
+
         });
+        
         context.go('/welcome');
+
       }
     } catch (e) {
       if (mounted) {
@@ -171,7 +176,7 @@ class _MainShellState extends State<MainShell> {
       _searchResults = results;
       _currentSearchQuery = query;
       _isSearchMode = true;
-      _selectedIndex = 1; // Navigate to search screen
+      _selectedIndex = 2; // Navigate to search screen
     });
   }
 
@@ -240,14 +245,14 @@ class _MainShellState extends State<MainShell> {
                   label: Text('Home'),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.search),
-                  selectedIcon: Icon(Icons.search),
-                  label: Text('Search'),
-                ),
-                NavigationRailDestination(
                   icon: Icon(Icons.add_box_outlined),
                   selectedIcon: Icon(Icons.add_box_rounded),
                   label: Text('Boards'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.search),
+                  selectedIcon: Icon(Icons.search),
+                  label: Text('Search'),
                 ),
                 NavigationRailDestination(
                   icon: Icon(Icons.notifications_outlined),
@@ -255,9 +260,9 @@ class _MainShellState extends State<MainShell> {
                   label: Text('Notifications'),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.person_outline),
-                  selectedIcon: Icon(Icons.person),
-                  label: Text('Profile'),
+                  icon: Icon(Icons.question_mark_outlined),
+                  selectedIcon: Icon(Icons.question_mark),
+                  label: Text('Info'),
                 ),
               ],
             ),
@@ -277,7 +282,7 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildContent() {
-    if (_isSearchMode && _selectedIndex == 1) {
+    if (_isSearchMode && _selectedIndex == 2) {
       return _buildSearchResults();
     }
     return _pages.elementAt(_selectedIndex);
@@ -397,14 +402,14 @@ class _MainShellState extends State<MainShell> {
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.search_outlined),
-          activeIcon: Icon(Icons.search),
-          label: 'Search',
-        ),
-        BottomNavigationBarItem(
           icon: Icon(Icons.add_box_outlined),
           activeIcon: Icon(Icons.add_box_rounded),
           label: 'Boards',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.search_outlined),
+          activeIcon: Icon(Icons.search),
+          label: 'Search',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.notifications_outlined),
@@ -412,8 +417,8 @@ class _MainShellState extends State<MainShell> {
           label: 'Notifications',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          activeIcon: Icon(Icons.person),
+          icon: Icon(Icons.question_mark_outlined),
+          activeIcon: Icon(Icons.question_mark),
           label: 'Profile',
         ),
       ],
@@ -426,8 +431,8 @@ class _MainShellState extends State<MainShell> {
     final userProfile = Provider.of<UserProfileProvider>(context);
     final theme = Theme.of(context);
 
-    final bool isSearchScreen = selectedIndex == 1;
-    final bool isBoardsScreen = selectedIndex == 2;
+    final bool isSearchScreen = selectedIndex == 2;
+    final bool isBoardsScreen = selectedIndex == 1;
     final bool isNotificationScreen = selectedIndex == 3;
     final bool isProfileScreen = selectedIndex == 4;
 
@@ -443,16 +448,7 @@ class _MainShellState extends State<MainShell> {
       backgroundColor: theme.scaffoldBackgroundColor,
       title: shouldHideSearchBar ? null : _buildSearchBar(),
       actions: [
-        IconButton(
-          icon: Icon(
-            themeProvider.themeMode == ThemeMode.light
-                ? Icons.dark_mode_outlined
-                : Icons.light_mode_outlined,
-                color: theme.colorScheme.onSurface,
-          ),
-          onPressed: () => themeProvider.toggleTheme(),
-          tooltip: 'Toggle Theme',
-        ),
+    
         _buildClickableProfileAvatar(userProfile),
         _buildProfileDropdown(userProfile),
         const SizedBox(width: 12),
@@ -515,6 +511,8 @@ class _MainShellState extends State<MainShell> {
   Widget _buildProfileDropdown(UserProfileProvider user) {
     final avatarUrl = user.userProfile?.avatarUrl;
     final bool isMember = user.userProfile?.role == UserRole.member;
+    final themeProvider = Provider.of<ThemeProvider>(context); // Add this line
+
     return PopupMenuButton<String>(
       tooltip: 'Profile Menu',
       offset: const Offset(0, 50),
@@ -526,15 +524,23 @@ class _MainShellState extends State<MainShell> {
               builder: (context) => const EditProfileDialog(),
             );
             break;
-          case 'account_management':
+          case 'change_password':
             showDialog(
               context: context,
               builder: (context) => const AccountManagementDialog(),
             );
             break;
-          case 'request_business_account':
-            _handleBusinessRequest(context);
-            break;
+             case 'my_profile':
+            showDialog(
+              context: context,
+              builder: (context) => const AccountManagementDialog(),
+            );
+          case 'toggle_theme':  // Add this case
+          themeProvider.toggleTheme();
+          break;
+          // case 'request_business_account':
+          //   _handleBusinessRequest(context);
+          //   break;
           case 'logout':
             _signOut();
             break;
@@ -575,20 +581,43 @@ class _MainShellState extends State<MainShell> {
             child: Text('Edit Profile'),
           ),
           const PopupMenuItem<String>(
-            value: 'account_management',
-            child: Text('Account Management'),
+            value: 'change_password',
+            child: Text('Change Password'),
           ),
+           const PopupMenuItem<String>(
+            value: 'my_profile',
+            child: Text('My Profile'),
+          ),
+          const PopupMenuDivider(),  // Add divider
+        PopupMenuItem<String>(  // Add theme toggle option
+          value: 'toggle_theme',
+          child: Row(
+            children: [
+              Icon(
+                themeProvider.themeMode == ThemeMode.light
+                    ? Icons.dark_mode_outlined
+                    : Icons.light_mode_outlined,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                themeProvider.themeMode == ThemeMode.light
+                    ? 'Dark Mode'
+                    : 'Light Mode',
+              ),
+            ],
+          ),
+        ),
         ];
 
         // Conditionally add the business request item
-        if (isMember) {
-          items.add(
-            const PopupMenuItem<String>(
-              value: 'request_business_account',
-              child: Text('Request Business Account'),
-            ),
-          );
-        }
+        // if (isMember) {
+        //   items.add(
+        //     const PopupMenuItem<String>(
+        //       value: 'request_business_account',
+        //       child: Text('Request Business Account'),
+        //     ),
+        //   );
+        // }
 
         items.addAll([
           const PopupMenuDivider(),
