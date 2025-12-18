@@ -745,51 +745,33 @@ Widget _buildWideLayout(BuildContext context) {
 }
 
 Widget _buildNarrowLayout() {
-  // This is the "mobile" layout.
-  // --- MODIFICATION: Added DefaultTabController for mobile tabs ---
   return DefaultTabController(
     length: 2,
     child: CustomScrollView(
       slivers: [
+        // ---------------- IMAGE SLIVER ----------------
         SliverAppBar(
           expandedHeight: 400,
-          stretch: true,
           pinned: true,
+          stretch: true,
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(kToolbarHeight + 80), // Increased height
-            child: Column(
-              children: [
-                Container(
-                  // This container adds the gradient
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Color.fromARGB(255, 194, 201, 198),
-                        Color(0xFF006435)
-                            .withOpacity(0.6), // Adjust opacity as needed
-                      ],
-                      stops: const [0.0, 1.0],
-                    ),
-                  ),
-                  child: const TabBar(
-                    labelStyle: TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.white),
-                    tabs: [
-                      Tab(text: 'Details'),
-                      Tab(text: 'More Like This'),
-                    ],
-                  ),
-                ),
-              ],
+          leading: Container(
+            margin: const EdgeInsets.all(8.0),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.4),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              padding: EdgeInsets.zero,
+              onPressed: () => Navigator.of(context).pop(),
             ),
           ),
           flexibleSpace: FlexibleSpaceBar(
             background: Consumer<UserProfileProvider>(
               builder: (context, userProfile, child) {
-                final bool isLocked = !userProfile.isMember && _selectedImageIndex > 0;
+                final bool isLocked =
+                    !userProfile.isMember && _selectedImageIndex > 0;
 
                 return Stack(
                   alignment: Alignment.center,
@@ -800,17 +782,18 @@ Widget _buildNarrowLayout() {
                       onPageChanged: (index) {
                         setState(() {
                           _selectedImageIndex = index;
-                           // Update thumbnail scroll if needed
-                            if (index < _thumbnailStartIndex) {
-                              _thumbnailStartIndex = index;
-                            } else if (index >= _thumbnailStartIndex + 3) {
-                              _thumbnailStartIndex = index - 2;
-                            }
+                          if (index < _thumbnailStartIndex) {
+                            _thumbnailStartIndex = index;
+                          } else if (index >= _thumbnailStartIndex + 3) {
+                            _thumbnailStartIndex = index - 2;
+                          }
                         });
                       },
                       itemBuilder: (context, index) {
-                         final bool isImageLocked = !userProfile.isMember && index > 0;
-                         return InteractiveViewer(
+                        final bool isImageLocked =
+                            !userProfile.isMember && index > 0;
+
+                        return InteractiveViewer(
                           minScale: 1.0,
                           maxScale: isImageLocked ? 1.0 : 4.0,
                           child: ImageFiltered(
@@ -821,10 +804,10 @@ Widget _buildNarrowLayout() {
                             child: CachedNetworkImage(
                               imageUrl: _imageUrls[index],
                               fit: BoxFit.cover,
+                              placeholder: (_, __) =>
+                                  const Center(child: CircularProgressIndicator()),
                               errorWidget: (_, __, ___) =>
                                   const Center(child: Icon(Icons.broken_image)),
-                              placeholder: (context, url) =>
-                                  const Center(child: CircularProgressIndicator()),
                             ),
                           ),
                         );
@@ -832,7 +815,8 @@ Widget _buildNarrowLayout() {
                     ),
                     if (isLocked)
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.6),
                           borderRadius: BorderRadius.circular(30),
@@ -857,38 +841,58 @@ Widget _buildNarrowLayout() {
               },
             ),
           ),
-          leading: Container(
-            margin: const EdgeInsets.all(8.0),
-            decoration: BoxDecoration(
-              color: Colors.black
-                  .withOpacity(0.4), // Semi-transparent black background
-              shape: BoxShape.circle,
+        ),
+
+        // ---------------- TAB BAR (SEPARATE SLIVER) ----------------
+        SliverToBoxAdapter(
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(40),
             ),
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.of(context).pop(),
-              padding: EdgeInsets.zero, // Centers the icon nicely
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color.fromARGB(255, 194, 201, 198),
+                    Color(0xFF006435).withOpacity(0.6),
+                  ],
+                ),
+              ),
+              child:const TabBar(
+  indicator: BoxDecoration(), // removes underline completely
+  indicatorSize: TabBarIndicatorSize.tab,
+  labelColor: Colors.white,       // active tab text
+  unselectedLabelColor: Colors.black, // inactive tab text
+  labelStyle: TextStyle(
+    fontWeight: FontWeight.bold,
+  ),
+  tabs: [
+    Tab(text: 'Details'),
+    Tab(text: 'More Like This'),
+  ],
+),
             ),
           ),
         ),
+
+        // ---------------- TAB CONTENT ----------------
         SliverFillRemaining(
           child: TabBarView(
             children: [
-              // Tab 1: Details
               SingleChildScrollView(
                 child: _buildContentSection(context),
               ),
-              // Tab 2: More Like This
-              _buildSimilarItemsGrid(
-                  isSliver: false), // isSliver is false now
+              _buildSimilarItemsGrid(isSliver: false),
             ],
           ),
         ),
-        // --- END MODIFICATION ---
       ],
     ),
   );
 }
+
 Widget _buildContentSection(BuildContext context) {
   final theme = Theme.of(context);
   final item = widget.jewelryItem;

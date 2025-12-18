@@ -16,6 +16,8 @@ abstract class LocalKeys {
   static const String occasions = 'onboarding_occasions'; 
   static const String categories = 'onboarding_categories'; 
   static const String phone = 'onboarding_phone'; 
+  static const String gender = 'onboarding_gender'; // NEW
+  static const String age = 'onboarding_age';
 }
 
 class UserProfileProvider with ChangeNotifier {
@@ -178,6 +180,8 @@ class UserProfileProvider with ChangeNotifier {
     String? phone,
     List<String>? occasions,
     Set<String>? categories,
+    int ? age,
+    String? gender,
     required bool isFinalSubmission,
   }) async {
     if (_userProfile == null) {
@@ -230,6 +234,8 @@ class UserProfileProvider with ChangeNotifier {
         if (phone != null) 'phone': phone,
         if (occasions != null) 'occasions': occasions,
         if (categories != null) 'jewelry_categories': categories.toList(),
+        if (gender != null) 'gender': gender,
+        if (age != null) 'age': age 
       };
 
       if (updates.isNotEmpty) {
@@ -266,8 +272,10 @@ Future<void> finalizeOnboardingMigration() async {
       'phone': _userProfile!.phone,
       'occasions': _userProfile!.selectedOccasions,
       'jewelry_categories': _userProfile!.selectedCategories.toList(),
+      'gender':_userProfile!.gender,
+      'age':_userProfile!.age,
       'setup_complete': true,
-      'setup_stage': 3,
+      'setup_stage': 5,
     };
 
     // 2. Write to Supabase
@@ -299,6 +307,9 @@ Future<void> clearOnboardingLocalData() async {
   await prefs.remove(LocalKeys.phone);
   await prefs.remove(LocalKeys.occasions);
   await prefs.remove(LocalKeys.categories);
+  await prefs.remove(LocalKeys.gender);
+  await prefs.remove(LocalKeys.age);
+
 }
 // --------------------------------------------------------------------------
 

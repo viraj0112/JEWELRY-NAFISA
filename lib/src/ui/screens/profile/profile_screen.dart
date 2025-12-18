@@ -244,37 +244,64 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildMembershipSection(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Membership Status',
-              style: Theme.of(context).textTheme.titleLarge,
+Widget _buildMembershipSection(BuildContext context) {
+  return Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Membership Status',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Eligible for Free Making on Jewelry, Get Discount on Making Charges, Free Jewelry Cleaning, Discount on your Occasions',
+          ),
+          const SizedBox(height: 16),
+          // --- UPDATED CIRCULAR GRADIENT BUTTON ---
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const BuyMembershipScreen(),
+              ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Eligible for Free Making on Jewelry, Get Discount on Making Charges, Free Jewelry Cleaning, Discount on your Occasions',
+            style: ElevatedButton.styleFrom(
+              padding: EdgeInsets.zero, // Essential for the gradient to reach the edges
+              shape: const StadiumBorder(), // This creates the perfect circular ends
+            ).copyWith(
+              backgroundColor: WidgetStateProperty.all(Colors.transparent),
+              shadowColor: WidgetStateProperty.all(Colors.transparent),
+              elevation: WidgetStateProperty.all(0),
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const BuyMembershipScreen(),
+            child: Ink(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFD12B), Color(0xFFCE8808)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(30), // Match the button's roundness
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: const Text(
+                  'Become a Lifetime Golden Member',
+                  style: TextStyle(
+                    color: Colors.white, // White text
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              child: const Text('Become a Lifetime Golden Member'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
-
+    }
 class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverTabBarDelegate(this._tabBar);
   final TabBar _tabBar;

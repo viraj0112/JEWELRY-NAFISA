@@ -246,15 +246,15 @@ Future<void> _loadImages() async {
     ],
   ),
   actions: [
-    IconButton(
-      icon: Icon(
-        themeProvider.themeMode == ThemeMode.light
-            ? Icons.dark_mode_outlined
-            : Icons.light_mode_outlined,
-      ),
-      onPressed: () => themeProvider.toggleTheme(),
-      tooltip: 'Toggle Theme',
-    ),
+    // IconButton(
+    //   icon: Icon(
+    //     themeProvider.themeMode == ThemeMode.light
+    //         ? Icons.dark_mode_outlined
+    //         : Icons.light_mode_outlined,
+    //   ),
+    //   onPressed: () => themeProvider.toggleTheme(),
+    //   tooltip: 'Toggle Theme',
+    // ),
     _buildGuestMenu(context),
     const SizedBox(width: 12),
   ],

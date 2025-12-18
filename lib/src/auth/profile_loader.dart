@@ -6,6 +6,8 @@ import 'package:jewelry_nafisa/src/designer/screens/pending_approval_screen.dart
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_gender.dart';
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_age.dart'; 
 import 'package:provider/provider.dart';
 
 // Import the new onboarding screens
@@ -38,8 +40,10 @@ class _ProfileLoaderState extends State<ProfileLoader> {
     if (userProfile.isSetupComplete == false) {
       return switch (userProfile.onboardingStage) {
         0 => const OnboardingScreen1Location(),
-        1 => const OnboardingScreen2Occasions(),
-        2 => const OnboardingScreen3Categories(),
+        1 => const OnboardingScreen2Gender(),
+        2 => const OnboardingScreen3Age(),
+        3 => const OnboardingScreen2Occasions(),
+        4 => const OnboardingScreen3Categories(),
         // If stage is 3 but isSetupComplete is false, default to the last stage
         // or a safe home screen to prevent being stuck.
         _ => const MainShell(),
