@@ -21,7 +21,7 @@ import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
-
+import 'package:flutter_svg/flutter_svg.dart';
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -47,7 +47,6 @@ class _MainShellState extends State<MainShell> {
       const BoardsScreen(),
       SearchScreen(searchController: _searchController),
       const NotificationsScreen(),
-      const ProfileScreen(),
     ];
   }
 
@@ -58,10 +57,15 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+  // Ignore taps on the Info button (index 4)
+  if (index == 4) {
+    return; // Do nothing when Info is tapped
   }
+  
+  setState(() {
+    _selectedIndex = index;
+  });
+}
 
   Future<void> _signOut() async {
     try {
@@ -200,13 +204,30 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _buildNarrowLayout() {
-    return Scaffold(
-      appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
-      body: _buildContent(),
-      bottomNavigationBar: _buildFixedNavBar(),
-    );
-  }
+ Widget _buildNarrowLayout() {
+  return Scaffold(
+    appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
+    body: Column(
+      children: [
+        // Show SVG banner only on home screen (index 0)
+        if (_selectedIndex == 0)
+          Container(
+            width: double.infinity,
+            height: 120, // Adjust height as needed
+            color: Colors.white, // Background color
+            child: SvgPicture.asset(
+              'assets/icons/Dagina.design Logo Final.svg', // Replace with your SVG path
+              fit: BoxFit.cover, // or BoxFit.contain, depending on your needs
+            ),
+          ),
+        Expanded(
+          child: _buildContent(),
+        ),
+      ],
+    ),
+    bottomNavigationBar: _buildFixedNavBar(),
+  );
+}
 
   Widget _buildWideLayout() {
     final userProfile = Provider.of<UserProfileProvider>(context);
@@ -245,8 +266,8 @@ class _MainShellState extends State<MainShell> {
                   label: Text('Home'),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.add_box_outlined),
-                  selectedIcon: Icon(Icons.add_box_rounded),
+                  icon: Icon(Icons.bookmark_add_outlined),
+                  selectedIcon: Icon(Icons.bookmark_add),
                   label: Text('Boards'),
                 ),
                 NavigationRailDestination(
@@ -387,14 +408,15 @@ class _MainShellState extends State<MainShell> {
 
   Widget _buildFixedNavBar() {
     final theme = Theme.of(context);
+    final  customGreen = const Color(0xFF336B43);
     return BottomNavigationBar(
       currentIndex: _selectedIndex,
       onTap: _onItemTapped,
       type: BottomNavigationBarType.fixed,
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: customGreen,
       elevation: 8.0,
-      selectedItemColor: theme.colorScheme.primary,
-      unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
+      selectedItemColor: Colors.white,
+      unselectedItemColor: Colors.white70,
       items: const <BottomNavigationBarItem>[
         BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),
@@ -402,8 +424,8 @@ class _MainShellState extends State<MainShell> {
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.add_box_outlined),
-          activeIcon: Icon(Icons.add_box_rounded),
+          icon: Icon(Icons.bookmark_add_outlined),
+          activeIcon: Icon(Icons.bookmark_add),
           label: 'Boards',
         ),
         BottomNavigationBarItem(
@@ -445,7 +467,7 @@ class _MainShellState extends State<MainShell> {
       automaticallyImplyLeading: !isWide,
       titleSpacing: 16.0,
       elevation: 0,
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: Color(0xFF336B43),
       title: shouldHideSearchBar ? null : _buildSearchBar(),
       actions: [
     
@@ -535,8 +557,8 @@ class _MainShellState extends State<MainShell> {
               context: context,
               builder: (context) => const AccountManagementDialog(),
             );
-          case 'toggle_theme':  // Add this case
-          themeProvider.toggleTheme();
+          // case 'toggle_theme':  // Add this case
+          // themeProvider.toggleTheme();
           break;
           // case 'request_business_account':
           //   _handleBusinessRequest(context);
@@ -588,25 +610,25 @@ class _MainShellState extends State<MainShell> {
             value: 'my_profile',
             child: Text('My Profile'),
           ),
-          const PopupMenuDivider(),  // Add divider
-        PopupMenuItem<String>(  // Add theme toggle option
-          value: 'toggle_theme',
-          child: Row(
-            children: [
-              Icon(
-                themeProvider.themeMode == ThemeMode.light
-                    ? Icons.dark_mode_outlined
-                    : Icons.light_mode_outlined,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                themeProvider.themeMode == ThemeMode.light
-                    ? 'Dark Mode'
-                    : 'Light Mode',
-              ),
-            ],
-          ),
-        ),
+        //   const PopupMenuDivider(),  // Add divider
+        // PopupMenuItem<String>(  // Add theme toggle option
+        //   value: 'toggle_theme',
+        //   child: Row(
+        //     children: [
+        //       Icon(
+        //         themeProvider.themeMode == ThemeMode.light
+        //             ? Icons.dark_mode_outlined
+        //             : Icons.light_mode_outlined,
+        //       ),
+        //       const SizedBox(width: 12),
+        //       Text(
+        //         themeProvider.themeMode == ThemeMode.light
+        //             ? 'Dark Mode'
+        //             : 'Light Mode',
+        //       ),
+        //     ],
+        //   ),
+        // ),
         ];
 
         // Conditionally add the business request item

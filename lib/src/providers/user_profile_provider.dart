@@ -1,22 +1,21 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // <--- REQUIRED IMPORT
+import 'package:shared_preferences/shared_preferences.dart'; 
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
 // --- Local Storage Keys ---
 abstract class LocalKeys {
-  static const String onboardingStage = 'onboarding_stage_key'; // Stores int (1, 2, 3)
-  static const String isSetupComplete = 'onboarding_complete_key'; // Stores bool
+  static const String onboardingStage = 'onboarding_stage_key'; 
+  static const String isSetupComplete = 'onboarding_complete_key'; 
   
-  // Data collected during the flow (if needed)
   static const String country = 'onboarding_country'; 
   static const String zipCode = 'onboarding_region'; 
   static const String occasions = 'onboarding_occasions'; 
   static const String categories = 'onboarding_categories'; 
   static const String phone = 'onboarding_phone'; 
-  static const String gender = 'onboarding_gender'; // NEW
+  static const String gender = 'onboarding_gender'; 
   static const String age = 'onboarding_age';
 }
 
@@ -26,7 +25,6 @@ class UserProfileProvider with ChangeNotifier {
   UserProfile? _userProfile;
   UserProfile? get userProfile => _userProfile;
 
-  // --- Existing Getters ---
   Set<String> _unlockedItemIds = {};
   bool isItemUnlocked(String itemId) => _unlockedItemIds.contains(itemId);
   String get username => _userProfile?.username ?? '';
@@ -35,37 +33,12 @@ class UserProfileProvider with ChangeNotifier {
   String? get referralCode => _userProfile?.referralCode;
   String get userId => _userProfile?.id ?? '';
 
-// --------------------------------------------------------------------------
-// --- Onboarding Status Getters ---
-// --------------------------------------------------------------------------
   int get onboardingStage => _userProfile?.onboardingStage ?? 0;
   bool get isSetupComplete => _userProfile?.isSetupComplete ?? false;
 
-// --------------------------------------------------------------------------
-
-  Future<List<Map<String, dynamic>>> getQuoteHistory() async {
-    if (_supabase.auth.currentUser == null) {
-      throw Exception('Not authenticated');
-    }
-    final userId = _supabase.auth.currentUser!.id;
-
-    try {
-      final response = await _supabase
-          .from('quotes')
-          .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
-
-      return List<Map<String, dynamic>>.from(response);
-    } catch (e) {
-      debugPrint('Error fetching quote history: $e');
-      rethrow;
-    }
-  }
-
-// --------------------------------------------------------------------------
-// --- MODIFIED: loadUserProfile to read from local storage ---
-// --------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // --- Profile Loading with Local Data Sync ---
+  // --------------------------------------------------------------------------
 
   Future<void> loadUserProfile() async {
     if (_supabase.auth.currentUser == null) return;
@@ -87,23 +60,23 @@ class UserProfileProvider with ChangeNotifier {
             .eq('user_id', userId) as Future<dynamic>,
       ]);
 
-      // 1. Process user profile (initial load from DB)
       final profileData = responses[0] as Map<String, dynamic>;
-      _userProfile = UserProfile.fromMap(profileData); // Loads data from Supabase
+      _userProfile = UserProfile.fromMap(profileData);
 
-      // 2. --- Override with Local Onboarding State ---
+      // --- Override with Local Storage ---
       final int localStage = prefs.getInt(LocalKeys.onboardingStage) ?? 0;
       final bool localComplete = prefs.getBool(LocalKeys.isSetupComplete) ?? false;
       
-      // Check if local state is ahead of remote state OR if local is complete
       if (localComplete || localStage > _userProfile!.onboardingStage) {
          _userProfile = _userProfile!.copyWith(
            onboardingStage: localStage,
            isSetupComplete: localComplete,
-           // Also try to restore other fields if they are missing in the DB profile but exist locally
-           country: _userProfile!.country ?? prefs.getString(LocalKeys.country),
-           zipCode: _userProfile!.zipCode ?? prefs.getString(LocalKeys.zipCode),
-           phone: _userProfile!.phone ?? prefs.getString(LocalKeys.phone),
+           // RESTORING AGE/GENDER/LOCATION FROM LOCAL
+           age: prefs.getInt(LocalKeys.age) ?? _userProfile!.age,
+           gender: prefs.getString(LocalKeys.gender) ?? _userProfile!.gender,
+           country: prefs.getString(LocalKeys.country) ?? _userProfile!.country,
+           zipCode: prefs.getString(LocalKeys.zipCode) ?? _userProfile!.zipCode,
+           phone: prefs.getString(LocalKeys.phone) ?? _userProfile!.phone,
          );
       }
       
@@ -119,113 +92,58 @@ class UserProfileProvider with ChangeNotifier {
     }
   }
 
+  // --------------------------------------------------------------------------
+  // --- Onboarding Save Logic (Supports 5 Stages) ---
+  // --------------------------------------------------------------------------
 
-  // This function just updates local state.
-  void decrementCredit() {
-    if (_userProfile != null && _userProfile!.credits > 0) {
-      // NOTE: Using copyWith here for cleaner state update
-      _userProfile = _userProfile!.copyWith(
-        credits: _userProfile!.credits - 1,
-      );
-      // Note: notifyListeners() will be called by the parent function
-    }
-  }
-
-  // --- Core logic function for spending a credit (UNCHANGED) ---
-  Future<void> spendCreditToUnlockItem(String itemId) async {
-    if (_userProfile == null) {
-      throw Exception('User profile not loaded.');
-    }
-    if (_userProfile!.credits <= 0) {
-      throw Exception('No credits remaining.');
-    }
-    if (isItemUnlocked(itemId)) {
-      throw Exception('Item already unlocked.');
-    }
-
-    final userId = _userProfile!.id;
-    final newCredits = _userProfile!.credits - 1;
-
-    try {
-      // 1. Update the credit count in the database
-      await _supabase
-          .from('users')
-          .update({'credits': newCredits}).eq('id', userId);
-
-      // 2. Insert the unlock record in the new table
-      await _supabase
-          .from('user_unlocked_items')
-          .insert({'user_id': userId, 'item_id': itemId});
-
-      // 3. Update local state
-      decrementCredit(); // Update local credit count
-      _unlockedItemIds.add(itemId); // Add to local unlock set
-
-      notifyListeners(); // Notify all listeners of the changes
-    } catch (e) {
-      debugPrint('Error spending credit: $e');
-      rethrow;
-    }
-  }
-
-// --------------------------------------------------------------------------
-// --- NEW: saveOnboardingData (Writes to Local Storage) ---
-// --------------------------------------------------------------------------
-
-  /// Saves the collected data for the current step and advances the stage counter
-  /// using local storage AND updates Supabase immediately.
   Future<void> saveOnboardingData({
     String? country,
     String? zipCode,
     String? phone,
     List<String>? occasions,
     Set<String>? categories,
-    int ? age,
+    int? age,
     String? gender,
     required bool isFinalSubmission,
   }) async {
-    if (_userProfile == null) {
-      throw Exception('User profile not loaded or authenticated.');
-    }
+    if (_userProfile == null) throw Exception('Profile not loaded.');
 
     final userId = _userProfile!.id;
-
-    // 1. Get the local storage instance
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     
-    // Automatic stage progression
+    // PROGRESSION LOGIC (UP TO 5)
     final currentStage = _userProfile!.onboardingStage;
-    final nextStage = isFinalSubmission ? 3 : (currentStage < 3 ? currentStage + 1 : currentStage);
+    final nextStage = isFinalSubmission ? 5 : (currentStage < 5 ? currentStage + 1 : currentStage);
     
     try {
-      // 2. --- Write Collected Data to Local Storage ---
+      // 1. Write to Local Storage
       if (country != null) await prefs.setString(LocalKeys.country, country);
       if (zipCode != null) await prefs.setString(LocalKeys.zipCode, zipCode);
       if (phone != null) await prefs.setString(LocalKeys.phone, phone);
       if (occasions != null) await prefs.setStringList(LocalKeys.occasions, occasions);
       if (categories != null) await prefs.setStringList(LocalKeys.categories, categories.toList());
+      if (gender != null) await prefs.setString(LocalKeys.gender, gender);    
+      if (age != null) await prefs.setInt(LocalKeys.age, age);
 
-      // 3. --- Write Stage and Completion Flags ---
       await prefs.setInt(LocalKeys.onboardingStage, nextStage);
-      if (isFinalSubmission) {
-        await prefs.setBool(LocalKeys.isSetupComplete, true);
-      }
+      if (isFinalSubmission) await prefs.setBool(LocalKeys.isSetupComplete, true);
 
-      // 4. --- Update Local Profile State ---
+      // 2. Update Local Profile State (Provider)
       _userProfile = _userProfile!.copyWith(
         onboardingStage: nextStage,
         isSetupComplete: isFinalSubmission,
-        // Update collected data fields
         country: country ?? _userProfile!.country,
         zipCode: zipCode ?? _userProfile!.zipCode,
         phone: phone ?? _userProfile!.phone,
         selectedOccasions: occasions ?? _userProfile!.selectedOccasions,
         selectedCategories: categories?.toList() ?? _userProfile!.selectedCategories,
+        age: age ?? _userProfile!.age,  
+        gender: gender ?? _userProfile!.gender
       );
 
       notifyListeners();
 
-      // 5. --- NEW: Immediate Write to Supabase ---
+      // 3. Write to Supabase
       final Map<String, dynamic> updates = {
         'setup_stage': nextStage,
         if (isFinalSubmission) 'setup_complete': true,
@@ -238,87 +156,80 @@ class UserProfileProvider with ChangeNotifier {
         if (age != null) 'age': age 
       };
 
-      if (updates.isNotEmpty) {
-        await _supabase.from('users').update(updates).eq('id', userId);
-      }
+      await _supabase.from('users').update(updates).eq('id', userId);
       
     } catch (e) {
-      debugPrint('Error saving onboarding data: $e');
+      debugPrint('Error saving onboarding: $e');
       rethrow;
     }
   }
 
-// --------------------------------------------------------------------------
-// --- NEW: finalizeOnboardingMigration (Supabase WRITE DISABLED) ---
-// --------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // --- Cleanup & Finalization ---
+  // --------------------------------------------------------------------------
 
-/// FINAL STEP: Writes collected local data to Supabase and clears local cache.
-/// FINAL STEP: Writes collected local data to Supabase and clears local cache.
-Future<void> finalizeOnboardingMigration() async {
-  if (_userProfile == null || _userProfile!.isSetupComplete == false) {
-    throw Exception("Onboarding not yet complete or user not loaded.");
+  Future<void> finalizeOnboardingMigration() async {
+    if (_userProfile == null || _userProfile!.isSetupComplete == false) return;
+
+    try {
+      await _supabase.from('users').update({
+        'setup_complete': true,
+        'setup_stage': 5,
+      }).eq('id', _userProfile!.id);
+
+      await clearOnboardingLocalData();
+    } catch (e) {
+      debugPrint('Error finalizing onboarding: $e');
+      rethrow;
+    }
   }
 
-  // NOTE: userId is still needed for future implementation
-  final userId = _userProfile!.id; 
-
-  try {
-    // 1. Construct the final updates map from the current local profile state
-    // (Kept for future reference when Supabase is updated)
-    // 1. Construct the final updates map from the current local profile state
-    final updates = {
-      'country': _userProfile!.country,
-      'zip_code': _userProfile!.zipCode, // Corrected column name
-      'phone': _userProfile!.phone,
-      'occasions': _userProfile!.selectedOccasions,
-      'jewelry_categories': _userProfile!.selectedCategories.toList(),
-      'gender':_userProfile!.gender,
-      'age':_userProfile!.age,
-      'setup_complete': true,
-      'setup_stage': 5,
-    };
-
-    // 2. Write to Supabase
-    await _supabase
-        .from('users') 
-        .update(updates)
-        .eq('id', userId);
-
-    // 3. Clear the local storage cache for onboarding
-    await clearOnboardingLocalData();
-    
-    // 4. The router will now rely on _userProfile!.isSetupComplete being true 
-    // (set in saveOnboardingData) and the local cache being cleared.
-    // We don't need to call loadUserProfile here as we didn't write to the DB.
-
-  } catch (e) {
-    debugPrint('Error finalizing onboarding migration: $e');
-    rethrow;
+  Future<void> clearOnboardingLocalData() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await Future.wait([
+      prefs.remove(LocalKeys.onboardingStage),
+      prefs.remove(LocalKeys.isSetupComplete),
+      prefs.remove(LocalKeys.country),
+      prefs.remove(LocalKeys.zipCode),
+      prefs.remove(LocalKeys.phone),
+      prefs.remove(LocalKeys.occasions),
+      prefs.remove(LocalKeys.categories),
+      prefs.remove(LocalKeys.gender),
+      prefs.remove(LocalKeys.age),
+    ]);
   }
-}
 
-/// Helper function to clear all local onboarding keys.
-Future<void> clearOnboardingLocalData() async {
-  final SharedPreferences prefs = await SharedPreferences.getInstance();
-  await prefs.remove(LocalKeys.onboardingStage);
-  await prefs.remove(LocalKeys.isSetupComplete);
-  await prefs.remove(LocalKeys.country);
-  await prefs.remove(LocalKeys.zipCode);
-  await prefs.remove(LocalKeys.phone);
-  await prefs.remove(LocalKeys.occasions);
-  await prefs.remove(LocalKeys.categories);
-  await prefs.remove(LocalKeys.gender);
-  await prefs.remove(LocalKeys.age);
-
-}
-// --------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // --- Remaining Business Logic (Credits, Profile Update, Stats) ---
+  // --------------------------------------------------------------------------
 
   void updateCredits(int newCredits) {
     if (_userProfile != null) {
-      _userProfile = _userProfile!.copyWith(
-        credits: newCredits,
-      );
+      _userProfile = _userProfile!.copyWith(credits: newCredits);
       notifyListeners();
+    }
+  }
+
+  void decrementCredit() {
+    if (_userProfile != null && _userProfile!.credits > 0) {
+      _userProfile = _userProfile!.copyWith(credits: _userProfile!.credits - 1);
+    }
+  }
+
+  Future<void> spendCreditToUnlockItem(String itemId) async {
+    if (_userProfile == null || _userProfile!.credits <= 0 || isItemUnlocked(itemId)) return;
+    final userId = _userProfile!.id;
+    final newCredits = _userProfile!.credits - 1;
+
+    try {
+      await _supabase.from('users').update({'credits': newCredits}).eq('id', userId);
+      await _supabase.from('user_unlocked_items').insert({'user_id': userId, 'item_id': itemId});
+      decrementCredit();
+      _unlockedItemIds.add(itemId);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error spending credit: $e');
+      rethrow;
     }
   }
 
@@ -335,13 +246,8 @@ Future<void> clearOnboardingLocalData() async {
 
     if (avatarFile != null) {
       final bytes = await avatarFile.readAsBytes();
-      final fileExt = avatarFile.path.split('.').last;
-      final fileName = '$userId/avatar.$fileExt';
-      await _supabase.storage.from('avatars').uploadBinary(
-            fileName,
-            bytes,
-            fileOptions: const FileOptions(upsert: true),
-          );
+      final fileName = '$userId/avatar.${avatarFile.path.split('.').last}';
+      await _supabase.storage.from('avatars').uploadBinary(fileName, bytes, fileOptions: const FileOptions(upsert: true));
       avatarUrl = _supabase.storage.from('avatars').getPublicUrl(fileName);
     }
 
@@ -358,43 +264,33 @@ Future<void> clearOnboardingLocalData() async {
     await loadUserProfile();
   }
 
+  Future<List<Map<String, dynamic>>> getQuoteHistory() async {
+    if (_supabase.auth.currentUser == null) throw Exception('Not authenticated');
+    final response = await _supabase.from('quotes').select().eq('user_id', _supabase.auth.currentUser!.id).order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(response);
+  }
+
   Future<Map<String, int>> getQuoteStatistics() async {
     final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) {
-      return {'total': 0, 'valid': 0, 'expired': 0};
-    }
+    if (userId == null) return {'total': 0, 'valid': 0, 'expired': 0};
     try {
-      final response = await _supabase
-          .rpc('get_user_quote_statistics', params: {'p_user_id': userId});
-      final data = response[0];
-      return Map<String, int>.from(data);
+      final response = await _supabase.rpc('get_user_quote_statistics', params: {'p_user_id': userId});
+      return Map<String, int>.from(response[0]);
     } catch (e) {
-      debugPrint('Error fetching quote statistics: $e');
       return {'total': 0, 'valid': 0, 'expired': 0};
     }
   }
 
   Future<void> requestBusinessAccount() async {
     if (_userProfile == null) throw Exception("User not loaded");
-
-    final userId = _userProfile!.id;
-    try {
-      await _supabase.from('users').update({
-        'role': 'designer',
-        'is_approved': false,
-      }).eq('id', userId);
-
-      await loadUserProfile();
-    } catch (e) {
-      debugPrint('Error requesting business account: $e');
-      rethrow;
-    }
+    await _supabase.from('users').update({'role': 'designer', 'is_approved': false}).eq('id', _userProfile!.id);
+    await loadUserProfile();
   }
 
   void reset() {
     _userProfile = null;
-    _unlockedItemIds = {}; // Reset unlocked items
-    clearOnboardingLocalData(); // Clear local onboarding state on logout/reset
+    _unlockedItemIds = {};
+    clearOnboardingLocalData();
     notifyListeners();
   }
 }

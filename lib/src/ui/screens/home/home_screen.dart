@@ -50,7 +50,7 @@ class HomeScreenState extends State<HomeScreen> {
   List<String> _studdedOptions = [];
 
   // Selected filter values
-  String _selectedMetalType = 'All';
+  String _selectedMetalType = 'Gold';
   String _selectedProductType = 'All';
   String _selectedCategory = 'All';
   String _selectedSubCategory = 'All';
@@ -554,7 +554,7 @@ class HomeScreenState extends State<HomeScreen> {
         await _loadInitialData();
       },
       child: _products.isEmpty && !_isLoadingProducts
-          ? const Center(child: Text('No products found matching your filters.'))
+          ? const Center(child: Text('Coming Soon'))
           : MasonryGridView.count(
               controller: _scrollController,
               padding: const EdgeInsets.all(8.0),
@@ -622,7 +622,8 @@ class HomeScreenState extends State<HomeScreen> {
           if (_productTypeOptions.length > 1)
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
-              child: _buildBubbleFilter(
+              child: _buildDropdownFilter(
+                hint: 'Product Type',
                 options: _productTypeOptions,
                 selectedValue: _selectedProductType,
                 onChanged: _onProductTypeChanged,
@@ -631,7 +632,7 @@ class HomeScreenState extends State<HomeScreen> {
             ),
           
           // Category Filter - Bubble chips
-          if (_categoryOptions.length > 1)
+          if (_categoryOptions.length > 1 && _selectedProductType != 'All')
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: _buildBubbleFilter(
@@ -835,97 +836,93 @@ class HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+  
 
-  Widget _buildDropdownFilter({
-    required String hint,
-    required List<String> options,
-    required String? selectedValue,
-    required ValueChanged<String?> onChanged,
-    bool isLoading = false,
-  }) {
-    // Show loading indicator if this specific dropdown is loading
-    if (isLoading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-            )),
-      );
-    }
+Widget _buildDropdownFilter({
+  required String hint,
+  required List<String> options,
+  required String? selectedValue,
+  required ValueChanged<String?> onChanged,
+  bool isLoading = false,
+}) {
+  if (isLoading) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2)),
+    );
+  }
 
-    // Don't build a dropdown if there are no options (besides 'All')
-    if (options.length <= 1 && hint != 'Product Type')
-      return const SizedBox.shrink();
+  if (options.length <= 1 && hint != 'Product Type') return const SizedBox.shrink();
 
-    // Ensure 'All' is always an option and selected if value is null
-    final displayOptions =
-        (options.contains('All') ? options : ['All', ...options])
-            .toSet() // Remove duplicates
-            .toList();
+  final displayOptions = (options.contains('All') ? options : ['All', ...options])
+      .toSet()
+      .toList();
 
-    final currentSelection =
-        (selectedValue == null || !displayOptions.contains(selectedValue))
-            ? 'All'
-            : selectedValue;
+  final currentSelection = (selectedValue == null || !displayOptions.contains(selectedValue))
+      ? 'All'
+      : selectedValue;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12.0),
-        border: Border.all(
-          color: const Color(0xFFE0E0E0),
-          width: 1.5,
-        ),
+  return Container(
+    width: double.infinity,
+    height: 48, // Fixed height for a cleaner look
+    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24.0), // More rounded corners like the image
+      border: Border.all(
+        color: Colors.grey.shade300, // Lighter border color
+        width: 1.0,
       ),
+    ),
+    child: DropdownButtonHideUnderline( // Cleanest way to remove the underline
       child: DropdownButton<String>(
-        hint: Text(
-          hint,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 15,
-          ),
-        ),
         value: currentSelection,
         onChanged: onChanged,
         isExpanded: true,
-        underline: const SizedBox.shrink(),
+        // Rounded corners for the actual popup menu
+        borderRadius: BorderRadius.circular(16),
         icon: Icon(
-          Icons.keyboard_arrow_down,
-          color: Colors.grey.shade600,
-          size: 20,
+          Icons.keyboard_arrow_down_rounded, // Matches the thin chevron in the image
+          color: Colors.black,
+          size: 22,
         ),
-        iconSize: 20,
         style: const TextStyle(
-          color: Color(0xFF212121),
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
+          color: Colors.black,
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
         ),
         dropdownColor: Colors.white,
+        // Use selectedItemBuilder to make the hint look like "Select Jewelry"
+        selectedItemBuilder: (BuildContext context) {
+          return displayOptions.map<Widget>((String item) {
+            return Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                item, // Shows hint text when 'All' is selected
+                style: const TextStyle(color: Colors.black, fontSize: 16),
+              ),
+            );
+          }).toList();
+        },
         items: displayOptions.map<DropdownMenuItem<String>>((String value) {
           return DropdownMenuItem<String>(
             value: value,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Text(
-                value,
-                style: TextStyle(
-                  color: value == 'All' 
-                      ? Colors.grey.shade600 
-                      : const Color(0xFF212121),
-                  fontSize: 15,
-                ),
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 16,
               ),
             ),
           );
         }).toList(),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildChoiceChipFilter({
     required String label,

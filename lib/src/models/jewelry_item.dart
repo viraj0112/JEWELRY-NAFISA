@@ -88,7 +88,7 @@ class JewelryItem {
   factory JewelryItem.fromJson(Map<String, dynamic> json) {
     return JewelryItem(
       id: json['id']?.toString() ?? '',
-      productTitle: json['title'] ?? json['product_title'] ?? '',
+      productTitle: json['Product Title'] ?? json['product_title'] ?? '',
       // Handle both single string and array for image
       image: json['Image'] is List
           ? (json['Image'] as List).firstOrNull ?? ''
