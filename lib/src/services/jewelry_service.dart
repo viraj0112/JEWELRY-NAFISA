@@ -151,13 +151,28 @@ class JewelryService {
     }
   }
 
-  Future<JewelryItem?> getJewelryItem(String id) async {
+  Future<JewelryItem?> getJewelryItem(String id, {bool? isDesignerProduct}) async {
     try {
-      // --- OPTIMIZED: Check ID format to decide which table to query ---
       final intId = int.tryParse(id);
       
-      if (intId != null) {
-        // It's an integer, so it must be from 'products'
+      // If we know it's a designer product, query designerproducts table directly
+      if (isDesignerProduct == true) {
+        final designerResponse = await _supabaseClient
+            .from('designerproducts')
+            .select()
+            .eq('id', intId ?? id)
+            .maybeSingle();
+
+        if (designerResponse != null) {
+          designerResponse['is_designer_product'] = true;
+          return JewelryItem.fromJson(designerResponse);
+        }
+        debugPrint('Designer product with ID $id not found.');
+        return null;
+      }
+      
+      // If we know it's NOT a designer product, query products table directly
+      if (isDesignerProduct == false && intId != null) {
         final productResponse = await _supabaseClient
             .from('products')
             .select()
@@ -167,8 +182,37 @@ class JewelryService {
         if (productResponse != null) {
           return JewelryItem.fromJson(productResponse);
         }
+        debugPrint('Product with ID $id not found.');
+        return null;
+      }
+      
+      // If product type is unknown, check both tables (for backward compatibility)
+      // Since both tables use integer IDs, we need to check both
+      if (intId != null) {
+        // Check products table first
+        final productResponse = await _supabaseClient
+            .from('products')
+            .select()
+            .eq('id', intId)
+            .maybeSingle();
+
+        if (productResponse != null) {
+          return JewelryItem.fromJson(productResponse);
+        }
+        
+        // If not found in products, check designerproducts
+        final designerResponse = await _supabaseClient
+            .from('designerproducts')
+            .select()
+            .eq('id', intId)
+            .maybeSingle();
+
+        if (designerResponse != null) {
+          designerResponse['is_designer_product'] = true;
+          return JewelryItem.fromJson(designerResponse);
+        }
       } else {
-        // It's not an integer (likely UUID), so it must be from 'designerproducts'
+        // Non-integer ID, try designerproducts
         final designerResponse = await _supabaseClient
             .from('designerproducts')
             .select()
@@ -181,7 +225,7 @@ class JewelryService {
         }
       }
 
-      debugPrint('JewelryItem with ID $id not found.');
+      debugPrint('JewelryItem with ID $id not found in either table.');
       return null;
     } catch (e) {
       debugPrint('Error fetching single product (ID: $id): $e');

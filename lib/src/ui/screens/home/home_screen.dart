@@ -148,14 +148,10 @@ class HomeScreenState extends State<HomeScreen> {
       setState(() => _isLoadingProducts = true);
     }
     try {
-      // OPTIMIZED: Select only essential columns for list view
-      // This reduces data transfer significantly
-      // Note: 'products' table doesn't have 'created_at' or 'aspect_ratio'
-      // Note: 'designerproducts' table has 'created_at' but not 'aspect_ratio'
-      // The model will default aspectRatio to 1.0 if not present
-      const selectColumns = 'id, "Product Title", Image, Description, "Product Type", '
+ 
+      const selectColumns = 'id, "Product Title", "Image", "Description", "Product Type", '
           'Category, Category1, Category2, Category3, "Sub Category", '
-          '"Metal Type", "Metal Purity", Plain, Studded';
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price"';
       
       // For designerproducts, we can include created_at
       const designerSelectColumns = '$selectColumns, created_at';
@@ -177,8 +173,8 @@ class HomeScreenState extends State<HomeScreen> {
         designerQuery = designerQuery.eq('"Metal Type"', _selectedMetalType);
       }
       if (_selectedProductType != 'All') {
-        productsQuery = productsQuery.eq('Product Type', _selectedProductType);
-        designerQuery = designerQuery.eq('Product Type', _selectedProductType);
+        productsQuery = productsQuery.eq('"Product Type"', _selectedProductType);
+        designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
       }
       if (_selectedCategory != 'All') {
         // Filter by Category OR Category1 OR Category2 OR Category3 for both tables
@@ -191,8 +187,8 @@ class HomeScreenState extends State<HomeScreen> {
         designerQuery = designerQuery.eq('"Sub Category"', _selectedSubCategory);
       }
       if (_selectedMetalPurity != 'All') {
-        productsQuery = productsQuery.eq('Metal Purity', _selectedMetalPurity);
-        designerQuery = designerQuery.eq('Metal Purity', _selectedMetalPurity);
+        productsQuery = productsQuery.eq('"Metal Purity"', _selectedMetalPurity);
+        designerQuery = designerQuery.eq('"Metal Purity"', _selectedMetalPurity);
       }
       if (_selectedPlain != null) {
         productsQuery = productsQuery.eq('Plain', _selectedPlain!);

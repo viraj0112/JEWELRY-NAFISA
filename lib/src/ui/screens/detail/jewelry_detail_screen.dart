@@ -518,7 +518,11 @@ late List<String> _imageUrls;
       
         if (mounted) {
           // Refetch full product details with all columns
-          final fullProduct = await _jewelryService.getJewelryItem(_itemId);
+          // Pass isDesignerProduct flag to ensure we query the correct table
+          final fullProduct = await _jewelryService.getJewelryItem(
+            _itemId,
+            isDesignerProduct: widget.jewelryItem.isDesignerProduct,
+          );
           
           setState(() {
             _detailsRevealed = true;

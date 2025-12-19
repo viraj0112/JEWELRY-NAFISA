@@ -129,7 +129,9 @@ CREATE TABLE public.designerproducts (
   Category1 text,
   Category2 text,
   Category3 text,
-  CONSTRAINT designerproducts_pkey PRIMARY KEY (id)
+  user_id uuid,
+  CONSTRAINT designerproducts_pkey PRIMARY KEY (id),
+  CONSTRAINT designerproducts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.likes (
   id bigint NOT NULL DEFAULT nextval('likes_id_seq'::regclass),
@@ -205,6 +207,9 @@ CREATE TABLE public.products (
   embedding USER-DEFINED,
   user_id uuid DEFAULT auth.uid(),
   Image ARRAY,
+  Category1 text,
+  Category2 text,
+  Category3 text,
   CONSTRAINT products_pkey PRIMARY KEY (id),
   CONSTRAINT products_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
@@ -320,6 +325,7 @@ CREATE TABLE public.users (
   jewelry_categories ARRAY,
   setup_stage integer DEFAULT 0,
   setup_complete boolean DEFAULT false,
+  age smallint,
   CONSTRAINT users_pkey PRIMARY KEY (id),
   CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
   CONSTRAINT users_referred_by_fkey FOREIGN KEY (referred_by) REFERENCES public.users(id)
