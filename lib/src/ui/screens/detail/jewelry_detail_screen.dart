@@ -50,6 +50,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 late List<String> _imageUrls;
 
   bool _detailsRevealed = false;
+  JewelryItem? _fullProductDetails; // Store full product details after revealing
   bool _isLoadingInteraction = true;
   bool _isLiking = false;
   bool _isSaving = false;
@@ -92,6 +93,7 @@ late List<String> _imageUrls;
         currentItemId: _itemId,
         productType: widget.jewelryItem.productType,
         category: widget.jewelryItem.category,
+        subCategory: widget.jewelryItem.subCategory,
         limit: 80,
         isDesigner: widget.jewelryItem.isDesignerProduct);
 
@@ -515,7 +517,28 @@ late List<String> _imageUrls;
       );
       
         if (mounted) {
-          setState(() => _detailsRevealed = true);
+          // Refetch full product details with all columns
+          final fullProduct = await _jewelryService.getJewelryItem(_itemId);
+          
+          setState(() {
+            _detailsRevealed = true;
+            if (fullProduct != null) {
+              _fullProductDetails = fullProduct;
+              // Update image URLs if new images are available
+              if (fullProduct.images != null && fullProduct.images!.isNotEmpty) {
+                _imageUrls = fullProduct.images!;
+              }
+            }
+            // Refetch similar items after revealing details to get more results
+            _similarItemsFuture = _jewelryService.fetchSimilarItems(
+              currentItemId: _itemId,
+              productType: _fullProductDetails?.productType ?? widget.jewelryItem.productType,
+              category: _fullProductDetails?.category ?? widget.jewelryItem.category,
+              subCategory: _fullProductDetails?.subCategory ?? widget.jewelryItem.subCategory,
+              limit: 80,
+              isDesigner: widget.jewelryItem.isDesignerProduct,
+            );
+          });
           scaffoldMessenger.showSnackBar(
             const SnackBar(
               content: Text('Details revealed! One credit used.'),
@@ -895,7 +918,8 @@ Widget _buildNarrowLayout() {
 
 Widget _buildContentSection(BuildContext context) {
   final theme = Theme.of(context);
-  final item = widget.jewelryItem;
+  // Use full product details if available, otherwise use initial item
+  final item = _fullProductDetails ?? widget.jewelryItem;
 
   final bool showTitle = _detailsRevealed;
   final bool showFullDetails = _detailsRevealed;
@@ -945,23 +969,54 @@ Widget _buildContentSection(BuildContext context) {
             _buildDetailRow("Metal Finish: ", item.metalFinish!),
           if (item.metalType != null && item.metalType!.isNotEmpty)
             _buildDetailRow("Metal Type: ", item.metalType!),
-          if (item.stoneType != null && item.stoneType!.isNotEmpty)
-            _buildDetailRow("Stone Type:", item.stoneType!.join(', ')),
-          if (item.stoneColor != null && item.stoneColor!.isNotEmpty)
-            _buildDetailRow("Stone Color: ", item.stoneColor!.join(', ')),
-          if (item.stoneCount != null && item.stoneCount!.isNotEmpty)
-            _buildDetailRow("Stone Count: ", item.stoneCount!.join(', ')),
-          if (item.stonePurity != null && item.stonePurity!.isNotEmpty)
-            _buildDetailRow("Stone Purity: ", item.stonePurity!.join(', ')),
-          if (item.stoneCut != null && item.stoneCut!.isNotEmpty)
-            _buildDetailRow("Stone Cut", item.stoneCut!.join(', ')),
-          if (item.stoneUsed != null && item.stoneUsed!.isNotEmpty)
-            _buildDetailRow("Stone Used: ", item.stoneUsed!.join(', ')),
-          if (item.stoneWeight != null && item.stoneWeight!.isNotEmpty)
-            _buildDetailRow("Stone Weight: ", item.stoneWeight!.join(', ')),
-          if (item.stoneSetting != null && item.stoneSetting!.isNotEmpty)
-            _buildDetailRow(
-                "Stone Settings: ", item.stoneSetting!.join(', ')),
+          if (item.stoneType != null) {
+            final stoneTypeValue = _filterAndJoinList(item.stoneType);
+            if (stoneTypeValue.isNotEmpty) {
+              _buildDetailRow("Stone Type:", stoneTypeValue);
+            }
+          }
+          if (item.stoneColor != null) {
+            final stoneColorValue = _filterAndJoinList(item.stoneColor);
+            if (stoneColorValue.isNotEmpty) {
+              _buildDetailRow("Stone Color: ", stoneColorValue);
+            }
+          }
+          if (item.stoneCount != null) {
+            final stoneCountValue = _filterAndJoinList(item.stoneCount);
+            if (stoneCountValue.isNotEmpty) {
+              _buildDetailRow("Stone Count: ", stoneCountValue);
+            }
+          }
+          if (item.stonePurity != null) {
+            final stonePurityValue = _filterAndJoinList(item.stonePurity);
+            if (stonePurityValue.isNotEmpty) {
+              _buildDetailRow("Stone Purity: ", stonePurityValue);
+            }
+          }
+          if (item.stoneCut != null) {
+            final stoneCutValue = _filterAndJoinList(item.stoneCut);
+            if (stoneCutValue.isNotEmpty) {
+              _buildDetailRow("Stone Cut", stoneCutValue);
+            }
+          }
+          if (item.stoneUsed != null) {
+            final stoneUsedValue = _filterAndJoinList(item.stoneUsed);
+            if (stoneUsedValue.isNotEmpty) {
+              _buildDetailRow("Stone Used: ", stoneUsedValue);
+            }
+          }
+          if (item.stoneWeight != null) {
+            final stoneWeightValue = _filterAndJoinList(item.stoneWeight);
+            if (stoneWeightValue.isNotEmpty) {
+              _buildDetailRow("Stone Weight: ", stoneWeightValue);
+            }
+          }
+          if (item.stoneSetting != null) {
+            final stoneSettingValue = _filterAndJoinList(item.stoneSetting);
+            if (stoneSettingValue.isNotEmpty) {
+              _buildDetailRow("Stone Settings: ", stoneSettingValue);
+            }
+          }
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -988,8 +1043,28 @@ Widget _buildContentSection(BuildContext context) {
     ),
   );
 }
+  // Helper function to filter out null/empty values from lists
+  String _filterAndJoinList(List<String>? list) {
+    if (list == null || list.isEmpty) return '';
+    final filtered = list.where((s) {
+      final trimmed = s.trim();
+      return trimmed.isNotEmpty && 
+             trimmed.toLowerCase() != 'null' &&
+             trimmed.toLowerCase() != 'none' &&
+             trimmed.toLowerCase() != 'n/a' &&
+             trimmed.toLowerCase() != 'na';
+    }).toList();
+    return filtered.join(', ');
+  }
+
   Widget _buildDetailRow(String title, String value) {
-    if (value.trim().isEmpty || value.trim().toLowerCase() == 'n/a') {
+    final trimmedValue = value.trim();
+    // Don't display if value is empty, null, "null", "none", "n/a", or "na"
+    if (trimmedValue.isEmpty || 
+        trimmedValue.toLowerCase() == 'null' ||
+        trimmedValue.toLowerCase() == 'none' ||
+        trimmedValue.toLowerCase() == 'n/a' ||
+        trimmedValue.toLowerCase() == 'na') {
       return const SizedBox.shrink();
     }
     return Padding(

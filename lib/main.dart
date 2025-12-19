@@ -197,14 +197,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = provider_pkg.Provider.of<ThemeProvider>(context);
-
     return MaterialApp.router(
       title: 'Dagina Designs',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeProvider.themeMode,
+      themeMode: ThemeMode.light,
       routerConfig: _router,
     );
   }

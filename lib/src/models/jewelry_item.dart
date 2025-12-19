@@ -27,6 +27,7 @@ class JewelryItem {
   // --- END MODIFICATION ---
   final String? scrapedUrl;
   final String? category;
+  final String? subCategory;
   final String? productType;
   final String? gender;
   final String? theme;
@@ -67,6 +68,7 @@ class JewelryItem {
     this.stonePurity,
     this.scrapedUrl,
     this.category,
+    this.subCategory,
     this.productType,
     this.gender,
     this.theme,
@@ -124,9 +126,11 @@ class JewelryItem {
       scrapedUrl: _parseString(
           json['Scraped URL'] ?? json['scraped_url']), // Use _parseString
       category: _parseString(
-          json['Category'] ?? json['sub_category']), // Use _parseString
+          json['Category'] ?? json['category']), // Use _parseString
+      subCategory: _parseString(
+          json['Sub Category'] ?? json['sub_category'] ?? json['SubCategory']), // Use _parseString
       productType: _parseString(
-          json['Product Type'] ?? json['category']), // Use _parseString
+          json['Product Type'] ?? json['product_type']), // Use _parseString
       gender:
           _parseString(json['Gender'] ?? json['gender']), // Use _parseString
       theme:
@@ -164,7 +168,16 @@ class JewelryItem {
 
   static String? _parseString(dynamic value) {
     if (value == null) return null;
-    return value.toString();
+    final str = value.toString().trim();
+    // Return null if the string is empty, "null", "None", or "N/A"
+    if (str.isEmpty || 
+        str.toLowerCase() == 'null' || 
+        str.toLowerCase() == 'none' || 
+        str.toLowerCase() == 'n/a' ||
+        str.toLowerCase() == 'na') {
+      return null;
+    }
+    return str;
   }
 
   static double? _parseDouble(dynamic value) {
@@ -176,8 +189,29 @@ class JewelryItem {
 
   static List<String>? _parseList(dynamic value) {
     if (value == null) return null;
-    if (value is List) return value.map((e) => e.toString()).toList();
-    if (value is String) return [value];
+    if (value is List) {
+      final list = value
+          .map((e) => e.toString().trim())
+          .where((e) => 
+              e.isNotEmpty && 
+              e.toLowerCase() != 'null' && 
+              e.toLowerCase() != 'none' &&
+              e.toLowerCase() != 'n/a' &&
+              e.toLowerCase() != 'na')
+          .toList();
+      return list.isEmpty ? null : list;
+    }
+    if (value is String) {
+      final str = value.trim();
+      if (str.isEmpty || 
+          str.toLowerCase() == 'null' || 
+          str.toLowerCase() == 'none' ||
+          str.toLowerCase() == 'n/a' ||
+          str.toLowerCase() == 'na') {
+        return null;
+      }
+      return [str];
+    }
     return null;
   }
 }

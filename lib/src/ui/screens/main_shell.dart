@@ -207,24 +207,7 @@ class _MainShellState extends State<MainShell> {
  Widget _buildNarrowLayout() {
   return Scaffold(
     appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
-    body: Column(
-      children: [
-        // Show SVG banner only on home screen (index 0)
-        if (_selectedIndex == 0)
-          Container(
-            width: double.infinity,
-            height: 120, // Adjust height as needed
-            color: Colors.white, // Background color
-            child: SvgPicture.asset(
-              'assets/icons/Dagina.design Logo Final.svg', // Replace with your SVG path
-              fit: BoxFit.cover, // or BoxFit.contain, depending on your needs
-            ),
-          ),
-        Expanded(
-          child: _buildContent(),
-        ),
-      ],
-    ),
+    body: _buildContent(),
     bottomNavigationBar: _buildFixedNavBar(),
   );
 }

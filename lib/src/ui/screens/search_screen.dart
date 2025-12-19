@@ -269,10 +269,10 @@ class _SearchScreenState extends State<SearchScreen> {
               hintText: 'Search designs, categories...',
               prefixIcon: const Icon(Icons.search, size: 20),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(30),
                 borderSide: BorderSide.none,
               ),
-              fillColor: theme.splashColor,
+              fillColor: Colors.white,
               filled: true,
               contentPadding:
                   const EdgeInsets.symmetric(vertical: 0, horizontal: 16),

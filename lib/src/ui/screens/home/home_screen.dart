@@ -61,19 +61,25 @@ class HomeScreenState extends State<HomeScreen> {
   String? _hoveredItemId;
   String? _tappedItemId;
   final Set<String> _itemsBeingLiked = {};
+  
+  // Logo animation state
+  double _scrollOffset = 0.0;
+  static const double _logoAnimationThreshold = 100.0; // Start animating after 100px scroll
 
   @override
   void initState() {
     super.initState();
     _jewelryService = JewelryService(_supabase);
     _loadInitialData();
-    // Add scroll listener for infinite scroll
+    // Add scroll listener for infinite scroll and logo animation
     _scrollController.addListener(_onScroll);
+    _scrollController.addListener(_onScrollForLogo);
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
+    _scrollController.removeListener(_onScrollForLogo);
     _scrollController.dispose();
     super.dispose();
   }
@@ -85,6 +91,15 @@ class HomeScreenState extends State<HomeScreen> {
       if (!_isLoadingMore && _hasMoreProducts && !_isLoadingProducts) {
         _loadMoreProducts();
       }
+    }
+  }
+  
+  void _onScrollForLogo() {
+    final newOffset = _scrollController.position.pixels;
+    if (_scrollOffset != newOffset) {
+      setState(() {
+        _scrollOffset = newOffset;
+      });
     }
   }
 
@@ -532,48 +547,99 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          _buildFilterBar(),
-          Expanded(
-            child: _isLoadingProducts
-                ? const Center(child: CircularProgressIndicator())
-                : _buildHomeGrid(),
-          ),
-        ],
+      backgroundColor: Colors.white,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // Reset pagination on refresh
+          _currentOffset = 0;
+          _hasMoreProducts = true;
+          await _loadInitialData();
+        },
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            // Animated logo as a sliver
+            SliverToBoxAdapter(
+              child: _buildAnimatedLogo(),
+            ),
+            // Filter bar as a sliver
+            SliverToBoxAdapter(
+              child: _buildFilterBar(),
+            ),
+            // Products grid
+            if (_isLoadingProducts)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_products.isEmpty)
+              const SliverFillRemaining(
+                child: Center(child: Text('Coming Soon')),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.all(8.0),
+                sliver: SliverMasonryGrid.count(
+                  crossAxisCount:
+                      (MediaQuery.of(context).size.width / 200).floor().clamp(2, 6),
+                  mainAxisSpacing: 8.0,
+                  crossAxisSpacing: 8.0,
+                  childCount: _products.length + (_isLoadingMore ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    // Show loading indicator at the bottom when loading more
+                    if (index == _products.length) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    return _buildImageCard(context, _products[index]);
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHomeGrid() {
-    return RefreshIndicator(
-      onRefresh: () async {
-        // Reset pagination on refresh
-        _currentOffset = 0;
-        _hasMoreProducts = true;
-        await _loadInitialData();
-      },
-      child: _products.isEmpty && !_isLoadingProducts
-          ? const Center(child: Text('Coming Soon'))
-          : MasonryGridView.count(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(8.0),
-              crossAxisCount:
-                  (MediaQuery.of(context).size.width / 200).floor().clamp(2, 6),
-              itemCount: _products.length + (_isLoadingMore ? 1 : 0),
-              itemBuilder: (context, index) {
-                // Show loading indicator at the bottom when loading more
-                if (index == _products.length) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                return _buildImageCard(context, _products[index]);
-              },
-              mainAxisSpacing: 8.0,
-              crossAxisSpacing: 8.0,
-            ),
+  Widget _buildAnimatedLogo() {
+    // Calculate animation values based on scroll offset
+    // Logo starts shrinking and fading after scrolling 100px
+    final animationProgress = (_scrollOffset / _logoAnimationThreshold).clamp(0.0, 1.0);
+    
+    // Scale: starts at 1.0, goes to 0.0 (completely shrinks)
+    final scale = 1.0 - animationProgress;
+    
+    // Opacity: starts at 1.0, goes to 0.0 (completely fades)
+    final opacity = 1.0 - animationProgress;
+    
+    // Height: starts at 120, goes to 0
+    final height = 120.0 * (1.0 - animationProgress);
+    
+    // Hide completely when scrolled past threshold
+    if (height < 1.0) {
+      return const SizedBox.shrink();
+    }
+    
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 100),
+      curve: Curves.easeOut,
+      width: double.infinity,
+      height: height,
+      color: Colors.white,
+      padding: EdgeInsets.only(top: 16.0 * (1.0 - animationProgress)),
+      child: Opacity(
+        opacity: opacity,
+        child: Transform.scale(
+          scale: scale,
+          alignment: Alignment.center,
+          child: Image.asset(
+            'assets/icons/dagina2.png',
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+          ),
+        ),
+      ),
     );
   }
 
@@ -586,6 +652,7 @@ class HomeScreenState extends State<HomeScreen> {
     }
 
     return Container(
+      color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -622,12 +689,14 @@ class HomeScreenState extends State<HomeScreen> {
           if (_productTypeOptions.length > 1)
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
-              child: _buildDropdownFilter(
-                hint: 'Product Type',
-                options: _productTypeOptions,
-                selectedValue: _selectedProductType,
-                onChanged: _onProductTypeChanged,
-                isLoading: _isLoadingProductTypes,
+              child: Center(
+                child: _buildDropdownFilter(
+                  hint: 'Product Type',
+                  options: _productTypeOptions,
+                  selectedValue: _selectedProductType,
+                  onChanged: _onProductTypeChanged,
+                  isLoading: _isLoadingProductTypes,
+                ),
               ),
             ),
           
@@ -814,15 +883,16 @@ class HomeScreenState extends State<HomeScreen> {
                   : const Color(0xFFE0E0E0),
               width: 1.5,
             ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF006435).withOpacity(0.15),
-                      blurRadius: 3,
-                      offset: const Offset(0, 1.5),
-                    ),
-                  ]
-                : null,
+            boxShadow: [
+              BoxShadow(
+                color: isSelected 
+                    ? const Color(0xFF006435).withOpacity(0.25)
+                    : Colors.grey.withOpacity(0.15),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+                spreadRadius: 0,
+              ),
+            ],
           ),
           child: Text(
             label,
@@ -865,10 +935,14 @@ Widget _buildDropdownFilter({
       ? 'All'
       : selectedValue;
 
+  // Check if desktop view
+  final isDesktop = MediaQuery.of(context).size.width > 700;
+  
   return Container(
-    width: double.infinity,
+    width: isDesktop ? 300 : double.infinity,
     height: 48, // Fixed height for a cleaner look
     padding: const EdgeInsets.symmetric(horizontal: 16.0),
+    margin: isDesktop ? const EdgeInsets.symmetric(horizontal: 0) : EdgeInsets.zero,
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(24.0), // More rounded corners like the image

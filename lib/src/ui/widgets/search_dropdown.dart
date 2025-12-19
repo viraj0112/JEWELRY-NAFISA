@@ -306,10 +306,10 @@ class _SearchDropdownState extends State<SearchDropdown> {
           hintText: 'Search for designs, categories...',
           prefixIcon: const Icon(Icons.search, size: 20),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(30),
             borderSide: BorderSide.none,
           ),
-          fillColor: Theme.of(context).splashColor,
+          fillColor: Colors.white,
           filled: true,
           contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
           suffixIcon: widget.searchController.text.isNotEmpty
