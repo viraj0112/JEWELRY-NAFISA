@@ -969,54 +969,78 @@ Widget _buildContentSection(BuildContext context) {
             _buildDetailRow("Metal Finish: ", item.metalFinish!),
           if (item.metalType != null && item.metalType!.isNotEmpty)
             _buildDetailRow("Metal Type: ", item.metalType!),
-          if (item.stoneType != null) {
-            final stoneTypeValue = _filterAndJoinList(item.stoneType);
-            if (stoneTypeValue.isNotEmpty) {
-              _buildDetailRow("Stone Type:", stoneTypeValue);
+          ...(() {
+            if (item.stoneType != null) {
+              final stoneTypeValue = _filterAndJoinList(item.stoneType);
+              if (stoneTypeValue.isNotEmpty) {
+                return [_buildDetailRow("Stone Type:", stoneTypeValue)];
+              }
             }
-          }
-          if (item.stoneColor != null) {
-            final stoneColorValue = _filterAndJoinList(item.stoneColor);
-            if (stoneColorValue.isNotEmpty) {
-              _buildDetailRow("Stone Color: ", stoneColorValue);
+            return <Widget>[];
+          })(),
+          ...(() {
+            if (item.stoneColor != null) {
+              final stoneColorValue = _filterAndJoinList(item.stoneColor);
+              if (stoneColorValue.isNotEmpty) {
+                return [_buildDetailRow("Stone Color: ", stoneColorValue)];
+              }
             }
-          }
-          if (item.stoneCount != null) {
-            final stoneCountValue = _filterAndJoinList(item.stoneCount);
-            if (stoneCountValue.isNotEmpty) {
-              _buildDetailRow("Stone Count: ", stoneCountValue);
+            return <Widget>[];
+          })(),
+          ...(() {
+            if (item.stoneCount != null) {
+              final stoneCountValue = _filterAndJoinList(item.stoneCount);
+              if (stoneCountValue.isNotEmpty) {
+                return [_buildDetailRow("Stone Count: ", stoneCountValue)];
+              }
             }
-          }
-          if (item.stonePurity != null) {
-            final stonePurityValue = _filterAndJoinList(item.stonePurity);
-            if (stonePurityValue.isNotEmpty) {
-              _buildDetailRow("Stone Purity: ", stonePurityValue);
+            return <Widget>[];
+          })(),
+          ...(() {
+            if (item.stonePurity != null) {
+              final stonePurityValue = _filterAndJoinList(item.stonePurity);
+              if (stonePurityValue.isNotEmpty) {
+                return [_buildDetailRow("Stone Purity: ", stonePurityValue)];
+              }
             }
-          }
-          if (item.stoneCut != null) {
-            final stoneCutValue = _filterAndJoinList(item.stoneCut);
-            if (stoneCutValue.isNotEmpty) {
-              _buildDetailRow("Stone Cut", stoneCutValue);
+            return <Widget>[];
+          })(),
+          ...(() {
+            if (item.stoneCut != null) {
+              final stoneCutValue = _filterAndJoinList(item.stoneCut);
+              if (stoneCutValue.isNotEmpty) {
+                return [_buildDetailRow("Stone Cut", stoneCutValue)];
+              }
             }
-          }
-          if (item.stoneUsed != null) {
-            final stoneUsedValue = _filterAndJoinList(item.stoneUsed);
-            if (stoneUsedValue.isNotEmpty) {
-              _buildDetailRow("Stone Used: ", stoneUsedValue);
+            return <Widget>[];
+          })(),
+          ...(() {
+            if (item.stoneUsed != null) {
+              final stoneUsedValue = _filterAndJoinList(item.stoneUsed);
+              if (stoneUsedValue.isNotEmpty) {
+                return [_buildDetailRow("Stone Used: ", stoneUsedValue)];
+              }
             }
-          }
-          if (item.stoneWeight != null) {
-            final stoneWeightValue = _filterAndJoinList(item.stoneWeight);
-            if (stoneWeightValue.isNotEmpty) {
-              _buildDetailRow("Stone Weight: ", stoneWeightValue);
+            return <Widget>[];
+          })(),
+          ...(() {
+            if (item.stoneWeight != null) {
+              final stoneWeightValue = _filterAndJoinList(item.stoneWeight);
+              if (stoneWeightValue.isNotEmpty) {
+                return [_buildDetailRow("Stone Weight: ", stoneWeightValue)];
+              }
             }
-          }
-          if (item.stoneSetting != null) {
-            final stoneSettingValue = _filterAndJoinList(item.stoneSetting);
-            if (stoneSettingValue.isNotEmpty) {
-              _buildDetailRow("Stone Settings: ", stoneSettingValue);
+            return <Widget>[];
+          })(),
+          ...(() {
+            if (item.stoneSetting != null) {
+              final stoneSettingValue = _filterAndJoinList(item.stoneSetting);
+              if (stoneSettingValue.isNotEmpty) {
+                return [_buildDetailRow("Stone Settings: ", stoneSettingValue)];
+              }
             }
-          }
+            return <Widget>[];
+          })(),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
