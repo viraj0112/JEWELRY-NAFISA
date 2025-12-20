@@ -37,7 +37,6 @@ import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart'
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart'; 
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart'; 
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_categories.dart'; 
-
 final supabaseClient = Supabase.instance.client;
 
 // 1. DEFINE ANALYTICS VARIABLES HERE

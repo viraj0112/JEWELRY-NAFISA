@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 import 'package:jewelry_nafisa/src/widgets/login_required_dialog.dart';
+import 'package:jewelry_nafisa/src/ui/screens/info_dialog.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -26,6 +27,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   void initState() {
     super.initState();
     _loadImages();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const InfoDialog(),
+      );
+    });
   }
 Future<void> _loadImages() async {
   if (!mounted) return;
@@ -72,6 +80,7 @@ Future<void> _loadImages() async {
 
   @override
   Widget build(BuildContext context) {
+    
     return PopScope(
       canPop: true,
       child: Scaffold(
@@ -238,7 +247,7 @@ Future<void> _loadImages() async {
   title: Row(
     children: [
       Image.asset(
-        'icons/DDlogo.png',   // <- your logo path
+        'assets/icons/DDlogo.png',   // <- your logo path
         height: 32,
       ),
       const SizedBox(width: 12),
@@ -326,7 +335,7 @@ Future<void> _loadImages() async {
               ),
             ),
           ),
-          const Icon(Icons.arrow_drop_down),
+          const Icon(Icons.arrow_drop_down, color: Colors.white),
         ],
       ),
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
