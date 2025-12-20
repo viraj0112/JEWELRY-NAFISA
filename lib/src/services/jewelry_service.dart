@@ -134,16 +134,19 @@ class JewelryService {
           'p_sub_category': subCategory,
           'p_limit': limit,
           'p_exclude_id': currentItemId,
-          // 'p_is_designer': isDesigner,
+          'p_is_designer': isDesigner,
         },
       ) as List<dynamic>;
 
       return response
           .map((json) {
             final map = json as Map<String, dynamic>;
-            map['is_designer_product'] = isDesigner;
+            // The SQL function already returns is_designer_product, so use it if available
+            if (!map.containsKey('is_designer_product')) {
+              map['is_designer_product'] = isDesigner;
+            }
             return JewelryItem.fromJson(map);
-          }) // Pass flag based on original item
+          })
           .toList();
     } catch (e) {
       debugPrint('Error fetching similar products via RPC: $e');
