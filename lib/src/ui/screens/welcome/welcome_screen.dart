@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 import 'package:jewelry_nafisa/src/widgets/login_required_dialog.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jewelry_nafisa/src/ui/screens/info_dialog.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
