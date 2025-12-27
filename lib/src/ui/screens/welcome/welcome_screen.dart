@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 import 'package:jewelry_nafisa/src/widgets/login_required_dialog.dart';
+import 'package:go_router/go_router.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -59,15 +60,11 @@ Future<void> _loadImages() async {
 
 
   void _navigateToLogin() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    context.push('/login');
   }
 
   void _navigateToRegister() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const SignUpScreen()));
+    context.push('/signup');
   }
 
   @override
@@ -361,12 +358,7 @@ Future<void> _loadImages() async {
 Widget _buildImageCard(BuildContext context, JewelryItem item) {
   return GestureDetector(
  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => JewelryDetailScreen(jewelryItem: item),
-      ),
-    );
+    context.push('/product/${item.id}');
   },
     child: Card(
       clipBehavior: Clip.antiAlias,

@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:go_router/go_router.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -441,6 +442,7 @@ class HomeScreenState extends State<HomeScreen> {
       _selectedProductType = 'All';
       _selectedCategory = 'All';
       _selectedSubCategory = 'All';
+      _selectedMetalPurity = 'All';
       _selectedPlain = null;
       _selectedStudded = null;
 
@@ -1089,11 +1091,7 @@ Widget _buildDropdownFilter({
         if (isTapped) {
           setState(() => _tappedItemId = null);
         } else {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => JewelryDetailScreen(jewelryItem: item),
-            ),
-          );
+          context.push('/product/${item.id}');
         }
       },
       child: Card(

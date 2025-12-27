@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:go_router/go_router.dart';
 
 class Debouncer {
   final int milliseconds;
@@ -446,11 +447,7 @@ class _SearchScreenState extends State<SearchScreen> {
     // ... (This function remains the same as before)
     return GestureDetector(
       onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => JewelryDetailScreen(jewelryItem: item),
-          ),
-        );
+        context.push('/product/${item.id}');
       },
       child: Card(
         clipBehavior: Clip.antiAlias,

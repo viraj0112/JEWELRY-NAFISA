@@ -37,6 +37,11 @@ import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart'
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart'; 
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart'; 
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_categories.dart'; 
+import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
+import 'package:jewelry_nafisa/src/ui/screens/boards_screen.dart';
+import 'package:jewelry_nafisa/src/ui/screens/search_screen.dart';
+import 'package:jewelry_nafisa/src/ui/screens/notifications_screen.dart';
+import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
 
 final supabaseClient = Supabase.instance.client;
 
@@ -45,7 +50,7 @@ FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 FirebaseAnalyticsObserver observer = FirebaseAnalyticsObserver(analytics: analytics);
 
 final _router = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/home',
   // 2. ENABLE THE OBSERVER HERE
   observers: [observer], 
   routes: [
@@ -64,10 +69,6 @@ final _router = GoRouter(
     GoRoute(
       path: '/welcome',
       builder: (context, state) => const WelcomeScreen(),
-    ),
-    GoRoute(
-      path: '/home',
-      builder: (context, state) => const MainShell(),
     ),
     GoRoute(
       path: '/designer',
@@ -98,6 +99,69 @@ final _router = GoRouter(
     GoRoute(
       path: '/pending-approval',
       builder: (context, state) => const PendingApprovalScreen(),
+    ),
+    // StatefulShellRoute for the main bottom navigation
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) {
+        return MainShell(navigationShell: navigationShell);
+      },
+      branches: [
+        // Tab 0: Home
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/home',
+              builder: (context, state) => const HomeScreen(),
+            ),
+          ],
+        ),
+        // Tab 1: Boards
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/boards',
+              builder: (context, state) => const BoardsScreen(),
+              routes: [
+                 GoRoute(
+                  path: 'detail/:id', // Sub-route: /boards/detail/:id
+                  builder: (context, state) {
+                    final boardId = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+                    final boardName = state.extra as String? ?? 'Board Details';
+                    return BoardDetailScreen(boardId: boardId, boardName: boardName);
+                  },
+                ),
+              ]
+            ),
+          ],
+        ),
+        // Tab 2: Search
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/search',
+              builder: (context, state) => SearchScreen(searchController: TextEditingController()),
+            ),
+          ],
+        ),
+        // Tab 3: Notifications
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/notifications',
+              builder: (context, state) => const NotificationsScreen(),
+            ),
+          ],
+        ),
+         // Tab 4: Profile (Placeholder/Action)
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/profile',
+              builder: (context, state) => const SizedBox.shrink(), 
+            ),
+          ],
+        ),
+      ],
     ),
     // Handle both slug-based and ID-based product routes
     GoRoute(

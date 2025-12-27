@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/admin2/screens/main_screen.dart';
 import 'package:jewelry_nafisa/src/designer/designer_shell.dart';
 import 'package:jewelry_nafisa/src/designer/screens/pending_approval_screen.dart';
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
-import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_gender.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_age.dart'; 
 import 'package:provider/provider.dart';
@@ -35,6 +35,7 @@ class _ProfileLoaderState extends State<ProfileLoader> {
   }
 
   // --- NEW LOGIC: Determine the destination based on profile data ---
+  // Instead of returning a widget, we return a Widget that performs a redirect
   Widget _getDestinationWidget(UserProfile userProfile) {
     // 1. Check Onboarding Status (Priority 1)
     if (userProfile.isSetupComplete == false) {
@@ -46,7 +47,7 @@ class _ProfileLoaderState extends State<ProfileLoader> {
         4 => const OnboardingScreen3Categories(),
         // If stage is 3 but isSetupComplete is false, default to the last stage
         // or a safe home screen to prevent being stuck.
-        _ => const MainShell(),
+        _ => const RedirectToHome(),
       };
     }
 
@@ -56,9 +57,9 @@ class _ProfileLoaderState extends State<ProfileLoader> {
       UserRole.designer => userProfile.isApproved == true
           ? const DesignerShell()
           : const PendingApprovalScreen(),
-      UserRole.member => const MainShell(),
+      UserRole.member => const RedirectToHome(),
       // Default to MainShell for any other role/null role
-      _ => const MainShell(),
+      _ => const RedirectToHome(),
     };
   }
   // --- END NEW LOGIC ---
@@ -110,7 +111,7 @@ class _ProfileLoaderState extends State<ProfileLoader> {
                           'Could not find user profile. Please sign out and try again.'),
                       const SizedBox(height: 20),
                       ElevatedButton(
-                        onPressed: () => SupabaseAuthService().signOut(),
+                      onPressed: () => SupabaseAuthService().signOut(),
                         child: const Text('Sign Out'),
                       )
                     ],
@@ -124,6 +125,35 @@ class _ProfileLoaderState extends State<ProfileLoader> {
           },
         );
       },
+    );
+  }
+}
+
+// Helper widget to perform the redirect to /home
+class RedirectToHome extends StatefulWidget {
+  const RedirectToHome({super.key});
+
+  @override
+  State<RedirectToHome> createState() => _RedirectToHomeState();
+}
+
+class _RedirectToHomeState extends State<RedirectToHome> {
+  @override
+  void initState() {
+    super.initState();
+    // Schedule the navigation after the build phase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.go('/home');
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Show a loading indicator while redirecting
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }

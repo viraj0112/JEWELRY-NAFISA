@@ -6,6 +6,7 @@ import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/board_card.dart'; 
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:go_router/go_router.dart';
 
 
 enum SortMode { newest, nameAsc, nameDesc }
@@ -505,11 +506,9 @@ class _BoardsScreenState extends State<BoardsScreen> {
           child: BoardCard(
             board: board,
             onTap: () async {
-              final result = await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => BoardDetailScreen(
-                      boardId: board.id, boardName: board.name),
-                ),
+              final result = await context.push(
+                '/boards/detail/${board.id}',
+                extra: board.name,
               );
               if (result == true) {
                 _fetchUserBoards();

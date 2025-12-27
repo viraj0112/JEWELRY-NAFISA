@@ -22,33 +22,26 @@ import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  final StatefulNavigationShell navigationShell;
+
+  const MainShell({
+    super.key,
+    required this.navigationShell,
+  });
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  int _selectedIndex = 0;
   final _searchController = TextEditingController();
-  late final List<Widget> _pages;
 
   // Search state management
   List<JewelryItem> _searchResults = [];
   String _currentSearchQuery = '';
   bool _isSearchMode = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _pages = <Widget>[
-      HomeScreen(),
-      const BoardsScreen(),
-      SearchScreen(searchController: _searchController),
-      const NotificationsScreen(),
-    ];
-  }
 
   @override
   void dispose() {
@@ -57,15 +50,17 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _onItemTapped(int index) {
-  // Ignore taps on the Info button (index 4)
-  if (index == 4) {
-    return; // Do nothing when Info is tapped
+    // Ignore taps on the Info button (index 4) if it's just a placeholder for the menu
+    // But if we want it to be a real tab, we can navigate.
+    // Based on previous code, index 4 was "Profile" in bottom nav but "Info" in rail.
+    // And it had a special handler in the app bar.
+    
+    // For now, let's allow navigation to all tabs defined in branches.
+    widget.navigationShell.goBranch(
+      index,
+      initialLocation: index == widget.navigationShell.currentIndex,
+    );
   }
-  
-  setState(() {
-    _selectedIndex = index;
-  });
-}
 
   Future<void> _signOut() async {
     try {
@@ -90,97 +85,14 @@ class _MainShellState extends State<MainShell> {
     }
   }
 
-  Future<void> _handleBusinessRequest(BuildContext context) async {
-    // Show a confirmation dialog first
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Request Business Account?'),
-        content: const Text(
-            'Your account will be submitted for approval. You will be notified once a decision is made.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Submit Request'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      await context.read<UserProfileProvider>().requestBusinessAccount();
-      if (mounted) {
-        Navigator.of(context).pop(); // Dismiss loading indicator
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Request sent successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop(); // Dismiss loading indicator
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send request: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _showExitConfirmationDialog(BuildContext context) {
-    if (_selectedIndex != 0) {
-      setState(() {
-        _selectedIndex = 0;
-      });
-    } else {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Exit App?'),
-          content: const Text('Are you sure you want to exit Dagina Designs?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(), // Dismiss dialog
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(true), // Allow pop/exit
-              child: const Text('Exit'),
-            ),
-          ],
-        ),
-      ).then((confirmed) {
-        if (confirmed == true && mounted) {
-          SystemNavigator.pop();
-        }
-      });
-    }
-  }
-
   // Handle search results from SearchDropdown
   void _onSearchResults(List<JewelryItem> results, String query) {
     setState(() {
       _searchResults = results;
       _currentSearchQuery = query;
       _isSearchMode = true;
-      _selectedIndex = 2; // Navigate to search screen
+      // Navigate to search screen (index 2)
+      widget.navigationShell.goBranch(2);
     });
   }
 
@@ -205,8 +117,9 @@ class _MainShellState extends State<MainShell> {
   }
 
  Widget _buildNarrowLayout() {
+  // Removed PopScope to allow GoRouter to handle back navigation
   return Scaffold(
-    appBar: _buildAppBar(isWide: false, selectedIndex: _selectedIndex),
+    appBar: _buildAppBar(isWide: false, selectedIndex: widget.navigationShell.currentIndex),
     body: _buildContent(),
     bottomNavigationBar: _buildFixedNavBar(),
   );
@@ -223,7 +136,7 @@ class _MainShellState extends State<MainShell> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             NavigationRail(
-              selectedIndex: _selectedIndex,
+              selectedIndex: widget.navigationShell.currentIndex,
               onDestinationSelected: _onItemTapped,
               labelType: NavigationRailLabelType.all,
               leading: _buildLogo(userProfile),
@@ -274,7 +187,7 @@ class _MainShellState extends State<MainShell> {
             Expanded(
               child: Column(
                 children: [
-                  _buildAppBar(isWide: true, selectedIndex: _selectedIndex),
+                  _buildAppBar(isWide: true, selectedIndex: widget.navigationShell.currentIndex),
                   Expanded(child: _buildContent()),
                 ],
               ),
@@ -286,10 +199,11 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildContent() {
-    if (_isSearchMode && _selectedIndex == 2) {
+    if (_isSearchMode && widget.navigationShell.currentIndex == 2) {
       return _buildSearchResults();
     }
-    return _pages.elementAt(_selectedIndex);
+    // Return the child from StatefulShellRoute
+    return widget.navigationShell;
   }
 
   Widget _buildSearchResults() {
@@ -365,11 +279,8 @@ class _MainShellState extends State<MainShell> {
   Widget _buildImageCard(BuildContext context, JewelryItem item) {
     return GestureDetector(
       onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => JewelryDetailScreen(jewelryItem: item),
-          ),
-        );
+        // Use GoRouter to push the product page
+        context.push('/product/${item.id}');
       },
       child: Card(
         clipBehavior: Clip.antiAlias,
@@ -393,7 +304,7 @@ class _MainShellState extends State<MainShell> {
     final theme = Theme.of(context);
     final  customGreen = const Color(0xFF336B43);
     return BottomNavigationBar(
-      currentIndex: _selectedIndex,
+      currentIndex: widget.navigationShell.currentIndex,
       onTap: _onItemTapped,
       type: BottomNavigationBarType.fixed,
       backgroundColor: customGreen,
