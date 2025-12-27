@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
+import 'package:jewelry_nafisa/src/ui/screens/info_screen.dart';
 import 'package:jewelry_nafisa/src/widgets/account_management_dialog.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/boards_screen.dart';
@@ -177,8 +178,8 @@ class _MainShellState extends State<MainShell> {
                   label: Text('Notifications'),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.question_mark_outlined),
-                  selectedIcon: Icon(Icons.question_mark),
+                  icon: Icon(Icons.chat_bubble_outline_outlined),
+                  selectedIcon: Icon(Icons.chat_bubble),
                   label: Text('Info'),
                 ),
               ],
@@ -333,9 +334,9 @@ class _MainShellState extends State<MainShell> {
           label: 'Notifications',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.question_mark_outlined),
-          activeIcon: Icon(Icons.question_mark),
-          label: 'Profile',
+          icon: Icon(Icons.chat_bubble_outline),
+          activeIcon: Icon(Icons.chat_bubble),
+          label: 'Info',
         ),
       ],
     );
@@ -350,12 +351,12 @@ class _MainShellState extends State<MainShell> {
     final bool isSearchScreen = selectedIndex == 2;
     final bool isBoardsScreen = selectedIndex == 1;
     final bool isNotificationScreen = selectedIndex == 3;
-    final bool isProfileScreen = selectedIndex == 4;
+    final bool isInfoScreen = selectedIndex == 4;
 
     final bool shouldHideSearchBar = isSearchScreen ||
         isBoardsScreen ||
         isNotificationScreen ||
-        isProfileScreen;
+        isInfoScreen;
 
     return AppBar(
       automaticallyImplyLeading: !isWide,
@@ -446,11 +447,13 @@ class _MainShellState extends State<MainShell> {
               builder: (context) => const AccountManagementDialog(),
             );
             break;
-             case 'my_profile':
-            showDialog(
-              context: context,
-              builder: (context) => const AccountManagementDialog(),
-            );
+        // Inside MainShell -> _buildProfileDropdown
+               case 'my_profile':
+  Navigator.of(context).push(
+    MaterialPageRoute(builder: (context) => const ProfileScreen()),
+  );
+
+            
           // case 'toggle_theme':  // Add this case
           // themeProvider.toggleTheme();
           break;
@@ -464,7 +467,7 @@ class _MainShellState extends State<MainShell> {
       },
       icon: Icon(
         Icons.arrow_drop_down,
-        color: Theme.of(context).colorScheme.onSurface,
+        color: Colors.white,
       ),
       itemBuilder: (BuildContext context) {
         List<PopupMenuEntry<String>> items = [

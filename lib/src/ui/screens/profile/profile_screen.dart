@@ -37,34 +37,93 @@ class _ProfileScreenState extends State<ProfileScreen>
     return PopScope(
       canPop: true,
       child: Scaffold(
-        body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverToBoxAdapter(
-              child: _buildProfileHeader(context, userProfile),
-            ),
-            SliverPersistentHeader(
-              delegate: _SliverTabBarDelegate(
-                TabBar(
-                  controller: _tabController,
-                  tabs: const [
-                    Tab(text: 'My Account'),
-                    Tab(text: 'My Credits'),
-                  ],
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            bool isWide = constraints.maxWidth > 800;
+            
+            if (isWide) {
+              // Desktop layout with close button
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          tooltip: 'Close',
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildNestedScrollView(userProfile),
+                  ),
+                ],
+              );
+            } else {
+              // Mobile layout with back button in app bar
+              return _buildNestedScrollView(userProfile);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNestedScrollView(UserProfileProvider userProfile) {
+    final isWide = MediaQuery.of(context).size.width > 800;
+    
+    return NestedScrollView(
+      headerSliverBuilder: (context, innerBoxIsScrolled) {
+        return [
+          // Add SliverAppBar for mobile with back button
+          if (!isWide)
+            SliverAppBar(
+              pinned: false,
+              floating: true,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              leading: Container(
+                margin: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.4),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  padding: EdgeInsets.zero,
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
               ),
-              pinned: true,
+              elevation: 0,
             ),
-          ];
-        },
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildMyAccountTab(userProfile),
-            const ReferralScreen(),
-          ],
-        ),
-        ),
+          SliverToBoxAdapter(
+            child: _buildProfileHeader(context, userProfile),
+          ),
+          SliverPersistentHeader(
+            delegate: _SliverTabBarDelegate(
+              TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: 'My Account'),
+                  Tab(text: 'My Credits'),
+                ],
+              ),
+            ),
+            pinned: true,
+          ),
+        ];
+      },
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildMyAccountTab(userProfile),
+          const ReferralScreen(),
+        ],
       ),
     );
   }
@@ -201,7 +260,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                   children: [
                     Text('Product Details', style: theme.textTheme.titleLarge),
                     TextButton(
-                      // FIX: Corrected the navigation logic
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -244,64 +302,64 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-Widget _buildMembershipSection(BuildContext context) {
-  return Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Membership Status',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Eligible for Free Making on Jewelry, Get Discount on Making Charges, Free Jewelry Cleaning, Discount on your Occasions',
-          ),
-          const SizedBox(height: 16),
-          // --- UPDATED CIRCULAR GRADIENT BUTTON ---
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const BuyMembershipScreen(),
-              ),
+  Widget _buildMembershipSection(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Membership Status',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-            style: ElevatedButton.styleFrom(
-              padding: EdgeInsets.zero, // Essential for the gradient to reach the edges
-              shape: const StadiumBorder(), // This creates the perfect circular ends
-            ).copyWith(
-              backgroundColor: WidgetStateProperty.all(Colors.transparent),
-              shadowColor: WidgetStateProperty.all(Colors.transparent),
-              elevation: WidgetStateProperty.all(0),
+            const SizedBox(height: 8),
+            const Text(
+              'Eligible for Free Making on Jewelry, Get Discount on Making Charges, Free Jewelry Cleaning, Discount on your Occasions',
             ),
-            child: Ink(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFFD12B), Color(0xFFCE8808)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const BuyMembershipScreen(),
                 ),
-                borderRadius: BorderRadius.circular(30), // Match the button's roundness
               ),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                child: const Text(
-                  'Become a Lifetime Golden Member',
-                  style: TextStyle(
-                    color: Colors.white, // White text
-                    fontWeight: FontWeight.bold,
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.zero,
+                shape: const StadiumBorder(),
+              ).copyWith(
+                backgroundColor: WidgetStateProperty.all(Colors.transparent),
+                shadowColor: WidgetStateProperty.all(Colors.transparent),
+                elevation: WidgetStateProperty.all(0),
+              ),
+              child: Ink(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFD12B), Color(0xFFCE8808)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  child: const Text(
+                    'Become a Lifetime Golden Member',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
-    }
+
 class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverTabBarDelegate(this._tabBar);
   final TabBar _tabBar;
