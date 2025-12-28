@@ -367,7 +367,8 @@ Future<void> _loadImages() async {
 Widget _buildImageCard(BuildContext context, JewelryItem item) {
   return GestureDetector(
  onTap: () {
-    context.push('/product/${item.id}');
+    final isDesigner = item.isDesignerProduct;
+    context.push('/product/${item.id}?isDesigner=$isDesigner');
   },
     child: Card(
       clipBehavior: Clip.antiAlias,

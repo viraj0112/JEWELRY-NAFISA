@@ -46,7 +46,7 @@ class LoginRequiredDialog extends StatelessWidget {
               const SizedBox(height: 20),
 
               const Text(
-                "Join Dagina to continue",
+                "Join Dagina.Designs to continue",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 20,

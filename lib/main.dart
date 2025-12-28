@@ -50,7 +50,7 @@ FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 FirebaseAnalyticsObserver observer = FirebaseAnalyticsObserver(analytics: analytics);
 
 final _router = GoRouter(
-  initialLocation: '/home',
+  initialLocation: '/welcome',
   // 2. ENABLE THE OBSERVER HERE
   observers: [observer], 
   routes: [
@@ -180,7 +180,9 @@ final _router = GoRouter(
         if (isSlug) {
           return ProductPageLoader(productSlug: identifier);
         } else {
-          return ProductDetailLoader(productId: identifier);
+          final isDesignerParam = state.uri.queryParameters['isDesigner'];
+          final isDesigner = isDesignerParam == 'true';
+          return ProductDetailLoader(productId: identifier, isDesigner: isDesigner);
         }
       },
     ),
@@ -273,14 +275,15 @@ class MyApp extends StatelessWidget {
 
 class ProductDetailLoader extends StatelessWidget {
   final String productId;
-  const ProductDetailLoader({super.key, required this.productId});
+  final bool isDesigner;
+  const ProductDetailLoader({super.key, required this.productId, this.isDesigner = false});
 
   @override
   Widget build(BuildContext context) {
     final jewelryService = provider_pkg.Provider.of<JewelryService>(context, listen: false);
 
     return FutureBuilder<JewelryItem?>(
-      future: jewelryService.getJewelryItem(productId),
+      future: jewelryService.getJewelryItem(productId, isDesignerProduct: isDesigner),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(

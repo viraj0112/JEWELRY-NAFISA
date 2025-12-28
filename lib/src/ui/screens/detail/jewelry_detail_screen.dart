@@ -454,6 +454,18 @@ late List<String> _imageUrls;
   void _onGetDetailsPressed(BuildContext context) async {
     final profile = Provider.of<UserProfileProvider>(context, listen: false);
 
+    // 1. If guest (not logged in), show Join Dialog
+    if (profile.userProfile == null) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (_) => const LoginRequiredDialog(),
+        );
+      }
+      return;
+    }
+
     if (profile.creditsRemaining <= 0) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1288,7 +1300,9 @@ Widget _buildImageThumbnails() {
             return GestureDetector(
               onTap: () {
                 // --- FIX: Use GoRouter push for deep linking support ---
-                context.push('/product/${item.id}');
+                // Pass isDesigner query param to avoid ID collisions
+                final isDesigner = item.isDesignerProduct;
+                context.push('/product/${item.id}?isDesigner=$isDesigner');
                 // --- END FIX ---
               },
               child: Card(

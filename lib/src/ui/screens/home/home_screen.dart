@@ -1091,7 +1091,8 @@ Widget _buildDropdownFilter({
         if (isTapped) {
           setState(() => _tappedItemId = null);
         } else {
-          context.push('/product/${item.id}');
+          final isDesigner = item.isDesignerProduct;
+          context.push('/product/${item.id}?isDesigner=$isDesigner');
         }
       },
       child: Card(

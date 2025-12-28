@@ -87,84 +87,91 @@ class JewelryItem {
     this.aspectRatio = 1.0,
   });
 
-  factory JewelryItem.fromJson(Map<String, dynamic> json) {
-    return JewelryItem(
-      id: json['id']?.toString() ?? '',
-      productTitle: json['Product Title'] ?? json['product_title'] ?? '',
-      // Handle both single string and array for image
-      image: json['Image'] is List
-          ? (json['Image'] as List).firstOrNull ?? ''
-          : json['Image'] ?? json['image'] ?? json['image_url'] ?? '',
-      // Parse the new 'images' array
-      images: (json['images'] is List)
-          ? (json['images'] as List).map((e) => e.toString()).toList()
-          : (json['Image'] is List)
-              ? (json['Image'] as List).map((e) => e.toString()).toList()
-              : null,
-      description: json['description'] ?? '',
-      price: _parseDouble(json['Price'] ?? json['price']),
-      isDesignerProduct: json['is_designer_product'] ?? false,
-      tags: _parseList(json['Product Tags'] ?? json['tags']),
-      goldWeight: _parseString(
-          json['Gold Weight'] ?? json['gold_weight']), // Use _parseString
-      metalPurity: _parseString(
-          json['Metal Purity'] ?? json['metal_purity']), // Use _parseString
-      metalFinish: _parseString(
-          json['Metal Finish'] ?? json['metal_finish']), // Use _parseString
-      metalWeight: _parseString(
-          json['Metal Weight'] ?? json['metal_weight']),
+factory JewelryItem.fromJson(Map<String, dynamic> json) {
+  return JewelryItem(
+    id: json['id']?.toString() ?? '',
+    
+    // FIX: Add check for 'title' (used in designerproducts)
+    productTitle: json['Product Title'] ?? json['product_title'] ?? json['title'] ?? '',
 
-      // These already use _parseList, which is correct
-      stoneWeight: _parseList(json['Stone Weight'] ?? json['stone_weight']),
-      stoneType: _parseList(json['Stone Type'] ?? json['stone_type']),
-      stoneUsed: _parseList(json['Stone Used'] ?? json['stone_used']),
-      stoneSetting: _parseList(json['Stone Setting'] ?? json['stone_setting']),
-      stoneCount: _parseList(json['Stone Count'] ?? json['stone_count']),
-      stonePurity: _parseList(json['Stone Purity'] ?? json['stone_purity']),
+    // Handle both single string and array for image
+    image: json['Image'] is List
+        ? (json['Image'] as List).firstOrNull ?? ''
+        : json['Image'] ?? json['image'] ?? json['image_url'] ?? '',
+        
+    // Parse the new 'images' array
+    images: (json['images'] is List)
+        ? (json['images'] as List).map((e) => e.toString()).toList()
+        : (json['Image'] is List)
+            ? (json['Image'] as List).map((e) => e.toString()).toList()
+            : null,
+            
+    description: json['description'] ?? '',
+    price: _parseDouble(json['Price'] ?? json['price']),
+    isDesignerProduct: json['is_designer_product'] ?? false,
+    tags: _parseList(json['Product Tags'] ?? json['tags']),
+    
+    goldWeight: _parseString(
+        json['Gold Weight'] ?? json['gold_weight']), 
+        
+    // FIX: Add check for 'gold_carat' (used in designerproducts)
+    metalPurity: _parseString(
+        json['Metal Purity'] ?? json['metal_purity'] ?? json['gold_carat']), 
+        
+    // FIX: Add check for 'gold_finish' (used in designerproducts)
+    metalFinish: _parseString(
+        json['Metal Finish'] ?? json['metal_finish'] ?? json['gold_finish']), 
+        
+    metalWeight: _parseString(
+        json['Metal Weight'] ?? json['metal_weight']),
 
-      // --- APPLY THE FIX HERE ---
-      scrapedUrl: _parseString(
-          json['Scraped URL'] ?? json['scraped_url']), // Use _parseString
-      category: _parseString(
-          json['Category'] ?? json['category']), // Use _parseString
-      subCategory: _parseString(
-          json['Sub Category'] ?? json['sub_category'] ?? json['SubCategory']), // Use _parseString
-      productType: _parseString(
-          json['Product Type'] ?? json['product_type']), // Use _parseString
-      gender:
-          _parseString(json['Gender'] ?? json['gender']), // Use _parseString
-      theme:
-          _parseString(json['Theme'] ?? json['occasions']), // Use _parseString
-      metalType: _parseString(
-          json['Metal Type'] ?? json['metal_type']), // Use _parseString
-      metalColor: _parseString(
-          json['Metal Color'] ?? json['metal_color']), // Use _parseString
+    stoneWeight: _parseList(json['Stone Weight'] ?? json['stone_weight']),
+    stoneType: _parseList(json['Stone Type'] ?? json['stone_type']),
+    stoneUsed: _parseList(json['Stone Used'] ?? json['stone_used']),
+    stoneSetting: _parseList(json['Stone Setting'] ?? json['stone_setting']),
+    stoneCount: _parseList(json['Stone Count'] ?? json['stone_count']),
+    stonePurity: _parseList(json['Stone Purity'] ?? json['stone_purity']),
 
-      netWeight: _parseDouble(
-          json['NET WEIGHT'] ?? json['net_weight']), // Keep _parseDouble
+    scrapedUrl: _parseString(
+        json['Scraped URL'] ?? json['scraped_url']), 
+    category: _parseString(
+        json['Category'] ?? json['category']), 
+    subCategory: _parseString(
+        json['Sub Category'] ?? json['sub_category'] ?? json['SubCategory']), 
+    productType: _parseString(
+        json['Product Type'] ?? json['product_type']), 
+    gender:
+        _parseString(json['Gender'] ?? json['gender']), 
+    theme:
+        _parseString(json['Theme'] ?? json['occasions']), 
+    metalType: _parseString(
+        json['Metal Type'] ?? json['metal_type']), 
+    metalColor: _parseString(
+        json['Metal Color'] ?? json['metal_color']), 
 
-      // These already use _parseList, which is correct
-      stoneColor: _parseList(json['Stone Color'] ?? json['stone_color']),
-      stoneCut: _parseList(json['Stone Cut'] ?? json['stone_cut']),
+    netWeight: _parseDouble(
+        json['NET WEIGHT'] ?? json['net_weight']), 
 
-      // --- APPLY THE FIX HERE ---
-      dimension:
-          _parseString(json['Dimension'] ?? json['size']), // Use _parseString
-      designType: _parseString(
-          json['Design Type'] ?? json['style']), // Use _parseString
-      artForm: _parseString(
-          json['Art Form'] ?? json['art_form']), // Use _parseString
-      plating:
-          _parseString(json['Plating'] ?? json['plating']), // Use _parseString
-      enamelWork: _parseString(
-          json['Enamel Work'] ?? json['enamel_work']), // Use _parseString
+    stoneColor: _parseList(json['Stone Color'] ?? json['stone_color']),
+    stoneCut: _parseList(json['Stone Cut'] ?? json['stone_cut']),
 
-      customizable: (json['Customizable'] is bool)
-          ? json['Customizable']
-          : (json['Customizable'] == 'Yes' || json['customizable'] == true),
-      aspectRatio: (json['aspect_ratio'] as num?)?.toDouble() ?? 1.0,
-    );
-  }
+    dimension:
+        _parseString(json['Dimension'] ?? json['size']), 
+    designType: _parseString(
+        json['Design Type'] ?? json['style']), 
+    artForm: _parseString(
+        json['Art Form'] ?? json['art_form']), 
+    plating:
+        _parseString(json['Plating'] ?? json['plating']), 
+    enamelWork: _parseString(
+        json['Enamel Work'] ?? json['enamel_work']), 
+
+    customizable: (json['Customizable'] is bool)
+        ? json['Customizable']
+        : (json['Customizable'] == 'Yes' || json['customizable'] == true),
+    aspectRatio: (json['aspect_ratio'] as num?)?.toDouble() ?? 1.0,
+  );
+}
 
   static String? _parseString(dynamic value) {
     if (value == null) return null;

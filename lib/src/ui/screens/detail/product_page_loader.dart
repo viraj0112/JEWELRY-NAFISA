@@ -52,6 +52,7 @@ class _ProductPageLoaderState extends State<ProductPageLoader> {
           .maybeSingle();
           
       if (designerResponse != null) {
+        designerResponse['is_designer_product'] = true;
         return JewelryItem.fromJson(designerResponse);
       }
 
