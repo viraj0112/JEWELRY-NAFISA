@@ -1,14 +1,17 @@
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_gender.dart';
-import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_age.dart';
-import 'firebase_options.dart';
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart' as provider_pkg;
+import 'package:url_strategy/url_strategy.dart';
+import 'package:universal_html/html.dart' as html;
+
+// Internal Imports
+import 'firebase_options.dart';
 import 'package:jewelry_nafisa/src/admin2/screens/main_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_callback_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
@@ -19,24 +22,21 @@ import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:provider/provider.dart' as provider_pkg;
 import 'package:jewelry_nafisa/src/admin2/providers/app_state.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
-import 'package:url_strategy/url_strategy.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/product_page_loader.dart';
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jewelry_nafisa/src/services/search_history_service.dart';
-import 'package:universal_html/html.dart' as html;
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart'; 
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart'; 
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_categories.dart'; 
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_gender.dart';
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_age.dart';
 import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/boards_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/search_screen.dart';
@@ -44,45 +44,46 @@ import 'package:jewelry_nafisa/src/ui/screens/notifications_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
 
 final supabaseClient = Supabase.instance.client;
-
 FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 FirebaseAnalyticsObserver observer = FirebaseAnalyticsObserver(analytics: analytics);
 
-// Create a global key for the router to access auth state
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final _router = GoRouter(
   navigatorKey: _rootNavigatorKey,
-  initialLocation: '/', // Changed to root - AuthGate will handle routing
+  initialLocation: '/', 
   observers: [observer],
   
-  // Add redirect logic to check auth state
   redirect: (context, state) {
     final isLoggedIn = supabaseClient.auth.currentSession != null;
+    
+    // Define route groups
     final isGoingToAuth = state.matchedLocation == '/welcome' ||
         state.matchedLocation == '/login' ||
         state.matchedLocation == '/signup';
+    
     final isGoingToAuthCallback = state.matchedLocation == '/auth-callback';
     
-    // Allow auth callback through
-    if (isGoingToAuthCallback) {
-      return null;
-    }
-    
-    // If logged in and going to auth pages, redirect to home
+    // FIX: Check if the user is trying to access a product detail page
+    final isGoingToProduct = state.matchedLocation.startsWith('/product/');
+
+    // 1. Always allow auth callback
+    if (isGoingToAuthCallback) return null;
+
+    // 2. If logged in and trying to go to Welcome/Login, send to Home
     if (isLoggedIn && isGoingToAuth) {
       return '/home';
     }
-    
-    // If not logged in and not going to auth pages or root, redirect to welcome
-    if (!isLoggedIn && !isGoingToAuth && state.matchedLocation != '/') {
+
+    // 3. If NOT logged in, allow Welcome, Auth pages, and Product Detail pages
+    // Otherwise, redirect everything else to Welcome
+    if (!isLoggedIn && !isGoingToAuth && !isGoingToProduct && state.matchedLocation != '/') {
       return '/welcome';
     }
-    
-    return null; // No redirect needed
+
+    return null; 
   },
   
-  // Add refresh listener to update routing when auth changes
   refreshListenable: GoRouterRefreshStream(
     supabaseClient.auth.onAuthStateChange,
   ),
@@ -108,6 +109,7 @@ final _router = GoRouter(
       path: '/designer',
       builder: (context, state) => const DesignerShell(),
     ),
+    // Onboarding Routes
     GoRoute(
       path: '/onboarding/location',
       builder: (context, state) => const OnboardingScreen1Location(),
@@ -136,6 +138,7 @@ final _router = GoRouter(
       path: '/pending-approval',
       builder: (context, state) => const PendingApprovalScreen(),
     ),
+    // Main App Shell
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         return MainShell(navigationShell: navigationShell);
@@ -193,6 +196,7 @@ final _router = GoRouter(
         ),
       ],
     ),
+    // Product Routes
     GoRoute(
       path: '/product/:identifier',
       builder: (context, state) {
@@ -201,8 +205,7 @@ final _router = GoRouter(
           return const AuthGate();
         }
 
-        final isSlug = identifier.contains('-') ||
-            identifier.contains(RegExp(r'[a-zA-Z]'));
+        final isSlug = identifier.contains('-') || identifier.contains(RegExp(r'[a-zA-Z]'));
 
         if (isSlug) {
           return ProductPageLoader(productSlug: identifier);
@@ -220,14 +223,11 @@ final _router = GoRouter(
   ],
 );
 
-// Helper class to make GoRouter listen to auth state changes
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<AuthState> stream) {
     notifyListeners();
     _subscription = stream.asBroadcastStream().listen(
-      (AuthState _) {
-        notifyListeners();
-      },
+      (AuthState _) => notifyListeners(),
     );
   }
 
@@ -247,35 +247,25 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  final supabaseUrl =
-      const String.fromEnvironment('SUPABASE_URL', defaultValue: '').isNotEmpty
-          ? const String.fromEnvironment('SUPABASE_URL')
-          : dotenv.env['SUPABASE_URL'] ?? '';
-  final supabaseAnonKey = const String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: '',
-  ).isNotEmpty
+  final supabaseUrl = const String.fromEnvironment('SUPABASE_URL').isNotEmpty
+      ? const String.fromEnvironment('SUPABASE_URL')
+      : dotenv.env['SUPABASE_URL'] ?? '';
+  final supabaseAnonKey = const String.fromEnvironment('SUPABASE_ANON_KEY').isNotEmpty
       ? const String.fromEnvironment('SUPABASE_ANON_KEY')
       : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
-    throw Exception(
-        'Supabase URL and Anon Key are required. Provide them via --dart-define or .env file.');
+    throw Exception('Supabase URL and Anon Key are required.');
   }
 
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
   final searchHistoryService = SearchHistoryService();
   await searchHistoryService.init();
   setPathUrlStrategy();
 
-  // Create UserProfileProvider and initialize if user is logged in
   final userProfileProvider = UserProfileProvider();
   if (supabaseClient.auth.currentUser != null) {
-    print('🚀 Main: User is logged in, loading profile...');
     userProfileProvider.loadUserProfile();
   }
 
@@ -284,14 +274,10 @@ Future<void> main() async {
       child: provider_pkg.MultiProvider(
         providers: [
           provider_pkg.ChangeNotifierProvider(create: (context) => AppState()),
-          provider_pkg.ChangeNotifierProvider(
-              create: (_) => SearchHistoryService()..init()),
-          provider_pkg.ChangeNotifierProvider.value(
-              value: userProfileProvider),
-          provider_pkg.ChangeNotifierProvider(
-              create: (context) => ThemeProvider()),
-          provider_pkg.ChangeNotifierProvider(
-              create: (context) => BoardsProvider()),
+          provider_pkg.ChangeNotifierProvider(create: (_) => SearchHistoryService()..init()),
+          provider_pkg.ChangeNotifierProvider.value(value: userProfileProvider),
+          provider_pkg.ChangeNotifierProvider(create: (context) => ThemeProvider()),
+          provider_pkg.ChangeNotifierProvider(create: (context) => BoardsProvider()),
           provider_pkg.Provider<JewelryService>(
             create: (_) => JewelryService(supabaseClient),
           ),
@@ -303,9 +289,7 @@ Future<void> main() async {
   );
 
   final loader = html.document.getElementById('loading_indicator');
-  if (loader != null) {
-    loader.remove();
-  }
+  if (loader != null) loader.remove();
 }
 
 class MyApp extends StatelessWidget {
@@ -336,8 +320,7 @@ class ProductDetailLoader extends StatelessWidget {
       future: jewelryService.getJewelryItem(productId, isDesignerProduct: isDesigner),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         if (snapshot.hasError || snapshot.data == null) {
           return Scaffold(
