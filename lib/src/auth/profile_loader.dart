@@ -9,8 +9,6 @@ import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_gender.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_age.dart'; 
 import 'package:provider/provider.dart';
-
-// Import the new onboarding screens
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_categories.dart';
@@ -23,19 +21,44 @@ class ProfileLoader extends StatefulWidget {
 }
 
 class _ProfileLoaderState extends State<ProfileLoader> {
-  late Future<void> _loadProfileFuture;
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    // Start loading the profile immediately
-    _loadProfileFuture =
-        Provider.of<UserProfileProvider>(context, listen: false)
-            .loadUserProfile();
+    _loadProfile();
   }
 
-  // --- NEW LOGIC: Determine the destination based on profile data ---
-  // Instead of returning a widget, we return a Widget that performs a redirect
+  Future<void> _loadProfile() async {
+    try {
+      final provider = Provider.of<UserProfileProvider>(context, listen: false);
+      
+      print('🔍 ProfileLoader: Starting profile load');
+      print('🔍 Current user: ${SupabaseAuthService().currentUser?.email}');
+      print('🔍 Profile before load: ${provider.userProfile?.username}');
+      
+      // Always reload the profile to ensure fresh data
+      await provider.loadUserProfile();
+      
+      print('🔍 Profile after load: ${provider.userProfile?.username}');
+      
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('❌ ProfileLoader Error: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
   Widget _getDestinationWidget(UserProfile userProfile) {
     // 1. Check Onboarding Status (Priority 1)
     if (userProfile.isSetupComplete == false) {
@@ -45,8 +68,6 @@ class _ProfileLoaderState extends State<ProfileLoader> {
         2 => const OnboardingScreen3Age(),
         3 => const OnboardingScreen2Occasions(),
         4 => const OnboardingScreen3Categories(),
-        // If stage is 3 but isSetupComplete is false, default to the last stage
-        // or a safe home screen to prevent being stuck.
         _ => const RedirectToHome(),
       };
     }
@@ -58,32 +79,62 @@ class _ProfileLoaderState extends State<ProfileLoader> {
           ? const DesignerShell()
           : const PendingApprovalScreen(),
       UserRole.member => const RedirectToHome(),
-      // Default to MainShell for any other role/null role
       _ => const RedirectToHome(),
     };
   }
-  // --- END NEW LOGIC ---
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<void>(
-      future: _loadProfileFuture,
-      builder: (context, snapshot) {
-        // --- 1. Loading State ---
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
+    // Show loading state
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-        // --- 2. Error State during Profile Fetch ---
-        if (snapshot.hasError) {
+    // Show error state
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error loading profile: $_error'),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => SupabaseAuthService().signOut(),
+                child: const Text('Sign Out'),
+              )
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show profile-based navigation
+    return Consumer<UserProfileProvider>(
+      builder: (context, profileProvider, child) {
+        final userProfile = profileProvider.userProfile;
+
+        // Null profile state
+        if (userProfile == null) {
           return Scaffold(
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Error loading profile: ${snapshot.error}'),
+                  const Icon(Icons.person_off, size: 48, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Could not find user profile.',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const Text(
+                    'Please sign out and try again.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () => SupabaseAuthService().signOut(),
@@ -95,41 +146,12 @@ class _ProfileLoaderState extends State<ProfileLoader> {
           );
         }
 
-        // --- 3. Success State: Profile Data Available (or not) ---
-        return Consumer<UserProfileProvider>(
-          builder: (context, profileProvider, child) {
-            final UserProfile? userProfile = profileProvider.userProfile;
-
-            // --- 4. Null Profile State (User exists but profile table is empty) ---
-            if (userProfile == null) {
-              return Scaffold(
-                body: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                          'Could not find user profile. Please sign out and try again.'),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                      onPressed: () => SupabaseAuthService().signOut(),
-                        child: const Text('Sign Out'),
-                      )
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            // --- 5. Determine Final Destination ---
-            return _getDestinationWidget(userProfile);
-          },
-        );
+        return _getDestinationWidget(userProfile);
       },
     );
   }
 }
 
-// Helper widget to perform the redirect to /home
 class RedirectToHome extends StatefulWidget {
   const RedirectToHome({super.key});
 
@@ -141,7 +163,6 @@ class _RedirectToHomeState extends State<RedirectToHome> {
   @override
   void initState() {
     super.initState();
-    // Schedule the navigation after the build phase
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.go('/home');
@@ -151,7 +172,6 @@ class _RedirectToHomeState extends State<RedirectToHome> {
 
   @override
   Widget build(BuildContext context) {
-    // Show a loading indicator while redirecting
     return const Scaffold(
       body: Center(child: CircularProgressIndicator()),
     );

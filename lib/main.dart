@@ -4,6 +4,7 @@ import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_gen
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_age.dart';
 import 'firebase_options.dart';
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
@@ -33,7 +34,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jewelry_nafisa/src/services/search_history_service.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
-// NEW ONBOARDING IMPORTS
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart'; 
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart'; 
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_categories.dart'; 
@@ -45,14 +45,48 @@ import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
 
 final supabaseClient = Supabase.instance.client;
 
-// 1. DEFINE ANALYTICS VARIABLES HERE
 FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 FirebaseAnalyticsObserver observer = FirebaseAnalyticsObserver(analytics: analytics);
 
+// Create a global key for the router to access auth state
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final _router = GoRouter(
-  initialLocation: '/welcome',
-  // 2. ENABLE THE OBSERVER HERE
-  observers: [observer], 
+  navigatorKey: _rootNavigatorKey,
+  initialLocation: '/', // Changed to root - AuthGate will handle routing
+  observers: [observer],
+  
+  // Add redirect logic to check auth state
+  redirect: (context, state) {
+    final isLoggedIn = supabaseClient.auth.currentSession != null;
+    final isGoingToAuth = state.matchedLocation == '/welcome' ||
+        state.matchedLocation == '/login' ||
+        state.matchedLocation == '/signup';
+    final isGoingToAuthCallback = state.matchedLocation == '/auth-callback';
+    
+    // Allow auth callback through
+    if (isGoingToAuthCallback) {
+      return null;
+    }
+    
+    // If logged in and going to auth pages, redirect to home
+    if (isLoggedIn && isGoingToAuth) {
+      return '/home';
+    }
+    
+    // If not logged in and not going to auth pages or root, redirect to welcome
+    if (!isLoggedIn && !isGoingToAuth && state.matchedLocation != '/') {
+      return '/welcome';
+    }
+    
+    return null; // No redirect needed
+  },
+  
+  // Add refresh listener to update routing when auth changes
+  refreshListenable: GoRouterRefreshStream(
+    supabaseClient.auth.onAuthStateChange,
+  ),
+  
   routes: [
     GoRoute(
       path: '/admin',
@@ -78,11 +112,13 @@ final _router = GoRouter(
       path: '/onboarding/location',
       builder: (context, state) => const OnboardingScreen1Location(),
     ),
-    GoRoute(path: '/onboarding/gender',
-    builder:(context,state)=> const OnboardingScreen2Gender(),
+    GoRoute(
+      path: '/onboarding/gender',
+      builder: (context, state) => const OnboardingScreen2Gender(),
     ),
-       GoRoute(path: '/onboarding/age',
-    builder:(context,state)=> const OnboardingScreen3Age(),
+    GoRoute(
+      path: '/onboarding/age',
+      builder: (context, state) => const OnboardingScreen3Age(),
     ),
     GoRoute(
       path: '/onboarding/occasions',
@@ -100,13 +136,11 @@ final _router = GoRouter(
       path: '/pending-approval',
       builder: (context, state) => const PendingApprovalScreen(),
     ),
-    // StatefulShellRoute for the main bottom navigation
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         return MainShell(navigationShell: navigationShell);
       },
       branches: [
-        // Tab 0: Home
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -115,15 +149,14 @@ final _router = GoRouter(
             ),
           ],
         ),
-        // Tab 1: Boards
         StatefulShellBranch(
           routes: [
             GoRoute(
               path: '/boards',
               builder: (context, state) => const BoardsScreen(),
               routes: [
-                 GoRoute(
-                  path: 'detail/:id', // Sub-route: /boards/detail/:id
+                GoRoute(
+                  path: 'detail/:id',
                   builder: (context, state) {
                     final boardId = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
                     final boardName = state.extra as String? ?? 'Board Details';
@@ -134,7 +167,6 @@ final _router = GoRouter(
             ),
           ],
         ),
-        // Tab 2: Search
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -143,7 +175,6 @@ final _router = GoRouter(
             ),
           ],
         ),
-        // Tab 3: Notifications
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -152,7 +183,6 @@ final _router = GoRouter(
             ),
           ],
         ),
-         // Tab 4: Profile (Placeholder/Action)
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -163,7 +193,6 @@ final _router = GoRouter(
         ),
       ],
     ),
-    // Handle both slug-based and ID-based product routes
     GoRoute(
       path: '/product/:identifier',
       builder: (context, state) {
@@ -172,8 +201,6 @@ final _router = GoRouter(
           return const AuthGate();
         }
 
-        // If identifier contains hyphens or letters, treat as slug
-        // Otherwise treat as numeric ID
         final isSlug = identifier.contains('-') ||
             identifier.contains(RegExp(r'[a-zA-Z]'));
 
@@ -193,15 +220,33 @@ final _router = GoRouter(
   ],
 );
 
+// Helper class to make GoRouter listen to auth state changes
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<AuthState> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen(
+      (AuthState _) {
+        notifyListeners();
+      },
+    );
+  }
+
+  late final StreamSubscription<AuthState> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 3. INITIALIZE FIREBASE
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-// await dotenv.load(fileName: ".env");
   final supabaseUrl =
       const String.fromEnvironment('SUPABASE_URL', defaultValue: '').isNotEmpty
           ? const String.fromEnvironment('SUPABASE_URL')
@@ -227,6 +272,13 @@ Future<void> main() async {
   await searchHistoryService.init();
   setPathUrlStrategy();
 
+  // Create UserProfileProvider and initialize if user is logged in
+  final userProfileProvider = UserProfileProvider();
+  if (supabaseClient.auth.currentUser != null) {
+    print('🚀 Main: User is logged in, loading profile...');
+    userProfileProvider.loadUserProfile();
+  }
+
   runApp(
     ProviderScope(
       child: provider_pkg.MultiProvider(
@@ -234,17 +286,15 @@ Future<void> main() async {
           provider_pkg.ChangeNotifierProvider(create: (context) => AppState()),
           provider_pkg.ChangeNotifierProvider(
               create: (_) => SearchHistoryService()..init()),
-          provider_pkg.ChangeNotifierProvider(
-              create: (context) => UserProfileProvider()),
+          provider_pkg.ChangeNotifierProvider.value(
+              value: userProfileProvider),
           provider_pkg.ChangeNotifierProvider(
               create: (context) => ThemeProvider()),
           provider_pkg.ChangeNotifierProvider(
               create: (context) => BoardsProvider()),
-
           provider_pkg.Provider<JewelryService>(
             create: (_) => JewelryService(supabaseClient),
           ),
-
           provider_pkg.Provider<QuoteService>(create: (_) => QuoteService()),
         ],
         child: const MyApp(),
