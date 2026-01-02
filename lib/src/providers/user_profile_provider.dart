@@ -36,17 +36,27 @@ class UserProfileProvider with ChangeNotifier {
   int get onboardingStage => _userProfile?.onboardingStage ?? 0;
   bool get isSetupComplete => _userProfile?.isSetupComplete ?? false;
 
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
   // --------------------------------------------------------------------------
   // --- Profile Loading with Local Data Sync ---
   // --------------------------------------------------------------------------
 
   Future<void> loadUserProfile() async {
-    if (_supabase.auth.currentUser == null) return;
+    if (_supabase.auth.currentUser == null) {
+      print('❌ loadUserProfile: No current user');
+      return;
+    }
+    
+    _isLoading = true;
+    notifyListeners();
     
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
     try {
       final userId = _supabase.auth.currentUser!.id;
+      print('📥 Loading profile for user: $userId');
 
       final responses = await Future.wait<dynamic>([
         _supabase
@@ -62,10 +72,14 @@ class UserProfileProvider with ChangeNotifier {
 
       final profileData = responses[0] as Map<String, dynamic>;
       _userProfile = UserProfile.fromMap(profileData);
+      print('✅ Profile loaded from DB: ${_userProfile!.username}');
 
       // --- Override with Local Storage ---
       final int localStage = prefs.getInt(LocalKeys.onboardingStage) ?? 0;
       final bool localComplete = prefs.getBool(LocalKeys.isSetupComplete) ?? false;
+      
+      print('📦 Local storage - stage: $localStage, complete: $localComplete');
+      print('📦 DB storage - stage: ${_userProfile!.onboardingStage}, complete: ${_userProfile!.isSetupComplete}');
       
       if (localComplete || localStage > _userProfile!.onboardingStage) {
          _userProfile = _userProfile!.copyWith(
@@ -78,16 +92,19 @@ class UserProfileProvider with ChangeNotifier {
            zipCode: prefs.getString(LocalKeys.zipCode) ?? _userProfile!.zipCode,
            phone: prefs.getString(LocalKeys.phone) ?? _userProfile!.phone,
          );
+         print('✅ Profile updated with local storage data');
       }
       
       final unlockedData = responses[1] as List<dynamic>;
       _unlockedItemIds = unlockedData.map((e) => e['item_id'] as String).toSet();
+      print('✅ Loaded ${_unlockedItemIds.length} unlocked items');
       
     } catch (e) {
-      debugPrint("Error loading user profile: $e");
+      debugPrint("❌ Error loading user profile: $e");
       _userProfile = null;
       _unlockedItemIds = {};
     } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }
@@ -114,6 +131,8 @@ class UserProfileProvider with ChangeNotifier {
     // PROGRESSION LOGIC (UP TO 5)
     final currentStage = _userProfile!.onboardingStage;
     final nextStage = isFinalSubmission ? 5 : (currentStage < 5 ? currentStage + 1 : currentStage);
+    
+    print('💾 Saving onboarding - current: $currentStage, next: $nextStage, final: $isFinalSubmission');
     
     try {
       // 1. Write to Local Storage
@@ -157,9 +176,10 @@ class UserProfileProvider with ChangeNotifier {
       };
 
       await _supabase.from('users').update(updates).eq('id', userId);
+      print('✅ Onboarding data saved to Supabase');
       
     } catch (e) {
-      debugPrint('Error saving onboarding: $e');
+      debugPrint('❌ Error saving onboarding: $e');
       rethrow;
     }
   }
@@ -288,6 +308,7 @@ class UserProfileProvider with ChangeNotifier {
   }
 
   void reset() {
+    print('🔄 Resetting UserProfileProvider');
     _userProfile = null;
     _unlockedItemIds = {};
     clearOnboardingLocalData();
