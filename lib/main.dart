@@ -9,8 +9,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart' as provider_pkg;
 import 'package:url_strategy/url_strategy.dart';
 import 'package:universal_html/html.dart' as html;
-
-// Internal Imports
 import 'firebase_options.dart';
 import 'package:jewelry_nafisa/src/admin2/screens/main_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_callback_screen.dart';

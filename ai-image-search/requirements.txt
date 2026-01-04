@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pillow
+requests
+supabase
+torch
+torchvision
+ftfy
+regex
+tqdm
+python-dotenv
+python-multipart
+
+git+https://github.com/openai/CLIP.git
