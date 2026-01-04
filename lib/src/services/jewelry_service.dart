@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 class JewelryService {
   final SupabaseClient _supabaseClient;
   
-  static const String _baseUrl = 'https://www.dagina.design/search';
+  static const String _baseUrl = 'https://dagina-ai-image-search.hf.space/search';
   JewelryService(this._supabaseClient);
 
   Future<List<JewelryItem>> getProducts(

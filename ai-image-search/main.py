@@ -16,6 +16,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -------- CLIP --------
 device = "cuda" if torch.cuda.is_available() else "cpu"
+print(device)
 model, preprocess = clip.load("ViT-B/32", device=device)
 
 app = FastAPI()
@@ -41,7 +42,7 @@ def get_image_embedding(image_bytes):
 @app.post("/search")
 async def search_image(file: UploadFile = File(...)):
     # 10 MB limit
-    MAX_FILE_SIZE = 10 * 1024 * 1024
+    MAX_FILE_SIZE = 5 * 1024 * 1024
     
     size = 0
     content = bytearray()
