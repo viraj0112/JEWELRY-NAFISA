@@ -2,10 +2,13 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/jewelry_item.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class JewelryService {
   final SupabaseClient _supabaseClient;
-
+  
+  static const String _baseUrl = 'https://www.dagina.design/search';
   JewelryService(this._supabaseClient);
 
   Future<List<JewelryItem>> getProducts(
@@ -108,6 +111,33 @@ class JewelryService {
     }
   }
   // --- END NEW TRENDING METHOD ---
+
+   static Future<List<dynamic>> searchByImage(Uint8List imageBytes) async {
+    final uri = Uri.parse(_baseUrl);
+
+    final request = http.MultipartRequest('POST', uri);
+
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file', // MUST match FastAPI UploadFile param
+        imageBytes,
+        filename: 'query.jpg',
+        contentType: http.MediaType('image', 'jpeg'),
+      ),
+    );
+
+    final streamedResponse = await request.send();
+    final responseBody = await streamedResponse.stream.bytesToString();
+
+    if (streamedResponse.statusCode != 200) {
+      throw Exception(
+        "FastAPI error ${streamedResponse.statusCode}: $responseBody",
+      );
+    }
+
+    return jsonDecode(responseBody) as List<dynamic>;
+  }
+
 
   Future<List<JewelryItem>> fetchSimilarItems({
     required String currentItemId,
@@ -354,31 +384,31 @@ class JewelryService {
     }
   }
 
-  Future<List<JewelryItem>> findSimilarProductsByImage(
-      Uint8List imageBytes) async {
-    try {
-      final response = await _supabaseClient.functions.invoke(
-        'find-similar-products', // The name of your edge function
-        body: imageBytes,
-      );
+  // Future<List<JewelryItem>> findSimilarProductsByImage(
+  //     Uint8List imageBytes) async {
+  //   try {
+  //     final response = await _supabaseClient.functions.invoke(
+  //       'find-similar-products', // The name of your edge function
+  //       body: imageBytes,
+  //     );
 
-      if (response.data is List) {
-        final dataList = response.data as List;
-        return dataList.map((json) {
-          // This works because your SQL returns a boolean
-          final bool isDesigner = json['is_designer_product'] ?? false;
+  //     if (response.data is List) {
+  //       final dataList = response.data as List;
+  //       return dataList.map((json) {
+  //         // This works because your SQL returns a boolean
+  //         final bool isDesigner = json['is_designer_product'] ?? false;
 
-          // This works because your SQL returns "Product Title", "Image", etc.
-          return JewelryItem.fromJson(
-            json as Map<String, dynamic>,
-          );
-        }).toList();
-      }
-      return [];
-    } catch (e) {
-      debugPrint('Error calling findSimilarProductsByImage: $e');
-      // throw Exception('Could not find similar items: $e');
-      return [];
-    }
-  }
+  //         // This works because your SQL returns "Product Title", "Image", etc.
+  //         return JewelryItem.fromJson(
+  //           json as Map<String, dynamic>,
+  //         );
+  //       }).toList();
+  //     }
+  //     return [];
+  //   } catch (e) {
+  //     debugPrint('Error calling findSimilarProductsByImage: $e');
+  //     // throw Exception('Could not find similar items: $e');
+  //     return [];
+  //   }
+  // }
 }

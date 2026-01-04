@@ -43,9 +43,7 @@ class _SearchScreenState extends State<SearchScreen> {
   late final JewelryService _jewelryService;
 
   final ImagePicker _picker = ImagePicker();
-  List<JewelryItem> _results = [];
-  bool _isLoading = false;
-  bool _hasSearched = false;
+
 
   // final _searchController = TextEditingController();
   // final _debouncer = Debouncer(milliseconds: 500);
@@ -204,10 +202,11 @@ class _SearchScreenState extends State<SearchScreen> {
     if (mounted) {
       FocusScope.of(context).unfocus();
       setState(() {
-        _isLoading = true;
-        _hasSearched = true;
+        _isLoadingSearch = true;
+        // Prevent the listener from triggering a text search
+        _currentSearchQuery = "Analyzing image..."; 
         _searchController.text = "Analyzing image...";
-        _results.clear();
+        _searchResults.clear();
       });
     }
 
@@ -234,20 +233,26 @@ class _SearchScreenState extends State<SearchScreen> {
       }
 
       // 5. Call the service
-      final results =
-          await _jewelryService.findSimilarProductsByImage(imageBytes);
+      final rawResults = await JewelryService.searchByImage(imageBytes);
 
       if (mounted) {
         setState(() {
-          _results = results;
-          _searchController.text = "Visual Matches";
+          _searchResults = rawResults
+              .map((json) => JewelryItem.fromJson(json))
+              .toList();
         });
       }
+
     } catch (e) {
       // Error handling...
       debugPrint("Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Image search failed: $e')),
+        );
+      }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoadingSearch = false);
     }
   }
 

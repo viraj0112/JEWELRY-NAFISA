@@ -5,9 +5,6 @@ class JewelryItem {
   final bool isDesignerProduct;
   final String productTitle;
   final String image;
-
-  // ⭐️ NEW FIELD: Array of images (Ready for future use)
-  // ⭐️ NEW FIELD: Array of images
   final List<String>? images; 
   
   final String description;
@@ -34,10 +31,8 @@ class JewelryItem {
   final String? metalType;
   final String? metalColor;
   final double? netWeight;
-  // --- MODIFIED: Changed types from String? to List<String>? ---
   final List<String>? stoneColor;
   final List<String>? stoneCut;
-  // --- END MODIFICATION ---
   final String? dimension;
   final String? designType;
   final String? artForm;

@@ -132,8 +132,10 @@ class _SearchPageState extends State<SearchPage> {
       }
 
       // 6. Call the service
-      final results =
-          await _jewelryService.findSimilarProductsByImage(imageBytes);
+      // final results =
+      //     await _jewelryService.findSimilarProductsByImage(imageBytes);
+      final results = await JewelryService.searchByImage(imageBytes);
+
 
       if (mounted) {
         setState(() {
