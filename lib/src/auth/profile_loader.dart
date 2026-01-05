@@ -34,14 +34,12 @@ class _ProfileLoaderState extends State<ProfileLoader> {
     try {
       final provider = Provider.of<UserProfileProvider>(context, listen: false);
       
-      print('🔍 ProfileLoader: Starting profile load');
-      print('🔍 Current user: ${SupabaseAuthService().currentUser?.email}');
-      print('🔍 Profile before load: ${provider.userProfile?.username}');
+
       
       // Always reload the profile to ensure fresh data
       await provider.loadUserProfile();
       
-      print('🔍 Profile after load: ${provider.userProfile?.username}');
+
       
       if (mounted) {
         setState(() {
@@ -49,7 +47,7 @@ class _ProfileLoaderState extends State<ProfileLoader> {
         });
       }
     } catch (e) {
-      print('❌ ProfileLoader Error: $e');
+
       if (mounted) {
         setState(() {
           _isLoading = false;
