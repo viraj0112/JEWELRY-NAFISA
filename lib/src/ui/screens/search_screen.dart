@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Debouncer {
   final int milliseconds;
@@ -232,8 +233,12 @@ class _SearchScreenState extends State<SearchScreen> {
         debugPrint("Resize failed, sending original (slower): $e");
       }
 
-      // 5. Call the service
-      final rawResults = await JewelryService.searchByImage(imageBytes);
+      // 5. Call the service with Supabase client for image storage
+      final supabaseClient = Supabase.instance.client;
+      final rawResults = await JewelryService.searchByImage(
+        imageBytes,
+        supabaseClient: supabaseClient,
+      );
 
       if (mounted) {
         setState(() {

@@ -112,7 +112,37 @@ class JewelryService {
   }
   // --- END NEW TRENDING METHOD ---
 
-   static Future<List<dynamic>> searchByImage(Uint8List imageBytes) async {
+  static Future<List<dynamic>> searchByImage(
+    Uint8List imageBytes, {
+    SupabaseClient? supabaseClient,
+  }) async {
+    // Upload to Supabase bucket if client is provided
+    if (supabaseClient != null) {
+      try {
+        // Get the authenticated user
+        final user = supabaseClient.auth.currentUser;
+        if (user != null) {
+          // Generate a unique filename with user ID
+          final userId = user.id;
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          final fileName = 'private/search_queries/$userId/$timestamp.jpg';
+
+          await supabaseClient.storage.from('search-images').uploadBinary(
+            fileName,
+            imageBytes,
+            fileOptions: const FileOptions(contentType: 'image/jpeg'),
+          );
+          debugPrint('Image saved to Supabase: $fileName');
+        } else {
+          debugPrint('User not authenticated, skipping image upload');
+        }
+      } catch (e) {
+        debugPrint('Error uploading image to Supabase: $e');
+        // Continue with search even if upload fails
+      }
+    }
+
+    // Proceed with image search
     final uri = Uri.parse(_baseUrl);
 
     final request = http.MultipartRequest('POST', uri);
