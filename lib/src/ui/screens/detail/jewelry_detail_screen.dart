@@ -25,6 +25,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:url_launcher/url_launcher.dart';
 
 class JewelryDetailScreen extends StatefulWidget {
   final JewelryItem jewelryItem;
@@ -66,7 +67,14 @@ late List<String> _imageUrls;
   String? _shareSlug;
 
   static const _unlockDuration = Duration(days: 7);
+bool get _isRedirectMetal {
+  final metal = widget.jewelryItem.metalType?.toLowerCase() ?? '';
+  return metal.contains('silver') || metal.contains('platinum');
+}
 
+String get _ctaButtonText {
+  return _isRedirectMetal ? 'Visit Product Page' : 'Get Quote';
+}
   @override
   void initState() {
     super.initState();
@@ -427,6 +435,14 @@ late List<String> _imageUrls;
   }
 
   void _showQuotePopup(BuildContext context) {
+    // Check if metal type is silver
+     final metal = widget.jewelryItem.metalType?.toLowerCase() ?? '';
+
+  if (metal.contains('silver') || metal.contains('platinum')) {
+    _launchSilverProductUrl();
+    return;
+  }
+
     final userProfileProvider =
         Provider.of<UserProfileProvider>(context, listen: false);
     final quoteService = Provider.of<QuoteService>(context, listen: false);
@@ -449,6 +465,25 @@ late List<String> _imageUrls;
         quoteService: quoteService,
       ),
     );
+  }
+
+  Future<void> _launchSilverProductUrl() async {
+    // Update this URL to your desired website
+    const String silvershopUrl = 'https://urakrafter.com/';
+    
+    try {
+      final Uri url = Uri.parse(silvershopUrl);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(
+          url,
+          mode: LaunchMode.externalApplication,
+        );
+      } else {
+        debugPrint('Could not launch $silvershopUrl');
+      }
+    } catch (e) {
+      debugPrint('Error launching URL: $e');
+    }
   }
 
   void _onGetDetailsPressed(BuildContext context) async {
@@ -1062,7 +1097,7 @@ Widget _buildContentSection(BuildContext context) {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () => _showQuotePopup(context),
-              child: const Text('Get Quote'),
+            child: Text(_ctaButtonText),
             ),
           ),
         ] else ...[
