@@ -69,19 +69,19 @@ late List<String> _imageUrls;
   static const _unlockDuration = Duration(days: 7);
 bool get _isRedirectMetal {
   final metal = widget.jewelryItem.metalType?.toLowerCase() ?? '';
-  return metal.contains('silver') || metal.contains('platinum');
+  return metal.contains('akd-silver') || metal.contains('akd-platinum');
 }
 
 String get _ctaButtonText {
-  return _isRedirectMetal ? 'Visit Product Page' : 'Get Quote';
+  return _isRedirectMetal ? 'Know Price' : 'Get Quote';
 }
   @override
   void initState() {
     super.initState();
-
     _itemId = widget.jewelryItem.id;
     _itemTable =
         widget.jewelryItem.isDesignerProduct ? 'designerproducts' : 'products';
+    print(_itemTable);
 
     _jewelryService = JewelryService(supabase);
     // Use the images list if available, otherwise fallback to the single image
@@ -438,7 +438,7 @@ String get _ctaButtonText {
     // Check if metal type is silver
      final metal = widget.jewelryItem.metalType?.toLowerCase() ?? '';
 
-  if (metal.contains('silver') || metal.contains('platinum')) {
+  if (metal.contains('akd-silver') || metal.contains('akd-platinum')) {
     _launchSilverProductUrl();
     return;
   }
