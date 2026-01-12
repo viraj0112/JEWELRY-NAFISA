@@ -437,9 +437,10 @@ String get _ctaButtonText {
   void _showQuotePopup(BuildContext context) {
     // Check if metal type is silver
      final metal = widget.jewelryItem.metalType?.toLowerCase() ?? '';
-
+     final url = widget.jewelryItem.scrapedUrl ?? 'nourl';
   if (metal.contains('akd-silver') || metal.contains('akd-platinum')) {
-    _launchSilverProductUrl();
+
+    _launchSilverProductUrl(url);
     return;
   }
 
@@ -467,23 +468,26 @@ String get _ctaButtonText {
     );
   }
 
-  Future<void> _launchSilverProductUrl() async {
+  Future<void> _launchSilverProductUrl(String websitelink ) async {
     // Update this URL to your desired website
-    const String silvershopUrl = 'https://urakrafter.com/';
+    if (websitelink == 'nourl'){
+      debugPrint('Url doesnt exist');
+    }
+    else{
     
     try {
-      final Uri url = Uri.parse(silvershopUrl);
+      final Uri url = Uri.parse(websitelink);
       if (await canLaunchUrl(url)) {
         await launchUrl(
           url,
           mode: LaunchMode.externalApplication,
         );
       } else {
-        debugPrint('Could not launch $silvershopUrl');
+        debugPrint('Could not launch $websitelink');
       }
     } catch (e) {
       debugPrint('Error launching URL: $e');
-    }
+    }}
   }
 
   void _onGetDetailsPressed(BuildContext context) async {
