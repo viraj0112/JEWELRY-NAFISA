@@ -170,8 +170,9 @@ class HomeScreenState extends State<HomeScreen> {
       // Apply filters to both queries
       // Metal Type filter (first in hierarchy)
       if (_selectedMetalType != 'All') {
-        productsQuery = productsQuery.eq('"Metal Type"', _selectedMetalType);
-        designerQuery = designerQuery.eq('"Metal Type"', _selectedMetalType);
+        final metal = _selectedMetalType.trim();
+        productsQuery = productsQuery.ilike('"Metal Type"', '%$metal%');
+        designerQuery = designerQuery.ilike('"Metal Type"', '%$metal%');
       }
       if (_selectedProductType != 'All') {
         productsQuery = productsQuery.eq('"Product Type"', _selectedProductType);
