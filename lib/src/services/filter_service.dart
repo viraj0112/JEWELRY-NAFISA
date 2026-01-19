@@ -145,8 +145,14 @@ class FilterService {
           // Use quotes for filter keys if they contain spaces
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
-          productsQuery = productsQuery.eq(filterKey, filter.value!);
-          designerQuery = designerQuery.eq(filterKey, filter.value!);
+          // Special handling for Metal Type: use ilike for pattern matching
+          if (filter.key == 'Metal Type') {
+            productsQuery = productsQuery.ilike(filterKey, '%${filter.value}%');
+            designerQuery = designerQuery.ilike(filterKey, '%${filter.value}%');
+          } else {
+            productsQuery = productsQuery.eq(filterKey, filter.value!);
+            designerQuery = designerQuery.eq(filterKey, filter.value!);
+          }
         }
       }
 
@@ -203,8 +209,14 @@ class FilterService {
           // Use quotes for filter keys if they contain spaces
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
-          productsQuery = productsQuery.eq(filterKey, filter.value!);
-          designerQuery = designerQuery.eq(filterKey, filter.value!);
+          // Special handling for Metal Type: use ilike for pattern matching
+          if (filter.key == 'Metal Type') {
+            productsQuery = productsQuery.ilike(filterKey, '%${filter.value}%');
+            designerQuery = designerQuery.ilike(filterKey, '%${filter.value}%');
+          } else {
+            productsQuery = productsQuery.eq(filterKey, filter.value!);
+            designerQuery = designerQuery.eq(filterKey, filter.value!);
+          }
         }
       }
 

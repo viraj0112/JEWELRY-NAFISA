@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:jewelry_nafisa/src/ui/screens/info_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart' as provider_pkg;
 import 'package:url_strategy/url_strategy.dart';
@@ -187,8 +188,8 @@ final _router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/profile',
-              builder: (context, state) => const SizedBox.shrink(), 
+              path: '/info',
+              builder: (context, state) => const StaticInfoScreen(), 
             ),
           ],
         ),
