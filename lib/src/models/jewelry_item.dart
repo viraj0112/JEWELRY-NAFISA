@@ -103,7 +103,7 @@ factory JewelryItem.fromJson(Map<String, dynamic> json) {
             
     description: json['description'] ?? '',
     price: _parseDouble(json['Price'] ?? json['price']),
-    isDesignerProduct: json['is_designer_product'] ?? false,
+    isDesignerProduct: json['is_designer_product'] ?? (json['source'] == 'designerproducts') ?? false,
     tags: _parseList(json['Product Tags'] ?? json['tags']),
     
     goldWeight: _parseString(

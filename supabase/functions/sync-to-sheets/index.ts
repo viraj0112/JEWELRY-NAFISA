@@ -81,17 +81,21 @@ serve(async (req) => {
     const newRecord = payload.record;
 
     const rowData = [
-      newRecord.created_at || "",
-      newRecord.user_name || "",
-      newRecord.user_email || "",
-      newRecord.user_phone || "",
-      newRecord.product_title || "",
-      newRecord.additional_notes || "",
-      newRecord.metal_purity || "",
-      newRecord.gold_weight || "",
-      newRecord.metal_color || "",
+      newRecord.id || "",           // Matches Column A (id)
+      newRecord.created_at || "",   // Matches Column B (created_at)
+      newRecord.user_id || "",      // Matches Column C (user_id)
+      newRecord.user_name || "",    // Matches Column D (user_name)
+      newRecord.user_email || "",   // Matches Column E (user_email)
+      newRecord.user_phone || "", 
+      newRecord.product_id || "",
+      newRecord.product_table || "",  // Matches Column F (user_phone),
+      newRecord.product_title || "", // Matches Column G (product_title)
+      newRecord.additional_notes || "", // Matches Column H (additional_notes)
+      newRecord.metal_purity || "", // Matches Column I (metal_purity)
+      newRecord.gold_weight || "", // Matches Column J (gold_weight)
+      newRecord.metal_color || "", // Matches Column K (metal_color)
       newRecord.metal_finish || "",
-      newRecord.metal_type || "",
+      newRecord.metal_type || "",      // Y: product_url
       formatArray(newRecord.stone_type),
       formatArray(newRecord.stone_color),
       formatArray(newRecord.stone_count),
@@ -100,6 +104,9 @@ serve(async (req) => {
       formatArray(newRecord.stone_used),
       formatArray(newRecord.stone_weight),
       formatArray(newRecord.stone_setting),
+      newRecord.additional_notes || "", // W: additional_notes
+      newRecord.phone_number || "",     // X: phone_number (Again? Or is F user_phone and X phone_number?)
+      newRecord.product_url || "" 
     ];
 
     console.log("📤 Sending to Google Sheets...");
