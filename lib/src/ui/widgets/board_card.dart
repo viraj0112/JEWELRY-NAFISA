@@ -74,8 +74,13 @@ class BoardCard extends StatelessWidget {
       children: [
         Expanded(
           flex: 2,
-          child: Image.network(images[0],
-              fit: BoxFit.cover, height: double.infinity),
+          child: CachedNetworkImage(
+            imageUrl: images[0],
+            fit: BoxFit.cover,
+            height: double.infinity,
+            placeholder: (context, url) => Container(color: Colors.grey[200]),
+            errorWidget: (context, url, error) => const Icon(Icons.error),
+          ),
         ),
         const SizedBox(width: 2),
         Expanded(
@@ -83,12 +88,24 @@ class BoardCard extends StatelessWidget {
           child: Column(
             children: [
               Expanded(
-                  child: Image.network(images[1],
-                      fit: BoxFit.cover, width: double.infinity)),
+                child: CachedNetworkImage(
+                  imageUrl: images[1],
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  placeholder: (context, url) => Container(color: Colors.grey[200]),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                ),
+              ),
               const SizedBox(height: 2),
               Expanded(
-                  child: Image.network(images[2],
-                      fit: BoxFit.cover, width: double.infinity)),
+                child: CachedNetworkImage(
+                  imageUrl: images[2],
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  placeholder: (context, url) => Container(color: Colors.grey[200]),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                ),
+              ),
             ],
           ),
         ),

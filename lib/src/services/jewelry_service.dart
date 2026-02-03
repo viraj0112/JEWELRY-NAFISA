@@ -315,6 +315,36 @@ class JewelryService {
   }
   // --- END NEW METHOD ---
 
+Future<List<JewelryItem>> getMyDesignerProducts() async {
+  final user = _supabaseClient.auth.currentUser;
+  
+  // Return empty list if no user is authenticated
+  if (user == null) return [];
+
+  try {
+    final response = await _supabaseClient
+        .from('designerproducts')
+        .select('''
+          *,
+          users (
+            business_name,
+            address,
+            country
+          )
+        ''')
+        .eq('user_id', user.id) // Security: Only fetch rows belonging to this user
+        .order('created_at', ascending: false);
+
+    // Map the response to your JewelryItem model
+    return (response as List)
+        .map((json) => JewelryItem.fromJson(json))
+        .toList();
+  } catch (e) {
+    debugPrint("Error fetching user designer products: $e");
+    return [];
+  }
+}
+
   Future<void> logView(
       {String? pinId, int? productId, String? countryCode}) async {
     try {
@@ -441,4 +471,165 @@ class JewelryService {
   //     return [];
   //   }
   // }
+
+  // --- FILTER OPTIONS METHODS ---
+
+  /// Fetches distinct Product Type values from both products and designerproducts tables
+  Future<List<String>> getDistinctProductTypes() async {
+    try {
+      final responses = await Future.wait([
+        _supabaseClient
+            .from('products')
+            .select('"Product Type"')
+            .not('Product Type', 'is', null),
+        _supabaseClient
+            .from('designerproducts')
+            .select('"Product Type"')
+            .not('Product Type', 'is', null),
+      ]);
+
+      final Set<String> uniqueTypes = {};
+      
+      for (var response in responses) {
+        if (response is List) {
+          for (var item in response) {
+            final type = item['Product Type']?.toString().trim();
+            if (type != null && type.isNotEmpty) {
+              uniqueTypes.add(type);
+            }
+          }
+        }
+      }
+
+      final result = uniqueTypes.toList()..sort();
+      return result;
+    } catch (e) {
+      debugPrint('Error fetching distinct product types: $e');
+      return [];
+    }
+  }
+
+  /// Fetches distinct Category values from both products and designerproducts tables
+  Future<List<String>> getDistinctCategories() async {
+    try {
+      final responses = await Future.wait([
+        _supabaseClient
+            .from('products')
+            .select('"Category"')
+            .not('Category', 'is', null),
+        _supabaseClient
+            .from('designerproducts')
+            .select('"Category"')
+            .not('Category', 'is', null),
+      ]);
+
+      final Set<String> uniqueCategories = {};
+      
+      for (var response in responses) {
+        if (response is List) {
+          for (var item in response) {
+            final category = item['Category']?.toString().trim();
+            if (category != null && category.isNotEmpty) {
+              uniqueCategories.add(category);
+            }
+          }
+        }
+      }
+
+      final result = uniqueCategories.toList()..sort();
+      return result;
+    } catch (e) {
+      debugPrint('Error fetching distinct categories: $e');
+      return [];
+    }
+  }
+
+  /// Fetches distinct Metal Type values from both products and designerproducts tables
+  Future<List<String>> getDistinctMetalTypes() async {
+    try {
+      final responses = await Future.wait([
+        _supabaseClient
+            .from('products')
+            .select('"Metal Type"')
+            .not('Metal Type', 'is', null),
+        _supabaseClient
+            .from('designerproducts')
+            .select('"Metal Type"')
+            .not('Metal Type', 'is', null),
+      ]);
+
+      final Set<String> uniqueMetalTypes = {};
+      
+      for (var response in responses) {
+        if (response is List) {
+          for (var item in response) {
+            final metalType = item['Metal Type']?.toString().trim();
+            if (metalType != null && metalType.isNotEmpty) {
+              uniqueMetalTypes.add(metalType);
+            }
+          }
+        }
+      }
+
+      final result = uniqueMetalTypes.toList()..sort();
+      return result;
+    } catch (e) {
+      debugPrint('Error fetching distinct metal types: $e');
+      return [];
+    }
+  }
+
+  /// Fetches distinct Category1, Category2, Category3 values grouped by category
+  /// Returns a map where keys are category names and values are lists of sub-categories
+  Future<Map<String, Set<String>>> getCategorySubFilters() async {
+    try {
+      final responses = await Future.wait([
+        _supabaseClient
+            .from('products')
+            .select('"Category1", "Category2", "Category3"'),
+        _supabaseClient
+            .from('designerproducts')
+            .select('"Category1", "Category2", "Category3"'),
+      ]);
+
+      final Map<String, Set<String>> subFilters = {
+        'Category1': {},
+        'Category2': {},
+        'Category3': {},
+      };
+      
+      for (var response in responses) {
+        if (response is List) {
+          for (var item in response) {
+            // Category1
+            final cat1 = item['Category1']?.toString().trim();
+            if (cat1 != null && cat1.isNotEmpty) {
+              subFilters['Category1']!.add(cat1);
+            }
+            
+            // Category2
+            final cat2 = item['Category2']?.toString().trim();
+            if (cat2 != null && cat2.isNotEmpty) {
+              subFilters['Category2']!.add(cat2);
+            }
+            
+            // Category3
+            final cat3 = item['Category3']?.toString().trim();
+            if (cat3 != null && cat3.isNotEmpty) {
+              subFilters['Category3']!.add(cat3);
+            }
+          }
+        }
+      }
+
+      return subFilters;
+    } catch (e) {
+      debugPrint('Error fetching category sub-filters: $e');
+      return {
+        'Category1': {},
+        'Category2': {},
+        'Category3': {},
+      };
+    }
+  }
 }

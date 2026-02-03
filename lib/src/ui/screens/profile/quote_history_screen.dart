@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
@@ -118,19 +119,15 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
                   leading: product != null && product.image.isNotEmpty
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(4.0),
-                          child: Image.network(
-                            product.image,
+                          child: CachedNetworkImage(
+                            imageUrl: product.image,
                             width: 50,
                             height: 50,
                             fit: BoxFit.cover,
-                            loadingBuilder: (context, child, progress) =>
-                                progress == null
-                                    ? child
-                                    : const Center(
-                                        child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      )),
-                            errorBuilder: (context, error, stackTrace) =>
+                            placeholder: (context, url) => const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            errorWidget: (context, url, error) =>
                                 const Icon(Icons.broken_image, size: 50),
                           ),
                         )
@@ -208,17 +205,15 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),
-                      child: Image.network(
-                        product.image,
+                      child: CachedNetworkImage(
+                        imageUrl: product.image,
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: 200,
-                        loadingBuilder: (context, child, progress) =>
-                            progress == null
-                                ? child
-                                : const Center(
-                                    child: CircularProgressIndicator()),
-                        errorBuilder: (context, error, stackTrace) =>
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                        errorWidget: (context, url, error) =>
                             const Icon(Icons.broken_image, size: 100),
                       ),
                     ),

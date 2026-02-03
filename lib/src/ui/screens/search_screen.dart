@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
@@ -471,20 +472,20 @@ class _SearchScreenState extends State<SearchScreen> {
           aspectRatio: isGrouped
               ? 1.0
               : item.aspectRatio, // Use 1.0 for square grid items
-          child: Image.network(
-            item.image,
+          child: CachedNetworkImage(
+            imageUrl: item.image,
             fit: BoxFit.cover,
-            loadingBuilder: (context, child, progress) => progress == null
-                ? child
-                : Container(
-                    color: Theme.of(context).colorScheme.surface.withAlpha(50),
-                    child: const Center(
-                        child: CircularProgressIndicator.adaptive()),
-                  ),
-            errorBuilder: (context, error, stackTrace) => Container(
+            placeholder: (context, url) => Container(
+              color: Theme.of(context).colorScheme.surface.withAlpha(50),
+              child: const Center(
+                child: CircularProgressIndicator.adaptive(),
+              ),
+            ),
+            errorWidget: (context, url, error) => Container(
               color: Theme.of(context).colorScheme.surface.withAlpha(30),
               child: const Center(
-                  child: Icon(Icons.broken_image_outlined, color: Colors.grey)),
+                child: Icon(Icons.broken_image_outlined, color: Colors.grey),
+              ),
             ),
           ),
         ),

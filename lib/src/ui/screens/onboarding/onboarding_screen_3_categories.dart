@@ -1,6 +1,7 @@
 // onboarding_screen_3_categories.dart (Theme-Compliant)
 
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
@@ -336,38 +337,26 @@ class _OnboardingScreen3CategoriesState
           ),
          ),
         ),
-        
-        // Network Image with Loading/Error Handling
-        Image.network(
-         category['image']!,
-         fit: BoxFit.cover,
-         color: theme.brightness == Brightness.dark 
-          ? Colors.black.withOpacity(0.2) // Subtle darkening of image in Dark Mode
-          : null,
-         colorBlendMode: BlendMode.darken,
-         loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Center(
+         
+         // Network Image with Loading/Error Handling
+         CachedNetworkImage(
+          imageUrl: category['image']!,
+          fit: BoxFit.cover,
+          color: theme.brightness == Brightness.dark 
+           ? Colors.black.withOpacity(0.2) // Subtle darkening of image in Dark Mode
+           : null,
+          colorBlendMode: BlendMode.darken,
+          placeholder: (context, url) => Center(
            child: CircularProgressIndicator.adaptive(
-            value: loadingProgress.expectedTotalBytes != null
-              ? loadingProgress.cumulativeBytesLoaded /
-                loadingProgress.expectedTotalBytes!
-              : null,
-            strokeWidth: 2,
-            // FIX: Use onPrimary (White/Black) for progress indicator
-            valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary.withOpacity(0.7)), 
-            backgroundColor: colorScheme.onPrimary.withOpacity(0.1),
+             strokeWidth: 2,
+             valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary.withOpacity(0.7)), 
+             backgroundColor: colorScheme.onPrimary.withOpacity(0.1),
+            ),
            ),
-          );
-         },
-         errorBuilder: (context, error, stackTrace) {
-          // Show gradient + icon on error
-          // FIX: Use onPrimary (White/Black) for icon color
-          return Center(
+          errorWidget: (context, url, error) => Center(
            child: Icon(Icons.broken_image, color: colorScheme.onPrimary.withOpacity(0.8), size: 40), 
-          );
-         },
-        ),
+           ),
+         ),
         
         // 2. Dark overlay (for readability)
         Container(

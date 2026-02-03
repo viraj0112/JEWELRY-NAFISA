@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_categories.dart';
+import 'package:jewelry_nafisa/src/B2BScreens/b2b_shell.dart';
 
 class ProfileLoader extends StatefulWidget {
   const ProfileLoader({super.key});
@@ -74,7 +75,8 @@ class _ProfileLoaderState extends State<ProfileLoader> {
     return switch (userProfile.role) {
       UserRole.admin => const MainScreen(),
       UserRole.designer => userProfile.isApproved == true
-          ? const DesignerShell()
+          // ? const DesignerShell()
+          ?const B2BShell()
           : const PendingApprovalScreen(),
       UserRole.member => const RedirectToHome(),
       _ => const RedirectToHome(),

@@ -1,0 +1,34 @@
+
+  Widget _buildChipSection(String title, List<String> options, String? selectedValue, Function(String) onSelect) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: options.map((option) {
+            final isSelected = selectedValue == option;
+            return ChoiceChip(
+              label: Text(option),
+              selected: isSelected,
+              onSelected: (selected) {
+                onSelect(option);
+              },
+              selectedColor: Colors.teal.withOpacity(0.1),
+              backgroundColor: Colors.grey.shade100,
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.teal : Colors.black87,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+              side: isSelected ? const BorderSide(color: Colors.teal) : BorderSide.none,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              showCheckmark: false,
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
