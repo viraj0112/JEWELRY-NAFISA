@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart'; // Corrected path
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -167,28 +168,15 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
                             AspectRatio(
                               // --- This now works due to the fix in jewelry_item.dart ---
                               aspectRatio: pin.aspectRatio,
-                              child: Image.network(
-                                pin.image,
+                              child: CachedNetworkImage(
+                                imageUrl: pin.image,
                                 fit: BoxFit.cover,
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return Center(
-                                    child: CircularProgressIndicator(
-                                      value:
-                                          loadingProgress.expectedTotalBytes !=
-                                                  null
-                                              ? loadingProgress
-                                                      .cumulativeBytesLoaded /
-                                                  loadingProgress
-                                                      .expectedTotalBytes!
-                                              : null,
-                                    ),
-                                  );
-                                },
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Center(
-                                        child: Icon(Icons.broken_image)),
+                                placeholder: (context, url) => const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                                errorWidget: (context, url, error) => const Center(
+                                  child: Icon(Icons.broken_image),
+                                ),
                               ),
                             ),
                             Padding(

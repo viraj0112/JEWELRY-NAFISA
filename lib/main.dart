@@ -5,13 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:jewelry_nafisa/src/ui/screens/info_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart' as provider_pkg;
 import 'package:url_strategy/url_strategy.dart';
 import 'package:universal_html/html.dart' as html;
 import 'firebase_options.dart';
-import 'package:jewelry_nafisa/src/admin2/screens/main_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_callback_screen.dart';
 import 'package:jewelry_nafisa/src/auth/auth_gate.dart';
 import 'package:jewelry_nafisa/src/designer/designer_shell.dart';
@@ -22,6 +20,7 @@ import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/welcome/welcome_screen.dart';
 import 'package:jewelry_nafisa/src/admin2/providers/app_state.dart';
+import 'package:jewelry_nafisa/src/admin2/screens/main_screen.dart';
 import 'package:jewelry_nafisa/src/ui/theme/app_theme.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
@@ -41,6 +40,9 @@ import 'package:jewelry_nafisa/src/ui/screens/boards_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/search_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/notifications_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
+import 'package:jewelry_nafisa/src/B2BScreens/b2b_shell.dart';
+import 'package:jewelry_nafisa/src/ui/screens/info_screen.dart';
+
 
 final supabaseClient = Supabase.instance.client;
 FirebaseAnalytics analytics = FirebaseAnalytics.instance;
@@ -54,34 +56,31 @@ final _router = GoRouter(
   observers: [observer],
   
   redirect: (context, state) {
-    final isLoggedIn = supabaseClient.auth.currentSession != null;
-    
-    // Define route groups
-    final isGoingToAuth = state.matchedLocation == '/welcome' ||
-        state.matchedLocation == '/login' ||
-        state.matchedLocation == '/signup';
-    
-    final isGoingToAuthCallback = state.matchedLocation == '/auth-callback';
-    
-    // FIX: Check if the user is trying to access a product detail page
-    final isGoingToProduct = state.matchedLocation.startsWith('/product/');
+  final isLoggedIn = supabaseClient.auth.currentSession != null;
+  
+  final isGoingToAuth = state.matchedLocation == '/welcome' ||
+      state.matchedLocation == '/login' ||
+      state.matchedLocation == '/signup';
+  
+  final isGoingToAuthCallback = state.matchedLocation == '/auth-callback';
+  final isGoingToProduct = state.matchedLocation.startsWith('/product/');
 
-    // 1. Always allow auth callback
-    if (isGoingToAuthCallback) return null;
+  // // 1. ADD THIS: Define the B2B check
+  // final isGoingToB2B = state.matchedLocation.startsWith('/b2b');
 
-    // 2. If logged in and trying to go to Welcome/Login, send to Home
-    if (isLoggedIn && isGoingToAuth) {
-      return '/home';
-    }
+  if (isGoingToAuthCallback) return null;
 
-    // 3. If NOT logged in, allow Welcome, Auth pages, and Product Detail pages
-    // Otherwise, redirect everything else to Welcome
-    if (!isLoggedIn && !isGoingToAuth && !isGoingToProduct && state.matchedLocation != '/') {
-      return '/welcome';
-    }
+  if (isLoggedIn && isGoingToAuth) {
+    return '/home';
+  }
 
-    return null; 
-  },
+  // 2. UPDATE THIS: Include !isGoingToB2B in the condition
+  if (!isLoggedIn && !isGoingToAuth && !isGoingToProduct && state.matchedLocation != '/') {
+    return '/welcome';
+  }
+
+  return null; 
+},
   
   refreshListenable: GoRouterRefreshStream(
     supabaseClient.auth.onAuthStateChange,
@@ -104,9 +103,13 @@ final _router = GoRouter(
       path: '/welcome',
       builder: (context, state) => const WelcomeScreen(),
     ),
+    // GoRoute(
+    //   path: '/designer',
+    //   builder: (context, state) => const DesignerShell(),
+    // ),
     GoRoute(
       path: '/designer',
-      builder: (context, state) => const DesignerShell(),
+      builder: (context, state) => const B2BShell(),
     ),
     // Onboarding Routes
     GoRoute(
@@ -301,7 +304,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       themeMode: ThemeMode.light,
-      routerConfig: _router,
+      routerConfig: _router
     );
   }
 }
@@ -314,6 +317,7 @@ class ProductDetailLoader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final jewelryService = provider_pkg.Provider.of<JewelryService>(context, listen: false);
+    
 
     return FutureBuilder<JewelryItem?>(
       future: jewelryService.getJewelryItem(productId, isDesignerProduct: isDesigner),

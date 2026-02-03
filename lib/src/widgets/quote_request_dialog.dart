@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
@@ -99,11 +100,16 @@ class _QuoteRequestDialogState extends State<QuoteRequestDialog> {
               if (widget.product.image.isNotEmpty)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    widget.product.image,
+                  child: CachedNetworkImage(
+                    imageUrl: widget.product.image,
                     height: 100,
                     width: 100,
                     fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: Colors.grey[200],
+                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    ),
+                    errorWidget: (context, url, error) => const Icon(Icons.error),
                   ),
                 ),
               const SizedBox(height: 16),

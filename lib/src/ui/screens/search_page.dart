@@ -70,7 +70,7 @@ class _SearchPageState extends State<SearchPage> {
 
     if (mounted) {
       setState(() {
-        _results = results;
+        _results = results.cast<JewelryItem>();
         _isLoading = false;
       });
     }
@@ -139,7 +139,7 @@ class _SearchPageState extends State<SearchPage> {
 
       if (mounted) {
         setState(() {
-          _results = results;
+          _results = results.cast<JewelryItem>();
           _searchController.text = "Similar items to your image";
         });
       }

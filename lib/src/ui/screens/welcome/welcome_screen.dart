@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
@@ -374,17 +375,14 @@ Widget _buildImageCard(BuildContext context, JewelryItem item) {
       clipBehavior: Clip.antiAlias,
       child: AspectRatio(
         aspectRatio: item.aspectRatio,
-        child: Image.network(
-          item.image,
+        child: CachedNetworkImage(
+          imageUrl: item.image,
           fit: BoxFit.cover,
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-            return Container(
-              color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
-              child: const Center(child: CircularProgressIndicator.adaptive()),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) => Container(
+          placeholder: (context, url) => Container(
+            color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
+            child: const Center(child: CircularProgressIndicator.adaptive()),
+          ),
+          errorWidget: (context, url, error) => Container(
             color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
             child: Icon(Icons.error_outline, color: Colors.grey[400]),
           ),

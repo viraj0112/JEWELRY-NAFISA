@@ -287,13 +287,13 @@ class _MainShellState extends State<MainShell> {
         clipBehavior: Clip.antiAlias,
         child: AspectRatio(
           aspectRatio: item.aspectRatio,
-          child: Image.network(
-            item.image,
+          child: CachedNetworkImage(
+            imageUrl: item.image,
             fit: BoxFit.cover,
-            loadingBuilder: (context, child, progress) => progress == null
-                ? child
-                : const Center(child: CircularProgressIndicator.adaptive()),
-            errorBuilder: (context, error, stackTrace) =>
+            placeholder: (context, url) => const Center(
+              child: CircularProgressIndicator.adaptive(),
+            ),
+            errorWidget: (context, url, error) =>
                 const Icon(Icons.error_outline, color: Colors.grey),
           ),
         ),
