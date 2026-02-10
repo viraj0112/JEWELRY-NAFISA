@@ -336,15 +336,137 @@ Future<List<JewelryItem>> getMyDesignerProducts() async {
         .order('created_at', ascending: false);
 
     // Map the response to your JewelryItem model
-    return (response as List)
-        .map((json) => JewelryItem.fromJson(json))
-        .toList();
+final items = response as List<Map<String, dynamic>>;
+
+final itemIds = items
+    .map((item) => item['id'].toString())
+    .toList();
+final itemTitles = items
+    .map((item) => (
+          item['Product Title'] ??
+          item['product_title'] ??
+          item['title']
+        )?.toString())
+    .where((title) => title != null && title.isNotEmpty)
+    .cast<String>()
+    .toList();
+
+    // 3. Fetch engagement counts in parallel
+    final results = await Future.wait([
+      _fetchLikesCounts(itemIds),
+      _fetchPinsCounts(itemTitles),  // pins uses title
+      _fetchViewsCounts(itemIds),
+      _fetchSharesCounts(itemIds),
+    ]);
+
+    final likesMap = results[0];
+    final savesMap = results[1];
+    final creditsMap = results[2];
+    final shareMap = results[3];
+
+    // 4. Merge engagement data with item
+return items.map((item) {
+
+  final itemId = item['id'].toString();
+
+  final itemTitle = (
+        item['Product Title'] ??
+        item['product_title'] ??
+        item['title']
+      )?.toString() ?? '';
+
+  final enriched = {
+    ...item,
+    'likes': likesMap[itemId] ?? 0,
+    'saves': savesMap[itemTitle] ?? 0,
+    'credits': creditsMap[itemId] ?? 0,
+    'share': shareMap[itemId] ?? 0,
+  };
+
+  return JewelryItem.fromJson(enriched);
+
+}).toList();
   } catch (e) {
     debugPrint("Error fetching user designer products: $e");
     return [];
   }
 }
+Future<Map<String, int>> _fetchPinsCounts(List<String> titles) async {
+  try {
+    final response = await _supabaseClient
+        .from('pins')
+        .select('title')
+        .inFilter('title', titles);
+    
+    final Map<String, int> counts = {};
+    for (var pin in response as List) {
+      final title = pin['title'] as String;
+      counts[title] = (counts[title] ?? 0) + 1;
+    }
+    return counts;
+  } catch (e) {
+    debugPrint("Error fetching saves counts: $e");
+    return {};
+  }
+}
 
+// Keep the other helper methods the same (they use item_id)
+Future<Map<String, int>> _fetchLikesCounts(List<String> itemIds) async {
+  try {
+    final response = await _supabaseClient
+        .from('likes')
+        .select('item_id')
+        .inFilter('item_id', itemIds);
+    
+    final Map<String, int> counts = {};
+    for (var like in response as List) {
+      final itemId = like['item_id'] as String;
+      counts[itemId] = (counts[itemId] ?? 0) + 1;
+    }
+    return counts;
+  } catch (e) {
+    debugPrint("Error fetching likes counts: $e");
+    return {};
+  }
+}
+
+Future<Map<String, int>> _fetchViewsCounts(List<String> itemIds) async {
+  try {
+    final response = await _supabaseClient
+        .from('views')
+        .select('item_id')
+        .inFilter('item_id', itemIds);
+    
+    final Map<String, int> counts = {};
+    for (var view in response as List) {
+      final itemId = view['item_id'] as String;
+      counts[itemId] = (counts[itemId] ?? 0) + 1;
+    }
+    return counts;
+  } catch (e) {
+    debugPrint("Error fetching credits counts: $e");
+    return {};
+  }
+}
+
+Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
+  try {
+    final response = await _supabaseClient
+        .from('shares')
+        .select('item_id')
+        .inFilter('item_id', itemIds);
+    
+    final Map<String, int> counts = {};
+    for (var share in response as List) {
+      final itemId = share['item_id'] as String;
+      counts[itemId] = (counts[itemId] ?? 0) + 1;
+    }
+    return counts;
+  } catch (e) {
+    debugPrint("Error fetching share counts: $e");
+    return {};
+  }
+}
   Future<void> logView(
       {String? pinId, int? productId, String? countryCode}) async {
     try {
