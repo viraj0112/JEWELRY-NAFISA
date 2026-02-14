@@ -46,6 +46,8 @@ class JewelryItem {
   final Map<String, dynamic>? users;
   final int? likes;
   final int? saves;
+  final int? credits;
+  final int? share;
   final bool? isTrending;
   
   // --- CATEGORY SUB-FILTERS ---
@@ -98,6 +100,8 @@ class JewelryItem {
     this.category1,
     this.category2,
     this.category3,
+    this.credits,
+    this.share
   });
 
 factory JewelryItem.fromJson(Map<String, dynamic> json) {
@@ -150,6 +154,8 @@ factory JewelryItem.fromJson(Map<String, dynamic> json) {
     users: json['users'] is Map<String, dynamic> ? json['users'] as Map<String, dynamic> : (json['users'] != null ? Map<String, dynamic>.from(json['users']) : null),
     likes: json['likes'] is int ? json['likes'] : int.tryParse(json['likes']?.toString() ?? ''),
     saves: json['saves'] is int ? json['saves'] : int.tryParse(json['saves']?.toString() ?? ''),
+    credits: json['credits'] is int ? json['credits']: int.tryParse(json['credits']?.toString() ?? ''),
+    share: json['share'] is int ? json['share']: int.tryParse(json['share']?.toString() ?? ''),
     isTrending: json['isTrending'] is bool ? json['isTrending'] : (json['isTrending']?.toString().toLowerCase() == 'true'),
     // --- CATEGORY SUB-FILTERS ---
     category1: _parseString(json['Category1']),
