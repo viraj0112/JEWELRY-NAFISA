@@ -10,7 +10,9 @@ import 'package:jewelry_nafisa/src/models/filter_criteria.dart';
 
 class HomePage extends StatefulWidget {
   final FilterCriteria? filters;
-  const HomePage({super.key, this.filters});
+  final bool isManufacturer;
+
+  const HomePage({super.key, this.filters, this.isManufacturer = false});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -19,6 +21,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late Future<List<JewelryItem>> _future;
   late JewelryService _jewelryService;
+  List<Map<String, dynamic>> _geoAnalytics = [];
 
 
   @override
@@ -26,7 +29,9 @@ class _HomePageState extends State<HomePage> {
     super.initState();
 
     _jewelryService = JewelryService(Supabase.instance.client);
-    _future = _jewelryService.getMyDesignerProducts();
+    _future = widget.isManufacturer 
+        ? _jewelryService.getMyManufacturerProducts()
+        : _jewelryService.getMyDesignerProducts();
   }
 
   // Helper method to check if a product matches the filters
@@ -134,7 +139,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     itemCount: products.length,
                     itemBuilder: (context, index) {
-                      return _ProductCard(item: products[index]);
+                      return _ProductCard(item: products[index], isManufacturer: widget.isManufacturer);
                     },
                   ),
                 );
@@ -148,9 +153,10 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _ProductCard extends StatefulWidget {
-  final JewelryItem item; 
+  final JewelryItem item;
+  final bool isManufacturer;
 
-  const _ProductCard({required this.item});
+  const _ProductCard({required this.item, this.isManufacturer = false});
 
   @override
   State<_ProductCard> createState() => _ProductCardState();
@@ -200,7 +206,11 @@ class _ProductCardState extends State<_ProductCard> {
       constraints: BoxConstraints.expand(width: MediaQuery.of(context).size.width),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _InsightsBottomSheet(item: widget.item),
+      builder: (context) => _InsightsBottomSheet(
+        item: widget.item, 
+        isManufacturer: widget.isManufacturer,
+        geoAnalytics: widget.item.geoAnalytics ?? [],
+      ),
     );
   }
 
@@ -573,9 +583,15 @@ class _ProductCardState extends State<_ProductCard> {
 }
 class _InsightsBottomSheet extends StatelessWidget {
   final dynamic item; // Replace 'dynamic' with your JewelryItem model
-  final bool isPremium = false; // Toggle this to test the locked/unlocked state
+  final bool isManufacturer;
+  final List<Map<String, dynamic>> geoAnalytics;
 
-  const _InsightsBottomSheet({super.key, required this.item});
+  const _InsightsBottomSheet({
+    super.key, 
+    required this.item, 
+    this.isManufacturer = false,
+    this.geoAnalytics = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -592,6 +608,9 @@ class _InsightsBottomSheet extends StatelessWidget {
     final int saves = item.saves ?? 0;
     final int shares = item.share ?? 0; 
     final int credits = item.credits ?? 0;
+    
+    // Premium logic: Manufacturers always see full insights, designers don't unless paying
+    final bool isPremium = isManufacturer ? true : false;
 
     return Container(
       constraints: BoxConstraints(
@@ -650,11 +669,24 @@ class _InsightsBottomSheet extends StatelessWidget {
                             children: [
                               _buildGeoHeader(),
                               const SizedBox(height: 16),
-                              const _LocationProgress(city: 'Mumbai', percentage: 42),
-                              const SizedBox(height: 12),
-                              const _LocationProgress(city: 'Delhi', percentage: 28),
-                              const SizedBox(height: 12),
-                              const _LocationProgress(city: 'Bangalore', percentage: 18),
+                              // Display geo analytics if available
+                              if (geoAnalytics.isNotEmpty)
+                                ...geoAnalytics.take(5).map((geo) {
+                                  final location = geo['location'] as String? ?? 'Unknown';
+                                  final percentage = (geo['percentage'] as num?)?.toInt() ?? 0;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _LocationProgress(city: location, percentage: percentage),
+                                  );
+                                }).toList()
+                              else ...[
+                                // Fallback if no geo data
+                                const _LocationProgress(city: 'Mumbai', percentage: 42),
+                                const SizedBox(height: 12),
+                                const _LocationProgress(city: 'Delhi', percentage: 28),
+                                const SizedBox(height: 12),
+                                const _LocationProgress(city: 'Bangalore', percentage: 18),
+                              ],
                               const SizedBox(height: 24),
                               _buildInsightCard(),
                               const SizedBox(height: 40),

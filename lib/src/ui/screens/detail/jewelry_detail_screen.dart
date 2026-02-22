@@ -78,10 +78,17 @@ String get _ctaButtonText {
   @override
   void initState() {
     super.initState();
-    _itemId = widget.jewelryItem.id;
-    _itemTable =
-        widget.jewelryItem.isDesignerProduct ? 'designerproducts' : 'products';
-    print(_itemTable);
+_itemId = widget.jewelryItem.id;
+
+if (widget.jewelryItem.isDesignerProduct) {
+  _itemTable = 'designerproducts';
+} else if (widget.jewelryItem.isManufacturerProduct) {
+  _itemTable = 'manufacturerproducts';
+} else {
+  _itemTable = 'products';
+}
+
+print(_itemTable);
 
     _jewelryService = JewelryService(supabase);
     // Use the images list if available, otherwise fallback to the single image
@@ -1340,8 +1347,9 @@ Widget _buildImageThumbnails() {
               onTap: () {
                 // --- FIX: Use GoRouter push for deep linking support ---
                 // Pass isDesigner query param to avoid ID collisions
-                final isDesigner = item.isDesignerProduct;
-                context.push('/product/${item.id}?isDesigner=$isDesigner');
+                        final isDesigner = item.isDesignerProduct;
+        final isManufacturer = item.isManufacturerProduct;
+        context.push('/product/${item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
                 // --- END FIX ---
               },
               child: Card(

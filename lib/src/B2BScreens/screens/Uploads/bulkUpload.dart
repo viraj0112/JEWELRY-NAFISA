@@ -176,6 +176,21 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
     }
 
     try {
+      // Fetch user profile to determine if they are a manufacturer
+      final userProfileData = await supabase
+          .from('users')
+          .select('id, manufacturer_profiles(id)')
+          .eq('id', user.id)
+          .single();
+      
+      // Check if user has a manufacturer profile
+      final manufacturerProfilesData = userProfileData['manufacturer_profiles'];
+      final isManufacturer = manufacturerProfilesData != null && 
+        ((manufacturerProfilesData is List && manufacturerProfilesData.isNotEmpty) || 
+         (manufacturerProfilesData is Map && manufacturerProfilesData.isNotEmpty));
+      final storageBucket = isManufacturer ? 'manufacturer-files' : 'designer-files';
+      final tableName = isManufacturer ? 'manufacturerproducts' : 'designerproducts';
+
       final input = utf8.decode(_csvFiles!.first.bytes!);
       final fields = const CsvToListConverter().convert(input);
       final headers = fields[0].map((e) => e.toString().trim()).toList();
@@ -214,9 +229,9 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
           try {
             final fileName = '${DateTime.now().millisecondsSinceEpoch}-${imageFile.name}';
             await supabase.storage
-                .from('designer-files')
+                .from(storageBucket)
                 .uploadBinary(fileName, imageFile.bytes!);
-            final imageUrl = supabase.storage.from('designer-files').getPublicUrl(fileName);
+            final imageUrl = supabase.storage.from(storageBucket).getPublicUrl(fileName);
             uploadedImageUrls.add(imageUrl);
           } catch (e) {
             debugPrint("Failed to upload image ${imageFile.name}: $e");
@@ -260,7 +275,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
 
         try {
           final insertResult = await supabase
-              .from('designerproducts')
+              .from(tableName)
               .insert(productData)
               .select();
           
@@ -276,9 +291,10 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
       }
 
       if (mounted) {
+        final catalogType = isManufacturer ? 'Manufacturer' : 'Designer';
         final message = failCount == 0
-            ? "Bulk upload successful! $successCount products uploaded."
-            : "Upload completed. $successCount succeeded, $failCount failed.";
+            ? "Bulk upload successful! $successCount products uploaded to $catalogType catalog."
+            : "Upload completed. $successCount succeeded, $failCount failed ($catalogType catalog).";
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),

@@ -8,7 +8,9 @@ import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class B2BShell extends StatefulWidget {
-  const B2BShell({super.key});
+  final bool isManufacturer;
+
+  const B2BShell({super.key, this.isManufacturer = false});
 
   @override
   State<B2BShell> createState() => _B2BShellState();
@@ -114,9 +116,9 @@ class _B2BShellState extends State<B2BShell> {
         
       ),
       body: <Widget>[
-        HomePage(filters: _filters),
+        HomePage(filters: _filters, isManufacturer: widget.isManufacturer),
         SizedBox.shrink(),
-        InsightsPage(),
+        InsightsPage(isManufacturer: widget.isManufacturer),
         NotificationsPage(),
         ProfilePage(),
       ][_currentPageSelected],

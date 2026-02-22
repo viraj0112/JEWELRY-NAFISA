@@ -558,7 +558,21 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
     setState(() => _isUploading = true);
 
     try {
-      // 2. Upload images to designer-files storage bucket
+      // 2. Fetch user profile to determine if they are a manufacturer
+final userProfileData = await _supabase
+    .from('users')
+    .select('id, manufacturer_profiles(user_id)')
+    .eq('id', user.id)
+    .single();
+
+print(userProfileData);
+
+final isManufacturer =
+    userProfileData['manufacturer_profiles'] != null;
+
+print(isManufacturer);
+      // 3. Upload images to appropriate storage bucket based on user role
+      final storageBucket = isManufacturer ? 'manufacturer-files' : 'designer-files';
       List<String> uploadedImageUrls = [];
       
       for (int i = 0; i < _images.length; i++) {
@@ -568,11 +582,11 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
         
         try {
           await _supabase.storage
-              .from('designer-files')
+              .from(storageBucket)
               .uploadBinary(fileName, bytes);
           
           final imageUrl = _supabase.storage
-              .from('designer-files')
+              .from(storageBucket)
               .getPublicUrl(fileName);
           
           uploadedImageUrls.add(imageUrl);
@@ -582,7 +596,7 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
         }
       }
 
-      // 3. Prepare product data
+      // 4. Prepare product data
       final Map<String, dynamic> productData = {
         'user_id': user.id, // Automatically associate with logged-in user
         'Product Title': designCtrl.text.trim(),
@@ -597,19 +611,20 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
             : tagsCtrl.text.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList(),
       };
 
-      // 4. Insert to designerproducts table
+      // 5. Insert to appropriate table based on user role
+      final tableName = isManufacturer ? 'manufacturerproducts' : 'designerproducts';
       final result = await _supabase
-          .from('designerproducts')
+          .from(tableName)
           .insert(productData)
           .select();
 
       if (mounted) {
         if (result.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Product published successfully! 🎉'),
+            SnackBar(
+              content: Text('Product published successfully to ${isManufacturer ? 'Manufacturer' : 'Designer'} catalog! 🎉'),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
             ),
           );
           

@@ -459,7 +459,8 @@ class _SearchScreenState extends State<SearchScreen> {
     return GestureDetector(
       onTap: () {
         final isDesigner = item.isDesignerProduct;
-        context.push('/product/${item.id}?isDesigner=$isDesigner');
+        final isManufacturer = item.isManufacturerProduct;
+        context.push('/product/${item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
       },
       child: Card(
         clipBehavior: Clip.antiAlias,

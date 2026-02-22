@@ -26,11 +26,19 @@ class JewelryService {
             .limit(limit)
             .range(offset, offset + limit - 1)
             // Order designer products by creation date
+            .order('created_at', ascending: false),
+          _supabaseClient
+            .from('manufacturerproducts')
+            .select()
+            .limit(limit)
+            .range(offset, offset + limit - 1)
+            // Order designer products by creation date
             .order('created_at', ascending: false)
       ]);
 
       final List<dynamic> productsData = responses[0] as List<dynamic>;
       final List<dynamic> designerProductsData = responses[1] as List<dynamic>;
+      final List<dynamic> manufacturerProductsData = responses[2] as List<dynamic>;
 
       final List<JewelryItem> productItems = productsData
           .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>)) // <-- SET FLAG
@@ -43,9 +51,16 @@ class JewelryService {
             return JewelryItem.fromJson(map);
           }) // <-- SET FLAG
           .toList();
+      final List<JewelryItem> manufacturerProductItems = manufacturerProductsData
+          .map((json) {
+            final map = json as Map<String, dynamic>;
+            map['is_manufacturer_product'] = true;
+            return JewelryItem.fromJson(map);
+          }) // <-- SET FLAG
+          .toList();
 
       // Combine and parse
-      final allProducts = [...productItems, ...designerProductItems];
+      final allProducts = [...productItems, ...designerProductItems,...manufacturerProductItems];
 
       // Shuffle for variety
       allProducts.shuffle();
@@ -214,7 +229,7 @@ class JewelryService {
     }
   }
 
-  Future<JewelryItem?> getJewelryItem(String id, {bool? isDesignerProduct}) async {
+  Future<JewelryItem?> getJewelryItem(String id, {bool? isDesignerProduct,bool? isManufacturerProduct})async {
     try {
       final intId = int.tryParse(id);
       
@@ -233,9 +248,22 @@ class JewelryService {
         debugPrint('Designer product with ID $id not found.');
         return null;
       }
-      
+      if (isManufacturerProduct == true) {
+        final manufacturerResponse = await _supabaseClient
+            .from('manufacturerproducts')
+            .select()
+            .eq('id', intId ?? id)
+            .maybeSingle();
+
+        if (manufacturerResponse != null) {
+          manufacturerResponse['is_manufacturer_product'] = true;
+          return JewelryItem.fromJson(manufacturerResponse);
+        }
+        debugPrint('Manufacturer product with ID $id not found.');
+        return null;
+      }
       // If we know it's NOT a designer product, query products table directly
-      if (isDesignerProduct == false && intId != null) {
+      if (isDesignerProduct == false && intId != null && isManufacturerProduct == false) {
         final productResponse = await _supabaseClient
             .from('products')
             .select()
@@ -273,6 +301,17 @@ class JewelryService {
         if (designerResponse != null) {
           designerResponse['is_designer_product'] = true;
           return JewelryItem.fromJson(designerResponse);
+        }
+
+        final manufacturerResponse = await _supabaseClient
+            .from('manufacturerproducts')
+            .select()
+            .eq('id', intId)
+            .maybeSingle();
+
+        if (manufacturerResponse != null) {
+          manufacturerResponse['is_manufacturer_product'] = true;
+          return JewelryItem.fromJson(manufacturerResponse);
         }
       } else {
         // Non-integer ID, try designerproducts
@@ -363,6 +402,7 @@ final itemTitles = items
     final savesMap = results[1];
     final creditsMap = results[2];
     final shareMap = results[3];
+    final geoMap = await getGeoAnalytics(itemIds);
 
     // 4. Merge engagement data with item
 return items.map((item) {
@@ -381,6 +421,7 @@ return items.map((item) {
     'saves': savesMap[itemTitle] ?? 0,
     'credits': creditsMap[itemId] ?? 0,
     'share': shareMap[itemId] ?? 0,
+    'geoAnalytics': geoMap[itemId] ?? [], // Now correctly passing the list of maps
   };
 
   return JewelryItem.fromJson(enriched);
@@ -388,6 +429,73 @@ return items.map((item) {
 }).toList();
   } catch (e) {
     debugPrint("Error fetching user designer products: $e");
+    return [];
+  }
+}
+
+Future<List<JewelryItem>> getMyManufacturerProducts() async {
+  final user = _supabaseClient.auth.currentUser;
+  if (user == null) return [];
+
+  try {
+    // 1. Fetch base products
+    final response = await _supabaseClient
+        .from('manufacturerproducts')
+        .select('''
+          *,
+          users (
+            business_name,
+            address,
+            country
+          )
+        ''')
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false);
+
+    final items = response as List<Map<String, dynamic>>;
+    if (items.isEmpty) return [];
+
+    final itemIds = items.map((item) => item['id'].toString()).toList();
+    final itemTitles = items
+        .map((item) => (item['Product Title'] ?? item['product_title'] ?? item['title'])?.toString())
+        .where((title) => title != null && title.isNotEmpty)
+        .cast<String>()
+        .toList();
+
+    // 2. Fetch engagement counts and geo-analytics in parallel
+    // We add getGeoAnalytics(itemIds) to the Future.wait list
+    final results = await Future.wait([
+      _fetchLikesCounts(itemIds),
+      _fetchPinsCounts(itemTitles),
+      _fetchViewsCounts(itemIds),
+      _fetchSharesCounts(itemIds),
+    ]);
+
+    final likesMap = results[0] ;
+    final savesMap = results[1] ;
+    final viewsMap = results[2] ;
+    final shareMap = results[3] ;
+    final geoMap = await getGeoAnalytics(itemIds);
+
+    // 3. Merge EVERYTHING into the enriched map
+    return items.map((item) {
+      final itemId = item['id'].toString();
+      final itemTitle = (item['Product Title'] ?? item['product_title'] ?? item['title'])?.toString() ?? '';
+
+      final enriched = {
+        ...item,
+        'likes': likesMap[itemId] ?? 0,
+        'saves': savesMap[itemTitle] ?? 0,
+        'credits': viewsMap[itemId] ?? 0,
+        'share': shareMap[itemId] ?? 0,
+        'geoAnalytics': geoMap[itemId] ?? [], // Now correctly passing the list of maps
+      };
+
+      return JewelryItem.fromJson(enriched);
+    }).toList();
+
+  } catch (e) {
+    debugPrint("Error fetching user manufacturer products: $e");
     return [];
   }
 }
@@ -467,6 +575,40 @@ Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
     return {};
   }
 }
+
+
+  /// Call this only when you need the deep-dive analytics for specific items.
+  Future<Map<String, List<Map<String, dynamic>>>> getGeoAnalytics(List<String> itemIds) async {
+    if (itemIds.isEmpty) return {};
+    for (var id in itemIds) {
+      print('ID: $id, Type: ${id.runtimeType}');
+    }
+    print(itemIds);
+    print("hell yeah");
+    
+    try {
+      final response = await _supabaseClient.rpc(
+        'get_geo_analytics_batch',
+        params: {'item_ids': itemIds}
+      );
+      print(response);
+      final Map<String, List<Map<String, dynamic>>> resultMap = {};
+      
+      for (var row in (response as List)) {
+        final String itemId = row['result_item_id'].toString();
+        final List<dynamic> geoData = row['location_json'] as List<dynamic>;
+        
+        resultMap[itemId] = geoData.map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+      print(resultMap);
+      return resultMap;
+
+    } catch (e) {
+      print('Geo Analytics Service Error: $e');
+      return {};
+    }
+  }
+
   Future<void> logView(
       {String? pinId, int? productId, String? countryCode}) async {
     try {
@@ -711,6 +853,9 @@ Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
             .select('"Category1", "Category2", "Category3"'),
         _supabaseClient
             .from('designerproducts')
+            .select('"Category1", "Category2", "Category3"'),
+        _supabaseClient
+            .from('manufacturerproducts')
             .select('"Category1", "Category2", "Category3"'),
       ]);
 

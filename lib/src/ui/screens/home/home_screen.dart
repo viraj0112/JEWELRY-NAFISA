@@ -166,39 +166,54 @@ class HomeScreenState extends State<HomeScreen> {
       dynamic designerQuery = _supabase
           .from('designerproducts')
           .select(designerSelectColumns);
-
+      dynamic manufacturerQuery = _supabase
+          .from('manufacturerproducts')
+          .select(designerSelectColumns);
       // Apply filters to both queries
       // Metal Type filter (first in hierarchy)
       if (_selectedMetalType != 'All') {
         final metal = _selectedMetalType.trim();
         productsQuery = productsQuery.ilike('"Metal Type"', '%$metal%');
         designerQuery = designerQuery.ilike('"Metal Type"', '%$metal%');
+        manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', '%$metal%');
       }
       if (_selectedProductType != 'All') {
         productsQuery = productsQuery.eq('"Product Type"', _selectedProductType);
         designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
+        manufacturerQuery = manufacturerQuery.eq('"Product Type"', _selectedProductType);
+
       }
       if (_selectedCategory != 'All') {
         // Filter by Category OR Category1 OR Category2 OR Category3 for both tables
         final categoryFilter = 'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
         productsQuery = productsQuery.or(categoryFilter);
         designerQuery = designerQuery.or(categoryFilter);
+        manufacturerQuery = manufacturerQuery.or(categoryFilter);
+
       }
       if (_selectedSubCategory != 'All') {
         productsQuery = productsQuery.eq('"Sub Category"', _selectedSubCategory);
         designerQuery = designerQuery.eq('"Sub Category"', _selectedSubCategory);
+        manufacturerQuery = manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
+
       }
       if (_selectedMetalPurity != 'All') {
         productsQuery = productsQuery.eq('"Metal Purity"', _selectedMetalPurity);
         designerQuery = designerQuery.eq('"Metal Purity"', _selectedMetalPurity);
+        manufacturerQuery = manufacturerQuery.eq('"Metal Purity"', _selectedMetalPurity);
+
       }
       if (_selectedPlain != null) {
         productsQuery = productsQuery.eq('Plain', _selectedPlain!);
         designerQuery = designerQuery.eq('Plain', _selectedPlain!);
+        manufacturerQuery = manufacturerQuery.eq('Plain', _selectedPlain!);
+
       }
       if (_selectedStudded != null) {
         productsQuery = productsQuery.contains('Studded', ['$_selectedStudded']);
         designerQuery = designerQuery.contains('Studded', ['$_selectedStudded']);
+        manufacturerQuery = manufacturerQuery.contains('Studded', ['$_selectedStudded']);
+
       }
 
       // OPTIMIZED: Use pagination instead of loading all products
@@ -210,11 +225,16 @@ class HomeScreenState extends State<HomeScreen> {
       designerQuery = designerQuery
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
+      manufacturerQuery = manufacturerQuery
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
       
       // Fetch from both tables in parallel
       final responses = await Future.wait<dynamic>([
         productsQuery as Future<dynamic>,
         designerQuery as Future<dynamic>,
+        manufacturerQuery as Future<dynamic>,
+
       ]);
 
       final List<JewelryItem> allItems = [];
@@ -234,6 +254,17 @@ class HomeScreenState extends State<HomeScreen> {
           (responses[1] as List).map((item) {
             final map = item as Map<String, dynamic>;
             map['is_designer_product'] = true;
+            return JewelryItem.fromJson(map);
+          }),
+        );
+      }
+
+      // Parse manufacturer products with flag
+      if (responses[2] is List) {
+        allItems.addAll(
+          (responses[2] as List).map((item) {
+            final map = item as Map<String, dynamic>;
+            map['is_manufacturer_product'] = true;
             return JewelryItem.fromJson(map);
           }),
         );
@@ -1092,8 +1123,9 @@ Widget _buildDropdownFilter({
         if (isTapped) {
           setState(() => _tappedItemId = null);
         } else {
-          final isDesigner = item.isDesignerProduct;
-          context.push('/product/${item.id}?isDesigner=$isDesigner');
+                  final isDesigner = item.isDesignerProduct;
+        final isManufacturer = item.isManufacturerProduct;
+        context.push('/product/${item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
         }
       },
       child: Card(

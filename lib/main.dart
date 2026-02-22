@@ -111,6 +111,10 @@ final _router = GoRouter(
       path: '/designer',
       builder: (context, state) => const B2BShell(),
     ),
+    GoRoute(
+      path: '/manufacturer',
+      builder: (context, state) => const B2BShell(isManufacturer: true),
+    ),
     // Onboarding Routes
     GoRoute(
       path: '/onboarding/location',
@@ -213,8 +217,16 @@ final _router = GoRouter(
           return ProductPageLoader(productSlug: identifier);
         } else {
           final isDesignerParam = state.uri.queryParameters['isDesigner'];
-          final isDesigner = isDesignerParam == 'true';
-          return ProductDetailLoader(productId: identifier, isDesigner: isDesigner);
+  final isManufacturerParam = state.uri.queryParameters['isManufacturer'];
+
+  final isDesigner = isDesignerParam == 'true';
+  final isManufacturer = isManufacturerParam == 'true';
+
+  return ProductDetailLoader(
+    productId: identifier,
+    isDesigner: isDesigner,
+    isManufacturer: isManufacturer,
+  );
         }
       },
     ),
@@ -312,7 +324,8 @@ class MyApp extends StatelessWidget {
 class ProductDetailLoader extends StatelessWidget {
   final String productId;
   final bool isDesigner;
-  const ProductDetailLoader({super.key, required this.productId, this.isDesigner = false});
+  final bool isManufacturer;
+  const ProductDetailLoader({super.key, required this.productId, this.isDesigner = false, this.isManufacturer = false});
 
   @override
   Widget build(BuildContext context) {
@@ -320,7 +333,7 @@ class ProductDetailLoader extends StatelessWidget {
     
 
     return FutureBuilder<JewelryItem?>(
-      future: jewelryService.getJewelryItem(productId, isDesignerProduct: isDesigner),
+      future: jewelryService.getJewelryItem(productId, isDesignerProduct: isDesigner, isManufacturerProduct: isManufacturer),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));

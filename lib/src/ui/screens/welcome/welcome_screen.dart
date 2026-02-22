@@ -369,7 +369,8 @@ Widget _buildImageCard(BuildContext context, JewelryItem item) {
   return GestureDetector(
  onTap: () {
     final isDesigner = item.isDesignerProduct;
-    context.push('/product/${item.id}?isDesigner=$isDesigner');
+    final isManufacturer = item.isManufacturerProduct;
+    context.push('/product/${item.id}?isDesigner=$isDesigner&isManufacturer=${isManufacturer}');
   },
     child: Card(
       clipBehavior: Clip.antiAlias,
