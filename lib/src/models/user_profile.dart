@@ -1,4 +1,5 @@
 import 'package:jewelry_nafisa/src/models/designer_profile.dart';
+import 'package:jewelry_nafisa/src/models/manufacturer_profile.dart';
 
 class UserProfile {
   final String id;
@@ -19,6 +20,7 @@ class UserProfile {
   final DateTime? createdAt;
   final bool isApproved;
   final DesignerProfile? designerProfile;
+  final ManufacturerProfile? manufacturerProfile;
   final String? bio;
   final int age;
   // ------------------------------------------------------------------
@@ -55,6 +57,7 @@ class UserProfile {
     this.createdAt,
     this.isApproved = false,
     this.designerProfile,
+    this.manufacturerProfile,
     this.bio,
     // UPDATED: New location fields with safe defaults
     this.onboardingStage = 0,
@@ -87,6 +90,7 @@ class UserProfile {
     DateTime? createdAt,
     bool? isApproved,
     DesignerProfile? designerProfile,
+    ManufacturerProfile? manufacturerProfile,
     String? bio,
     // UPDATED: Onboarding fields with new location parameters
     int? onboardingStage,
@@ -117,6 +121,7 @@ class UserProfile {
       createdAt: createdAt ?? this.createdAt,
       isApproved: isApproved ?? this.isApproved,
       designerProfile: designerProfile ?? this.designerProfile,
+      manufacturerProfile: manufacturerProfile ?? this.manufacturerProfile,
       bio: bio ?? this.bio,
         
       // UPDATED: Onboarding fields with new location parameters
@@ -147,6 +152,7 @@ class UserProfile {
     }
 
     final designerProfileData = map['designer_profiles'];
+    final manufacturerProfileData = map['manufacturer_profiles'];
 
     return UserProfile(
       id: map['id'] ?? '',
@@ -169,6 +175,10 @@ class UserProfile {
       designerProfile:
           designerProfileData != null && designerProfileData.isNotEmpty
               ? DesignerProfile.fromMap(designerProfileData[0])
+              : null,
+      manufacturerProfile:
+          manufacturerProfileData != null && manufacturerProfileData.isNotEmpty
+              ? ManufacturerProfile.fromMap(manufacturerProfileData[0])
               : null,
       bio: map['bio'],
 

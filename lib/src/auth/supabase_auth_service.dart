@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/models/designer_profile.dart';
+import 'package:jewelry_nafisa/src/models/manufacturer_profile.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class SupabaseAuthService {
@@ -176,6 +177,9 @@ class SupabaseAuthService {
   }) async {
     try {
       final String username = '${businessName.toLowerCase().replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}';
+final String role = businessType.toLowerCase() == 'manufacturer'
+    ? 'manufacturer'
+    : 'designer';
 
       final response = await _supabase.auth.signUp(
         email: email,
@@ -185,7 +189,7 @@ class SupabaseAuthService {
           'business_name': businessName,
           'business_type': businessType,
           'phone': phone,
-          'role': 'designer',
+          'role': role,
           'address': address,
           'gst_number': gstNumber,
         },

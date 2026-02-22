@@ -61,7 +61,7 @@ class UserProfileProvider with ChangeNotifier {
       final responses = await Future.wait<dynamic>([
         _supabase
             .from('users')
-            .select('*, designer_profiles(*)')
+            .select('*, designer_profiles(*), manufacturer_profiles(*)')
             .eq('id', userId)
             .single() as Future<dynamic>,
         _supabase

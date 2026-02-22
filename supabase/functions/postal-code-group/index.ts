@@ -59,4 +59,3 @@ serve(async (req) => {
     );
   }
 });
-// https://cxnkagfbymztpwszfaiw.supabase.co/functions/v1/pincode-lookup

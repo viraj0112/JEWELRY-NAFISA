@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 class JewelryItem {
   final String id;
   final bool isDesignerProduct;
+  final bool isManufacturerProduct;
   final String productTitle;
   final String image;
   final List<String>? images; 
@@ -49,7 +50,7 @@ class JewelryItem {
   final int? credits;
   final int? share;
   final bool? isTrending;
-  
+  final List<Map<String, dynamic>>? geoAnalytics;
   // --- CATEGORY SUB-FILTERS ---
   final String? category1;
   final String? category2;
@@ -63,6 +64,7 @@ class JewelryItem {
     required this.description,
     this.price,
     this.isDesignerProduct = false,
+    this.isManufacturerProduct = false,
     this.tags,
     this.goldWeight,
     this.metalPurity,
@@ -101,7 +103,8 @@ class JewelryItem {
     this.category2,
     this.category3,
     this.credits,
-    this.share
+    this.share,
+    this.geoAnalytics,
   });
 
 factory JewelryItem.fromJson(Map<String, dynamic> json) {
@@ -119,6 +122,7 @@ factory JewelryItem.fromJson(Map<String, dynamic> json) {
     description: json['description'] ?? '',
     price: _parseDouble(json['Price'] ?? json['price']),
     isDesignerProduct: json['is_designer_product'] ?? (json['source'] == 'designerproducts') ?? false,
+    isManufacturerProduct: json['is_manufacturer_product'] ?? (json['source'] == 'manufacturerproducts') ?? false,
     tags: _parseList(json['Product Tags'] ?? json['tags']),
     goldWeight: _parseString(json['Gold Weight'] ?? json['gold_weight']),
     metalPurity: _parseString(json['Metal Purity'] ?? json['metal_purity'] ?? json['gold_carat']),
@@ -157,6 +161,11 @@ factory JewelryItem.fromJson(Map<String, dynamic> json) {
     credits: json['credits'] is int ? json['credits']: int.tryParse(json['credits']?.toString() ?? ''),
     share: json['share'] is int ? json['share']: int.tryParse(json['share']?.toString() ?? ''),
     isTrending: json['isTrending'] is bool ? json['isTrending'] : (json['isTrending']?.toString().toLowerCase() == 'true'),
+    geoAnalytics: (json['geoAnalytics'] is List)
+    ? (json['geoAnalytics'] as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList()
+    : null,
     // --- CATEGORY SUB-FILTERS ---
     category1: _parseString(json['Category1']),
     category2: _parseString(json['Category2']),
