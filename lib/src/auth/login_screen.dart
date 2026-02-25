@@ -24,8 +24,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authService = SupabaseAuthService();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-  bool _rememberMe = false; // This variable is declared but not used in the UI/logic.
-  
+  bool _rememberMe =
+      false; // This variable is declared but not used in the UI/logic.
+
   @override
   void dispose() {
     _emailOrUsernameController.dispose();

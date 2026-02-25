@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -102,10 +103,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        
+
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false, 
+          (route) => false,
         );
       }
     }
@@ -147,6 +148,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
 
     return PopScope(
       canPop: true,
@@ -162,21 +164,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   vertical: 48.0,
                 ),
                 child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 480),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: theme.cardColor,
-                        borderRadius: BorderRadius.circular(32),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha((255 * 0.1).round()),
-                            blurRadius: 20,
-                            offset: const Offset(0, 5),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(32),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
+                      child: Container(
+                        width: 480,
+                        decoration: BoxDecoration(
+                          color: isDarkMode
+                              ? const Color.fromRGBO(0, 0, 0, 0.6)
+                              : const Color.fromARGB(188, 199, 241, 196),
+                          borderRadius: BorderRadius.circular(32),
+                          border: Border.all(
+                            color: isDarkMode
+                                ? const Color.fromRGBO(255, 255, 255, 0.2)
+                                : const Color.fromRGBO(0, 0, 0, 0.1),
                           ),
-                        ],
+                        ),
+                        child: _buildForm(theme),
                       ),
-                      child: _buildForm(theme),
                     ),
                   ),
                 ),
