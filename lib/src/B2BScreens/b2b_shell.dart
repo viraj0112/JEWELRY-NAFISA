@@ -2,15 +2,18 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import "package:jewelry_nafisa/src/widgets/date_range_filter.dart";
 import 'package:jewelry_nafisa/src/widgets/location_dropdown.dart';
-import 'package:jewelry_nafisa/src/B2BScreens/screens/exp_screens.dart';
+import 'package:jewelry_nafisa/src/B2BScreens/screens/home.dart';
+import 'package:jewelry_nafisa/src/B2BScreens/screens/insights.dart';
+import 'package:jewelry_nafisa/src/B2BScreens/screens/profile.dart';
+import 'package:jewelry_nafisa/src/B2BScreens/screens/notifications.dart';
+import 'package:jewelry_nafisa/src/B2BScreens/screens/upload.dart';
 import 'package:jewelry_nafisa/src/models/filter_criteria.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class B2BShell extends StatefulWidget {
-  final bool isManufacturer;
 
-  const B2BShell({super.key, this.isManufacturer = false});
+  const B2BShell({super.key});
 
   @override
   State<B2BShell> createState() => _B2BShellState();
@@ -116,9 +119,9 @@ class _B2BShellState extends State<B2BShell> {
         
       ),
       body: <Widget>[
-        HomePage(filters: _filters, isManufacturer: widget.isManufacturer),
+        HomePage(),
         SizedBox.shrink(),
-        InsightsPage(isManufacturer: widget.isManufacturer),
+        InsightsPage(),
         NotificationsPage(),
         ProfilePage(),
       ][_currentPageSelected],

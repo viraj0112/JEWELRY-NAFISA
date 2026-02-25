@@ -4,6 +4,7 @@ import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:jewelry_nafisa/src/admin2/screens/main_screen.dart';
 import 'package:jewelry_nafisa/src/designer/designer_shell.dart';
 import 'package:jewelry_nafisa/src/designer/screens/pending_approval_screen.dart';
+import 'package:jewelry_nafisa/src/models/manufacturer_profile.dart';
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_gender.dart';
@@ -35,19 +36,21 @@ class _ProfileLoaderState extends State<ProfileLoader> {
     try {
       final provider = Provider.of<UserProfileProvider>(context, listen: false);
       
+      debugPrint('ProfileLoader - Starting profile load');
 
-      
       // Always reload the profile to ensure fresh data
       await provider.loadUserProfile();
       
+      debugPrint('ProfileLoader - Profile loaded successfully');
+      debugPrint('ProfileLoader - Profile role: ${provider.userProfile?.role}');
 
-      
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
+      debugPrint('ProfileLoader - Error loading profile: $e');
 
       if (mounted) {
         setState(() {
@@ -59,8 +62,24 @@ class _ProfileLoaderState extends State<ProfileLoader> {
   }
 
   Widget _getDestinationWidget(UserProfile userProfile) {
+    debugPrint('🎯 _getDestinationWidget called');
+    debugPrint('🎯 userProfile.role: ${userProfile.role}');
+    debugPrint('🎯 userProfile.isSetupComplete: ${userProfile.isSetupComplete}');
+    debugPrint('🎯 userProfile.designerProfile: ${userProfile.designerProfile}');
+    debugPrint('🎯 userProfile.manufacturerProfile: ${userProfile.manufacturerProfile}');
+    
+    // 0. Check if manufacturer - SKIP ONBOARDING FOR MANUFACTURERS (Priority 0)
+    if (userProfile.role == UserRole.manufacturer) {
+      debugPrint('🎯 Manufacturer detected - sending directly to B2BShell');
+      return const B2BShell();
+    }
+        if (userProfile.role == UserRole.designer) {
+      debugPrint('🎯 Manufacturer detected - sending directly to B2BShell');
+      return const B2BShell();
+    }
     // 1. Check Onboarding Status (Priority 1)
     if (userProfile.isSetupComplete == false) {
+      debugPrint('🎯 Onboarding not complete - returning onboarding screen');
       return switch (userProfile.onboardingStage) {
         0 => const OnboardingScreen1Location(),
         1 => const OnboardingScreen2Gender(),
@@ -71,13 +90,25 @@ class _ProfileLoaderState extends State<ProfileLoader> {
       };
     }
 
-    // 2. Role-Based Routing (Priority 2 - Only if onboarding is complete)
+    // 2. Check for Business Profile Type (Priority 2 - Redirect to B2B screens)
+    // if (userProfile.manufacturerProfile != null) {
+    //   return const _RedirectToManufacturer();
+    // }
+    // if (userProfile.designerProfile != null) {
+    //   return const _RedirectToDesigner();
+    // }
+
+    // 3. Role-Based Routing (Priority 3 - Only if onboarding is complete and no business profile)
+
+    debugPrint('🎯 Using role-based routing');
+    print(userProfile.role);
     return switch (userProfile.role) {
       UserRole.admin => const MainScreen(),
       UserRole.designer => userProfile.isApproved == true
           // ? const DesignerShell()
           ?const B2BShell()
           : const PendingApprovalScreen(),
+      UserRole.manufacturer => const B2BShell(),
       UserRole.member => const RedirectToHome(),
       _ => const RedirectToHome(),
     };
@@ -117,6 +148,9 @@ class _ProfileLoaderState extends State<ProfileLoader> {
     return Consumer<UserProfileProvider>(
       builder: (context, profileProvider, child) {
         final userProfile = profileProvider.userProfile;
+        
+        debugPrint('ProfileLoader - userProfile is null: ${userProfile == null}');
+        debugPrint('ProfileLoader - userProfile: $userProfile');
 
         // Null profile state
         if (userProfile == null) {
@@ -166,6 +200,58 @@ class _RedirectToHomeState extends State<RedirectToHome> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.go('/home');
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class _RedirectToManufacturer extends StatefulWidget {
+  const _RedirectToManufacturer({super.key});
+
+  @override
+  State<_RedirectToManufacturer> createState() => _RedirectToManufacturerState();
+}
+
+class _RedirectToManufacturerState extends State<_RedirectToManufacturer> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.go('/manufacturer');
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class _RedirectToDesigner extends StatefulWidget {
+  const _RedirectToDesigner({super.key});
+
+  @override
+  State<_RedirectToDesigner> createState() => _RedirectToDesignerState();
+}
+
+class _RedirectToDesignerState extends State<_RedirectToDesigner> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.go('/designer');
       }
     });
   }

@@ -113,7 +113,7 @@ final _router = GoRouter(
     ),
     GoRoute(
       path: '/manufacturer',
-      builder: (context, state) => const B2BShell(isManufacturer: true),
+      builder: (context, state) => const B2BShell(),
     ),
     // Onboarding Routes
     GoRoute(

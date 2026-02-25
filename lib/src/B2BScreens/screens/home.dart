@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; 
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'page_template.dart';
 import 'dart:ui';
@@ -10,9 +11,8 @@ import 'package:jewelry_nafisa/src/models/filter_criteria.dart';
 
 class HomePage extends StatefulWidget {
   final FilterCriteria? filters;
-  final bool isManufacturer;
 
-  const HomePage({super.key, this.filters, this.isManufacturer = false});
+  const HomePage({super.key, this.filters});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -22,17 +22,36 @@ class _HomePageState extends State<HomePage> {
   late Future<List<JewelryItem>> _future;
   late JewelryService _jewelryService;
   List<Map<String, dynamic>> _geoAnalytics = [];
-
+  
+  // User type detection
+  bool _isManufacturer = false;
+  bool _isPremium = false;
 
   @override
   void initState() {
     super.initState();
 
     _jewelryService = JewelryService(Supabase.instance.client);
-    _future = widget.isManufacturer 
-        ? _jewelryService.getMyManufacturerProducts()
-        : _jewelryService.getMyDesignerProducts();
+    
+    // Get user profile to determine if manufacturer or designer
+    final userProfile = Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+    
+    // Detect manufacturer
+    _isManufacturer = userProfile?.manufacturerProfile != null;
+    
+    // For designers: fetch premium status (for now, assuming false - fetch from DB if needed)
+    _isPremium = false; // TODO: Fetch from users table if user is designer
+    
+    // If user has manufacturerProfile, load manufacturer products; otherwise load designer products
+    if (_isManufacturer) {
+      _future = _jewelryService.getMyManufacturerProducts();
+    } else {
+      _future = _jewelryService.getMyDesignerProducts();
+    }
   }
+  
+  /// Unlock logic: Manufacturers always see geoAnalytics, Designers only if premium
+  bool get _isUnlocked => _isManufacturer || _isPremium;
 
   // Helper method to check if a product matches the filters
   bool _matchesFilter(JewelryItem item) {
@@ -139,7 +158,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     itemCount: products.length,
                     itemBuilder: (context, index) {
-                      return _ProductCard(item: products[index], isManufacturer: widget.isManufacturer);
+                      return _ProductCard(item: products[index]);
                     },
                   ),
                 );
@@ -154,9 +173,8 @@ class _HomePageState extends State<HomePage> {
 
 class _ProductCard extends StatefulWidget {
   final JewelryItem item;
-  final bool isManufacturer;
 
-  const _ProductCard({required this.item, this.isManufacturer = false});
+  const _ProductCard({required this.item});
 
   @override
   State<_ProductCard> createState() => _ProductCardState();
@@ -201,6 +219,9 @@ class _ProductCardState extends State<_ProductCard> {
   }
 
   void _showInsights(BuildContext context) {
+    // Get parent state to access unlock status
+    final homeState = context.findAncestorStateOfType<_HomePageState>();
+    
     showModalBottomSheet(
       context: context,
       constraints: BoxConstraints.expand(width: MediaQuery.of(context).size.width),
@@ -208,8 +229,9 @@ class _ProductCardState extends State<_ProductCard> {
       backgroundColor: Colors.transparent,
       builder: (context) => _InsightsBottomSheet(
         item: widget.item, 
-        isManufacturer: widget.isManufacturer,
         geoAnalytics: widget.item.geoAnalytics ?? [],
+        isManufacturer: homeState?._isManufacturer ?? false,
+        isPremium: homeState?._isPremium ?? false,
       ),
     );
   }
@@ -583,14 +605,16 @@ class _ProductCardState extends State<_ProductCard> {
 }
 class _InsightsBottomSheet extends StatelessWidget {
   final dynamic item; // Replace 'dynamic' with your JewelryItem model
-  final bool isManufacturer;
   final List<Map<String, dynamic>> geoAnalytics;
+  final bool isManufacturer;
+  final bool isPremium;
 
   const _InsightsBottomSheet({
     super.key, 
     required this.item, 
-    this.isManufacturer = false,
     this.geoAnalytics = const [],
+    this.isManufacturer = false,
+    this.isPremium = false,
   });
 
   @override
@@ -609,8 +633,8 @@ class _InsightsBottomSheet extends StatelessWidget {
     final int shares = item.share ?? 0; 
     final int credits = item.credits ?? 0;
     
-    // Premium logic: Manufacturers always see full insights, designers don't unless paying
-    final bool isPremium = isManufacturer ? true : false;
+    // Unlock logic: Manufacturers always see full insights, designers don't unless premium
+    final bool isUnlocked = isManufacturer || isPremium;
 
     return Container(
       constraints: BoxConstraints(
@@ -681,11 +705,11 @@ class _InsightsBottomSheet extends StatelessWidget {
                                 }).toList()
                               else ...[
                                 // Fallback if no geo data
-                                const _LocationProgress(city: 'Mumbai', percentage: 42),
+                                const _LocationProgress(city: 'None', percentage: 0),
                                 const SizedBox(height: 12),
-                                const _LocationProgress(city: 'Delhi', percentage: 28),
-                                const SizedBox(height: 12),
-                                const _LocationProgress(city: 'Bangalore', percentage: 18),
+                                // const _LocationProgress(city: 'Delhi', percentage: 28),
+                                // const SizedBox(height: 12),
+                                // const _LocationProgress(city: 'Bangalore', percentage: 18),
                               ],
                               const SizedBox(height: 24),
                               _buildInsightCard(),
@@ -694,8 +718,8 @@ class _InsightsBottomSheet extends StatelessWidget {
                           ),
                         ),
 
-                        // PREMIUM OVERLAY
-                        if (!isPremium)
+                        // LOCK OVERLAY (for non-manufacturers and non-premium designers)
+                        if (!isUnlocked)
                           Positioned.fill(
                             child: ClipRect(
                               child: BackdropFilter(
