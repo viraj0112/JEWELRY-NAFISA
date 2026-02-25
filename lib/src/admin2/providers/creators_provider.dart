@@ -67,7 +67,7 @@ class CreatorsProvider extends ChangeNotifier {
 
   List<CreatorModel> creators = [];
   List<WorkModel> works = [];
-  
+
   // Categories fetched from designerproducts for filtering
   List<String> categories = [];
 
@@ -98,11 +98,11 @@ class CreatorsProvider extends ChangeNotifier {
         is_approved,
         created_at,
         role
-      ''').eq('role', 'designer');
+      ''').inFilter('role', ['designer', 'manufacturer']);
 
       final List<dynamic> data = res;
       creators = [];
-      
+
       for (var c in data) {
         creators.add(CreatorModel(
           id: c['id'],
@@ -114,7 +114,8 @@ class CreatorsProvider extends ChangeNotifier {
           location: c['address'] as String?,
           isApproved: c['is_approved'] ?? false,
           role: (c['role'] ?? 'designer').toString(),
-          createdAt: DateTime.tryParse((c['created_at'] ?? '').toString()) ?? DateTime.now(),
+          createdAt: DateTime.tryParse((c['created_at'] ?? '').toString()) ??
+              DateTime.now(),
         ));
       }
 
@@ -138,7 +139,7 @@ class CreatorsProvider extends ChangeNotifier {
       // Fetch distinct categories from designerproducts table
       final res = await supabase.rpc('get_distinct_product_values',
           params: {'column_name': 'Category'});
-      
+
       if (res != null && res is List) {
         categories = ['All Categories', ...res.map((e) => e.toString())];
       } else {
@@ -146,7 +147,13 @@ class CreatorsProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Error loading categories: $e');
-      categories = ['All Categories', 'Ring', 'Necklace', 'Earring', 'Bracelet']; // Fallback
+      categories = [
+        'All Categories',
+        'Ring',
+        'Necklace',
+        'Earring',
+        'Bracelet'
+      ]; // Fallback
     }
   }
 
@@ -166,7 +173,7 @@ class CreatorsProvider extends ChangeNotifier {
           .from('assets')
           .select('id,title,thumb_url,owner_id,status,category,created_at')
           .inFilter('owner_id', designerIds);
-      
+
       for (var a in assets) {
         result.add(WorkModel(
           id: a['id'],
@@ -178,13 +185,15 @@ class CreatorsProvider extends ChangeNotifier {
           views: 0,
           saves: 0,
           shares: 0,
-          createdAt: DateTime.tryParse((a['created_at'] ?? '').toString()) ?? DateTime.now(),
+          createdAt: DateTime.tryParse((a['created_at'] ?? '').toString()) ??
+              DateTime.now(),
         ));
       }
 
       // 2) Designer-files (Sketches)
       final sketches = await supabase
-          .from('designer-files') // Quoting handled by postgres usually, but safe here
+          .from(
+              'designer-files') // Quoting handled by postgres usually, but safe here
           .select('id,file_url,user_id,file_type,created_at')
           .eq('file_type', 'sketch')
           .inFilter('user_id', designerIds);
@@ -197,11 +206,12 @@ class CreatorsProvider extends ChangeNotifier {
           mediaUrl: (s['file_url'] ?? '').toString(),
           creatorId: (s['user_id'] ?? '').toString(),
           // Sketches in this table often don't have status, assuming published/approved if visible
-          status: 'approved', 
+          status: 'approved',
           views: 0,
           saves: 0,
           shares: 0,
-          createdAt: DateTime.tryParse((s['created_at'] ?? '').toString()) ?? DateTime.now(),
+          createdAt: DateTime.tryParse((s['created_at'] ?? '').toString()) ??
+              DateTime.now(),
         ));
       }
     } catch (e) {
@@ -246,16 +256,16 @@ class CreatorsProvider extends ChangeNotifier {
     final q = searchQuery.trim().toLowerCase();
     return creators.where((c) {
       // Status Filter
-      if (statusFilter != null && c.approvalStatus.toLowerCase() != statusFilter!.toLowerCase()) {
+      if (statusFilter != null &&
+          c.approvalStatus.toLowerCase() != statusFilter!.toLowerCase()) {
         return false;
       }
 
       // Category Filter - Check if creator has any work in this category
       if (categoryFilter != 'All Categories') {
-        final hasMatchingWork = works.any((w) => 
-          w.creatorId == c.id && 
-          w.category.toLowerCase() == categoryFilter.toLowerCase()
-        );
+        final hasMatchingWork = works.any((w) =>
+            w.creatorId == c.id &&
+            w.category.toLowerCase() == categoryFilter.toLowerCase());
         if (!hasMatchingWork) return false;
       }
 
@@ -265,7 +275,7 @@ class CreatorsProvider extends ChangeNotifier {
       final matchEmail = (c.email ?? '').toLowerCase().contains(q);
       // Also allow searching by specialization/business type text
       final matchType = c.businessType.toLowerCase().contains(q);
-      
+
       return matchName || matchEmail || matchType;
     }).toList();
   }
@@ -280,16 +290,19 @@ class CreatorsProvider extends ChangeNotifier {
 
   // Helper to get pending submissions for a specific creator (for the detail view)
   List<WorkModel> getPendingWorksForCreator(String creatorId) {
-    return works.where((w) => 
-      w.creatorId == creatorId && 
-      (w.status.toLowerCase() == 'pending' || w.status.toLowerCase() == 'under_review')
-    ).toList();
+    return works
+        .where((w) =>
+            w.creatorId == creatorId &&
+            (w.status.toLowerCase() == 'pending' ||
+                w.status.toLowerCase() == 'under_review'))
+        .toList();
   }
 
   // --- Actions ---
   Future<void> approveCreator(String id) async {
     try {
-      await supabase.from('users').update({'approval_status': 'approved', 'is_approved': true}).eq('id', id);
+      await supabase.from('users').update(
+          {'approval_status': 'approved', 'is_approved': true}).eq('id', id);
       final c = creators.firstWhere((e) => e.id == id);
       c.approvalStatus = 'approved';
       c.isApproved = true;
@@ -301,7 +314,8 @@ class CreatorsProvider extends ChangeNotifier {
 
   Future<void> rejectCreator(String id) async {
     try {
-      await supabase.from('users').update({'approval_status': 'rejected', 'is_approved': false}).eq('id', id);
+      await supabase.from('users').update(
+          {'approval_status': 'rejected', 'is_approved': false}).eq('id', id);
       final c = creators.firstWhere((e) => e.id == id);
       c.approvalStatus = 'rejected';
       c.isApproved = false;

@@ -8,7 +8,7 @@ import 'package:jewelry_nafisa/src/models/manufacturer_profile.dart';
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_gender.dart';
-import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_age.dart'; 
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_age.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart';
@@ -35,14 +35,9 @@ class _ProfileLoaderState extends State<ProfileLoader> {
   Future<void> _loadProfile() async {
     try {
       final provider = Provider.of<UserProfileProvider>(context, listen: false);
-      
-      debugPrint('ProfileLoader - Starting profile load');
 
       // Always reload the profile to ensure fresh data
       await provider.loadUserProfile();
-      
-      debugPrint('ProfileLoader - Profile loaded successfully');
-      debugPrint('ProfileLoader - Profile role: ${provider.userProfile?.role}');
 
       if (mounted) {
         setState(() {
@@ -50,8 +45,6 @@ class _ProfileLoaderState extends State<ProfileLoader> {
         });
       }
     } catch (e) {
-      debugPrint('ProfileLoader - Error loading profile: $e');
-
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -64,16 +57,19 @@ class _ProfileLoaderState extends State<ProfileLoader> {
   Widget _getDestinationWidget(UserProfile userProfile) {
     debugPrint('🎯 _getDestinationWidget called');
     debugPrint('🎯 userProfile.role: ${userProfile.role}');
-    debugPrint('🎯 userProfile.isSetupComplete: ${userProfile.isSetupComplete}');
-    debugPrint('🎯 userProfile.designerProfile: ${userProfile.designerProfile}');
-    debugPrint('🎯 userProfile.manufacturerProfile: ${userProfile.manufacturerProfile}');
-    
+    debugPrint(
+        '🎯 userProfile.isSetupComplete: ${userProfile.isSetupComplete}');
+    debugPrint(
+        '🎯 userProfile.designerProfile: ${userProfile.designerProfile}');
+    debugPrint(
+        '🎯 userProfile.manufacturerProfile: ${userProfile.manufacturerProfile}');
+
     // 0. Check if manufacturer - SKIP ONBOARDING FOR MANUFACTURERS (Priority 0)
     if (userProfile.role == UserRole.manufacturer) {
       debugPrint('🎯 Manufacturer detected - sending directly to B2BShell');
       return const B2BShell();
     }
-        if (userProfile.role == UserRole.designer) {
+    if (userProfile.role == UserRole.designer) {
       debugPrint('🎯 Manufacturer detected - sending directly to B2BShell');
       return const B2BShell();
     }
@@ -105,12 +101,13 @@ class _ProfileLoaderState extends State<ProfileLoader> {
     return switch (userProfile.role) {
       UserRole.admin => const MainScreen(),
       UserRole.designer => userProfile.isApproved == true
-          // ? const DesignerShell()
-          ?const B2BShell()
+          ? const B2BShell()
+          : const PendingApprovalScreen(),
+      UserRole.manufacturer => userProfile.isApproved == true
+          ? const B2BShell()
           : const PendingApprovalScreen(),
       UserRole.manufacturer => const B2BShell(),
       UserRole.member => const RedirectToHome(),
-      _ => const RedirectToHome(),
     };
   }
 
@@ -148,8 +145,9 @@ class _ProfileLoaderState extends State<ProfileLoader> {
     return Consumer<UserProfileProvider>(
       builder: (context, profileProvider, child) {
         final userProfile = profileProvider.userProfile;
-        
-        debugPrint('ProfileLoader - userProfile is null: ${userProfile == null}');
+
+        debugPrint(
+            'ProfileLoader - userProfile is null: ${userProfile == null}');
         debugPrint('ProfileLoader - userProfile: $userProfile');
 
         // Null profile state
@@ -216,7 +214,8 @@ class _RedirectToManufacturer extends StatefulWidget {
   const _RedirectToManufacturer({super.key});
 
   @override
-  State<_RedirectToManufacturer> createState() => _RedirectToManufacturerState();
+  State<_RedirectToManufacturer> createState() =>
+      _RedirectToManufacturerState();
 }
 
 class _RedirectToManufacturerState extends State<_RedirectToManufacturer> {

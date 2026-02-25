@@ -28,11 +28,12 @@ class UserProfile {
   // ------------------------------------------------------------------
   final int onboardingStage;
   final bool isSetupComplete;
-  
+
   // NEW: Updated location fields
-  final String? country;          // UPDATED - Now free text input             // UPDATED - Optional free text input
-  final String? zipCode;          // NEW - ZIP/PIN code
-  
+  final String?
+      country; // UPDATED - Now free text input             // UPDATED - Optional free text input
+  final String? zipCode; // NEW - ZIP/PIN code
+
   final List<String> selectedOccasions;
   final List<String> selectedCategories;
   // ------------------------------------------------------------------
@@ -45,7 +46,7 @@ class UserProfile {
     this.birthdate,
     this.avatarUrl,
     this.gender,
-    this.age = 0 ,
+    this.age = 0,
     required this.role,
     this.phone,
     required this.isMember,
@@ -71,37 +72,36 @@ class UserProfile {
 // --------------------------------------------------------------------------
 // UPDATED: copyWith Method with new location fields
 // --------------------------------------------------------------------------
-  UserProfile copyWith({
-    String? id,
-    String? username,
-    String? fullName,
-    String? email,
-    DateTime? birthdate,
-    String? avatarUrl,
-    String? gender,
-    UserRole? role,
-    String? phone,
-    bool? isMember,
-    String? membershipPlan,
-    int? credits,
-    DateTime? lastCreditRefresh,
-    String? referralCode,
-    String? referredBy,
-    DateTime? createdAt,
-    bool? isApproved,
-    DesignerProfile? designerProfile,
-    ManufacturerProfile? manufacturerProfile,
-    String? bio,
-    // UPDATED: Onboarding fields with new location parameters
-    int? onboardingStage,
-    bool? isSetupComplete,
-    String? continent,
-    String? country,
-    String? zipCode,
-    List<String>? selectedOccasions,
-    List<String>? selectedCategories,
-    int? age
-  }) {
+  UserProfile copyWith(
+      {String? id,
+      String? username,
+      String? fullName,
+      String? email,
+      DateTime? birthdate,
+      String? avatarUrl,
+      String? gender,
+      UserRole? role,
+      String? phone,
+      bool? isMember,
+      String? membershipPlan,
+      int? credits,
+      DateTime? lastCreditRefresh,
+      String? referralCode,
+      String? referredBy,
+      DateTime? createdAt,
+      bool? isApproved,
+      DesignerProfile? designerProfile,
+      ManufacturerProfile? manufacturerProfile,
+      String? bio,
+      // UPDATED: Onboarding fields with new location parameters
+      int? onboardingStage,
+      bool? isSetupComplete,
+      String? continent,
+      String? country,
+      String? zipCode,
+      List<String>? selectedOccasions,
+      List<String>? selectedCategories,
+      int? age}) {
     return UserProfile(
       id: id ?? this.id,
       username: username ?? this.username,
@@ -123,7 +123,7 @@ class UserProfile {
       designerProfile: designerProfile ?? this.designerProfile,
       manufacturerProfile: manufacturerProfile ?? this.manufacturerProfile,
       bio: bio ?? this.bio,
-        
+
       // UPDATED: Onboarding fields with new location parameters
       onboardingStage: onboardingStage ?? this.onboardingStage,
       isSetupComplete: isSetupComplete ?? this.isSetupComplete,
@@ -146,7 +146,7 @@ class UserProfile {
     List<String> parseStringList(dynamic value) {
       if (value == null) return const [];
       if (value is List) {
-          return value.map((e) => e.toString()).toList();
+        return value.map((e) => e.toString()).toList();
       }
       return const [];
     }
@@ -218,8 +218,8 @@ class UserProfile {
 enum UserRole {
   admin,
   designer,
-  member,
   manufacturer,
+  member,
 }
 
 /// Converts a string from the database into a UserRole enum value.

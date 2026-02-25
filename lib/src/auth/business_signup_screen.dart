@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import "package:jewelry_nafisa/src/auth/login_screen.dart";
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -35,9 +35,9 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
   String _fullPhoneNumber = '';
   bool _isLoading = false;
 
-  File? _workFile;
+  XFile? _workFile;
   String _workFileName = 'Upload Work File (PDF/Doc)';
-  File? _businessCardFile;
+  XFile? _businessCardFile;
   String _businessCardFileName = 'Upload Business Card (Image)';
 
   @override
@@ -51,7 +51,7 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
     super.dispose();
   }
 
-  Future<void> _pickFile(Function(File, String) onFilePicked,
+  Future<void> _pickFile(Function(XFile, String) onFilePicked,
       {bool isImage = false}) async {
     final picker = ImagePicker();
     final XFile? pickedFile = isImage
@@ -60,7 +60,7 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
 
     if (pickedFile != null) {
       setState(() {
-        onFilePicked(File(pickedFile.path), pickedFile.name);
+        onFilePicked(pickedFile, pickedFile.name);
       });
     }
   }
@@ -94,31 +94,33 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
 
       // Check if user creation failed
       if (user == null) {
-         throw Exception('Sign up failed. The email may already be in use.');
+        throw Exception('Sign up failed. The email may already be in use.');
       }
-      
+
       final supabase = Supabase.instance.client;
       final userId = user.id;
 
-      // 3. Upload files to Supabase Storage
-      final workFileExt = _workFile!.path.split('.').last;
+      // 3. Upload files to Supabase Storage (using XFile for web compatibility)
+      final workFileExt = _workFile!.name.split('.').last;
       final workFilePath = '$userId/work_file.$workFileExt';
+      final Uint8List workBytes = await _workFile!.readAsBytes();
       await supabase.storage.from('designer-files').uploadBinary(
             workFilePath,
-            await _workFile!.readAsBytes(),
+            workBytes,
             fileOptions: FileOptions(
-              contentType: lookupMimeType(_workFile!.path),
+              contentType: lookupMimeType(_workFile!.name),
               upsert: true,
             ),
           );
 
-      final cardFileExt = _businessCardFile!.path.split('.').last;
+      final cardFileExt = _businessCardFile!.name.split('.').last;
       final cardFilePath = '$userId/business_card.$cardFileExt';
+      final Uint8List cardBytes = await _businessCardFile!.readAsBytes();
       await supabase.storage.from('designer-files').uploadBinary(
             cardFilePath,
-            await _businessCardFile!.readAsBytes(),
+            cardBytes,
             fileOptions: FileOptions(
-              contentType: lookupMimeType(_businessCardFile!.path),
+              contentType: lookupMimeType(_businessCardFile!.name),
               upsert: true,
             ),
           );
@@ -149,11 +151,11 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen> {
             duration: Duration(seconds: 4),
           ),
         );
-        
+
         // Use Navigator pushAndRemoveUntil instead of go_router for safer redirection to Login
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false, 
+          (route) => false,
         );
       }
     } catch (e) {
