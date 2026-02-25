@@ -23,6 +23,7 @@ import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:jewelry_nafisa/src/utils/app_update_checker.dart';
 
 class MainShell extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -36,13 +37,19 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with AppUpdateChecker {
   final _searchController = TextEditingController();
 
   // Search state management
   List<JewelryItem> _searchResults = [];
   String _currentSearchQuery = '';
   bool _isSearchMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    registerUpdateListener();
+  }
 
   @override
   void dispose() {
@@ -55,7 +62,7 @@ class _MainShellState extends State<MainShell> {
     // But if we want it to be a real tab, we can navigate.
     // Based on previous code, index 4 was "Profile" in bottom nav but "Info" in rail.
     // And it had a special handler in the app bar.
-    
+
     // For now, let's allow navigation to all tabs defined in branches.
     widget.navigationShell.goBranch(
       index,
@@ -65,17 +72,16 @@ class _MainShellState extends State<MainShell> {
 
   Future<void> _signOut() async {
     try {
-      await Provider.of<ThemeProvider>(context, listen: false).setThemeMode(ThemeMode.light);
+      await Provider.of<ThemeProvider>(context, listen: false)
+          .setThemeMode(ThemeMode.light);
 
       await SupabaseAuthService().signOut();
       if (mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Provider.of<UserProfileProvider>(context, listen: false).reset();
-
         });
-        
-        context.go('/welcome');
 
+        context.go('/welcome');
       }
     } catch (e) {
       if (mounted) {
@@ -117,14 +123,15 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
- Widget _buildNarrowLayout() {
-  // Removed PopScope to allow GoRouter to handle back navigation
-  return Scaffold(
-    appBar: _buildAppBar(isWide: false, selectedIndex: widget.navigationShell.currentIndex),
-    body: _buildContent(),
-    bottomNavigationBar: _buildFixedNavBar(),
-  );
-}
+  Widget _buildNarrowLayout() {
+    // Removed PopScope to allow GoRouter to handle back navigation
+    return Scaffold(
+      appBar: _buildAppBar(
+          isWide: false, selectedIndex: widget.navigationShell.currentIndex),
+      body: _buildContent(),
+      bottomNavigationBar: _buildFixedNavBar(),
+    );
+  }
 
   Widget _buildWideLayout() {
     final userProfile = Provider.of<UserProfileProvider>(context);
@@ -188,7 +195,9 @@ class _MainShellState extends State<MainShell> {
             Expanded(
               child: Column(
                 children: [
-                  _buildAppBar(isWide: true, selectedIndex: widget.navigationShell.currentIndex),
+                  _buildAppBar(
+                      isWide: true,
+                      selectedIndex: widget.navigationShell.currentIndex),
                   Expanded(child: _buildContent()),
                 ],
               ),
@@ -303,7 +312,7 @@ class _MainShellState extends State<MainShell> {
 
   Widget _buildFixedNavBar() {
     final theme = Theme.of(context);
-    final  customGreen = const Color(0xFF336B43);
+    final customGreen = const Color(0xFF336B43);
     return BottomNavigationBar(
       currentIndex: widget.navigationShell.currentIndex,
       onTap: _onItemTapped,
@@ -365,7 +374,6 @@ class _MainShellState extends State<MainShell> {
       backgroundColor: Color(0xFF336B43),
       title: shouldHideSearchBar ? null : _buildSearchBar(),
       actions: [
-    
         _buildClickableProfileAvatar(userProfile),
         _buildProfileDropdown(userProfile),
         const SizedBox(width: 12),
@@ -378,7 +386,7 @@ class _MainShellState extends State<MainShell> {
       padding: const EdgeInsets.only(top: 8.0, bottom: 52.0),
       child: CircleAvatar(
         radius: 18,
-        backgroundColor: Color(0xFF006435) ,
+        backgroundColor: Color(0xFF006435),
         // --- FIX: Removed user.isLoading check ---
         child: Text(
           user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
@@ -406,14 +414,13 @@ class _MainShellState extends State<MainShell> {
         _onItemTapped(4);
       },
       child: CircleAvatar(
-        backgroundImage: avatarUrl != null ? CachedNetworkImageProvider(avatarUrl) : null,
+        backgroundImage:
+            avatarUrl != null ? CachedNetworkImageProvider(avatarUrl) : null,
         backgroundColor: Theme.of(context).colorScheme.primary,
         // --- FIX: Removed user.isLoading check ---
         child: (avatarUrl == null)
             ? Text(
-                user.username.isNotEmpty
-                    ? user.username[0].toUpperCase()
-                    : 'U',
+                user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -447,16 +454,15 @@ class _MainShellState extends State<MainShell> {
               builder: (context) => const AccountManagementDialog(),
             );
             break;
-        // Inside MainShell -> _buildProfileDropdown
-               case 'my_profile':
-  Navigator.of(context).push(
-    MaterialPageRoute(builder: (context) => const ProfileScreen()),
-  );
+          // Inside MainShell -> _buildProfileDropdown
+          case 'my_profile':
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const ProfileScreen()),
+            );
 
-            
-          // case 'toggle_theme':  // Add this case
-          // themeProvider.toggleTheme();
-          break;
+            // case 'toggle_theme':  // Add this case
+            // themeProvider.toggleTheme();
+            break;
           // case 'request_business_account':
           //   _handleBusinessRequest(context);
           //   break;
@@ -503,29 +509,29 @@ class _MainShellState extends State<MainShell> {
             value: 'change_password',
             child: Text('Change Password'),
           ),
-           const PopupMenuItem<String>(
+          const PopupMenuItem<String>(
             value: 'my_profile',
             child: Text('My Profile'),
           ),
-        //   const PopupMenuDivider(),  // Add divider
-        // PopupMenuItem<String>(  // Add theme toggle option
-        //   value: 'toggle_theme',
-        //   child: Row(
-        //     children: [
-        //       Icon(
-        //         themeProvider.themeMode == ThemeMode.light
-        //             ? Icons.dark_mode_outlined
-        //             : Icons.light_mode_outlined,
-        //       ),
-        //       const SizedBox(width: 12),
-        //       Text(
-        //         themeProvider.themeMode == ThemeMode.light
-        //             ? 'Dark Mode'
-        //             : 'Light Mode',
-        //       ),
-        //     ],
-        //   ),
-        // ),
+          //   const PopupMenuDivider(),  // Add divider
+          // PopupMenuItem<String>(  // Add theme toggle option
+          //   value: 'toggle_theme',
+          //   child: Row(
+          //     children: [
+          //       Icon(
+          //         themeProvider.themeMode == ThemeMode.light
+          //             ? Icons.dark_mode_outlined
+          //             : Icons.light_mode_outlined,
+          //       ),
+          //       const SizedBox(width: 12),
+          //       Text(
+          //         themeProvider.themeMode == ThemeMode.light
+          //             ? 'Dark Mode'
+          //             : 'Light Mode',
+          //       ),
+          //     ],
+          //   ),
+          // ),
         ];
 
         // Conditionally add the business request item

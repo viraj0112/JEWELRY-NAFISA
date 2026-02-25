@@ -67,6 +67,40 @@
     </style>
 
     <script src="flutter_bootstrap.js" async></script>
+
+    <script>
+      // ── Service Worker Update Detector ──────────────────────
+      // Fires 'app_update_available' when a new version is deployed.
+      // Flutter listens to this and shows a "Please refresh" snackbar.
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.getRegistration().then(function (reg) {
+            if (!reg) return;
+
+            // A service worker is already controlling the page.
+            // Listen for future updates.
+            reg.addEventListener('updatefound', function () {
+              var newWorker = reg.installing;
+              if (!newWorker) return;
+
+              newWorker.addEventListener('statechange', function () {
+                // 'installed' + controller exists = new version ready.
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('[SW] New version available. Notifying Flutter.');
+                  window.dispatchEvent(new Event('app_update_available'));
+                }
+              });
+            });
+
+            // Also handle the case where a new SW is already waiting on load.
+            if (reg.waiting && navigator.serviceWorker.controller) {
+              console.log('[SW] Update already waiting on load. Notifying Flutter.');
+              window.dispatchEvent(new Event('app_update_available'));
+            }
+          });
+        });
+      }
+    </script>
     
     </body>
 </html>
