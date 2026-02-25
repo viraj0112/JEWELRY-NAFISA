@@ -64,16 +64,17 @@ class _ProfileLoaderState extends State<ProfileLoader> {
     debugPrint(
         '🎯 userProfile.manufacturerProfile: ${userProfile.manufacturerProfile}');
 
-    // 0. Check if manufacturer - SKIP ONBOARDING FOR MANUFACTURERS (Priority 0)
-    if (userProfile.role == UserRole.manufacturer) {
-      debugPrint('🎯 Manufacturer detected - sending directly to B2BShell');
-      return const B2BShell();
+    // 0. Skip onboarding for manufacturers & designers (Priority 0)
+    if (userProfile.role == UserRole.manufacturer ||
+        userProfile.role == UserRole.designer) {
+      debugPrint(
+          '🎯 Business account detected - skipping onboarding, checking approval');
+      return userProfile.isApproved == true
+          ? const B2BShell()
+          : const PendingApprovalScreen();
     }
-    if (userProfile.role == UserRole.designer) {
-      debugPrint('🎯 Manufacturer detected - sending directly to B2BShell');
-      return const B2BShell();
-    }
-    // 1. Check Onboarding Status (Priority 1)
+
+    // 1. Check Onboarding Status (Priority 1 - for regular members)
     if (userProfile.isSetupComplete == false) {
       debugPrint('🎯 Onboarding not complete - returning onboarding screen');
       return switch (userProfile.onboardingStage) {
@@ -86,18 +87,8 @@ class _ProfileLoaderState extends State<ProfileLoader> {
       };
     }
 
-    // 2. Check for Business Profile Type (Priority 2 - Redirect to B2B screens)
-    // if (userProfile.manufacturerProfile != null) {
-    //   return const _RedirectToManufacturer();
-    // }
-    // if (userProfile.designerProfile != null) {
-    //   return const _RedirectToDesigner();
-    // }
-
-    // 3. Role-Based Routing (Priority 3 - Only if onboarding is complete and no business profile)
-
+    // 2. Role-Based Routing (Priority 2 - Only if onboarding is complete)
     debugPrint('🎯 Using role-based routing');
-    print(userProfile.role);
     return switch (userProfile.role) {
       UserRole.admin => const MainScreen(),
       UserRole.designer => userProfile.isApproved == true
@@ -106,7 +97,6 @@ class _ProfileLoaderState extends State<ProfileLoader> {
       UserRole.manufacturer => userProfile.isApproved == true
           ? const B2BShell()
           : const PendingApprovalScreen(),
-      UserRole.manufacturer => const B2BShell(),
       UserRole.member => const RedirectToHome(),
     };
   }
