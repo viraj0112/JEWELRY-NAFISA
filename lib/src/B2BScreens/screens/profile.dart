@@ -99,19 +99,22 @@ class _ProfilePageState extends State<ProfilePage> {
       if (user == null) return;
 
       final userId = user.id;
-
-      // Products — try designerproducts → manufacturerproducts → products
-      List<dynamic> productsData = await _supabase
+      List<dynamic> productsData;
+      if (_profileType == 'manufacturer'){
+        productsData = await _supabase
           .from('designerproducts')
           .select('id')
           .eq('user_id', userId);
 
-      if (productsData.isEmpty) {
-        productsData = await _supabase
+      }else{
+  productsData = await _supabase
             .from('manufacturerproducts')
             .select('id')
             .eq('user_id', userId);
       }
+      // Products — try designerproducts → manufacturerproducts → products
+      
+
 
       if (productsData.isEmpty) {
         productsData = await _supabase
@@ -181,6 +184,8 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 896), // max-w-4xl
+          child: ScrollConfiguration(
+  behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32)
                 .copyWith(bottom: 80),
@@ -224,6 +229,7 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 32),
             ],
           ),
+        ),
         ),
       ),
     );

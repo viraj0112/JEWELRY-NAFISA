@@ -3,12 +3,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
+import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:provider/provider.dart';
 import 'dart:ui';
 
 class InsightsPage extends StatefulWidget {
-  final bool isManufacturer;
-
-  const InsightsPage({super.key, this.isManufacturer = false});
+  const InsightsPage({super.key});
 
   @override
   State<InsightsPage> createState() => _InsightsPageState();
@@ -18,6 +18,9 @@ class _InsightsPageState extends State<InsightsPage> {
   final SupabaseClient _supabase = Supabase.instance.client;
   late final JewelryService _jewelryService;
   bool _isLoading = true;
+  
+  // Determine user type
+  bool _isManufacturer = false;
 
   // Metrics
   int _totalViews = 0;
@@ -45,6 +48,11 @@ class _InsightsPageState extends State<InsightsPage> {
   void initState() {
     super.initState();
     _jewelryService = JewelryService(_supabase);
+    
+    // Get user profile to determine if manufacturer
+    final userProfile = Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+    _isManufacturer = userProfile?.manufacturerProfile != null;
+    
     _fetchData();
   }
 
@@ -73,7 +81,7 @@ class _InsightsPageState extends State<InsightsPage> {
       // 2. Fetch products based on role
       List<dynamic> productsData = [];
 
-      if (widget.isManufacturer) {
+      if (_isManufacturer) {
         productsData = await _supabase
             .from('manufacturerproducts')
             .select('id, "Product Title", "Image", created_at')
@@ -115,7 +123,7 @@ class _InsightsPageState extends State<InsightsPage> {
 
       // 4. Geo Analytics (only fetch if unlocked)
       List<Map<String, dynamic>> geoData = [];
-      if (widget.isManufacturer || _isPremiumDesigner) {
+      if (_isManufacturer || _isPremiumDesigner) {
         geoData = await _fetchGeoAnalytics(productIds);
       }
 
@@ -241,7 +249,7 @@ class _InsightsPageState extends State<InsightsPage> {
     return num.toString();
   }
 
-  bool get _isUnlocked => widget.isManufacturer || _isPremiumDesigner;
+  bool get _isUnlocked => _isManufacturer || _isPremiumDesigner;
 
   // -------------------------------------------------------------------------
   // Build
@@ -281,32 +289,38 @@ class _InsightsPageState extends State<InsightsPage> {
                   const SizedBox(height: 32),
 
                   // Metrics Grid
-                  LayoutBuilder(builder: (context, constraints) {
-                    double cardWidth = (constraints.maxWidth - (16 * 3)) / 4;
-                    if (cardWidth < 240) cardWidth = 240;
-                    return Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      children: [
-                        _buildMetricCard("Total Views", _formatNumber(_totalViews),
-                            "+$_viewsGrowth% vs last month",
-                            Icons.remove_red_eye_outlined, Colors.blue,
-                            width: cardWidth),
-                        _buildMetricCard("Total Likes", _formatNumber(_totalLikes),
-                            "+$_likesGrowth% vs last month",
-                            Icons.favorite_border, Colors.red,
-                            width: cardWidth),
-                        _buildMetricCard("Total Saves", _formatNumber(_totalSaves),
-                            "+$_savesGrowth% vs last month",
-                            Icons.bookmark_border, Colors.purple,
-                            width: cardWidth),
-                        _buildMetricCard("Total Shares", _formatNumber(_totalShares),
-                            "+$_sharesGrowth% vs last month",
-                            Icons.share_outlined, Colors.green,
-                            width: cardWidth),
-                      ],
-                    );
-                  }),
+            // Metrics Grid — 2×2 on mobile, 4-in-a-row on wider screens
+LayoutBuilder(builder: (context, constraints) {
+  final isSmall = constraints.maxWidth < 600;
+  final crossCount = isSmall ? 2 : 4;
+  final spacing = isSmall ? 12.0 : 16.0;
+  final cardWidth = (constraints.maxWidth - (spacing * (crossCount - 1))) / crossCount;
+
+  final cards = [
+    _buildMetricCard("Total Views", _formatNumber(_totalViews),
+        "+$_viewsGrowth% vs last month",
+        Icons.remove_red_eye_outlined, Colors.blue,
+        width: cardWidth, compact: isSmall),
+    _buildMetricCard("Total Likes", _formatNumber(_totalLikes),
+        "+$_likesGrowth% vs last month",
+        Icons.favorite_border, Colors.red,
+        width: cardWidth, compact: isSmall),
+    _buildMetricCard("Total Saves", _formatNumber(_totalSaves),
+        "+$_savesGrowth% vs last month",
+        Icons.bookmark_border, Colors.purple,
+        width: cardWidth, compact: isSmall),
+    _buildMetricCard("Total Shares", _formatNumber(_totalShares),
+        "+$_sharesGrowth% vs last month",
+        Icons.share_outlined, Colors.green,
+        width: cardWidth, compact: isSmall),
+  ];
+
+  return Wrap(
+    spacing: spacing,
+    runSpacing: spacing,
+    children: cards,
+  );
+}),
 
                   const SizedBox(height: 32),
 
@@ -348,58 +362,72 @@ class _InsightsPageState extends State<InsightsPage> {
   // UI Widgets
   // -------------------------------------------------------------------------
 
-  Widget _buildMetricCard(
-    String title,
-    String value,
-    String subtitle,
-    IconData icon,
-    Color color, {
-    double? width,
-  }) {
-    return Container(
-      width: width ?? 250,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 20),
+ Widget _buildMetricCard(
+  String title,
+  String value,
+  String subtitle,
+  IconData icon,
+  Color color, {
+  double? width,
+  bool compact = false,
+}) {
+  return Container(
+    width: width ?? 250,
+    padding: EdgeInsets.all(compact ? 14 : 20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.grey.shade200),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.02),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        )
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: EdgeInsets.all(compact ? 8 : 10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(height: 16),
-          Text(value,
-              style: GoogleFonts.inter(
-                  fontSize: 28, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Text(title,
-              style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
-          const SizedBox(height: 8),
-          Text(subtitle,
-              style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: Colors.green,
-                  fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-
+          child: Icon(icon, color: color, size: compact ? 16 : 20),
+        ),
+        SizedBox(height: compact ? 10 : 16),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            fontSize: compact ? 22 : 28,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: compact ? 11 : 12,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: GoogleFonts.inter(
+            fontSize: compact ? 10 : 11,
+            color: Colors.green,
+            fontWeight: FontWeight.w600,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    ),
+  );
+}
   Widget _buildTopProductsCard() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -644,9 +672,9 @@ class _InsightsPageState extends State<InsightsPage> {
 
   Widget _buildUpgradeCard() {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 300),
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      constraints: const BoxConstraints(maxWidth: 280),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -663,27 +691,27 @@ class _InsightsPageState extends State<InsightsPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             decoration: const BoxDecoration(
                 color: Color(0xFFFFB800), shape: BoxShape.circle),
             child: const Icon(Icons.workspace_premium,
-                color: Colors.white, size: 28),
+                color: Colors.white, size: 20),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Text(
             "Unlock Full Insights",
             style: GoogleFonts.inter(
-                fontSize: 17, fontWeight: FontWeight.bold),
+                fontSize: 14, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             "Get access to detailed GEO analytics, demand trends, and actionable insights.",
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
-                color: Colors.grey, fontSize: 13, height: 1.4),
+                color: Colors.grey, fontSize: 11, height: 1.3),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -692,12 +720,12 @@ class _InsightsPageState extends State<InsightsPage> {
                 backgroundColor: const Color(0xFFFFB800),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
               child: Text("Upgrade to Premium",
-                  style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12)),
             ),
           ),
         ],

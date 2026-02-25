@@ -69,10 +69,23 @@ class UserProfileProvider with ChangeNotifier {
             .select('item_id')
             .eq('user_id', userId) as Future<dynamic>,
       ]);
-
+      
       final profileData = responses[0] as Map<String, dynamic>;
-      _userProfile = UserProfile.fromMap(profileData);
-
+      debugPrint('🔍 ProfileData keys: ${profileData.keys}');
+      debugPrint('🔍 ProfileData role field: ${profileData['role']}');
+      debugPrint('🔍 Full profileData: $profileData');
+      
+      try {
+        _userProfile = UserProfile.fromMap(profileData);
+        
+        debugPrint('✅ UserProfile created successfully');
+        debugPrint('✅ UserProfile.role: ${_userProfile?.role}');
+        debugPrint('✅ UserProfile.designerProfile: ${_userProfile?.designerProfile}');
+        debugPrint('✅ UserProfile.manufacturerProfile: ${_userProfile?.manufacturerProfile}');
+      } catch (e) {
+        debugPrint('❌ Error creating UserProfile: $e');
+        rethrow;
+      }
       // --- Override with Local Storage ---
       final int localStage = prefs.getInt(LocalKeys.onboardingStage) ?? 0;
       final bool localComplete = prefs.getBool(LocalKeys.isSetupComplete) ?? false;

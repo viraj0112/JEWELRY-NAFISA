@@ -151,6 +151,29 @@ class UserProfile {
       return const [];
     }
 
+    // Handle both List (array) and Map (single object) formats
+    DesignerProfile? _parseDesignerProfile(dynamic data) {
+      if (data == null) return null;
+      if (data is List && data.isNotEmpty) {
+        return DesignerProfile.fromMap(data[0] as Map<String, dynamic>);
+      }
+      if (data is Map<String, dynamic>) {
+        return DesignerProfile.fromMap(data);
+      }
+      return null;
+    }
+
+    ManufacturerProfile? _parseManufacturerProfile(dynamic data) {
+      if (data == null) return null;
+      if (data is List && data.isNotEmpty) {
+        return ManufacturerProfile.fromMap(data[0] as Map<String, dynamic>);
+      }
+      if (data is Map<String, dynamic>) {
+        return ManufacturerProfile.fromMap(data);
+      }
+      return null;
+    }
+
     final designerProfileData = map['designer_profiles'];
     final manufacturerProfileData = map['manufacturer_profiles'];
 
@@ -172,14 +195,8 @@ class UserProfile {
       referredBy: map['referred_by'],
       createdAt: parseDate(map['created_at']),
       isApproved: map['is_approved'] ?? false,
-      designerProfile:
-          designerProfileData != null && designerProfileData.isNotEmpty
-              ? DesignerProfile.fromMap(designerProfileData[0])
-              : null,
-      manufacturerProfile:
-          manufacturerProfileData != null && manufacturerProfileData.isNotEmpty
-              ? ManufacturerProfile.fromMap(manufacturerProfileData[0])
-              : null,
+      designerProfile: _parseDesignerProfile(designerProfileData),
+      manufacturerProfile: _parseManufacturerProfile(manufacturerProfileData),
       bio: map['bio'],
 
       // ------------------------------------------------------------------
@@ -202,6 +219,7 @@ enum UserRole {
   admin,
   designer,
   member,
+  manufacturer,
 }
 
 /// Converts a string from the database into a UserRole enum value.
@@ -211,6 +229,8 @@ UserRole userRoleFromString(String? role) {
       return UserRole.admin;
     case 'designer':
       return UserRole.designer;
+    case 'manufacturer':
+      return UserRole.manufacturer;
     case 'member':
     default:
       return UserRole.member;
