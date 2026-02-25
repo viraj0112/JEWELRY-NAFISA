@@ -3,18 +3,23 @@ import 'package:flutter/material.dart';
 class CreatorsTabs extends StatelessWidget {
   final String selected;
   final Function(String) onSelect;
-  const CreatorsTabs({super.key, required this.selected, required this.onSelect});
+  const CreatorsTabs(
+      {super.key, required this.selected, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           _tab('3d', '3D Artists', Icons.palette_outlined),
           const SizedBox(width: 8),
           _tab('sketch', 'Sketch Designers', Icons.brush_outlined),
+          const SizedBox(width: 8),
+          _tab('manufacturer', 'Manufacturers', Icons.factory_outlined),
           const SizedBox(width: 8),
           _tab('works', 'Uploaded Works', Icons.cloud_upload_outlined),
           const Spacer(),
@@ -36,9 +41,13 @@ class CreatorsTabs extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: active ? Colors.black87 : Colors.black54),
+            Icon(icon,
+                size: 18, color: active ? Colors.black87 : Colors.black54),
             const SizedBox(width: 8),
-            Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: active ? Colors.black87 : Colors.black54)),
+            Text(label,
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: active ? Colors.black87 : Colors.black54)),
           ],
         ),
       ),

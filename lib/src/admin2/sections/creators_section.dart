@@ -7,6 +7,7 @@ import '../widgets/creators_filter_bar.dart';
 import '../widgets/creators_tabs.dart';
 import './tabs/creators_3d_tab.dart';
 import './tabs/creators_sketch_tab.dart';
+import './tabs/creators_manufacturer_tab.dart';
 import './tabs/creators_uploaded_works_tab.dart';
 
 class CreatorsSection extends StatefulWidget {
@@ -90,6 +91,9 @@ class _CreatorsSectionState extends State<CreatorsSection> {
     }
     if (selectedTab == "sketch") {
       return CreatorsSketchTab(creators: provider.creators);
+    }
+    if (selectedTab == "manufacturer") {
+      return CreatorsManufacturerTab(creators: provider.creators);
     }
     return CreatorsUploadedWorksTab(
         works: provider.works, creators: provider.creators);
