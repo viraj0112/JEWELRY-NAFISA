@@ -138,6 +138,107 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen>
     ));
   }
 
+  Future<void> _showEmailConfirmationDialog(String email) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 440),
+          padding: const EdgeInsets.all(36),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5E6B0),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.mark_email_unread_outlined,
+                    color: _kGold, size: 36),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Check your inbox!',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: _kDeepGreen,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'We sent a confirmation link to',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(fontSize: 14, color: Colors.black54),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5E6B0).withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _kGold.withOpacity(0.4)),
+                ),
+                child: Text(
+                  email,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _kDeepGreen,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Please confirm your email before logging in. Your application will be reviewed within 2–3 business days.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: Colors.black45,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _kGold,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: Text('Go to Login',
+                      style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w600, fontSize: 15)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickFile(Function(XFile, String) onPicked,
       {bool isImage = false}) async {
     final picker = ImagePicker();
@@ -200,14 +301,11 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen>
           'file_url': cardFileUrl
         },
       ]);
+      // Sign out after all uploads & DB inserts succeed
+      await supabase.auth.signOut();
 
       if (mounted) {
-        _showSnack('Application submitted! We\'ll review and notify you.',
-            isError: false);
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
+        await _showEmailConfirmationDialog(_emailController.text.trim());
       }
     } catch (e) {
       _showSnack('An error occurred: ${e.toString()}');

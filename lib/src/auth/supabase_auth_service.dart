@@ -176,10 +176,11 @@ class SupabaseAuthService {
     required String gstNumber,
   }) async {
     try {
-      final String username = '${businessName.toLowerCase().replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}';
-final String role = businessType.toLowerCase() == 'manufacturer'
-    ? 'manufacturer'
-    : 'designer';
+      final String username =
+          '${businessName.toLowerCase().replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}';
+      final String role = businessType.toLowerCase() == 'manufacturer'
+          ? 'manufacturer'
+          : 'designer';
 
       final response = await _supabase.auth.signUp(
         email: email,
@@ -194,10 +195,6 @@ final String role = businessType.toLowerCase() == 'manufacturer'
           'gst_number': gstNumber,
         },
       );
-
-      if (_supabase.auth.currentSession != null) {
-        await _supabase.auth.signOut();
-      }
 
       return response.user;
     } catch (e) {
