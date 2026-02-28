@@ -176,24 +176,50 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
     }
 
     try {
-      // Fetch user profile to determine if they are a manufacturer
-      final userProfileData = await supabase
-          .from('users')
-          .select('id, manufacturer_profiles(id)')
-          .eq('id', user.id)
-          .single();
+      // Check if user has manufacturer or designer profile
+      final manufacturerProfileQuery = await supabase
+          .from('manufacturer_profiles')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
       
-      // Check if user has a manufacturer profile
-      final manufacturerProfilesData = userProfileData['manufacturer_profiles'];
-      final isManufacturer = manufacturerProfilesData != null && 
-        ((manufacturerProfilesData is List && manufacturerProfilesData.isNotEmpty) || 
-         (manufacturerProfilesData is Map && manufacturerProfilesData.isNotEmpty));
+      final designerProfileQuery = await supabase
+          .from('designer_profiles')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+      
+      final isManufacturer = manufacturerProfileQuery != null;
+      final isDesigner = designerProfileQuery != null;
+      
+      if (!isManufacturer && !isDesigner) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("You must have a manufacturer or designer profile to upload products."),
+              backgroundColor: Colors.red,
+            ),
+          );
+          setState(() => _isLoading = false);
+        }
+        return;
+      }
+      
+      // Prioritize manufacturer profile if both exist
       final storageBucket = isManufacturer ? 'manufacturer-files' : 'designer-files';
       final tableName = isManufacturer ? 'manufacturerproducts' : 'designerproducts';
 
       final input = utf8.decode(_csvFiles!.first.bytes!);
       final fields = const CsvToListConverter().convert(input);
       final headers = fields[0].map((e) => e.toString().trim()).toList();
+      
+      // debugPrint("=== CSV DATA ===");
+      // debugPrint("Headers: $headers");
+      // debugPrint("Total rows: ${fields.length - 1}");
+      // for (int i = 1; i < fields.length; i++) {
+      //   debugPrint("Row $i: ${fields[i]}");
+      // }
+      // debugPrint("================");
 
       int successCount = 0;
       int failCount = 0;
