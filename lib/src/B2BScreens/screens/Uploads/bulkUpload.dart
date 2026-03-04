@@ -242,7 +242,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
 
         // Find ALL matching image files
         final matchingImageFiles = _imageFiles!.where((file) {
-          final fileNameWithoutExt = file.name.split('.').first;
+          final fileNameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.'));
           return fileNameWithoutExt == title || 
                  fileNameWithoutExt.startsWith('$title-Image') ||
                  fileNameWithoutExt.startsWith('$title-image');
