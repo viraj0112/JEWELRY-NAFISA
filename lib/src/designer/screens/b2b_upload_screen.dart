@@ -35,6 +35,7 @@ class ProductEntry {
   final TextEditingController stoneCutController = TextEditingController();
   final TextEditingController dimensionController = TextEditingController();
   String? designType;
+  String? jewelryType;
   final TextEditingController artFormController = TextEditingController();
   final TextEditingController platingController = TextEditingController();
   final TextEditingController enamelWorkController = TextEditingController();
@@ -98,18 +99,18 @@ class _B2BProductUploadScreenState extends State<B2BProductUploadScreen>
       canPop: true,
       child: Scaffold(
         appBar: TabBar(
-        controller: _tabController,
-        tabs: const [
-          Tab(text: "Manual Upload"),
-          Tab(text: "Bulk Upload"),
-        ],
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          ManualUploadTab(),
-          BulkUploadTab(),
-        ],
+          controller: _tabController,
+          tabs: const [
+            Tab(text: "Manual Upload"),
+            Tab(text: "Bulk Upload"),
+          ],
+        ),
+        body: TabBarView(
+          controller: _tabController,
+          children: const [
+            ManualUploadTab(),
+            BulkUploadTab(),
+          ],
         ),
       ),
     );
@@ -154,7 +155,7 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
   Future<void> _pickImage(ProductEntry entry) async {
     final picker = ImagePicker();
     final List<XFile> pickedFiles = await picker.pickMultiImage();
-    
+
     if (pickedFiles.isNotEmpty) {
       setState(() {
         entry.imageFiles.addAll(pickedFiles);
@@ -183,7 +184,7 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
 
     try {
       int successCount = 0;
-      
+
       for (final entry in _productEntries) {
         if (entry.imageFiles.isEmpty) continue;
 
@@ -212,7 +213,11 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           final text = controller.text.trim();
           return text.isEmpty
               ? null
-              : text.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+              : text
+                  .split(',')
+                  .map((t) => t.trim())
+                  .where((t) => t.isNotEmpty)
+                  .toList();
         }
 
         String? getTextValue(TextEditingController controller) {
@@ -246,18 +251,21 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           'Stone Cut': textToList(entry.stoneCutController),
           'Dimension': getTextValue(entry.dimensionController),
           'Design Type': entry.designType,
+          'Jewelry Type': entry.jewelryType,
           'Art Form': getTextValue(entry.artFormController),
           'Plating': getTextValue(entry.platingController),
           'Enamel Work': textToList(entry.enamelWorkController),
-          'Customizable': entry.customizable == null ? null : [entry.customizable],
+          'Customizable':
+              entry.customizable == null ? null : [entry.customizable],
         }).select();
-        
+
         if (insertResult.isEmpty) {
-          throw Exception('Insert was rejected for "${entry.productTitleController.text}". Please check your permissions.');
+          throw Exception(
+              'Insert was rejected for "${entry.productTitleController.text}". Please check your permissions.');
         }
         successCount++;
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -463,7 +471,7 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
           failCount++;
           continue;
         }
-        
+
         final title = row[titleIndex].toString().trim();
         if (title.isEmpty) {
           debugPrint("Row $i: Empty Product Title");
@@ -476,9 +484,9 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
         final matchingImageFiles = _imageFiles!.where((file) {
           final fileNameWithoutExt = file.name.split('.').first;
           // Match exact title OR title followed by -Image (for multiple images)
-          return fileNameWithoutExt == title || 
-                 fileNameWithoutExt.startsWith('$title-Image') ||
-                 fileNameWithoutExt.startsWith('$title-image');
+          return fileNameWithoutExt == title ||
+              fileNameWithoutExt.startsWith('$title-Image') ||
+              fileNameWithoutExt.startsWith('$title-image');
         }).toList();
 
         // Sort to ensure consistent ordering (Image1, Image2, etc.)
@@ -489,7 +497,8 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
         // Upload all matching images to designer-files bucket
         for (final imageFile in matchingImageFiles) {
           try {
-            final fileName = '${DateTime.now().millisecondsSinceEpoch}-${imageFile.name}';
+            final fileName =
+                '${DateTime.now().millisecondsSinceEpoch}-${imageFile.name}';
             await supabase.storage
                 .from('designer-files')
                 .uploadBinary(fileName, imageFile.bytes!);
@@ -511,7 +520,11 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
           if (value == null) return null;
           if (value is String) {
             if (value.isEmpty) return null;
-            return value.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+            return value
+                .split(',')
+                .map((t) => t.trim())
+                .where((t) => t.isNotEmpty)
+                .toList();
           }
           return [value.toString()];
         }
@@ -532,7 +545,7 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
         // Map CSV columns to designerproducts columns
         for (int j = 0; j < headers.length; j++) {
           if (j >= row.length) continue;
-          
+
           final header = headers[j];
           final value = row[j];
 
@@ -552,13 +565,14 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
               .from('designerproducts')
               .insert(productData)
               .select();
-          
+
           if (insertResult.isNotEmpty) {
             successCount++;
             debugPrint("Successfully inserted product: $title");
           } else {
             failCount++;
-            debugPrint("Failed to insert product: $title - Insert returned empty");
+            debugPrint(
+                "Failed to insert product: $title - Insert returned empty");
           }
         } catch (e) {
           failCount++;
@@ -770,9 +784,11 @@ class _ProductFormCardState extends State<ProductFormCard> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: kIsWeb
-                              ? Image.network(widget.entry.imageFiles.first.path,
+                              ? Image.network(
+                                  widget.entry.imageFiles.first.path,
                                   fit: BoxFit.cover)
-                              : Image.file(File(widget.entry.imageFiles.first.path),
+                              : Image.file(
+                                  File(widget.entry.imageFiles.first.path),
                                   fit: BoxFit.cover),
                         ),
                       ),
@@ -782,14 +798,16 @@ class _ProductFormCardState extends State<ProductFormCard> {
                           bottom: 8,
                           left: 8,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.black54,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               '+${widget.entry.imageFiles.length - 1} more',
-                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 12),
                             ),
                           ),
                         ),
@@ -812,96 +830,214 @@ class _ProductFormCardState extends State<ProductFormCard> {
     );
   }
 
+  // --- Metal Purity options based on Metal Type ---
+  List<String> _getMetalPurityOptions() {
+    final metalType = widget.entry.metalTypeController.text.trim();
+    switch (metalType) {
+      case 'Gold':
+        return ['22KT', '18KT', '14KT', '9KT'];
+      case 'Silver':
+        return ['958', '925', '800', '700'];
+      case 'Platinum':
+        return ['950', '900', '850'];
+      default:
+        return [];
+    }
+  }
+
+  static const List<String> _metalFinishOptions = [
+    'High Polish',
+    'Glossy',
+    'Matte',
+    'Satin',
+    'Antique Finish',
+    'Textured',
+    'Brushed',
+    'Sandblasted',
+    'Hammered',
+    'Dual Tone / Triple Tone',
+  ];
+
+  static const List<String> _stoneTypeOptions = [
+    'Diamond',
+    'Gemstone',
+    'Labgrown Diamond',
+    'Labgrown Gemstone',
+    'CZ/American Diamond',
+    'Moissanite',
+  ];
+
+  static const List<String> _stoneUsedOptions = [
+    'VVS',
+    'VS',
+    'SI',
+    'I',
+    'IGS',
+    'Synthetic',
+    'Natural',
+    'Lab-created',
+  ];
+
+  static const List<String> _stoneSettingOptions = [
+    'Prong',
+    'Bezel',
+    'Pave',
+    'Micro-Pave',
+    'Channel',
+    'Bar',
+    'Flush (Gypsy)',
+    'Tension',
+    'Tension-Style',
+    'Halo',
+    'Cluster',
+    'Invisible',
+    'Illusion',
+    'Basket',
+    'Cathedral',
+    'Pressure',
+    'Floating',
+    'Shared-Prong',
+    'Grain/Bead',
+  ];
+
+  static const List<String> _stoneCutOptions = [
+    'Round',
+    'Princess',
+    'Emerald',
+    'Asscher',
+    'Cushion',
+    'Oval',
+    'Pear',
+    'Marquise',
+    'Radiant',
+    'Heart',
+    'Trillion',
+    'Baguette',
+    'Tapered Baguette',
+    'Square',
+    'Rose Cut',
+    'Old Mine Cut',
+    'Old European Cut',
+    'Cabochon',
+  ];
+
   Widget _buildFormFields() {
+    final metalPurityOptions = _getMetalPurityOptions();
+    final isStudded = widget.entry.jewelryType == 'Studded';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // --- Product Title ---
         TextFormField(
           controller: widget.entry.productTitleController,
-          decoration: const InputDecoration(labelText: "Product Title"),
+          decoration: const InputDecoration(labelText: "Product Title *"),
           validator: (v) => v!.isEmpty ? "Product Title is required" : null,
         ),
         const SizedBox(height: 16),
+
+        // --- Description ---
         TextFormField(
           controller: widget.entry.descriptionController,
           decoration: const InputDecoration(labelText: "Description"),
           maxLines: 3,
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.priceController,
-          decoration: const InputDecoration(labelText: "Price"),
-          keyboardType: TextInputType.number,
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.productTagsController,
-          decoration: const InputDecoration(
-              labelText: "Product Tags (comma-separated)"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.goldWeightController,
-          decoration: const InputDecoration(labelText: "Gold Weight"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.metalPurityController,
-          decoration: const InputDecoration(labelText: "Metal Purity"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.metalFinishController,
-          decoration: const InputDecoration(labelText: "Metal Finish"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.stoneWeightController,
-          decoration: const InputDecoration(labelText: "Stone Weight"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.stoneTypeController,
-          decoration: const InputDecoration(labelText: "Stone Type"),
-        ),
-        const SizedBox(height: 16),
+
+        // --- Metal Type (Dropdown) ---
         DropdownButtonFormField<String>(
-          value: widget.entry.stoneUsed,
-          decoration: const InputDecoration(labelText: "Stone Used"),
-          items: ['Natural', 'Lab-created', 'Synthetic']
+          value: widget.entry.metalTypeController.text.isEmpty
+              ? null
+              : widget.entry.metalTypeController.text,
+          decoration: const InputDecoration(labelText: "Metal Type *"),
+          items: ['Gold', 'Silver', 'Platinum']
               .map(
                   (label) => DropdownMenuItem(value: label, child: Text(label)))
               .toList(),
           onChanged: (value) {
             setState(() {
-              widget.entry.stoneUsed = value;
+              widget.entry.metalTypeController.text = value ?? '';
+              // Reset metal purity when metal type changes
+              widget.entry.metalPurityController.clear();
+            });
+          },
+          validator: (v) => v == null ? "Metal Type is required" : null,
+        ),
+        const SizedBox(height: 16),
+
+        // --- Metal Purity (Conditional Dropdown) ---
+        if (metalPurityOptions.isNotEmpty)
+          DropdownButtonFormField<String>(
+            value: widget.entry.metalPurityController.text.isEmpty
+                ? null
+                : (metalPurityOptions
+                        .contains(widget.entry.metalPurityController.text)
+                    ? widget.entry.metalPurityController.text
+                    : null),
+            decoration: const InputDecoration(labelText: "Metal Purity *"),
+            items: metalPurityOptions
+                .map((label) =>
+                    DropdownMenuItem(value: label, child: Text(label)))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                widget.entry.metalPurityController.text = value ?? '';
+              });
+            },
+            validator: (v) => v == null ? "Metal Purity is required" : null,
+          ),
+        if (metalPurityOptions.isNotEmpty) const SizedBox(height: 16),
+
+        // --- Product Type ---
+        TextFormField(
+          controller: widget.entry.productTypeController,
+          decoration: const InputDecoration(labelText: "Product Type *"),
+          validator: (v) => v!.isEmpty ? "Product Type is required" : null,
+        ),
+        const SizedBox(height: 16),
+
+        // --- Metal Weight (Gold Weight) ---
+        TextFormField(
+          controller: widget.entry.goldWeightController,
+          decoration:
+              const InputDecoration(labelText: "Metal Weight (in grams) *"),
+          keyboardType: TextInputType.number,
+          validator: (v) => v!.isEmpty ? "Metal Weight is required" : null,
+        ),
+        const SizedBox(height: 16),
+
+        // --- Metal Color ---
+        TextFormField(
+          controller: widget.entry.metalColorController,
+          decoration: const InputDecoration(labelText: "Metal Color"),
+        ),
+        const SizedBox(height: 16),
+
+        // --- Metal Finish (Dropdown) ---
+        DropdownButtonFormField<String>(
+          value: widget.entry.metalFinishController.text.isEmpty
+              ? null
+              : (_metalFinishOptions
+                      .contains(widget.entry.metalFinishController.text)
+                  ? widget.entry.metalFinishController.text
+                  : null),
+          decoration: const InputDecoration(labelText: "Metal Finish"),
+          items: _metalFinishOptions
+              .map(
+                  (label) => DropdownMenuItem(value: label, child: Text(label)))
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              widget.entry.metalFinishController.text = value ?? '';
             });
           },
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.stoneSettingController,
-          decoration: const InputDecoration(labelText: "Stone Setting"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.stoneCountController,
-          decoration: const InputDecoration(labelText: "Stone Count"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.collectionNameController,
-          decoration: const InputDecoration(labelText: "Collection Name"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.productTypeController,
-          decoration: const InputDecoration(labelText: "Product Type"),
-        ),
-        const SizedBox(height: 16),
+
+        // --- Gender ---
         DropdownButtonFormField<String>(
           value: widget.entry.gender,
-          decoration: const InputDecoration(labelText: "Gender"),
+          decoration: const InputDecoration(labelText: "Gender *"),
           items: ['Women', 'Men', 'Unisex', 'Kids']
               .map(
                   (label) => DropdownMenuItem(value: label, child: Text(label)))
@@ -911,43 +1047,208 @@ class _ProductFormCardState extends State<ProductFormCard> {
               widget.entry.gender = value;
             });
           },
+          validator: (v) => v == null ? "Gender is required" : null,
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.themeController,
-          decoration: const InputDecoration(labelText: "Theme"),
+
+        // --- Jewelry Type (Studded / Plain) ---
+        DropdownButtonFormField<String>(
+          value: widget.entry.jewelryType,
+          decoration: const InputDecoration(labelText: "Jewelry Type *"),
+          items: ['Studded', 'Plain']
+              .map(
+                  (label) => DropdownMenuItem(value: label, child: Text(label)))
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              widget.entry.jewelryType = value;
+              // If Plain, clear stone fields
+              if (value == 'Plain') {
+                widget.entry.stoneTypeController.clear();
+                widget.entry.stoneUsed = null;
+                widget.entry.stoneSettingController.clear();
+                widget.entry.stoneCountController.clear();
+                widget.entry.stoneColorController.clear();
+                widget.entry.stoneCutController.clear();
+                widget.entry.stoneWeightController.clear();
+              }
+            });
+          },
+          validator: (v) => v == null ? "Jewelry Type is required" : null,
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.metalTypeController,
-          decoration: const InputDecoration(labelText: "Metal Type"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.metalColorController,
-          decoration: const InputDecoration(labelText: "Metal Color"),
-        ),
-        const SizedBox(height: 16),
+
+        // --- Gold Net Weight ---
         TextFormField(
           controller: widget.entry.netWeightController,
-          decoration: const InputDecoration(labelText: "NET WEIGHT"),
+          decoration:
+              const InputDecoration(labelText: "Gold Net Weight (in grams) *"),
+          keyboardType: TextInputType.number,
+          validator: (v) => v!.isEmpty ? "Gold Net Weight is required" : null,
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.stoneColorController,
-          decoration: const InputDecoration(labelText: "Stone Color"),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.stoneCutController,
-          decoration: const InputDecoration(labelText: "Stone Cut"),
-        ),
-        const SizedBox(height: 16),
+
+        // --- Stone fields (only when Studded) ---
+        if (isStudded) ...[
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text('Stone Details',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.teal)),
+          ),
+
+          // Stone Type (Dropdown)
+          DropdownButtonFormField<String>(
+            value: widget.entry.stoneTypeController.text.isEmpty
+                ? null
+                : (_stoneTypeOptions
+                        .contains(widget.entry.stoneTypeController.text)
+                    ? widget.entry.stoneTypeController.text
+                    : null),
+            decoration: const InputDecoration(labelText: "Stone Type"),
+            items: _stoneTypeOptions
+                .map((label) =>
+                    DropdownMenuItem(value: label, child: Text(label)))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                widget.entry.stoneTypeController.text = value ?? '';
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Stone Used (Dropdown)
+          DropdownButtonFormField<String>(
+            value: widget.entry.stoneUsed,
+            decoration: const InputDecoration(labelText: "Stone Used"),
+            items: _stoneUsedOptions
+                .map((label) =>
+                    DropdownMenuItem(value: label, child: Text(label)))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                widget.entry.stoneUsed = value;
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Stone Setting (Dropdown)
+          DropdownButtonFormField<String>(
+            value: widget.entry.stoneSettingController.text.isEmpty
+                ? null
+                : (_stoneSettingOptions
+                        .contains(widget.entry.stoneSettingController.text)
+                    ? widget.entry.stoneSettingController.text
+                    : null),
+            decoration: const InputDecoration(labelText: "Stone Setting"),
+            items: _stoneSettingOptions
+                .map((label) =>
+                    DropdownMenuItem(value: label, child: Text(label)))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                widget.entry.stoneSettingController.text = value ?? '';
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Stone Count
+          TextFormField(
+            controller: widget.entry.stoneCountController,
+            decoration: const InputDecoration(
+                labelText: "Stone Count", hintText: "e.g., 3 Ruby, 4 Diamond"),
+          ),
+          const SizedBox(height: 16),
+
+          // Stone Color
+          TextFormField(
+            controller: widget.entry.stoneColorController,
+            decoration: const InputDecoration(
+                labelText: "Stone Color", hintText: "e.g., Red, Blue, Green"),
+          ),
+          const SizedBox(height: 16),
+
+          // Stone Cut (Dropdown)
+          DropdownButtonFormField<String>(
+            value: widget.entry.stoneCutController.text.isEmpty
+                ? null
+                : (_stoneCutOptions
+                        .contains(widget.entry.stoneCutController.text)
+                    ? widget.entry.stoneCutController.text
+                    : null),
+            decoration: const InputDecoration(labelText: "Stone Cut"),
+            items: _stoneCutOptions
+                .map((label) =>
+                    DropdownMenuItem(value: label, child: Text(label)))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                widget.entry.stoneCutController.text = value ?? '';
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Stone Weight
+          TextFormField(
+            controller: widget.entry.stoneWeightController,
+            decoration: const InputDecoration(labelText: "Stone Weight"),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // --- Dimension ---
         TextFormField(
           controller: widget.entry.dimensionController,
           decoration: const InputDecoration(labelText: "Dimension"),
         ),
         const SizedBox(height: 16),
+
+        // --- Enamel Work + Weight ---
+        TextFormField(
+          controller: widget.entry.enamelWorkController,
+          decoration: const InputDecoration(
+              labelText: "Enamel Work + Weight",
+              hintText: "e.g., Pink 0.6g, Blue 4g"),
+        ),
+        const SizedBox(height: 16),
+
+        // --- Collection Name ---
+        TextFormField(
+          controller: widget.entry.collectionNameController,
+          decoration: const InputDecoration(labelText: "Collection Name"),
+        ),
+        const SizedBox(height: 16),
+
+        // --- Theme ---
+        TextFormField(
+          controller: widget.entry.themeController,
+          decoration: const InputDecoration(labelText: "Theme"),
+        ),
+        const SizedBox(height: 16),
+
+        // --- Price ---
+        TextFormField(
+          controller: widget.entry.priceController,
+          decoration: const InputDecoration(labelText: "Price"),
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 16),
+
+        // --- Product Tags ---
+        TextFormField(
+          controller: widget.entry.productTagsController,
+          decoration: const InputDecoration(
+              labelText: "Product Tags (comma-separated)"),
+        ),
+        const SizedBox(height: 16),
+
+        // --- Design Type ---
         DropdownButtonFormField<String>(
           value: widget.entry.designType,
           decoration: const InputDecoration(labelText: "Design Type"),
@@ -962,21 +1263,22 @@ class _ProductFormCardState extends State<ProductFormCard> {
           },
         ),
         const SizedBox(height: 16),
+
+        // --- Art Form ---
         TextFormField(
           controller: widget.entry.artFormController,
           decoration: const InputDecoration(labelText: "Art Form"),
         ),
         const SizedBox(height: 16),
+
+        // --- Plating ---
         TextFormField(
           controller: widget.entry.platingController,
           decoration: const InputDecoration(labelText: "Plating"),
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: widget.entry.enamelWorkController,
-          decoration: const InputDecoration(labelText: "Enamel Work"),
-        ),
-        const SizedBox(height: 16),
+
+        // --- Customizable ---
         DropdownButtonFormField<String>(
           value: widget.entry.customizable,
           decoration: const InputDecoration(labelText: "Customizable"),
@@ -994,4 +1296,3 @@ class _ProductFormCardState extends State<ProductFormCard> {
     );
   }
 }
-

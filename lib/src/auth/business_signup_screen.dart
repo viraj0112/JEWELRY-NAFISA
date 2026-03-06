@@ -9,6 +9,8 @@ import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
 import 'package:mime/mime.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ─────────────────────────────────────────────
 //  Brand Colors
@@ -256,6 +258,58 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen>
     }
     setState(() => _isLoading = true);
     try {
+      final supabase = Supabase.instance.client;
+
+      final workFileExt = _workFile!.name.split('.').last;
+      final cardFileExt = _businessCardFile!.name.split('.').last;
+
+      final prepareResponse = await supabase.functions.invoke(
+        'prepare-signup-upload',
+        body: {
+          'email': _emailController.text.trim(),
+          'files': [
+            {
+              'file_type': 'work_file',
+              'ext': workFileExt,
+              'mime_type': lookupMimeType(_workFile!.name),
+            },
+            {
+              'file_type': 'business_card',
+              'ext': cardFileExt,
+              'mime_type': lookupMimeType(_businessCardFile!.name),
+            },
+          ],
+        },
+      );
+
+      if (prepareResponse.status != 200 || prepareResponse.data == null) {
+        throw Exception('Failed to prepare document upload.');
+      }
+
+      final prepareData =
+          Map<String, dynamic>.from(prepareResponse.data as Map);
+      final signupId = prepareData['signup_id'] as String?;
+      final uploads = List<Map<String, dynamic>>.from(prepareData['uploads']);
+      if (signupId == null || uploads.isEmpty) {
+        throw Exception('Upload preparation returned invalid data.');
+      }
+
+      final workBytes = await _workFile!.readAsBytes();
+      final cardBytes = await _businessCardFile!.readAsBytes();
+
+      for (final upload in uploads) {
+        final fileType = upload['file_type'] as String?;
+        final signedUrl = upload['signed_url'] as String?;
+        if (fileType == null || signedUrl == null) {
+          throw Exception('Invalid upload response.');
+        }
+        final bytes = fileType == 'work_file' ? workBytes : cardBytes;
+        final mimeType = fileType == 'work_file'
+            ? lookupMimeType(_workFile!.name)
+            : lookupMimeType(_businessCardFile!.name);
+        await _uploadToSignedUrl(signedUrl, bytes, mimeType);
+      }
+
       final user = await _authService.signUpBusiness(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -268,39 +322,8 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen>
       if (user == null)
         throw Exception('Sign up failed. Email may already be in use.');
 
-      final supabase = Supabase.instance.client;
-      final userId = user.id;
-
-      final workFileExt = _workFile!.name.split('.').last;
-      final workFilePath = '$userId/work_file.$workFileExt';
-      final Uint8List workBytes = await _workFile!.readAsBytes();
-      await supabase.storage.from('designer-files').uploadBinary(
-          workFilePath, workBytes,
-          fileOptions: FileOptions(
-              contentType: lookupMimeType(_workFile!.name), upsert: true));
-
-      final cardFileExt = _businessCardFile!.name.split('.').last;
-      final cardFilePath = '$userId/business_card.$cardFileExt';
-      final Uint8List cardBytes = await _businessCardFile!.readAsBytes();
-      await supabase.storage.from('designer-files').uploadBinary(
-          cardFilePath, cardBytes,
-          fileOptions: FileOptions(
-              contentType: lookupMimeType(_businessCardFile!.name),
-              upsert: true));
-
-      final workFileUrl =
-          supabase.storage.from('designer-files').getPublicUrl(workFilePath);
-      final cardFileUrl =
-          supabase.storage.from('designer-files').getPublicUrl(cardFilePath);
-
-      await supabase.from('designer-files').insert([
-        {'user_id': userId, 'file_type': 'work_file', 'file_url': workFileUrl},
-        {
-          'user_id': userId,
-          'file_type': 'business_card',
-          'file_url': cardFileUrl
-        },
-      ]);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('pending_signup_id', signupId);
       // Sign out after all uploads & DB inserts succeed
       await supabase.auth.signOut();
 
@@ -311,6 +334,23 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen>
       _showSnack('An error occurred: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _uploadToSignedUrl(
+      String signedUrl, Uint8List bytes, String? mimeType) async {
+    final response = await http.put(
+      Uri.parse(signedUrl),
+      headers: {
+        'Content-Type': mimeType ?? 'application/octet-stream',
+        'x-upsert': 'true',
+      },
+      body: bytes,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        'Upload failed: ${response.statusCode} ${response.reasonPhrase ?? ''}',
+      );
     }
   }
 

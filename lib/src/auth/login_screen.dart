@@ -9,6 +9,8 @@ import 'package:jewelry_nafisa/src/ui/screens/main_shell.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -54,6 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (user != null && mounted) {
+        await _finalizePendingSignupUploads();
         // --- FIX: REMOVED THE FOLLOWING 2 LINES ---
         // final profileProvider =
         //     Provider.of<UserProfileProvider>(context, listen: false);
@@ -67,6 +70,25 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _isLoading = false);
         _showErrorSnackbar('Login failed. Please check your credentials.');
       }
+    }
+  }
+
+  Future<void> _finalizePendingSignupUploads() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final signupId = prefs.getString('pending_signup_id');
+      if (signupId == null || signupId.isEmpty) return;
+
+      final supabase = Supabase.instance.client;
+      final res = await supabase.functions.invoke(
+        'finalize-signup-uploads',
+        body: {'signup_id': signupId},
+      );
+      if (res.status == 200) {
+        await prefs.remove('pending_signup_id');
+      }
+    } catch (_) {
+      // Best-effort: do not block login on finalize failure.
     }
   }
 

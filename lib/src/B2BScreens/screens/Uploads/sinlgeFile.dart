@@ -9,7 +9,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SingleProductUploadCard extends StatelessWidget {
   const SingleProductUploadCard({super.key});
 
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -35,16 +34,20 @@ class SingleProductUploadCard extends StatelessWidget {
                   color: const Color(0xFFE6FAF3),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.upload_outlined, color: Color(0xFF00BFA5)),
+                child:
+                    const Icon(Icons.upload_outlined, color: Color(0xFF00BFA5)),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    Text("Single Product Upload", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text("Single Product Upload",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14)),
                     SizedBox(height: 4),
-                    Text("Upload one product at a time with a guided flow", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text("Upload one product at a time with a guided flow",
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
                     SizedBox(height: 8),
                     _Bullet(text: "Step-by-step process"),
                     _Bullet(text: "Easy for beginners"),
@@ -91,53 +94,226 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
   Uint8List? imageBytes;
   String? fileName;
   bool _isUploading = false;
-  
+
   int step = 0;
 
-  final designCtrl = TextEditingController();
-  final goldCtrl = TextEditingController();
+  // --- Controllers ---
+  final productTitleCtrl = TextEditingController();
   final descCtrl = TextEditingController();
-  final tagsCtrl = TextEditingController();
+  final metalWeightCtrl = TextEditingController();
+  final goldNetWeightCtrl = TextEditingController();
+  final metalColorCtrl = TextEditingController();
+  final stoneCountCtrl = TextEditingController();
+  final stoneColorCtrl = TextEditingController();
+  final dimensionCtrl = TextEditingController();
+  final enamelWorkCtrl = TextEditingController();
+  final collectionNameCtrl = TextEditingController();
+  final themeCtrl = TextEditingController();
 
+  // --- Dropdown state ---
   String? metalType;
+  String? metalPurity;
   String? productType;
-  String? category;
+  String? metalFinish;
+  String? gender;
+  String? jewelryType;
+  String? stoneType;
+  String? stoneUsed;
+  String? stoneSetting;
+  String? stoneCut;
   String visibility = 'Public';
+
+  // --- Dynamic data ---
+  List<String> _productTypes = [];
+  bool _loadingProductTypes = true;
+
+  // --- Purity options based on metal type ---
+  List<String> get _metalPurityOptions {
+    switch (metalType) {
+      case 'Gold':
+        return ['22KT', '18KT', '14KT', '9KT'];
+      case 'Silver':
+        return ['958', '925', '800', '700'];
+      case 'Platinum':
+        return ['950', '900', '850'];
+      default:
+        return [];
+    }
+  }
+
+  static const List<String> _metalFinishOptions = [
+    'High Polish',
+    'Glossy',
+    'Matte',
+    'Satin',
+    'Antique Finish',
+    'Textured',
+    'Brushed',
+    'Sandblasted',
+    'Hammered',
+    'Dual Tone / Triple Tone',
+  ];
+
+  static const List<String> _stoneTypeOptions = [
+    'Diamond',
+    'Gemstone',
+    'Labgrown Diamond',
+    'Labgrown Gemstone',
+    'CZ/American Diamond',
+    'Moissanite',
+  ];
+
+  static const List<String> _stoneUsedOptions = [
+    'VVS',
+    'VS',
+    'SI',
+    'I',
+    'IGS',
+    'Synthetic',
+    'Natural',
+    'Lab-created',
+  ];
+
+  static const List<String> _stoneSettingOptions = [
+    'Prong',
+    'Bezel',
+    'Pave',
+    'Micro-Pave',
+    'Channel',
+    'Bar',
+    'Flush (Gypsy)',
+    'Tension',
+    'Tension-Style',
+    'Halo',
+    'Cluster',
+    'Invisible',
+    'Illusion',
+    'Basket',
+    'Cathedral',
+    'Pressure',
+    'Floating',
+    'Shared-Prong',
+    'Grain/Bead',
+  ];
+
+  static const List<String> _stoneCutOptions = [
+    'Round',
+    'Princess',
+    'Emerald',
+    'Asscher',
+    'Cushion',
+    'Oval',
+    'Pear',
+    'Marquise',
+    'Radiant',
+    'Heart',
+    'Trillion',
+    'Baguette',
+    'Tapered Baguette',
+    'Square',
+    'Rose Cut',
+    'Old Mine Cut',
+    'Old European Cut',
+    'Cabochon',
+  ];
 
   final steps = ['Upload', 'Details', 'Visibility', 'Publish'];
 
-  bool get _isStepValid {
-  switch (step) {
-    case 0:
-      // Valid if at least one image is uploaded
-      return _images.isNotEmpty;
-    case 1:
-      // Valid if Gold Weight is not empty and Dropdowns are selected
-      return designCtrl.text.isNotEmpty && 
-      goldCtrl.text.isNotEmpty && 
-             metalType != null && 
-             productType != null && 
-             category != null;
-    case 2:
-      // Visibility always has a default ('Public'), so it's usually valid
-      return true;
-    default:
-      return true;
+  @override
+  void initState() {
+    super.initState();
+    _fetchProductTypes();
   }
-}
+
+  Future<void> _fetchProductTypes() async {
+    try {
+      final responses = await Future.wait([
+        _supabase
+            .from('products')
+            .select('"Product Type"')
+            .not('Product Type', 'is', null),
+        _supabase
+            .from('designerproducts')
+            .select('"Product Type"')
+            .not('Product Type', 'is', null),
+      ]);
+
+      final Set<String> uniqueTypes = {};
+      for (var response in responses) {
+        if (response is List) {
+          for (var item in response) {
+            final type = item['Product Type']?.toString().trim();
+            if (type != null && type.isNotEmpty) {
+              uniqueTypes.add(type);
+            }
+          }
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _productTypes = uniqueTypes.toList()..sort();
+          _loadingProductTypes = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching product types: $e');
+      if (mounted) {
+        setState(() => _loadingProductTypes = false);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    productTitleCtrl.dispose();
+    descCtrl.dispose();
+    metalWeightCtrl.dispose();
+    goldNetWeightCtrl.dispose();
+    metalColorCtrl.dispose();
+    stoneCountCtrl.dispose();
+    stoneColorCtrl.dispose();
+    dimensionCtrl.dispose();
+    enamelWorkCtrl.dispose();
+    collectionNameCtrl.dispose();
+    themeCtrl.dispose();
+    super.dispose();
+  }
+
+  bool get _isStepValid {
+    switch (step) {
+      case 0:
+        return _images.isNotEmpty;
+      case 1:
+        return productTitleCtrl.text.isNotEmpty &&
+            metalType != null &&
+            metalPurity != null &&
+            productType != null &&
+            metalWeightCtrl.text.isNotEmpty &&
+            gender != null &&
+            jewelryType != null &&
+            goldNetWeightCtrl.text.isNotEmpty;
+      case 2:
+        return true;
+      default:
+        return true;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
-    
+
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.close, color: Color.fromARGB(255, 0, 0, 0)), onPressed: () => Navigator.pop(context)),
-        title: const Text('Upload Product', style: TextStyle(color: Colors.black)),
+        leading: IconButton(
+            icon: const Icon(Icons.close, color: Color.fromARGB(255, 0, 0, 0)),
+            onPressed: () => Navigator.pop(context)),
+        title:
+            const Text('Upload Product', style: TextStyle(color: Colors.black)),
       ),
       body: Column(
         children: [
@@ -147,7 +323,7 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
             child: SingleChildScrollView(
               padding: EdgeInsets.all(isMobile ? 16 : 24),
               child: _content(),
-            ), 
+            ),
           ),
           _BottomNav(
             step: step,
@@ -168,203 +344,350 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
     switch (step) {
       case 0:
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Upload Images', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text('Upload Images',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          const Text('Add photos of your jewellery product', style: TextStyle(color: Colors.grey)),
+          const Text('Add photos of your jewellery product',
+              style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 32),
-          
-          if (_images.isEmpty)
-             _buildUploadBox()
-          else
-            _buildImagePreviewList(),
+          if (_images.isEmpty) _buildUploadBox() else _buildImagePreviewList(),
         ]);
 
       case 1:
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start, 
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Product Details', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Product Details',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text('Fill in the required information', style: TextStyle(color: Colors.grey)),
+            const Text('Fill in the required information',
+                style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 24),
-            _field('Design Name *', designCtrl, hintText: 'e.g., Royal Kundan Necklace'),
-            _field('Gold Weight (g) *', goldCtrl, number: true, hintText: 'e.g., 45.5'),
-            _dropdown('Metal Type *', ['18K Gold', '22K Gold'], metalType, (v) => setState(() => metalType = v), hintText: 'Select metal type'),
-            _dropdown('Product Type *', ['Necklace', 'Ring', 'Bracelet'], productType, (v) => setState(() => productType = v), hintText: 'Select product type'),
-            _dropdown('Category *', ['Daily Wear', 'Wedding', 'Traditional'], category, (v) => setState(() => category = v), hintText: 'Select category'),
-            _field('Description (Optional)', descCtrl, lines: 3, hintText: 'Add details about your product...'),
-            _field('Tags (Optional)', tagsCtrl, hintText: 'e.g., wedding, kundan, traditional'),
-          ], 
+
+            // --- Product Title ---
+            _field('Product Title *', productTitleCtrl,
+                hintText: 'e.g., Royal Kundan Necklace'),
+
+            // --- Description ---
+            _field('Description', descCtrl,
+                lines: 3, hintText: 'Add details about your product...'),
+
+            // --- Metal Type ---
+            _dropdown('Metal Type *', ['Gold', 'Silver', 'Platinum'], metalType,
+                (v) {
+              setState(() {
+                metalType = v;
+                metalPurity = null; // Reset purity when metal type changes
+              });
+            }, hintText: 'Select metal type'),
+
+            // --- Metal Purity (conditional) ---
+            if (metalType != null)
+              _dropdown('Metal Purity *', _metalPurityOptions, metalPurity,
+                  (v) => setState(() => metalPurity = v),
+                  hintText: 'Select metal purity'),
+
+            // --- Product Type (from Supabase) ---
+            if (_loadingProductTypes)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Row(children: [
+                  SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+                  SizedBox(width: 8),
+                  Text('Loading product types...',
+                      style: TextStyle(color: Colors.grey, fontSize: 13)),
+                ]),
+              )
+            else
+              _dropdown('Product Type *', _productTypes, productType,
+                  (v) => setState(() => productType = v),
+                  hintText: 'Select product type'),
+
+            // --- Metal Weight ---
+            _field('Metal Weight (in grams) *', metalWeightCtrl,
+                number: true, hintText: 'e.g., 45.5'),
+
+            // --- Metal Color ---
+            _field('Metal Color', metalColorCtrl,
+                hintText: 'e.g., Yellow, Rose, White'),
+
+            // --- Metal Finish ---
+            _dropdown('Metal Finish', _metalFinishOptions, metalFinish,
+                (v) => setState(() => metalFinish = v),
+                hintText: 'Select metal finish'),
+
+            // --- Gender ---
+            _dropdown('Gender *', ['Women', 'Men', 'Unisex', 'Kids'], gender,
+                (v) => setState(() => gender = v),
+                hintText: 'Select gender'),
+
+            // --- Jewelry Type ---
+            _dropdown('Jewelry Type *', ['Studded', 'Plain'], jewelryType, (v) {
+              setState(() {
+                jewelryType = v;
+                // Reset stone fields when switching
+                if (v == 'Plain') {
+                  stoneType = null;
+                  stoneUsed = null;
+                  stoneSetting = null;
+                  stoneCountCtrl.clear();
+                  stoneColorCtrl.clear();
+                  stoneCut = null;
+                }
+              });
+            }, hintText: 'Select jewelry type'),
+
+            // --- Gold Net Weight ---
+            _field('Gold Net Weight (in grams) *', goldNetWeightCtrl,
+                number: true, hintText: 'e.g., 12.5'),
+
+            // --- Stone fields (only if Studded) ---
+            if (jewelryType == 'Studded') ...[
+              const Padding(
+                padding: EdgeInsets.only(top: 8, bottom: 16),
+                child: Text('Stone Details',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF00BFA5))),
+              ),
+              _dropdown('Stone Type', _stoneTypeOptions, stoneType,
+                  (v) => setState(() => stoneType = v),
+                  hintText: 'e.g., Diamond, Gemstone'),
+              _dropdown('Stone Used', _stoneUsedOptions, stoneUsed,
+                  (v) => setState(() => stoneUsed = v),
+                  hintText: 'e.g., VVS, IGS, Synthetic'),
+              _dropdown('Stone Setting', _stoneSettingOptions, stoneSetting,
+                  (v) => setState(() => stoneSetting = v),
+                  hintText: 'e.g., Prong, Bezel, Pave'),
+              _field('Stone Count', stoneCountCtrl,
+                  hintText: 'e.g., 3 Ruby, 4 Diamond'),
+              _field('Stone Color', stoneColorCtrl,
+                  hintText: 'e.g., Red, Blue, Green'),
+              _dropdown('Stone Cut', _stoneCutOptions, stoneCut,
+                  (v) => setState(() => stoneCut = v),
+                  hintText: 'e.g., Round, Princess, Emerald'),
+            ],
+
+            // --- Dimension ---
+            _field('Dimension', dimensionCtrl,
+                hintText: 'e.g., Length x Width x Height'),
+
+            // --- Enamel Work + Weight ---
+            _field('Enamel Work + Weight', enamelWorkCtrl,
+                hintText: 'e.g., Pink 0.6g, Blue 4g'),
+
+            // --- Collection Name ---
+            _field('Collection Name', collectionNameCtrl,
+                hintText: 'e.g., Heritage Collection'),
+
+            // --- Theme ---
+            _field('Theme', themeCtrl,
+                hintText: 'e.g., Bridal, Festive, Contemporary'),
+          ],
         );
 
       case 2:
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Visibility Settings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text('Visibility Settings',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          const Text('Choose who can see detailed insights', style: TextStyle(color: Colors.grey)),
+          const Text('Choose who can see detailed insights',
+              style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 24),
           _radio('Public', 'Everyone can view full insights'),
           const SizedBox(height: 16),
-          _radio('Member Only', 'Only paid members can view full insights', premium: true),
+          _radio('Member Only', 'Only paid members can view full insights',
+              premium: true),
         ]);
 
       default:
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Review & Publish', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          const Text('Check everything looks good', style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 24),
-          
-          Container(
-            padding: const EdgeInsets.all(24),
-            constraints: const BoxConstraints(maxWidth: 800),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB), // Very light grey background
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Image Preview
-                if (_images.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 180,
-                        height: 180,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          image: DecorationImage(
-                            image: NetworkImage(_images.first.path),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      if (_images.length > 1) ...[
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: 180,
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _images.skip(1).take(4).map((file) {
-                              return Container(
-                                width: 38,
-                                height: 38,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: Colors.grey.shade300),
-                                  image: DecorationImage(
-                                    image: NetworkImage(file.path),
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                        if (_images.length > 5)
-                           Padding(
-                             padding: const EdgeInsets.only(top: 4),
-                             child: Text('+${_images.length - 5} more', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                           ),
-                      ]
-                    ],
-                  )
-                else
-                  Container(
-                    width: 180,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 40),
-                  ),
-                  
-                const SizedBox(width: 32),
-                
-                // Details Grid
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _reviewItem('Design Name', designCtrl.text.isEmpty ? '-' : designCtrl.text),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(child: _reviewItem('Gold Weight', '${goldCtrl.text}g')),
-                          Expanded(child: _reviewItem('Metal Type', metalType ?? '-')),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(child: _reviewItem('Product Type', productType ?? '-')),
-                          Expanded(child: _reviewItem('Category', category ?? '-')),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      _reviewItem('Description', descCtrl.text.isEmpty ? '-' : descCtrl.text),
-                      const SizedBox(height: 20),
-                      _reviewItem('Visibility', visibility),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          )
-        ]);
+        return _buildReviewStep();
     }
   }
 
-  Widget _field(String label, TextEditingController c, {String? hintText, bool number = false, int lines = 1}) {
+  Widget _buildReviewStep() {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Review & Publish',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 8),
+      const Text('Check everything looks good',
+          style: TextStyle(color: Colors.grey)),
+      const SizedBox(height: 24),
+      Container(
+        padding: const EdgeInsets.all(24),
+        constraints: const BoxConstraints(maxWidth: 900),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image Preview Row
+            if (_images.isNotEmpty)
+              SizedBox(
+                height: 120,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _images.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (_, i) => Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      image: DecorationImage(
+                        image: NetworkImage(_images[i].path),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 24),
+
+            // Details Grid
+            _reviewItem('Product Title',
+                productTitleCtrl.text.isEmpty ? '-' : productTitleCtrl.text),
+            const SizedBox(height: 12),
+            _reviewItem(
+                'Description', descCtrl.text.isEmpty ? '-' : descCtrl.text),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 32,
+              runSpacing: 12,
+              children: [
+                _reviewItem('Metal Type', metalType ?? '-'),
+                _reviewItem('Metal Purity', metalPurity ?? '-'),
+                _reviewItem('Product Type', productType ?? '-'),
+                _reviewItem('Metal Weight', '${metalWeightCtrl.text}g'),
+                _reviewItem('Metal Color',
+                    metalColorCtrl.text.isEmpty ? '-' : metalColorCtrl.text),
+                _reviewItem('Metal Finish', metalFinish ?? '-'),
+                _reviewItem('Gender', gender ?? '-'),
+                _reviewItem('Jewelry Type', jewelryType ?? '-'),
+                _reviewItem('Gold Net Weight', '${goldNetWeightCtrl.text}g'),
+              ],
+            ),
+            if (jewelryType == 'Studded') ...[
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              const Text('Stone Details',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Color(0xFF00BFA5))),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 32,
+                runSpacing: 12,
+                children: [
+                  _reviewItem('Stone Type', stoneType ?? '-'),
+                  _reviewItem('Stone Used', stoneUsed ?? '-'),
+                  _reviewItem('Stone Setting', stoneSetting ?? '-'),
+                  _reviewItem('Stone Count',
+                      stoneCountCtrl.text.isEmpty ? '-' : stoneCountCtrl.text),
+                  _reviewItem('Stone Color',
+                      stoneColorCtrl.text.isEmpty ? '-' : stoneColorCtrl.text),
+                  _reviewItem('Stone Cut', stoneCut ?? '-'),
+                ],
+              ),
+            ],
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 32,
+              runSpacing: 12,
+              children: [
+                _reviewItem('Dimension',
+                    dimensionCtrl.text.isEmpty ? '-' : dimensionCtrl.text),
+                _reviewItem('Enamel Work',
+                    enamelWorkCtrl.text.isEmpty ? '-' : enamelWorkCtrl.text),
+                _reviewItem(
+                    'Collection',
+                    collectionNameCtrl.text.isEmpty
+                        ? '-'
+                        : collectionNameCtrl.text),
+                _reviewItem(
+                    'Theme', themeCtrl.text.isEmpty ? '-' : themeCtrl.text),
+                _reviewItem('Visibility', visibility),
+              ],
+            ),
+          ],
+        ),
+      )
+    ]);
+  }
+
+  Widget _field(String label, TextEditingController c,
+      {String? hintText, bool number = false, int lines = 1}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+        Text(label,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
         const SizedBox(height: 6),
         TextField(
           controller: c,
-          onChanged: (value) => setState(() {}), 
+          onChanged: (value) => setState(() {}),
           keyboardType: number ? TextInputType.number : TextInputType.text,
           maxLines: lines,
           decoration: InputDecoration(
-            isDense: true, 
+            isDense: true,
             hintText: hintText,
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
             contentPadding: const EdgeInsets.symmetric(
-              vertical: 12,   
-              horizontal: 12, 
+              vertical: 12,
+              horizontal: 12,
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade300)),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade300)),
           ),
-          
         ),
       ]),
     );
   }
 
-  Widget _dropdown(String label, List<String> items, String? value, ValueChanged<String?> onChanged, {String? hintText}) {
+  Widget _dropdown(String label, List<String> items, String? value,
+      ValueChanged<String?> onChanged,
+      {String? hintText}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+        Text(label,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
         const SizedBox(height: 6),
         DropdownButtonFormField(
-          value: value, 
-          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), 
-          onChanged: onChanged, 
-          hint: hintText != null ? Text(hintText, style: TextStyle(color: Colors.grey.shade400, fontSize: 14)) : null,
-          decoration: InputDecoration(
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-          )
-        ),
+            value: value,
+            items: items
+                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                .toList(),
+            onChanged: onChanged,
+            hint: hintText != null
+                ? Text(hintText,
+                    style: TextStyle(color: Colors.grey.shade400, fontSize: 14))
+                : null,
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300)),
+            )),
       ]),
     );
   }
@@ -379,26 +702,32 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFF00BFA5) : Colors.grey.shade300, 
-            width: isSelected ? 2 : 1
-          ),
+              color:
+                  isSelected ? const Color(0xFF00BFA5) : Colors.grey.shade300,
+              width: isSelected ? 2 : 1),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center, // Align to center vertically
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Radio Circle
             Container(
               width: 20,
               height: 20,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? const Color(0xFF00BFA5) : Colors.grey.shade400,
-                  width: 2
-                ),
+                    color: isSelected
+                        ? const Color(0xFF00BFA5)
+                        : Colors.grey.shade400,
+                    width: 2),
               ),
-              child: isSelected 
-                  ? Center(child: Container(width: 10, height: 10, decoration: const BoxDecoration(color: Color(0xFF00BFA5), shape: BoxShape.circle)))
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                              color: Color(0xFF00BFA5),
+                              shape: BoxShape.circle)))
                   : null,
             ),
             const SizedBox(width: 16),
@@ -408,23 +737,33 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                 children: [
                   Row(
                     children: [
-                      Flexible(child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                      Flexible(
+                          child: Text(value,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16))),
                       if (premium) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.orange.shade50,
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(color: Colors.orange.shade100),
                           ),
-                          child: Text('Premium', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange.shade800)),
+                          child: Text('Premium',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade800)),
                         )
                       ]
-                    ], 
+                    ],
                   ),
                   const SizedBox(height: 4),
-                  Text(subtitle, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                  Text(subtitle,
+                      style:
+                          TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                 ],
               ),
             )
@@ -433,14 +772,21 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
       ),
     );
   }
+
   Widget _reviewItem(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-      ],
+    return SizedBox(
+      width: 180,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+          const SizedBox(height: 4),
+          Text(value,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+        ],
+      ),
     );
   }
 
@@ -457,24 +803,30 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: isSmall 
-            ? [
-                 const Text('+ Add more images', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500))
-              ]
-            : [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.image_outlined, size: 32, color: Colors.grey),
-                ),
-                const SizedBox(height: 16),
-                const Text('Click to upload images', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                const SizedBox(height: 8),
-                const Text('PNG, JPG up to 10MB each', style: TextStyle(fontSize: 14, color: Colors.grey)),
-              ],
+            children: isSmall
+                ? [
+                    const Text('+ Add more images',
+                        style: TextStyle(
+                            color: Colors.grey, fontWeight: FontWeight.w500))
+                  ]
+                : [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.image_outlined,
+                          size: 32, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Click to upload images',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 16)),
+                    const SizedBox(height: 8),
+                    const Text('PNG, JPG up to 10MB each',
+                        style: TextStyle(fontSize: 14, color: Colors.grey)),
+                  ],
           ),
         ),
       ),
@@ -516,7 +868,8 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                         color: Colors.red,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.close, color: Colors.white, size: 16),
+                      child: const Icon(Icons.close,
+                          color: Colors.white, size: 16),
                     ),
                   ),
                 ),
@@ -524,7 +877,6 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
             );
           }).toList(),
         ),
-        
         const SizedBox(height: 24),
         _buildUploadBox(isSmall: true),
       ],
@@ -532,7 +884,8 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
   }
 
   Future<void> _pickImages() async {
-    final List<XFile> selectedFiles = await _picker.pickMultiImage(imageQuality: 85);
+    final List<XFile> selectedFiles =
+        await _picker.pickMultiImage(imageQuality: 85);
     if (selectedFiles.isNotEmpty) {
       setState(() {
         _images.addAll(selectedFiles);
@@ -559,76 +912,100 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
 
     try {
       // 2. Fetch user profile to determine if they are a manufacturer
-final userProfileData = await _supabase
-    .from('users')
-    .select('id, manufacturer_profiles(user_id)')
-    .eq('id', user.id)
-    .single();
+      final userProfileData = await _supabase
+          .from('users')
+          .select('id, manufacturer_profiles(user_id)')
+          .eq('id', user.id)
+          .single();
 
-print(userProfileData);
+      final isManufacturer = userProfileData['manufacturer_profiles'] != null;
 
-final isManufacturer =
-    userProfileData['manufacturer_profiles'] != null;
-
-print(isManufacturer);
-      // 3. Upload images to appropriate storage bucket based on user role
-      final storageBucket = isManufacturer ? 'manufacturer-files' : 'designer-files';
+      // 3. Upload images to appropriate storage bucket
+      final storageBucket =
+          isManufacturer ? 'manufacturer-files' : 'designer-files';
       List<String> uploadedImageUrls = [];
-      
+
       for (int i = 0; i < _images.length; i++) {
         final image = _images[i];
         final bytes = await image.readAsBytes();
-        final fileName = '${DateTime.now().millisecondsSinceEpoch}-${user.id}-${i + 1}.jpg';
-        
+        final uploadFileName =
+            '${DateTime.now().millisecondsSinceEpoch}-${user.id}-${i + 1}.jpg';
+
         try {
           await _supabase.storage
               .from(storageBucket)
-              .uploadBinary(fileName, bytes);
-          
+              .uploadBinary(uploadFileName, bytes);
+
           final imageUrl = _supabase.storage
               .from(storageBucket)
-              .getPublicUrl(fileName);
-          
+              .getPublicUrl(uploadFileName);
+
           uploadedImageUrls.add(imageUrl);
         } catch (e) {
           debugPrint('Error uploading image ${i + 1}: $e');
-          // Continue with other images even if one fails
         }
       }
 
-      // 4. Prepare product data
+      // 4. Helper functions
+      String? getTextValue(TextEditingController controller) {
+        final text = controller.text.trim();
+        return text.isEmpty ? null : text;
+      }
+
+      List<String>? textToList(TextEditingController controller) {
+        final text = controller.text.trim();
+        return text.isEmpty ? null : [text];
+      }
+
+      // 5. Prepare product data with all fields
       final Map<String, dynamic> productData = {
-        'user_id': user.id, // Automatically associate with logged-in user
-        'Product Title': designCtrl.text.trim(),
+        'user_id': user.id,
+        'Product Title': productTitleCtrl.text.trim(),
+        'Description': getTextValue(descCtrl),
         'Image': uploadedImageUrls.isEmpty ? null : uploadedImageUrls,
-        'Gold Weight': goldCtrl.text.trim(),
         'Metal Type': metalType,
+        'Metal Purity': metalPurity,
         'Product Type': productType,
-        'Category': category,
-        'Description': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-        'Product Tags': tagsCtrl.text.trim().isEmpty 
-            ? null 
-            : tagsCtrl.text.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList(),
+        'Gold Weight': getTextValue(metalWeightCtrl),
+        'Metal Color': getTextValue(metalColorCtrl),
+        'Metal Finish': metalFinish,
+        'Gender': gender,
+        'Design Type': jewelryType, // Jewelry Type maps to Design Type in DB
+        'Net Weight': getTextValue(goldNetWeightCtrl),
+        'Dimension': getTextValue(dimensionCtrl),
+        'Enamel Work': textToList(enamelWorkCtrl),
+        'Collection Name': getTextValue(collectionNameCtrl),
+        'Theme': getTextValue(themeCtrl),
       };
 
-      // 5. Insert to appropriate table based on user role
-      final tableName = isManufacturer ? 'manufacturerproducts' : 'designerproducts';
-      final result = await _supabase
-          .from(tableName)
-          .insert(productData)
-          .select();
+      // Add stone fields only if Studded
+      if (jewelryType == 'Studded') {
+        productData['Stone Type'] = stoneType != null ? [stoneType] : null;
+        productData['Stone Used'] = stoneUsed != null ? [stoneUsed] : null;
+        productData['Stone Setting'] =
+            stoneSetting != null ? [stoneSetting] : null;
+        productData['Stone Count'] = textToList(stoneCountCtrl);
+        productData['Stone Color'] = textToList(stoneColorCtrl);
+        productData['Stone Cut'] = stoneCut != null ? [stoneCut] : null;
+      }
+
+      // 6. Insert to appropriate table
+      final tableName =
+          isManufacturer ? 'manufacturerproducts' : 'designerproducts';
+      final result =
+          await _supabase.from(tableName).insert(productData).select();
 
       if (mounted) {
         if (result.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Product published successfully to ${isManufacturer ? 'Manufacturer' : 'Designer'} catalog! 🎉'),
+              content: Text(
+                  'Product published successfully to ${isManufacturer ? "Manufacturer" : "Designer"} catalog!'),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 3),
             ),
           );
-          
-          // Navigate back to B2B home after successful upload
+
           Navigator.of(context).popUntil((route) => route.isFirst);
         } else {
           throw Exception('Failed to insert product');
@@ -651,26 +1028,22 @@ print(isManufacturer);
       }
     }
   }
-
 }
-
-
 
 class _StepperHeader extends StatelessWidget {
   final int step;
   final List<String> steps;
   final bool isMobile;
-  const _StepperHeader({required this.step, required this.steps, this.isMobile = false});
+  const _StepperHeader(
+      {required this.step, required this.steps, this.isMobile = false});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 16 : 24, 
-        horizontal: isMobile ? 16 : 48
-      ),
+          vertical: isMobile ? 16 : 24, horizontal: isMobile ? 16 : 48),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center, 
+        mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(steps.length, (i) {
           final isCompleted = i < step;
           final isActive = i == step;
@@ -684,11 +1057,12 @@ class _StepperHeader extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: isMobile ? 12 : 14,
-                      backgroundColor: (isCompleted || isActive) 
-                          ? const Color(0xFF00BFA5) 
+                      backgroundColor: (isCompleted || isActive)
+                          ? const Color(0xFF00BFA5)
                           : Colors.grey.shade200,
                       child: isCompleted
-                          ? Icon(Icons.check, size: isMobile ? 14 : 16, color: Colors.white)
+                          ? Icon(Icons.check,
+                              size: isMobile ? 14 : 16, color: Colors.white)
                           : Text(
                               '${i + 1}',
                               style: TextStyle(
@@ -702,7 +1076,8 @@ class _StepperHeader extends StatelessWidget {
                       steps[i],
                       style: TextStyle(
                         fontSize: isMobile ? 9 : 11,
-                        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isActive ? FontWeight.bold : FontWeight.normal,
                         color: isActive ? Colors.black : Colors.grey,
                       ),
                       textAlign: TextAlign.center,
@@ -713,8 +1088,11 @@ class _StepperHeader extends StatelessWidget {
                   Expanded(
                     child: Container(
                       height: 2,
-                      color: isCompleted ? const Color(0xFF00BFA5) : Colors.grey.shade200,
-                      margin: const EdgeInsets.only(bottom: 20, left: 8, right: 8),
+                      color: isCompleted
+                          ? const Color(0xFF00BFA5)
+                          : Colors.grey.shade200,
+                      margin:
+                          const EdgeInsets.only(bottom: 20, left: 8, right: 8),
                     ),
                   ),
               ],
@@ -736,16 +1114,15 @@ class _BottomNav extends StatelessWidget {
   final VoidCallback onNext;
   final VoidCallback onPublish;
 
-  const _BottomNav({
-    required this.step,
-    required this.max,
-    required this.isStepValid,
-    this.isUploading = false,
-    this.isMobile = false,
-    required this.onBack,
-    required this.onNext,
-    required this.onPublish
-  });
+  const _BottomNav(
+      {required this.step,
+      required this.max,
+      required this.isStepValid,
+      this.isUploading = false,
+      this.isMobile = false,
+      required this.onBack,
+      required this.onNext,
+      required this.onPublish});
 
   @override
   Widget build(BuildContext context) {
@@ -758,43 +1135,39 @@ class _BottomNav extends StatelessWidget {
             Flexible(
               flex: isMobile ? 1 : 0,
               child: SizedBox(
-                width: isMobile ? null : 100, 
-                child: OutlinedButton(
-                  onPressed: onBack, 
-                  child: const Text('Back')
-                )
-              ),
+                  width: isMobile ? null : 100,
+                  child: OutlinedButton(
+                      onPressed: onBack, child: const Text('Back'))),
             ),
           if (step > 0) SizedBox(width: isMobile ? 8 : 12),
           Flexible(
             flex: isMobile ? 2 : 0,
             child: SizedBox(
-              width: isMobile ? null : 500,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00BFA5),
-                  disabledBackgroundColor: Colors.grey.shade300, 
-                  disabledForegroundColor: Colors.grey.shade500,
-                ),
-                onPressed: (isStepValid && !isUploading)
-                  ? (step == max ? onPublish : onNext) 
-                  : null, 
-                child: isUploading 
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Text(step == max ? 'Publish Product' : 'Next Step >'),
-              )
-            ),
+                width: isMobile ? null : 500,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00BFA5),
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    disabledForegroundColor: Colors.grey.shade500,
+                  ),
+                  onPressed: (isStepValid && !isUploading)
+                      ? (step == max ? onPublish : onNext)
+                      : null,
+                  child: isUploading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(step == max ? 'Publish Product' : 'Next Step >'),
+                )),
           )
         ],
       ),
-      
     );
   }
 }
@@ -827,9 +1200,9 @@ class _DottedBorderPainter extends CustomPainter {
     for (final PathMetric pathMetric in pathMetrics) {
       double distance = 0.0;
       while (distance < pathMetric.length) {
-        final double len = (distance + 6 > pathMetric.length) 
-           ? pathMetric.length - distance 
-           : 6;
+        final double len = (distance + 6 > pathMetric.length)
+            ? pathMetric.length - distance
+            : 6;
         canvas.drawPath(
           pathMetric.extractPath(distance, distance + len),
           paint,
