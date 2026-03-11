@@ -130,8 +130,9 @@ CREATE TABLE public.designerproducts (
   Category2 text,
   Category3 text,
   user_id uuid,
+  price_as_of_date timestamp with time zone,
   CONSTRAINT designerproducts_pkey PRIMARY KEY (id),
-  CONSTRAINT designerproducts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  CONSTRAINT designerproducts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.likes (
   id bigint NOT NULL DEFAULT nextval('likes_id_seq'::regclass),
@@ -142,14 +143,98 @@ CREATE TABLE public.likes (
   CONSTRAINT likes_pkey PRIMARY KEY (id),
   CONSTRAINT likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-CREATE TABLE public.notifications (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
+CREATE TABLE public.manufacturer_profiles (
   user_id uuid NOT NULL,
-  message text NOT NULL,
-  is_read boolean DEFAULT false,
+  business_name text NOT NULL,
+  business_type text,
+  phone text,
+  address text,
+  gst_number text,
+  work_file_url text,
+  business_card_url text,
   created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT manufacturer_profiles_pkey PRIMARY KEY (user_id),
+  CONSTRAINT manufacturer_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.manufacturerproducts (
+  id integer NOT NULL DEFAULT nextval('manufacturerproducts_id_seq'::regclass),
+  Product Title text,
+  Image ARRAY,
+  Description text,
+  Price text,
+  Product Tags ARRAY,
+  Gold Weight text,
+  Metal Purity text,
+  Metal Finish text,
+  Stone Weight ARRAY,
+  Stone Type ARRAY,
+  Stone Used ARRAY,
+  Stone Setting ARRAY,
+  Stone Count ARRAY,
+  Scraped URL text,
+  Collection Name text,
+  Product Type text,
+  Gender text,
+  Theme text,
+  Metal Type text,
+  Metal Color text,
+  Net Weight text,
+  Stone Color ARRAY,
+  Stone Cut ARRAY,
+  Dimension text,
+  Design Type text,
+  Art Form text,
+  Plating text,
+  Enamel Work ARRAY,
+  Customizable ARRAY,
+  Category text,
+  Sub Category text,
+  Plain text,
+  Studded ARRAY,
+  Stone Purity ARRAY,
+  created_at timestamp with time zone DEFAULT now(),
+  embedding USER-DEFINED,
+  Category1 text,
+  Category2 text,
+  Category3 text,
+  user_id uuid,
+  CONSTRAINT manufacturerproducts_pkey PRIMARY KEY (id),
+  CONSTRAINT manufacturerproducts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.notifications (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  user_id uuid NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['trending'::text, 'milestone'::text, 'engagement'::text, 'saved'::text, 'opportunity'::text, 'rising'::text, 'default'::text])),
+  title text NOT NULL,
+  body text,
+  is_read boolean DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  related_item_id text,
   CONSTRAINT notifications_pkey PRIMARY KEY (id),
-  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.pending_signup_uploads (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  signup_id uuid NOT NULL,
+  email text NOT NULL,
+  file_type text NOT NULL,
+  file_ext text NOT NULL,
+  object_path text NOT NULL,
+  mime_type text,
+  status text NOT NULL DEFAULT 'pending'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  linked_user_id uuid,
+  linked_at timestamp with time zone,
+  CONSTRAINT pending_signup_uploads_pkey PRIMARY KEY (id),
+  CONSTRAINT pending_signup_uploads_linked_user_id_fkey FOREIGN KEY (linked_user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.pincode_regions (
+  pincode text NOT NULL,
+  state text,
+  district text,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT pincode_regions_pkey PRIMARY KEY (pincode)
 );
 CREATE TABLE public.pins (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

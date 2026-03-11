@@ -8,6 +8,7 @@ import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/ui/screens/info_screen.dart';
 import 'package:jewelry_nafisa/src/widgets/account_management_dialog.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 import 'package:jewelry_nafisa/src/ui/screens/boards_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/notifications_screen.dart';
@@ -299,9 +300,7 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
           child: CachedNetworkImage(
             imageUrl: item.image,
             fit: BoxFit.cover,
-            placeholder: (context, url) => const Center(
-              child: CircularProgressIndicator.adaptive(),
-            ),
+            placeholder: (context, url) => createBlurUpPlaceholder(),
             errorWidget: (context, url, error) =>
                 const Icon(Icons.error_outline, color: Colors.grey),
           ),

@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
+import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 
 class QuoteRequestDialog extends StatefulWidget {
   final UserProfile user;
@@ -105,10 +106,7 @@ class _QuoteRequestDialogState extends State<QuoteRequestDialog> {
                     height: 100,
                     width: 100,
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: Colors.grey[200],
-                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                    ),
+                    placeholder: (context, url) => createBlurUpPlaceholder(),
                     errorWidget: (context, url, error) => const Icon(Icons.error),
                   ),
                 ),

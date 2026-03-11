@@ -6,6 +6,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 
 class BoardDetailScreen extends StatefulWidget {
   final int boardId; // Use int ID
@@ -171,9 +172,7 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
                               child: CachedNetworkImage(
                                 imageUrl: pin.image,
                                 fit: BoxFit.cover,
-                                placeholder: (context, url) => const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
+                                placeholder: (context, url) => createBlurUpPlaceholder(),
                                 errorWidget: (context, url, error) => const Center(
                                   child: Icon(Icons.broken_image),
                                 ),

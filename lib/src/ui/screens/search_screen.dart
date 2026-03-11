@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
+import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 import 'package:image/image.dart' as img;
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:go_router/go_router.dart';
@@ -476,12 +477,7 @@ class _SearchScreenState extends State<SearchScreen> {
           child: CachedNetworkImage(
             imageUrl: item.image,
             fit: BoxFit.cover,
-            placeholder: (context, url) => Container(
-              color: Theme.of(context).colorScheme.surface.withAlpha(50),
-              child: const Center(
-                child: CircularProgressIndicator.adaptive(),
-              ),
-            ),
+            placeholder: (context, url) => createBlurUpPlaceholder(),
             errorWidget: (context, url, error) => Container(
               color: Theme.of(context).colorScheme.surface.withAlpha(30),
               child: const Center(

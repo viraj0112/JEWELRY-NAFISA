@@ -5,6 +5,7 @@ import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:provider/provider.dart';
+import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 
 class QuoteWithProduct {
   final Map<String, dynamic> quote;
@@ -124,9 +125,7 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
                             width: 50,
                             height: 50,
                             fit: BoxFit.cover,
-                            placeholder: (context, url) => const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
+                            placeholder: (context, url) => createBlurUpPlaceholder(),
                             errorWidget: (context, url, error) =>
                                 const Icon(Icons.broken_image, size: 50),
                           ),
@@ -210,9 +209,7 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: 200,
-                        placeholder: (context, url) => const Center(
-                          child: CircularProgressIndicator(),
-                        ),
+                        placeholder: (context, url) => createBlurUpPlaceholder(),
                         errorWidget: (context, url, error) =>
                             const Icon(Icons.broken_image, size: 100),
                       ),

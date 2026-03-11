@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 // Import the new board model
 import 'package:jewelry_nafisa/src/models/board.dart';
 
@@ -60,11 +61,27 @@ class BoardCard extends StatelessWidget {
     );
   }
 
-  Widget _buildSingleImage(String url) {
+  Widget _buildSingleImage(String? url) {
+    return _imageOrPlaceholder(url);
+  }
+
+  Widget _imageOrPlaceholder(String? url,
+      {BoxFit fit = BoxFit.cover, double? height, double? width}) {
+    if (url == null || url.isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Center(
+          child: Icon(Icons.image_not_supported, size: 40, color: Colors.grey),
+        ),
+      );
+    }
+
     return CachedNetworkImage(
       imageUrl: url,
-      fit: BoxFit.cover,
-      placeholder: (context, url) => Container(color: Colors.grey[200]),
+      fit: fit,
+      height: height,
+      width: width,
+      placeholder: (context, url) => createBlurUpPlaceholder(),
       errorWidget: (context, url, error) => const Icon(Icons.error),
     );
   }
@@ -74,13 +91,7 @@ class BoardCard extends StatelessWidget {
       children: [
         Expanded(
           flex: 2,
-          child: CachedNetworkImage(
-            imageUrl: images[0],
-            fit: BoxFit.cover,
-            height: double.infinity,
-            placeholder: (context, url) => Container(color: Colors.grey[200]),
-            errorWidget: (context, url, error) => const Icon(Icons.error),
-          ),
+          child: _imageOrPlaceholder(images[0], height: double.infinity),
         ),
         const SizedBox(width: 2),
         Expanded(
@@ -88,23 +99,11 @@ class BoardCard extends StatelessWidget {
           child: Column(
             children: [
               Expanded(
-                child: CachedNetworkImage(
-                  imageUrl: images[1],
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  placeholder: (context, url) => Container(color: Colors.grey[200]),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
-                ),
+                child: _imageOrPlaceholder(images[1], width: double.infinity),
               ),
               const SizedBox(height: 2),
               Expanded(
-                child: CachedNetworkImage(
-                  imageUrl: images[2],
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  placeholder: (context, url) => Container(color: Colors.grey[200]),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
-                ),
+                child: _imageOrPlaceholder(images[2], width: double.infinity),
               ),
             ],
           ),

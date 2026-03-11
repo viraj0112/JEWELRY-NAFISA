@@ -179,11 +179,13 @@ class _SearchDropdownState extends State<SearchDropdown> {
                                 final item = _suggestions[index];
                                 return ListTile(
                                   leading: CircleAvatar(
-                                    backgroundImage: NetworkImage(item.image),
                                     backgroundColor: Colors.grey[300],
-                                    onBackgroundImageError: (exception, stackTrace) {
-                                      // Handle error
-                                    },
+                                    backgroundImage: (item.image != null && item.image.isNotEmpty)
+                                        ? NetworkImage(item.image)
+                                        : null,
+                                    child: (item.image == null || item.image.isEmpty)
+                                        ? const Icon(Icons.image, size: 18, color: Colors.white)
+                                        : null,
                                   ),
                                   title: Text(
                                     item.productTitle,

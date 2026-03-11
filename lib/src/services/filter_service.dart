@@ -109,6 +109,28 @@ class FilterService {
         }
       }
 
+      // Query manufacturerproducts table for all category columns
+      final manufacturerResponse = await _supabase
+          .from('manufacturerproducts')
+          .select('Category, Category1, Category2, Category3');
+
+      if (manufacturerResponse is List) {
+        for (var item in manufacturerResponse) {
+          if (item['Category'] != null && item['Category'].toString().isNotEmpty) {
+            values.add(item['Category'].toString());
+          }
+          if (item['Category1'] != null && item['Category1'].toString().isNotEmpty) {
+            values.add(item['Category1'].toString());
+          }
+          if (item['Category2'] != null && item['Category2'].toString().isNotEmpty) {
+            values.add(item['Category2'].toString());
+          }
+          if (item['Category3'] != null && item['Category3'].toString().isNotEmpty) {
+            values.add(item['Category3'].toString());
+          }
+        }
+      }
+
       return values.toList()..sort();
     } catch (e) {
       debugPrint('Error fetching distinct category values: $e');
@@ -145,10 +167,10 @@ class FilterService {
           // Use quotes for filter keys if they contain spaces
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
-          // Special handling for Metal Type: use ilike for pattern matching
+          // Special handling for Metal Type: use eq for exact matching
           if (filter.key == 'Metal Type') {
-            productsQuery = productsQuery.ilike(filterKey, '%${filter.value}%');
-            designerQuery = designerQuery.ilike(filterKey, '%${filter.value}%');
+            productsQuery = productsQuery.eq(filterKey, filter.value!);
+            designerQuery = designerQuery.eq(filterKey, filter.value!);
           } else {
             productsQuery = productsQuery.eq(filterKey, filter.value!);
             designerQuery = designerQuery.eq(filterKey, filter.value!);
@@ -191,37 +213,42 @@ class FilterService {
   }
 
   /// Fetches distinct category values from Category, Category1, Category2, Category3 columns
-  /// based on other filters, across both 'products' and 'designerproducts' tables
+  /// based on other filters, across 'products', 'designerproducts', and 'manufacturerproducts' tables
   Future<List<String>> _getDependentDistinctCategoryValues(
       Map<String, String?> filters) async {
     try {
-      // 1. Start queries for both tables, selecting all category columns
+      // 1. Start queries for all three tables, selecting all category columns
       var productsQuery = _supabase
           .from('products')
           .select('Category, Category1, Category2, Category3');
       var designerQuery = _supabase
           .from('designerproducts')
           .select('Category, Category1, Category2, Category3');
+      var manufacturerQuery = _supabase
+          .from('manufacturerproducts')
+          .select('Category, Category1, Category2, Category3');
 
-      // 2. Apply dependent filters to both queries (excluding Category filter itself)
+      // 2. Apply dependent filters to all three queries (excluding Category filter itself)
       for (var filter in filters.entries) {
         if (filter.value != null && filter.value != 'All' && filter.key != 'Category') {
           // Use quotes for filter keys if they contain spaces
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
-          // Special handling for Metal Type: use ilike for pattern matching
+          // Special handling for Metal Type: use eq for exact matching
           if (filter.key == 'Metal Type') {
-            productsQuery = productsQuery.ilike(filterKey, '%${filter.value}%');
-            designerQuery = designerQuery.ilike(filterKey, '%${filter.value}%');
+            productsQuery = productsQuery.eq(filterKey, filter.value!);
+            designerQuery = designerQuery.eq(filterKey, filter.value!);
+            manufacturerQuery = manufacturerQuery.eq(filterKey, filter.value!);
           } else {
             productsQuery = productsQuery.eq(filterKey, filter.value!);
             designerQuery = designerQuery.eq(filterKey, filter.value!);
+            manufacturerQuery = manufacturerQuery.eq(filterKey, filter.value!);
           }
         }
       }
 
-      // 3. Execute both queries in parallel
-      final responses = await Future.wait([productsQuery, designerQuery]);
+      // 3. Execute all three queries in parallel
+      final responses = await Future.wait([productsQuery, designerQuery, manufacturerQuery]);
 
       final Set<String> values = {};
 
@@ -246,6 +273,24 @@ class FilterService {
       // 5. Process designerproducts results - extract all category columns
       if (responses[1] is List) {
         for (var item in responses[1] as List) {
+          if (item['Category'] != null && item['Category'].toString().isNotEmpty) {
+            values.add(item['Category'].toString());
+          }
+          if (item['Category1'] != null && item['Category1'].toString().isNotEmpty) {
+            values.add(item['Category1'].toString());
+          }
+          if (item['Category2'] != null && item['Category2'].toString().isNotEmpty) {
+            values.add(item['Category2'].toString());
+          }
+          if (item['Category3'] != null && item['Category3'].toString().isNotEmpty) {
+            values.add(item['Category3'].toString());
+          }
+        }
+      }
+
+      // 6. Process manufacturerproducts results - extract all category columns
+      if (responses[2] is List) {
+        for (var item in responses[2] as List) {
           if (item['Category'] != null && item['Category'].toString().isNotEmpty) {
             values.add(item['Category'].toString());
           }

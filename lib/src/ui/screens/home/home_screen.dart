@@ -8,6 +8,7 @@ import 'package:jewelry_nafisa/src/services/filter_service.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
+import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -157,6 +158,11 @@ class HomeScreenState extends State<HomeScreen> {
       // For designerproducts, we can include created_at
       const designerSelectColumns = '$selectColumns, created_at';
       
+      // Handle "In-house products" separately
+      if (_selectedMetalType == 'In-house products') {
+        return await _fetchInHouseProducts(offset: offset, limit: limit);
+      }
+      
       // Build query for 'products' table
       dynamic productsQuery = _supabase
           .from('products')
@@ -173,9 +179,9 @@ class HomeScreenState extends State<HomeScreen> {
       // Metal Type filter (first in hierarchy)
       if (_selectedMetalType != 'All') {
         final metal = _selectedMetalType.trim();
-        productsQuery = productsQuery.ilike('"Metal Type"', '%$metal%');
-        designerQuery = designerQuery.ilike('"Metal Type"', '%$metal%');
-        manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', '%$metal%');
+        productsQuery = productsQuery.eq('"Metal Type"', metal);
+        designerQuery = designerQuery.eq('"Metal Type"', metal);
+        manufacturerQuery = manufacturerQuery.eq('"Metal Type"', metal);
       }
       if (_selectedProductType != 'All') {
         productsQuery = productsQuery.eq('"Product Type"', _selectedProductType);
@@ -291,6 +297,87 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<List<JewelryItem>> _fetchInHouseProducts({int offset = 0, int limit = _pageSize}) async {
+    try {
+      const selectColumns = 'id, "Product Title", "Image", "Description", "Product Type", '
+          'Category, Category1, Category2, Category3, "Sub Category", '
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price", created_at';
+
+      List<dynamic> designerData = [];
+      List<dynamic> manufacturerData = [];
+
+      try {
+        var designerQuery = _supabase
+            .from('designerproducts')
+            .select(selectColumns)
+            .eq('"Metal Type"', 'AKD-Silver');
+
+        if (_selectedProductType != 'All') {
+          designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
+        }
+
+        final designerQueryPaged = designerQuery
+            .order('created_at', ascending: false)
+            .range(offset, offset + limit - 1);
+
+        designerData = await designerQueryPaged;
+      } catch (e) {
+        debugPrint('Error fetching designer products: $e');
+      }
+
+      try {
+        var manufacturerQuery = _supabase
+            .from('manufacturerproducts')
+            .select(selectColumns)
+            .eq('"Metal Type"', 'AKD-Silver');
+
+        if (_selectedProductType != 'All') {
+          manufacturerQuery = manufacturerQuery.eq('"Product Type"', _selectedProductType);
+        }
+
+        final manufacturerQueryPaged = manufacturerQuery
+            .order('created_at', ascending: false)
+            .range(offset, offset + limit - 1);
+
+        manufacturerData = await manufacturerQueryPaged;
+      } catch (e) {
+        debugPrint('Error fetching manufacturer products: $e');
+      }
+
+      final List<JewelryItem> allItems = [];
+
+      if (designerData is List) {
+        allItems.addAll(
+          designerData.map((item) {
+            final map = item as Map<String, dynamic>;
+            map['is_designer_product'] = true;
+            return JewelryItem.fromJson(map);
+          }),
+        );
+      }
+
+      if (manufacturerData is List) {
+        allItems.addAll(
+          manufacturerData.map((item) {
+            final map = item as Map<String, dynamic>;
+            map['is_manufacturer_product'] = true;
+            return JewelryItem.fromJson(map);
+          }),
+        );
+      }
+
+      // Shuffle only on first load
+      if (offset == 0) {
+        allItems.shuffle();
+      }
+
+      return allItems;
+    } catch (e) {
+      debugPrint('Error loading in-house products: $e');
+      return [];
+    }
+  }
+
   Future<void> _loadMoreProducts() async {
     if (_isLoadingMore || !_hasMoreProducts) return;
 
@@ -345,6 +432,73 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   // Handlers for dependent dropdowns
+  String? _effectiveMetalTypeForFilters(String metalType) {
+    if (metalType == 'In-house products') return 'AKD-Silver';
+    if (metalType == 'All') return null;
+    return metalType;
+  }
+
+  Future<List<String>> _fetchProductTypesForMetal(String metalType) async {
+    try {
+      final Set<String> allTypes = {};
+
+      try {
+        final productsTypes = await _supabase
+            .from('products')
+            .select('"Product Type"')
+            .eq('"Metal Type"', metalType) as List;
+
+        for (var item in productsTypes) {
+          final productType = item['Product Type'] as String?;
+          if (productType != null && productType.isNotEmpty) {
+            allTypes.add(productType);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching product types from products: $e');
+      }
+
+      try {
+        final designerTypes = await _supabase
+            .from('designerproducts')
+            .select('"Product Type"')
+            .eq('"Metal Type"', metalType) as List;
+
+        for (var item in designerTypes) {
+          final productType = item['Product Type'] as String?;
+          if (productType != null && productType.isNotEmpty) {
+            allTypes.add(productType);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching designer product types: $e');
+      }
+
+      try {
+        final manufacturerTypes = await _supabase
+            .from('manufacturerproducts')
+            .select('"Product Type"')
+            .eq('"Metal Type"', metalType) as List;
+
+        for (var item in manufacturerTypes) {
+          final productType = item['Product Type'] as String?;
+          if (productType != null && productType.isNotEmpty) {
+            allTypes.add(productType);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching manufacturer product types: $e');
+      }
+
+      final types = allTypes.toList();
+      types.sort();
+      return types;
+    } catch (e) {
+      debugPrint('Error fetching product types for metal $metalType: $e');
+      return [];
+    }
+  }
+
 
   /// Called when "Metal Type" filter changes
   Future<void> _onMetalTypeChanged(String value) async {
@@ -365,14 +519,12 @@ class HomeScreenState extends State<HomeScreen> {
 
     // Fetch Product Types based on Metal Type
     List<String> newProductTypes;
-    if (value == 'All') {
+    final effectiveMetal = _effectiveMetalTypeForFilters(value);
+    if (value == 'All' || effectiveMetal == null) {
       // If Metal Type is 'All', get all Product Types
       newProductTypes = await _filterService.getDistinctValues('Product Type');
     } else {
-      // Otherwise, get Product Types filtered by Metal Type
-      final filters = {'Metal Type': value};
-      newProductTypes =
-          await _filterService.getDependentDistinctValues('Product Type', filters);
+      newProductTypes = await _fetchProductTypesForMetal(effectiveMetal);
     }
 
     if (mounted) {
@@ -404,8 +556,9 @@ class HomeScreenState extends State<HomeScreen> {
 
     // Build filters including Metal Type if selected
     final filters = <String, String?>{};
-    if (_selectedMetalType != 'All') {
-      filters['Metal Type'] = _selectedMetalType;
+    final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
+    if (effectiveMetal != null) {
+      filters['Metal Type'] = effectiveMetal;
     }
     filters['Product Type'] = value;
     
@@ -437,8 +590,9 @@ class HomeScreenState extends State<HomeScreen> {
 
     // Fetch new options for 'Sub Category'
     final filters = <String, String?>{};
-    if (_selectedMetalType != 'All') {
-      filters['Metal Type'] = _selectedMetalType;
+    final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
+    if (effectiveMetal != null) {
+      filters['Metal Type'] = effectiveMetal;
     }
     if (_selectedProductType != 'All') {
       filters['Product Type'] = _selectedProductType;
@@ -709,14 +863,15 @@ class HomeScreenState extends State<HomeScreen> {
                 _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
                 const SizedBox(width: 6.0),
                 _buildMetalTypeButton('Silver', _selectedMetalType == 'Silver'),
-                // const SizedBox(width: 6.0),
-                // _buildMetalTypeButton('Platinum', _selectedMetalType == 'Platinum'),
+                const SizedBox(width: 6.0),
+                _buildMetalTypeButton('In-house products', _selectedMetalType == 'In-house products'),
               ],
             ),
           ),
           
-          // Product Type Filter - Bubble chips
-          if (_productTypeOptions.length > 1)
+          // Product Type Filter - Show for all metal types (Gold, Silver, In-house)
+          if (_selectedMetalType != 'All' &&
+              _productTypeOptions.length > 1)
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: Center(
@@ -1140,9 +1295,7 @@ Widget _buildDropdownFilter({
               CachedNetworkImage(
                 imageUrl: item.image,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => const Center(
-                  child: CircularProgressIndicator.adaptive(),
-                ),
+                placeholder: (context, url) => createBlurUpPlaceholder(),
                 errorWidget: (context, url, error) => const Icon(
                   Icons.error_outline,
                   color: Colors.grey,

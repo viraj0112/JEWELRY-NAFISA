@@ -190,33 +190,43 @@ class JewelryService {
     String? productType,
     String? category,
     String? subCategory,
+    String? category1,
+    String? category2,
+    String? category3,
     int limit = 10,
   }) async {
-    // Check if all relevant fields are null or empty
+    // Check if at least ONE relevant field has a value (be more lenient)
     if ((productType == null || productType.isEmpty) &&
         (category == null || category.isEmpty) &&
-        (subCategory == null || subCategory.isEmpty)) {
+        (subCategory == null || subCategory.isEmpty) &&
+        (category1 == null || category1.isEmpty) &&
+        (category2 == null || category2.isEmpty) &&
+        (category3 == null || category3.isEmpty)) {
+      debugPrint('Similar items: All filter fields are empty, cannot find similar products');
       return [];
     }
 
     try {
       final response = await _supabaseClient.rpc(
-        'get_similar_products', // Same function name
+        'get_similar_products',
         params: {
-          // Pass new parameters to the SQL function
           'p_product_type': productType,
           'p_category': category,
           'p_sub_category': subCategory,
+          'p_category1': category1,
+          'p_category2': category2,
+          'p_category3': category3,
           'p_limit': limit,
           'p_exclude_id': currentItemId,
           'p_is_designer': isDesigner,
         },
       ) as List<dynamic>;
 
+      debugPrint('Similar items loaded: ${response.length} items found');
+
       return response
           .map((json) {
             final map = json as Map<String, dynamic>;
-            // The SQL function already returns is_designer_product, so use it if available
             if (!map.containsKey('is_designer_product')) {
               map['is_designer_product'] = isDesigner;
             }

@@ -3,6 +3,9 @@ CREATE OR REPLACE FUNCTION get_similar_products(
   p_product_type TEXT DEFAULT NULL,
   p_category TEXT DEFAULT NULL,
   p_sub_category TEXT DEFAULT NULL,
+  p_category1 TEXT DEFAULT NULL,
+  p_category2 TEXT DEFAULT NULL,
+  p_category3 TEXT DEFAULT NULL,
   p_limit INT DEFAULT 10,
   p_exclude_id TEXT DEFAULT NULL,
   p_is_designer BOOLEAN DEFAULT NULL
@@ -53,6 +56,9 @@ BEGIN
         (p_product_type IS NULL OR p."Product Type" = p_product_type)
         AND (p_category IS NULL OR p."Category" = p_category)
         AND (p_sub_category IS NULL OR p."Sub Category" = p_sub_category)
+        AND (p_category1 IS NULL OR p."Category1" = p_category1)
+        AND (p_category2 IS NULL OR p."Category2" = p_category2)
+        AND (p_category3 IS NULL OR p."Category3" = p_category3)
       )
     
     UNION ALL
@@ -83,6 +89,9 @@ BEGIN
         (p_product_type IS NULL OR dp."Product Type" = p_product_type)
         AND (p_category IS NULL OR dp."Category" = p_category)
         AND (p_sub_category IS NULL OR dp."Sub Category" = p_sub_category)
+        AND (p_category1 IS NULL OR dp."Category1" = p_category1)
+        AND (p_category2 IS NULL OR dp."Category2" = p_category2)
+        AND (p_category3 IS NULL OR dp."Category3" = p_category3)
       )
   )
   SELECT * FROM combined_results

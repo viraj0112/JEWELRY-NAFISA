@@ -8,6 +8,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
+import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/get_quote_dialog.dart';
@@ -109,6 +110,9 @@ print(_itemTable);
         productType: widget.jewelryItem.productType,
         category: widget.jewelryItem.category,
         subCategory: widget.jewelryItem.subCategory,
+        category1: widget.jewelryItem.category1,
+        category2: widget.jewelryItem.category2,
+        category3: widget.jewelryItem.category3,
         limit: 80,
         isDesigner: widget.jewelryItem.isDesignerProduct);
 
@@ -580,6 +584,7 @@ print(_itemTable);
           final fullProduct = await _jewelryService.getJewelryItem(
             _itemId,
             isDesignerProduct: widget.jewelryItem.isDesignerProduct,
+            isManufacturerProduct: widget.jewelryItem.isManufacturerProduct,
           );
           
           setState(() {
@@ -723,9 +728,7 @@ Widget _buildWideLayout(BuildContext context) {
                                           fit: BoxFit.cover,
                                           errorWidget: (_, __, ___) => const Center(
                                               child: Icon(Icons.broken_image, size: 48)),
-                                          placeholder: (context, url) =>
-                                              const Center(
-                                                  child: CircularProgressIndicator()),
+                                          placeholder: (context, url) => createBlurUpPlaceholder(),
                                         ),
                                       ),
                                     ),
@@ -889,8 +892,7 @@ Widget _buildNarrowLayout() {
                             child: CachedNetworkImage(
                               imageUrl: _imageUrls[index],
                               fit: BoxFit.cover,
-                              placeholder: (_, __) =>
-                                  const Center(child: CircularProgressIndicator()),
+                              placeholder: (_, __) => createBlurUpPlaceholder(),
                               errorWidget: (_, __, ___) =>
                                   const Center(child: Icon(Icons.broken_image)),
                             ),
@@ -1233,7 +1235,7 @@ Widget _buildImageThumbnails() {
                   imageUrl: _imageUrls[index],
                   fit: BoxFit.cover,
                   errorWidget: (_, __, ___) => const Icon(Icons.broken_image, size: 20),
-                  placeholder: (context, url) => Container(color: Colors.grey[200]),
+                  placeholder: (context, url) => createBlurUpPlaceholder(),
                 ),
               ),
             ),
@@ -1328,7 +1330,7 @@ Widget _buildImageThumbnails() {
         }
 
         final items = snapshot.data!;
-        final gridWidget = MasonryGridView.count(
+        Widget gridWidget = MasonryGridView.count(
           // --- MODIFICATION: Set physics based on context ---
           // If it's in a tab (not sliver), it needs its own scroll physics.
           // If it was a sliver, it shouldn't scroll independently.
@@ -1354,28 +1356,43 @@ Widget _buildImageThumbnails() {
               },
               child: Card(
                 clipBehavior: Clip.antiAlias,
-                child: CachedNetworkImage(
-                  imageUrl: item.image,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => Container(
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.broken_image)),
-                  placeholder: (context, url) =>
-                      const Center(child: CircularProgressIndicator()),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.zero,
+                  child: _similarItemImage(item.image),
                 ),
               ),
             );
           },
         );
 
+        // If used as a sliver, wrap the non-sliver GridView in a SliverToBoxAdapter
         if (isSliver) {
           return SliverPadding(
-              padding: const EdgeInsets.all(8.0), sliver: gridWidget);
+              padding: const EdgeInsets.all(8.0),
+              sliver: SliverToBoxAdapter(child: SizedBox(child: gridWidget)));
         } else {
-          // --- MODIFICATION: Add padding when not a sliver (for tab view) ---
+          // Add padding when not a sliver (for tab view)
           return Padding(padding: const EdgeInsets.all(8.0), child: gridWidget);
         }
       },
+    );
+  }
+
+  // Helper to safely render a similar-item image (handles null/empty URLs)
+  Widget _similarItemImage(String? url) {
+    if (url == null || url.isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Center(child: Icon(Icons.broken_image)),
+      );
+    }
+
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      errorWidget: (_, __, ___) => Container(
+          color: Colors.grey[200], child: const Icon(Icons.broken_image)),
+      placeholder: (context, url) => createBlurUpPlaceholder(),
     );
   }
 }

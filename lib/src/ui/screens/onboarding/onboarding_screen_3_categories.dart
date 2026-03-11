@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 
 class OnboardingScreen3Categories extends StatefulWidget {
  const OnboardingScreen3Categories({super.key});
@@ -346,13 +347,7 @@ class _OnboardingScreen3CategoriesState
            ? Colors.black.withOpacity(0.2) // Subtle darkening of image in Dark Mode
            : null,
           colorBlendMode: BlendMode.darken,
-          placeholder: (context, url) => Center(
-           child: CircularProgressIndicator.adaptive(
-             strokeWidth: 2,
-             valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary.withOpacity(0.7)), 
-             backgroundColor: colorScheme.onPrimary.withOpacity(0.1),
-            ),
-           ),
+          placeholder: (context, url) => createBlurUpPlaceholder(),
           errorWidget: (context, url, error) => Center(
            child: Icon(Icons.broken_image, color: colorScheme.onPrimary.withOpacity(0.8), size: 40), 
            ),

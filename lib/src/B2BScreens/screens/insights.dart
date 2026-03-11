@@ -6,6 +6,7 @@ import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui';
+import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 
 class InsightsPage extends StatefulWidget {
   const InsightsPage({super.key});
@@ -486,10 +487,10 @@ LayoutBuilder(builder: (context, constraints) {
                         width: 40,
                         height: 40,
                         fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
+                        placeholder: (context, url) => SizedBox(
                             width: 40,
                             height: 40,
-                            color: Colors.grey[300]),
+                            child: createBlurUpPlaceholder()),
                         errorWidget: (c, e, s) => Container(
                             width: 40,
                             height: 40,
