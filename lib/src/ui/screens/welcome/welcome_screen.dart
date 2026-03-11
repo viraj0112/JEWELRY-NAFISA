@@ -3,6 +3,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
+import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/widgets/login_required_dialog.dart';
 import 'package:go_router/go_router.dart';
@@ -28,6 +33,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   String _selectedMetalType = 'Gold';
   String _selectedProductType = 'All';
   List<String> _availableProductTypes = ['All'];
+  String _selectedCategory = 'All';
+  List<String> _availableCategories = ['All'];
 
   @override
   void initState() {
@@ -35,6 +42,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
     _loadProducts();
+    _fetchProductTypes(_selectedMetalType);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showDialog(
         context: context,
@@ -108,6 +116,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             designerQuery.eq('"Product Type"', _selectedProductType);
         manufacturerQuery =
             manufacturerQuery.eq('"Product Type"', _selectedProductType);
+      }
+
+      if (_selectedCategory != 'All') {
+        final c = _selectedCategory.trim();
+        final orFilter =
+            'Category.eq.$c,Category1.eq.$c,Category2.eq.$c,Category3.eq.$c';
+        productsQuery = productsQuery.or(orFilter);
+        designerQuery = designerQuery.or(orFilter);
+        manufacturerQuery = manufacturerQuery.or(orFilter);
       }
 
       productsQuery = productsQuery.order('id', ascending: false).range(0, 199);
@@ -214,6 +231,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         if (_selectedProductType != 'All') {
           designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
         }
+        if (_selectedCategory != 'All') {
+          final c = _selectedCategory.trim();
+          designerQuery = designerQuery.or(
+            'Category.eq.$c,Category1.eq.$c,Category2.eq.$c,Category3.eq.$c',
+          );
+        }
 
         designerData = await designerQuery
             .order('created_at', ascending: false)
@@ -231,6 +254,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
         if (_selectedProductType != 'All') {
           manufacturerQuery = manufacturerQuery.eq('"Product Type"', _selectedProductType);
+        }
+        if (_selectedCategory != 'All') {
+          final c = _selectedCategory.trim();
+          manufacturerQuery = manufacturerQuery.or(
+            'Category.eq.$c,Category1.eq.$c,Category2.eq.$c,Category3.eq.$c',
+          );
         }
 
         manufacturerData = await manufacturerQuery
@@ -302,6 +331,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       _selectedMetalType = value;
       _selectedProductType = 'All';
       _availableProductTypes = ['All'];
+      _selectedCategory = 'All';
+      _availableCategories = ['All'];
     });
     _displayedCount = _initialItems;
     if (value != 'All') {
@@ -312,7 +343,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   Future<void> _fetchProductTypes(String metalType) async {
     try {
-      final effectiveMetal = _effectiveMetalTypeForFilters(metalType);
+      final effectiveMetal = _effectiveMetalTypeForFilters(metalType)?.trim();
       if (effectiveMetal == null) {
         setState(() => _availableProductTypes = ['All']);
         return;
@@ -362,6 +393,54 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }
   }
 
+  Future<void> _fetchCategories({
+    required String metalType,
+    required String productType,
+  }) async {
+    try {
+      final effectiveMetal = _effectiveMetalTypeForFilters(metalType)?.trim();
+      if (effectiveMetal == null || productType == 'All') {
+        if (!mounted) return;
+        setState(() => _availableCategories = ['All']);
+        return;
+      }
+
+      const categoryKeys = ['Category', 'Category1', 'Category2', 'Category3'];
+      const selectColumns = '"Category", "Category1", "Category2", "Category3"';
+
+      Future<Set<String>> fetchFrom(String table) async {
+        final data = await _supabase
+            .from(table)
+            .select(selectColumns)
+            .eq('"Metal Type"', effectiveMetal)
+            .eq('"Product Type"', productType);
+
+        final out = <String>{};
+        for (final row in (data as List)) {
+          final m = row as Map<String, dynamic>;
+          for (final k in categoryKeys) {
+            final v = m[k];
+            if (v is String) {
+              final s = v.trim();
+              if (s.isNotEmpty) out.add(s);
+            }
+          }
+        }
+        return out;
+      }
+
+      final a = await fetchFrom('products');
+      final b = await fetchFrom('designerproducts');
+      final c = await fetchFrom('manufacturerproducts');
+
+      final all = <String>{'All', ...a, ...b, ...c}.toList()..sort();
+      if (!mounted) return;
+      setState(() => _availableCategories = all);
+    } catch (e) {
+      debugPrint('Error fetching categories: $e');
+    }
+  }
+
 
   void _navigateToLogin() {
     context.push('/login');
@@ -378,14 +457,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       child: Scaffold(
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : _products.isEmpty
-                ? const Center(child: Text("No images found."))
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isWide = constraints.maxWidth > 700;
-                      return isWide ? _buildWideLayout() : _buildNarrowLayout();
-                    },
-                  ),
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 700;
+                  return isWide ? _buildWideLayout() : _buildNarrowLayout();
+                },
+              ),
       ),
     );
   }
@@ -404,7 +481,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 children: [
                   _buildAppBar(),
                   _buildFilterBar(),
-                  Expanded(child: _buildImageGrid()),
+                  Expanded(
+                    child: _products.isEmpty
+                        ? const Center(child: Text('Coming Soon'))
+                        : _buildImageGrid(),
+                  ),
                 ],
               ),
             ),
@@ -420,7 +501,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       body: Column(
         children: [
           _buildFilterBar(),
-          Expanded(child: _buildImageGrid()),
+          Expanded(
+            child: _products.isEmpty
+                ? const Center(child: Text('Coming Soon'))
+                : _buildImageGrid(),
+          )
         ],
       ),
       // bottomNavigationBar: _buildFixedNavBar(),
@@ -491,46 +576,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  // Widget _buildFixedNavBar() {
-  //   final theme = Theme.of(context);
-  //   return BottomNavigationBar(
-  //     currentIndex: 0,
-  //     onTap: (index) => _navigateToLogin(),
-  //     type: BottomNavigationBarType.fixed,
-  //     backgroundColor: theme.colorScheme.surface,
-  //     elevation: 8.0,
-  //     selectedItemColor: theme.colorScheme.primary,
-  //     unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
-  //     items: const <BottomNavigationBarItem>[
-  //       BottomNavigationBarItem(
-  //         icon: Icon(Icons.home_outlined),
-  //         activeIcon: Icon(Icons.home),
-  //         label: 'Home',
-  //       ),
-  //       BottomNavigationBarItem(
-  //         icon: Icon(Icons.search_outlined),
-  //         activeIcon: Icon(Icons.search),
-  //         label: 'Search',
-  //       ),
-  //       BottomNavigationBarItem(
-  //         icon: Icon(Icons.add_box_outlined),
-  //         activeIcon: Icon(Icons.add_box_rounded),
-  //         label: 'Boards',
-  //       ),
-  //       BottomNavigationBarItem(
-  //         icon: Icon(Icons.notifications_outlined),
-  //         activeIcon: Icon(Icons.notifications),
-  //         label: 'Notifications',
-  //       ),
-  //       BottomNavigationBarItem(
-  //         icon: Icon(Icons.person_outline),
-  //         activeIcon: Icon(Icons.person),
-  //         label: 'Profile',
-  //       ),
-  //     ],
-  //   );
-  // }
-
   PreferredSizeWidget _buildAppBar() {
     const Color customGreen = Color(0xFF336B43);
   return AppBar(
@@ -549,15 +594,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     ],
   ),
   actions: [
-    // IconButton(
-    //   icon: Icon(
-    //     themeProvider.themeMode == ThemeMode.light
-    //         ? Icons.dark_mode_outlined
-    //         : Icons.light_mode_outlined,
-    //   ),
-    //   onPressed: () => themeProvider.toggleTheme(),
-    //   tooltip: 'Toggle Theme',
-    // ),
     _buildGuestMenu(context),
     const SizedBox(width: 12),
   ],
@@ -644,8 +680,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       _selectedMetalType = 'Gold';
       _selectedProductType = 'All';
       _availableProductTypes = ['All'];
+      _selectedCategory = 'All';
+      _availableCategories = ['All'];
     });
     _displayedCount = _initialItems;
+    _fetchProductTypes(_selectedMetalType);
     _loadProducts();
   }
 
@@ -656,24 +695,24 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: Text(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12.0,
+              runSpacing: 8.0,
+              children: [
+                Text(
                   'Choose Your Style',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: const Color(0xFF006435),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
+                        color: const Color(0xFF006435),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
                 ),
-              ),
-              // Reset button
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: Material(
+                // Reset button (centered with title)
+                Material(
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: _resetFilters,
@@ -701,8 +740,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           Padding(
             padding: const EdgeInsets.only(bottom: 10.0),
@@ -722,35 +761,96 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               padding: const EdgeInsets.only(top: 12.0),
               child: _buildProductTypeDropdown(),
             ),
+          if (_selectedMetalType != 'All' && _selectedProductType != 'All')
+            Padding(
+              padding: const EdgeInsets.only(top: 10.0),
+              child: _buildCategoryDropdown(),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildProductTypeDropdown() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE0E0E0), width: 1.5),
-        borderRadius: BorderRadius.circular(8.0),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Container(
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFFE0E0E0), width: 1.5),
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          child: DropdownButton<String>(
+            isExpanded: true,
+            isDense: true,
+            iconSize: 20,
+            underline: const SizedBox(),
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
+            value: _selectedProductType,
+            items: _availableProductTypes
+                .map(
+                  (type) => DropdownMenuItem(
+                    value: type,
+                    child: Text(type, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedProductType = value;
+                  _selectedCategory = 'All';
+                  _availableCategories = ['All'];
+                });
+                _fetchCategories(
+                  metalType: _selectedMetalType,
+                  productType: value,
+                );
+                _loadProducts();
+              }
+            },
+          ),
+        ),
       ),
-      child: DropdownButton<String>(
-        isExpanded: true,
-        underline: const SizedBox(),
-        value: _selectedProductType,
-        items: _availableProductTypes
-            .map((type) => DropdownMenuItem(
-          value: type,
-          child: Text(type),
-        ))
-            .toList(),
-        onChanged: (value) {
-          if (value != null) {
-            setState(() => _selectedProductType = value);
-            _fetchProductTypes(_selectedMetalType);
-            _loadProducts();
-          }
-        },
+    );
+  }
+
+  Widget _buildCategoryDropdown() {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Container(
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFFE0E0E0), width: 1.5),
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          child: DropdownButton<String>(
+            isExpanded: true,
+            isDense: true,
+            iconSize: 20,
+            underline: const SizedBox(),
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
+            value: _selectedCategory,
+            items: _availableCategories
+                .map(
+                  (c) => DropdownMenuItem(
+                    value: c,
+                    child: Text(c, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _selectedCategory = value);
+                _loadProducts();
+              }
+            },
+          ),
+        ),
       ),
     );
   }
@@ -886,58 +986,59 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
 
-Widget _buildImageCard(BuildContext context, JewelryItem item) {
-  // Skip rendering cards with missing image URLs
-  if (item.image == null || item.image.isEmpty) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Container(
-        color: Colors.grey[200],
-        child: Center(
-          child: Icon(Icons.image_not_supported, color: Colors.grey[400]),
+  Widget _buildImageCard(BuildContext context, JewelryItem item) {
+    // Skip rendering cards with missing image URLs
+    if (item.image == null || item.image.isEmpty) {
+      return Card(
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          color: Colors.grey[200],
+          child: Center(
+            child: Icon(Icons.image_not_supported, color: Colors.grey[400]),
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () {
+        final isDesigner = item.isDesignerProduct;
+        final isManufacturer = item.isManufacturerProduct;
+        context.push('/product/${item.id}?isDesigner=$isDesigner&isManufacturer=${isManufacturer}');
+      },
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: AspectRatio(
+          aspectRatio: item.aspectRatio,
+          child: CachedNetworkImage(
+            imageUrl: item.image,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => createBlurUpPlaceholder(),
+            errorWidget: (context, url, error) => Container(
+              color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.image_not_supported, color: Colors.grey[400]),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Failed to load',
+                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            fadeInDuration: const Duration(milliseconds: 300),
+            fadeOutDuration: const Duration(milliseconds: 300),
+            memCacheHeight: 400,
+            memCacheWidth: 400,
+            maxHeightDiskCache: 400,
+            maxWidthDiskCache: 400,
+          ),
         ),
       ),
     );
   }
+}
 
-  return GestureDetector(
-    onTap: () {
-      final isDesigner = item.isDesignerProduct;
-      final isManufacturer = item.isManufacturerProduct;
-      context.push('/product/${item.id}?isDesigner=$isDesigner&isManufacturer=${isManufacturer}');
-    },
-    child: Card(
-      clipBehavior: Clip.antiAlias,
-      child: AspectRatio(
-        aspectRatio: item.aspectRatio,
-        child: CachedNetworkImage(
-          imageUrl: item.image,
-          fit: BoxFit.cover,
-          placeholder: (context, url) => createBlurUpPlaceholder(),
-          errorWidget: (context, url, error) => Container(
-            color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.image_not_supported, color: Colors.grey[400]),
-                const SizedBox(height: 8),
-                Text(
-                  'Failed to load',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-          fadeInDuration: const Duration(milliseconds: 300),
-          fadeOutDuration: const Duration(milliseconds: 300),
-          memCacheHeight: 400,
-          memCacheWidth: 400,
-          maxHeightDiskCache: 400,
-          maxWidthDiskCache: 400,
-        ),
-      ),
-    ),
-  );
-}
-}
