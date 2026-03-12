@@ -167,10 +167,9 @@ class FilterService {
           // Use quotes for filter keys if they contain spaces
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
-          // Special handling for Metal Type: use eq for exact matching
-          if (filter.key == 'Metal Type') {
-            productsQuery = productsQuery.eq(filterKey, filter.value!);
-            designerQuery = designerQuery.eq(filterKey, filter.value!);
+          if (filter.key == 'Metal Type' && filter.value == 'AKD') {
+            productsQuery = productsQuery.ilike(filterKey, 'AKD%');
+            designerQuery = designerQuery.ilike(filterKey, 'AKD%');
           } else {
             productsQuery = productsQuery.eq(filterKey, filter.value!);
             designerQuery = designerQuery.eq(filterKey, filter.value!);
@@ -234,11 +233,10 @@ class FilterService {
           // Use quotes for filter keys if they contain spaces
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
-          // Special handling for Metal Type: use eq for exact matching
-          if (filter.key == 'Metal Type') {
-            productsQuery = productsQuery.eq(filterKey, filter.value!);
-            designerQuery = designerQuery.eq(filterKey, filter.value!);
-            manufacturerQuery = manufacturerQuery.eq(filterKey, filter.value!);
+          if (filter.key == 'Metal Type' && filter.value == 'AKD') {
+            productsQuery = productsQuery.ilike(filterKey, 'AKD%');
+            designerQuery = designerQuery.ilike(filterKey, 'AKD%');
+            manufacturerQuery = manufacturerQuery.ilike(filterKey, 'AKD%');
           } else {
             productsQuery = productsQuery.eq(filterKey, filter.value!);
             designerQuery = designerQuery.eq(filterKey, filter.value!);

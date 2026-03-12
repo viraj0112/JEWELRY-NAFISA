@@ -8,12 +8,14 @@ import 'package:jewelry_nafisa/src/services/filter_service.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
+import 'package:jewelry_nafisa/src/utils/image_url_resolver.dart';
 import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/scheduler.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -145,6 +147,154 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<List<JewelryItem>> _fetchSilverProductsWithPattern({
+  int offset = 0, 
+  int limit = _pageSize
+}) async {
+  if (mounted && offset == 0) {
+    setState(() => _isLoadingProducts = true);
+  }
+  
+  try {
+    const selectColumns = 'id, "Product Title", "Image", "Description", "Product Type", '
+        'Category, Category1, Category2, Category3, "Sub Category", '
+        '"Metal Type", "Metal Purity", Plain, Studded, "Price"';
+    
+    const designerSelectColumns = '$selectColumns, created_at';
+    
+    // Build queries for all three tables with LIKE pattern matching
+    // Using .ilike() for case-insensitive pattern matching
+    
+    // Query 1: products table - Metal Type contains "Silver"
+    dynamic productsQuery = _supabase
+        .from('products')
+        .select(selectColumns)
+        .ilike('"Metal Type"', '%Silver%');  // Pattern matching for Silver
+    
+    // Query 2: designerproducts table - Metal Type contains "Silver"
+    dynamic designerQuery = _supabase
+        .from('designerproducts')
+        .select(designerSelectColumns)
+        .ilike('"Metal Type"', '%Silver%');  // Pattern matching for Silver
+    
+    // Query 3: manufacturerproducts table - Metal Type contains "Silver"
+    dynamic manufacturerQuery = _supabase
+        .from('manufacturerproducts')
+        .select(designerSelectColumns)
+        .ilike('"Metal Type"', '%Silver%');  // Pattern matching for Silver
+    
+    // Apply additional filters if needed
+    if (_selectedProductType != 'All') {
+      productsQuery = productsQuery.eq('"Product Type"', _selectedProductType);
+      designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
+      manufacturerQuery = manufacturerQuery.eq('"Product Type"', _selectedProductType);
+    }
+    
+    if (_selectedCategory != 'All') {
+      final categoryFilter = 'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
+      productsQuery = productsQuery.or(categoryFilter);
+      designerQuery = designerQuery.or(categoryFilter);
+      manufacturerQuery = manufacturerQuery.or(categoryFilter);
+    }
+    
+    if (_selectedSubCategory != 'All') {
+      productsQuery = productsQuery.eq('"Sub Category"', _selectedSubCategory);
+      designerQuery = designerQuery.eq('"Sub Category"', _selectedSubCategory);
+      manufacturerQuery = manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
+    }
+    
+    if (_selectedMetalPurity != 'All') {
+      productsQuery = productsQuery.eq('"Metal Purity"', _selectedMetalPurity);
+      designerQuery = designerQuery.eq('"Metal Purity"', _selectedMetalPurity);
+      manufacturerQuery = manufacturerQuery.eq('"Metal Purity"', _selectedMetalPurity);
+    }
+    
+    if (_selectedPlain != null) {
+      productsQuery = productsQuery.eq('Plain', _selectedPlain!);
+      designerQuery = designerQuery.eq('Plain', _selectedPlain!);
+      manufacturerQuery = manufacturerQuery.eq('Plain', _selectedPlain!);
+    }
+    
+    if (_selectedStudded != null) {
+      productsQuery = productsQuery.contains('Studded', ['$_selectedStudded']);
+      designerQuery = designerQuery.contains('Studded', ['$_selectedStudded']);
+      manufacturerQuery = manufacturerQuery.contains('Studded', ['$_selectedStudded']);
+    }
+    
+    // Apply pagination
+    productsQuery = productsQuery
+        .order('id', ascending: false)
+        .range(offset, offset + limit - 1);
+    
+    designerQuery = designerQuery
+        .order('created_at', ascending: false)
+        .range(offset, offset + limit - 1);
+    
+    manufacturerQuery = manufacturerQuery
+        .order('created_at', ascending: false)
+        .range(offset, offset + limit - 1);
+    
+    // Fetch from all three tables in parallel
+    final responses = await Future.wait<dynamic>([
+      productsQuery as Future<dynamic>,
+      designerQuery as Future<dynamic>,
+      manufacturerQuery as Future<dynamic>,
+    ]);
+    
+    final List<JewelryItem> allItems = [];
+    
+    // Parse products table results
+    if (responses[0] is List) {
+      allItems.addAll(
+        (responses[0] as List).map((item) => 
+          JewelryItem.fromJson(item as Map<String, dynamic>)
+        ),
+      );
+    }
+    
+    // Parse designer products with flag
+    if (responses[1] is List) {
+      allItems.addAll(
+        (responses[1] as List).map((item) {
+          final map = item as Map<String, dynamic>;
+          map['is_designer_product'] = true;
+          return JewelryItem.fromJson(map);
+        }),
+      );
+    }
+    
+    // Parse manufacturer products with flag
+    if (responses[2] is List) {
+      allItems.addAll(
+        (responses[2] as List).map((item) {
+          final map = item as Map<String, dynamic>;
+          map['is_manufacturer_product'] = true;
+          return JewelryItem.fromJson(map);
+        }),
+      );
+    }
+    
+    // Shuffle only on first load
+    if (offset == 0) {
+      allItems.shuffle();
+    }
+    
+    return allItems;
+  } catch (e) {
+    debugPrint('Error fetching silver products with pattern: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading silver products: $e')),
+      );
+    }
+    return [];
+  } finally {
+    if (mounted && offset == 0) {
+      setState(() => _isLoadingProducts = false);
+    }
+  }
+}
+
   Future<List<JewelryItem>> _fetchFilteredProducts({int offset = 0, int limit = _pageSize}) async {
     if (mounted && offset == 0) {
       setState(() => _isLoadingProducts = true);
@@ -158,8 +308,8 @@ class HomeScreenState extends State<HomeScreen> {
       // For designerproducts, we can include created_at
       const designerSelectColumns = '$selectColumns, created_at';
       
-      // Handle "In-house products" separately
-      if (_selectedMetalType == 'In-house products') {
+      // Handle "Instant" separately
+      if (_selectedMetalType == 'Instant') {
         return await _fetchInHouseProducts(offset: offset, limit: limit);
       }
       
@@ -179,9 +329,10 @@ class HomeScreenState extends State<HomeScreen> {
       // Metal Type filter (first in hierarchy)
       if (_selectedMetalType != 'All') {
         final metal = _selectedMetalType.trim();
-        productsQuery = productsQuery.eq('"Metal Type"', metal);
-        designerQuery = designerQuery.eq('"Metal Type"', metal);
-        manufacturerQuery = manufacturerQuery.eq('"Metal Type"', metal);
+        // Use ilike() for case-insensitive pattern matching
+        productsQuery = productsQuery.ilike('"Metal Type"', '%$metal%');
+        designerQuery = designerQuery.ilike('"Metal Type"', '%$metal%');
+        manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', '%$metal%');
       }
       if (_selectedProductType != 'All') {
         productsQuery = productsQuery.eq('"Product Type"', _selectedProductType);
@@ -307,10 +458,10 @@ class HomeScreenState extends State<HomeScreen> {
       List<dynamic> manufacturerData = [];
 
       try {
-        var designerQuery = _supabase
-            .from('designerproducts')
-            .select(selectColumns)
-            .eq('"Metal Type"', 'AKD-Silver');
+          var designerQuery = _supabase
+              .from('designerproducts')
+              .select(selectColumns)
+              .ilike('"Metal Type"', 'AKD%');
 
         if (_selectedProductType != 'All') {
           designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
@@ -326,10 +477,10 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       try {
-        var manufacturerQuery = _supabase
-            .from('manufacturerproducts')
-            .select(selectColumns)
-            .eq('"Metal Type"', 'AKD-Silver');
+          var manufacturerQuery = _supabase
+              .from('manufacturerproducts')
+              .select(selectColumns)
+              .ilike('"Metal Type"', 'AKD%');
 
         if (_selectedProductType != 'All') {
           manufacturerQuery = manufacturerQuery.eq('"Product Type"', _selectedProductType);
@@ -373,7 +524,7 @@ class HomeScreenState extends State<HomeScreen> {
 
       return allItems;
     } catch (e) {
-      debugPrint('Error loading in-house products: $e');
+      debugPrint('Error loading Instant: $e');
       return [];
     }
   }
@@ -433,7 +584,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   // Handlers for dependent dropdowns
   String? _effectiveMetalTypeForFilters(String metalType) {
-    if (metalType == 'In-house products') return 'AKD-Silver';
+    if (metalType == 'Instant') return 'AKD';
     if (metalType == 'All') return null;
     return metalType;
   }
@@ -443,10 +594,12 @@ class HomeScreenState extends State<HomeScreen> {
       final Set<String> allTypes = {};
 
       try {
-        final productsTypes = await _supabase
+        final query = _supabase
             .from('products')
-            .select('"Product Type"')
-            .eq('"Metal Type"', metalType) as List;
+            .select('"Product Type"');
+        final productsTypes = (metalType == 'AKD'
+            ? await query.ilike('"Metal Type"', 'AKD%')
+            : await query.eq('"Metal Type"', metalType)) as List;
 
         for (var item in productsTypes) {
           final productType = item['Product Type'] as String?;
@@ -459,10 +612,12 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       try {
-        final designerTypes = await _supabase
+        final query = _supabase
             .from('designerproducts')
-            .select('"Product Type"')
-            .eq('"Metal Type"', metalType) as List;
+            .select('"Product Type"');
+        final designerTypes = (metalType == 'AKD'
+            ? await query.ilike('"Metal Type"', 'AKD%')
+            : await query.eq('"Metal Type"', metalType)) as List;
 
         for (var item in designerTypes) {
           final productType = item['Product Type'] as String?;
@@ -475,10 +630,12 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       try {
-        final manufacturerTypes = await _supabase
+        final query = _supabase
             .from('manufacturerproducts')
-            .select('"Product Type"')
-            .eq('"Metal Type"', metalType) as List;
+            .select('"Product Type"');
+        final manufacturerTypes = (metalType == 'AKD'
+            ? await query.ilike('"Metal Type"', 'AKD%')
+            : await query.eq('"Metal Type"', metalType)) as List;
 
         for (var item in manufacturerTypes) {
           final productType = item['Product Type'] as String?;
@@ -864,38 +1021,67 @@ class HomeScreenState extends State<HomeScreen> {
                 const SizedBox(width: 6.0),
                 _buildMetalTypeButton('Silver', _selectedMetalType == 'Silver'),
                 const SizedBox(width: 6.0),
-                _buildMetalTypeButton('In-house products', _selectedMetalType == 'In-house products'),
+                _buildMetalTypeButton('Instant', _selectedMetalType == 'Instant'),
               ],
             ),
           ),
           
           // Product Type Filter - Show for all metal types (Gold, Silver, In-house)
-          if (_selectedMetalType != 'All' &&
-              _productTypeOptions.length > 1)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Center(
-                child: _buildDropdownFilter(
-                  hint: 'Product Type',
-                  options: _productTypeOptions,
-                  selectedValue: _selectedProductType,
-                  onChanged: _onProductTypeChanged,
-                  isLoading: _isLoadingProductTypes,
-                ),
-              ),
-            ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            transitionBuilder: (child, animation) {
+              final offsetAnimation = Tween<Offset>(
+                begin: const Offset(0, -0.08),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: offsetAnimation, child: child),
+              );
+            },
+            child: _selectedMetalType != 'All' && _productTypeOptions.length > 1
+                ? Padding(
+                    key: const ValueKey('homeProductTypeFilter'),
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Center(
+                      child: _buildDropdownFilter(
+                        hint: 'Product Type',
+                        options: _productTypeOptions,
+                        selectedValue: _selectedProductType,
+                        onChanged: _onProductTypeChanged,
+                        isLoading: _isLoadingProductTypes,
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(key: ValueKey('homeProductTypeFilterEmpty')),
+          ),
           
           // Category Filter - Bubble chips
-          if (_categoryOptions.length > 1 && _selectedProductType != 'All')
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: _buildBubbleFilter(
-                options: _categoryOptions,
-                selectedValue: _selectedCategory,
-                onChanged: _onCategoryChanged,
-                isLoading: _isLoadingCategories,
-              ),
-            ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            transitionBuilder: (child, animation) {
+              final offsetAnimation = Tween<Offset>(
+                begin: const Offset(0, -0.08),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: offsetAnimation, child: child),
+              );
+            },
+            child: _categoryOptions.length > 1 && _selectedProductType != 'All'
+                ? Padding(
+                    key: const ValueKey('homeCategoryFilter'),
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: _buildBubbleFilter(
+                      options: _categoryOptions,
+                      selectedValue: _selectedCategory,
+                      onChanged: _onCategoryChanged,
+                      isLoading: _isLoadingCategories,
+                    ),
+                  )
+                : const SizedBox.shrink(key: ValueKey('homeCategoryFilterEmpty')),
+          ),
           
           // Sub Category Filter - Bubble chips
           if (_subCategoryOptions.length > 1)
@@ -963,6 +1149,9 @@ class HomeScreenState extends State<HomeScreen> {
             ],
           );
           break;
+        case 'Instant':
+          // Return special animated widget for Instant
+          return _buildInstantButton();
         case 'Platinum':
           decoration = BoxDecoration(
             color: const Color(0xFFD3D3D3),
@@ -1015,6 +1204,63 @@ class HomeScreenState extends State<HomeScreen> {
               fontWeight: FontWeight.w600,
               fontSize: 13,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstantButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          _onMetalTypeChanged('Instant');
+        },
+        borderRadius: BorderRadius.circular(18.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 18.0),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1B5E3F), Color(0xFF2D8659), Color(0xFF1B5E3F)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18.0),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2D8659).withOpacity(0.4),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.hardEdge,
+            children: [
+              // Glowing stars animation
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: _GlowingStarsAnimation(),
+                ),
+              ),
+              // Text on top
+              Text(
+                'Instant',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  shadows: [
+                    Shadow(
+                      color: Colors.white.withOpacity(0.5),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1091,97 +1337,116 @@ class HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-  
 
-Widget _buildDropdownFilter({
-  required String hint,
-  required List<String> options,
-  required String? selectedValue,
-  required ValueChanged<String?> onChanged,
-  bool isLoading = false,
-}) {
-  if (isLoading) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2)),
+  Widget _buildDropdownFilter({
+    required String hint,
+    required List<String> options,
+    required String? selectedValue,
+    required ValueChanged<String?> onChanged,
+    bool isLoading = false,
+  }) {
+    if (isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    if (options.length <= 1 && hint != 'Product Type') return const SizedBox.shrink();
+
+    final displayOptions = (options.contains('All') ? options : ['All', ...options])
+        .toSet()
+        .toList();
+
+    final currentSelection = (selectedValue == null || !displayOptions.contains(selectedValue))
+        ? 'All'
+        : selectedValue;
+
+    // Check if desktop view
+    final isDesktop = MediaQuery.of(context).size.width > 700;
+    
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.96, end: 1.0),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      builder: (context, scale, child) {
+        return Transform.scale(scale: scale, child: child);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        width: isDesktop ? 320 : double.infinity,
+        height: 50,
+        padding: const EdgeInsets.symmetric(horizontal: 18.0),
+        margin: isDesktop ? const EdgeInsets.symmetric(horizontal: 0) : EdgeInsets.zero,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28.0),
+          border: Border.all(
+            color: const Color(0xFFD8D8D8),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: currentSelection,
+            onChanged: onChanged,
+            isExpanded: true,
+            borderRadius: BorderRadius.circular(20),
+            icon: Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Colors.grey.shade700,
+              size: 20,
+            ),
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+            dropdownColor: Colors.white,
+            selectedItemBuilder: (BuildContext context) {
+              return displayOptions.map<Widget>((String item) {
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    item,
+                    style: const TextStyle(
+                      color: Color(0xFF2F2F2F),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                );
+              }).toList();
+            },
+            items: displayOptions.map<DropdownMenuItem<String>>((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(
+                  value,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 15,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
     );
   }
-
-  if (options.length <= 1 && hint != 'Product Type') return const SizedBox.shrink();
-
-  final displayOptions = (options.contains('All') ? options : ['All', ...options])
-      .toSet()
-      .toList();
-
-  final currentSelection = (selectedValue == null || !displayOptions.contains(selectedValue))
-      ? 'All'
-      : selectedValue;
-
-  // Check if desktop view
-  final isDesktop = MediaQuery.of(context).size.width > 700;
-  
-  return Container(
-    width: isDesktop ? 300 : double.infinity,
-    height: 48, // Fixed height for a cleaner look
-    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-    margin: isDesktop ? const EdgeInsets.symmetric(horizontal: 0) : EdgeInsets.zero,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24.0), // More rounded corners like the image
-      border: Border.all(
-        color: Colors.grey.shade300, // Lighter border color
-        width: 1.0,
-      ),
-    ),
-    child: DropdownButtonHideUnderline( // Cleanest way to remove the underline
-      child: DropdownButton<String>(
-        value: currentSelection,
-        onChanged: onChanged,
-        isExpanded: true,
-        // Rounded corners for the actual popup menu
-        borderRadius: BorderRadius.circular(16),
-        icon: Icon(
-          Icons.keyboard_arrow_down_rounded, // Matches the thin chevron in the image
-          color: Colors.black,
-          size: 22,
-        ),
-        style: const TextStyle(
-          color: Colors.black,
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-        ),
-        dropdownColor: Colors.white,
-        // Use selectedItemBuilder to make the hint look like "Select Jewelry"
-        selectedItemBuilder: (BuildContext context) {
-          return displayOptions.map<Widget>((String item) {
-            return Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                item, // Shows hint text when 'All' is selected
-                style: const TextStyle(color: Colors.black, fontSize: 16),
-              ),
-            );
-          }).toList();
-        },
-        items: displayOptions.map<DropdownMenuItem<String>>((String value) {
-          return DropdownMenuItem<String>(
-            value: value,
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 16,
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    ),
-  );
-}
 
   Widget _buildChoiceChipFilter({
     required String label,
@@ -1271,6 +1536,22 @@ Widget _buildDropdownFilter({
     final userProfile = context.watch<UserProfileProvider>();
     final isMember = userProfile.isMember;
     final isLiking = _itemsBeingLiked.contains(item.id);
+    final imageUrl = resolveImageUrl(item.image);
+
+    if (imageUrl.isEmpty) {
+      return Card(
+        clipBehavior: Clip.antiAlias,
+        child: AspectRatio(
+          aspectRatio: item.aspectRatio,
+          child: Container(
+            color: Colors.grey[200],
+            child: Center(
+              child: Icon(Icons.image_not_supported, color: Colors.grey[400]),
+            ),
+          ),
+        ),
+      );
+    }
 
     return GestureDetector(
       onLongPress: () => setState(() => _tappedItemId = item.id),
@@ -1278,113 +1559,125 @@ Widget _buildDropdownFilter({
         if (isTapped) {
           setState(() => _tappedItemId = null);
         } else {
-                  final isDesigner = item.isDesignerProduct;
-        final isManufacturer = item.isManufacturerProduct;
-        context.push('/product/${item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
+          final isDesigner = item.isDesignerProduct;
+          final isManufacturer = item.isManufacturerProduct;
+          context.push('/product/${item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
         }
       },
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: MouseRegion(
-          onEnter: (_) => setState(() => _hoveredItemId = item.id),
-          onExit: (_) => setState(() => _hoveredItemId = null),
+          onEnter: (_) => _scheduleHoverUpdate(item.id),
+          onExit: (_) => _scheduleHoverUpdate(null),
           child: Stack(
             alignment: Alignment.bottomCenter,
             children: [
-              // OPTIMIZED: Use CachedNetworkImage for better performance and caching
-              CachedNetworkImage(
-                imageUrl: item.image,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => createBlurUpPlaceholder(),
-                errorWidget: (context, url, error) => const Icon(
-                  Icons.error_outline,
-                  color: Colors.grey,
-                ),
-                // Cache images for 7 days
-                cacheKey: item.image,
-                maxWidthDiskCache: 800, // Limit cached image size
-                maxHeightDiskCache: 1200,
-              ),
-              if (isHovered || isTapped)
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [
-                        Colors.black.withAlpha((255 * 0.7).round()),
-                        Colors.transparent
+              AspectRatio(
+                aspectRatio: item.aspectRatio,
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => createBlurUpPlaceholder(),
+                  errorWidget: (context, url, error) => Container(
+                    color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.image_not_supported, color: Colors.grey[400]),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Failed to load',
+                          style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        if (isMember)
-                          Expanded(
-                            child: Text(
-                              item.productTitle,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: Colors.white),
-                              overflow: TextOverflow.ellipsis,
+                  cacheKey: imageUrl,
+                  memCacheWidth: 600,
+                  memCacheHeight: 900,
+                  maxWidthDiskCache: 800,
+                  maxHeightDiskCache: 1200,
+                ),
+              ),
+              if (isHovered || isTapped)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          Colors.black.withAlpha((255 * 0.7).round()),
+                          Colors.transparent
+                        ],
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (isMember)
+                            Expanded(
+                              child: Text(
+                                item.productTitle,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: Colors.white),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                        if (!isMember)
-                          const Spacer(), // Takes up space if not member
-                        Row(
-                          mainAxisSize:
-                              MainAxisSize.min, // Keep buttons compact
-                          children: [
-                            IconButton(
-                              icon: isLiking
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
+                          if (!isMember)
+                            const Spacer(),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: isLiking
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Icon(
+                                        item.isFavorite
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        color: item.isFavorite
+                                            ? Colors.red
+                                            : Colors.white,
                                       ),
-                                    )
-                                  : Icon(
-                                      item.isFavorite
-                                          ? Icons.favorite
-                                          : Icons.favorite_border,
-                                      color: item.isFavorite
-                                          ? Colors.red
-                                          : Colors.white,
-                                    ),
-                              onPressed: () => _likeItem(item),
-                              tooltip: 'Like',
-                              iconSize: 20, // Adjust size
-                              padding: EdgeInsets.zero, // Reduce padding
-                              constraints:
-                                  const BoxConstraints(), // Remove extra constraints
-                            ),
-                            IconButton(
-                              icon:
-                                  const Icon(Icons.share, color: Colors.white),
-                              onPressed: () => _shareItem(item),
-                              tooltip: 'Share',
-                              iconSize: 20,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.bookmark_border,
-                                  color: Colors.white),
-                              onPressed: () => _saveToBoard(item),
-                              tooltip: 'Save',
-                              iconSize: 20,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                          ],
-                        ),
-                      ],
+                                onPressed: () => _likeItem(item),
+                                tooltip: 'Like',
+                                iconSize: 20,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.share, color: Colors.white),
+                                onPressed: () => _shareItem(item),
+                                tooltip: 'Share',
+                                iconSize: 20,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.bookmark_border, color: Colors.white),
+                                onPressed: () => _saveToBoard(item),
+                                tooltip: 'Save',
+                                iconSize: 20,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1394,4 +1687,170 @@ Widget _buildDropdownFilter({
       ),
     );
   }
+
+  void _scheduleHoverUpdate(String? itemId) {
+    if (!mounted || _hoveredItemId == itemId) return;
+
+    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
+      setState(() => _hoveredItemId = itemId);
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _hoveredItemId == itemId) return;
+      setState(() => _hoveredItemId = itemId);
+    });
+  }
+}
+
+/// Animated glowing stars widget for Instant button
+class _GlowingStarsAnimation extends StatefulWidget {
+  const _GlowingStarsAnimation();
+
+  @override
+  State<_GlowingStarsAnimation> createState() => _GlowingStarsAnimationState();
+}
+
+class _GlowingStarsAnimationState extends State<_GlowingStarsAnimation>
+    with TickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<_Star> _stars = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    )..repeat();
+
+    // Generate random stars
+    final random = Random();
+    for (int i = 0; i < 5; i++) {
+      _stars.add(
+        _Star(
+          x: random.nextDouble(),
+          y: random.nextDouble(),
+          size: random.nextDouble() * 2 + 1,
+          delay: random.nextDouble() * 3,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return SizedBox.expand(
+          child: CustomPaint(
+            painter: _StarsPainter(
+              animation: _controller.value,
+              stars: _stars,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _Star {
+  final double x;
+  final double y;
+  final double size;
+  final double delay;
+
+  _Star({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.delay,
+  });
+}
+
+class _StarsPainter extends CustomPainter {
+  final double animation;
+  final List<_Star> stars;
+
+  _StarsPainter({
+    required this.animation,
+    required this.stars,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final star in stars) {
+      // Calculate animation progress for this star
+      double progress = (animation + star.delay / 3) % 1.0;
+
+      // Opacity animation (fade in and out)
+      double opacity = (sin(progress * pi * 2) + 1) / 2;
+
+      // Position with slight movement
+      double offsetX = sin(progress * pi * 2) * 5;
+      double offsetY = cos(progress * pi * 2) * 5;
+
+      final paint = Paint()
+        ..color = Colors.white.withOpacity(opacity * 0.8)
+        ..style = PaintingStyle.fill;
+
+      // Draw star
+      _drawStar(
+        canvas,
+        Offset(
+          star.x * size.width + offsetX,
+          star.y * size.height + offsetY,
+        ),
+        star.size,
+        paint,
+      );
+
+      // Draw glow
+      final glowPaint = Paint()
+        ..color = const Color(0xFF4CAF50).withOpacity(opacity * 0.4)
+        ..style = PaintingStyle.fill;
+
+      canvas.drawCircle(
+        Offset(
+          star.x * size.width + offsetX,
+          star.y * size.height + offsetY,
+        ),
+        star.size * 2,
+        glowPaint,
+      );
+    }
+  }
+
+  void _drawStar(Canvas canvas, Offset center, double size, Paint paint) {
+    final path = Path();
+    const numPoints = 5;
+    const innerRadius = 0.4;
+
+    for (int i = 0; i < numPoints * 2; i++) {
+      final angle = (i * pi) / numPoints - pi / 2;
+      final radius = i.isEven ? size : size * innerRadius;
+      final x = center.dx + radius * cos(angle);
+      final y = center.dy + radius * sin(angle);
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_StarsPainter oldDelegate) => true;
 }

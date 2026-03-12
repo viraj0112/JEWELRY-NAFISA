@@ -1,13 +1,10 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
-import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
-import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+import 'package:jewelry_nafisa/src/utils/image_url_resolver.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/widgets/login_required_dialog.dart';
 import 'package:go_router/go_router.dart';
@@ -90,8 +87,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
       const designerSelectColumns = '$selectColumns, created_at';
 
-      // Handle "In-house products" (AKD-Silver) separately
-      if (_selectedMetalType == 'In-house products') {
+      // Handle "Instant" (AKD*) separately
+      if (_selectedMetalType == 'Instant') {
         return await _fetchInHouseProducts();
       }
 
@@ -103,10 +100,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
       if (_selectedMetalType != 'All') {
         final metal = _selectedMetalType.trim();
-        debugPrint('Filtering by metal type: $metal');
-        productsQuery = productsQuery.eq('"Metal Type"', metal);
-        designerQuery = designerQuery.eq('"Metal Type"', metal);
-        manufacturerQuery = manufacturerQuery.eq('"Metal Type"', metal);
+        // Use ilike() for case-insensitive pattern matching
+        productsQuery = productsQuery.ilike('"Metal Type"', '%$metal%');
+        designerQuery = designerQuery.ilike('"Metal Type"', '%$metal%');
+        manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', '%$metal%');
       }
 
       if (_selectedProductType != 'All') {
@@ -223,10 +220,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       List<dynamic> manufacturerData = [];
 
       try {
-        PostgrestFilterBuilder<dynamic> designerQuery = _supabase
-            .from('designerproducts')
-            .select(selectColumns)
-            .eq('"Metal Type"', 'AKD-Silver');
+          PostgrestFilterBuilder<dynamic> designerQuery = _supabase
+              .from('designerproducts')
+              .select(selectColumns)
+              .ilike('"Metal Type"', 'AKD%');
 
         if (_selectedProductType != 'All') {
           designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
@@ -241,16 +238,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         designerData = await designerQuery
             .order('created_at', ascending: false)
             .range(0, 199);
-        debugPrint('✓ In-house Designer: ${designerData.length} AKD-Silver items');
+        debugPrint('In-house Designer: ${designerData.length} AKD* items');
       } catch (e) {
         debugPrint('✗ Designer products error: $e');
       }
 
       try {
-        PostgrestFilterBuilder<dynamic> manufacturerQuery = _supabase
-            .from('manufacturerproducts')
-            .select(selectColumns)
-            .eq('"Metal Type"', 'AKD-Silver');
+          PostgrestFilterBuilder<dynamic> manufacturerQuery = _supabase
+              .from('manufacturerproducts')
+              .select(selectColumns)
+              .ilike('"Metal Type"', 'AKD%');
 
         if (_selectedProductType != 'All') {
           manufacturerQuery = manufacturerQuery.eq('"Product Type"', _selectedProductType);
@@ -265,7 +262,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         manufacturerData = await manufacturerQuery
             .order('created_at', ascending: false)
             .range(0, 199);
-        debugPrint('✓ In-house Manufacturer: ${manufacturerData.length} AKD-Silver items');
+        debugPrint('In-house Manufacturer: ${manufacturerData.length} AKD* items');
       } catch (e) {
         debugPrint('✗ Manufacturer products error: $e');
       }
@@ -296,7 +293,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       allItems.shuffle();
       return allItems;
     } catch (e) {
-      debugPrint('Error loading in-house products: $e');
+      debugPrint('Error loading Instant: $e');
       return [];
     }
   }
@@ -321,7 +318,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   String? _effectiveMetalTypeForFilters(String metalType) {
-    if (metalType == 'In-house products') return 'AKD-Silver';
+    if (metalType == 'Instant') return 'AKD';
     if (metalType == 'All') return null;
     return metalType;
   }
@@ -351,30 +348,36 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
       debugPrint('Fetching Product Types for $effectiveMetal...');
 
-      final productsTypes = await _supabase
+      final productsQuery = _supabase
           .from('products')
-          .select('"Product Type"')
-          .eq('"Metal Type"', effectiveMetal)
+          .select('"Product Type"');
+      final productsTypes = await (effectiveMetal == 'AKD'
+              ? productsQuery.ilike('"Metal Type"', 'AKD%')
+              : productsQuery.eq('"Metal Type"', effectiveMetal))
           .then((data) => (data as List)
               .map((item) => item['Product Type'])
               .whereType<String>()
               .where((t) => t.isNotEmpty)
               .toSet());
       
-      final designerTypes = await _supabase
+      final designerQuery = _supabase
           .from('designerproducts')
-          .select('"Product Type"')
-          .eq('"Metal Type"', effectiveMetal)
+          .select('"Product Type"');
+      final designerTypes = await (effectiveMetal == 'AKD'
+              ? designerQuery.ilike('"Metal Type"', 'AKD%')
+              : designerQuery.eq('"Metal Type"', effectiveMetal))
           .then((data) => (data as List)
               .map((item) => item['Product Type'])
               .whereType<String>()
               .where((t) => t.isNotEmpty)
               .toSet());
 
-      final manufacturerTypes = await _supabase
+      final manufacturerQuery = _supabase
           .from('manufacturerproducts')
-          .select('"Product Type"')
-          .eq('"Metal Type"', effectiveMetal)
+          .select('"Product Type"');
+      final manufacturerTypes = await (effectiveMetal == 'AKD'
+              ? manufacturerQuery.ilike('"Metal Type"', 'AKD%')
+              : manufacturerQuery.eq('"Metal Type"', effectiveMetal))
           .then((data) => (data as List)
               .map((item) => item['Product Type'])
               .whereType<String>()
@@ -409,10 +412,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       const selectColumns = '"Category", "Category1", "Category2", "Category3"';
 
       Future<Set<String>> fetchFrom(String table) async {
-        final data = await _supabase
+        final query = _supabase
             .from(table)
-            .select(selectColumns)
-            .eq('"Metal Type"', effectiveMetal)
+            .select(selectColumns);
+        final data = await (effectiveMetal == 'AKD'
+                ? query.ilike('"Metal Type"', 'AKD%')
+                : query.eq('"Metal Type"', effectiveMetal))
             .eq('"Product Type"', productType);
 
         final out = <String>{};
@@ -578,37 +583,36 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   PreferredSizeWidget _buildAppBar() {
     const Color customGreen = Color(0xFF336B43);
-  return AppBar(
-  automaticallyImplyLeading: false,
-  titleSpacing: 16.0,
-  elevation: 0,
-  backgroundColor: customGreen,
-  title: Row(
-    children: [
-      Image.asset(
-        'assets/icons/DDlogo.png',   // <- your logo path
-        height: 32,
+    return AppBar(
+      automaticallyImplyLeading: false,
+      titleSpacing: 16.0,
+      elevation: 0,
+      backgroundColor: customGreen,
+      title: Row(
+        children: [
+          Image.asset(
+            'assets/icons/DDlogo.png',
+            height: 32,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: _buildSearchBar(Theme.of(context))),
+        ],
       ),
-      const SizedBox(width: 12),
-      Expanded(child: _buildSearchBar(Theme.of(context))),
-    ],
-  ),
-  actions: [
-    _buildGuestMenu(context),
-    const SizedBox(width: 12),
-  ],
-);
-
+      actions: [
+        _buildGuestMenu(context),
+        const SizedBox(width: 12),
+      ],
+    );
   }
 
   Widget _buildSearchBar(ThemeData theme) {
     return InkWell(
-      onTap:(){
-   showDialog(
-        context: context,
-        barrierDismissible: true,
-        builder: (_) => const LoginRequiredDialog(),
-      );
+      onTap: () {
+        showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (_) => const LoginRequiredDialog(),
+        );
       },
       borderRadius: BorderRadius.circular(12.0),
       autofocus: true,
@@ -752,103 +756,147 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const SizedBox(width: 6.0),
                 _buildMetalTypeButton('Silver', _selectedMetalType == 'Silver'),
                 const SizedBox(width: 6.0),
-                _buildMetalTypeButton('In-house products', _selectedMetalType == 'In-house products'),
+                _buildMetalTypeButton('Instant', _selectedMetalType == 'Instant'),
               ],
             ),
           ),
-          if (_selectedMetalType != 'All')
-            Padding(
-              padding: const EdgeInsets.only(top: 12.0),
-              child: _buildProductTypeDropdown(),
-            ),
-          if (_selectedMetalType != 'All' && _selectedProductType != 'All')
-            Padding(
-              padding: const EdgeInsets.only(top: 10.0),
-              child: _buildCategoryDropdown(),
-            ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            transitionBuilder: (child, animation) {
+              final offsetAnimation = Tween<Offset>(
+                begin: const Offset(0, -0.08),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: offsetAnimation, child: child),
+              );
+            },
+            child: _selectedMetalType != 'All'
+                ? Padding(
+                    key: const ValueKey('productTypeDropdown'),
+                    padding: const EdgeInsets.only(top: 12.0),
+                    child: _buildProductTypeDropdown(),
+                  )
+                : const SizedBox.shrink(key: ValueKey('productTypeDropdownEmpty')),
+          ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            transitionBuilder: (child, animation) {
+              final offsetAnimation = Tween<Offset>(
+                begin: const Offset(0, -0.08),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: offsetAnimation, child: child),
+              );
+            },
+            child: _selectedMetalType != 'All' && _selectedProductType != 'All'
+                ? Padding(
+                    key: const ValueKey('categoryDropdown'),
+                    padding: const EdgeInsets.only(top: 10.0),
+                    child: _buildCategoryDropdown(),
+                  )
+                : const SizedBox.shrink(key: ValueKey('categoryDropdownEmpty')),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildProductTypeDropdown() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Container(
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE0E0E0), width: 1.5),
-            borderRadius: BorderRadius.circular(8.0),
-          ),
-          child: DropdownButton<String>(
-            isExpanded: true,
-            isDense: true,
-            iconSize: 20,
-            underline: const SizedBox(),
-            style: const TextStyle(fontSize: 14, color: Colors.black87),
-            value: _selectedProductType,
-            items: _availableProductTypes
-                .map(
-                  (type) => DropdownMenuItem(
-                    value: type,
-                    child: Text(type, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedProductType = value;
-                  _selectedCategory = 'All';
-                  _availableCategories = ['All'];
-                });
-                _fetchCategories(
-                  metalType: _selectedMetalType,
-                  productType: value,
-                );
-                _loadProducts();
-              }
-            },
-          ),
-        ),
-      ),
+    return _buildAnimatedOvalDropdown(
+      value: _selectedProductType,
+      items: _availableProductTypes,
+      onChanged: (value) {
+        if (value != null) {
+          setState(() {
+            _selectedProductType = value;
+            _selectedCategory = 'All';
+            _availableCategories = ['All'];
+          });
+          _fetchCategories(
+            metalType: _selectedMetalType,
+            productType: value,
+          );
+          _loadProducts();
+        }
+      },
     );
   }
 
   Widget _buildCategoryDropdown() {
+    return _buildAnimatedOvalDropdown(
+      value: _selectedCategory,
+      items: _availableCategories,
+      onChanged: (value) {
+        if (value != null) {
+          setState(() => _selectedCategory = value);
+          _loadProducts();
+        }
+      },
+    );
+  }
+
+  Widget _buildAnimatedOvalDropdown({
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
     return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Container(
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE0E0E0), width: 1.5),
-            borderRadius: BorderRadius.circular(8.0),
-          ),
-          child: DropdownButton<String>(
-            isExpanded: true,
-            isDense: true,
-            iconSize: 20,
-            underline: const SizedBox(),
-            style: const TextStyle(fontSize: 14, color: Colors.black87),
-            value: _selectedCategory,
-            items: _availableCategories
-                .map(
-                  (c) => DropdownMenuItem(
-                    value: c,
-                    child: Text(c, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() => _selectedCategory = value);
-                _loadProducts();
-              }
-            },
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.96, end: 1.0),
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+        builder: (context, scale, child) {
+          return Transform.scale(scale: scale, child: child);
+        },
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            height: 50,
+            padding: const EdgeInsets.symmetric(horizontal: 18.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFD8D8D8), width: 1.2),
+              borderRadius: BorderRadius.circular(28.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: value,
+                icon: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.grey.shade700,
+                  size: 20,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF2F2F2F),
+                  fontWeight: FontWeight.w500,
+                ),
+                items: items
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item,
+                        child: Text(item, overflow: TextOverflow.ellipsis),
+                      ),
+                    )
+                    .toList(),
+                onChanged: onChanged,
+              ),
+            ),
           ),
         ),
       ),
@@ -892,19 +940,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             ],
           );
           break;
-        case 'In-house products':
-          decoration = BoxDecoration(
-            color: const Color(0xFF336B43),
-            borderRadius: BorderRadius.circular(18.0),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF336B43).withOpacity(0.25),
-                blurRadius: 3,
-                offset: const Offset(0, 1.5),
-              ),
-            ],
-          );
-          break;
+        case 'Instant':
+          // Return special animated widget for Instant
+          return _buildInstantButton();
         default:
           decoration = BoxDecoration(
             color: const Color(0xFF9E9E9E),
@@ -950,6 +988,63 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
+  Widget _buildInstantButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          _onMetalTypeChanged('Instant');
+        },
+        borderRadius: BorderRadius.circular(18.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 18.0),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1B5E3F), Color(0xFF2D8659), Color(0xFF1B5E3F)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18.0),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2D8659).withOpacity(0.4),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.hardEdge,
+            children: [
+              // Glowing stars animation
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: _GlowingStarsAnimation(),
+                ),
+              ),
+              // Text on top
+              Text(
+                'Instant',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  shadows: [
+                    Shadow(
+                      color: Colors.white.withOpacity(0.5),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildImageGrid() {
     return CustomScrollView(
       controller: _scrollController,
@@ -987,14 +1082,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
 
   Widget _buildImageCard(BuildContext context, JewelryItem item) {
+    final imageUrl = resolveImageUrl(item.image);
+
     // Skip rendering cards with missing image URLs
-    if (item.image == null || item.image.isEmpty) {
+    if (imageUrl.isEmpty) {
       return Card(
         clipBehavior: Clip.antiAlias,
-        child: Container(
-          color: Colors.grey[200],
-          child: Center(
-            child: Icon(Icons.image_not_supported, color: Colors.grey[400]),
+        child: AspectRatio(
+          aspectRatio: item.aspectRatio,
+          child: Container(
+            color: Colors.grey[200],
+            child: Center(
+              child: Icon(Icons.image_not_supported, color: Colors.grey[400]),
+            ),
           ),
         ),
       );
@@ -1011,7 +1111,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         child: AspectRatio(
           aspectRatio: item.aspectRatio,
           child: CachedNetworkImage(
-            imageUrl: item.image,
+            imageUrl: imageUrl,
             fit: BoxFit.cover,
             placeholder: (context, url) => createBlurUpPlaceholder(),
             errorWidget: (context, url, error) => Container(
@@ -1035,10 +1135,163 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             memCacheWidth: 400,
             maxHeightDiskCache: 400,
             maxWidthDiskCache: 400,
+            cacheKey: imageUrl,
           ),
         ),
       ),
     );
   }
+}
+
+/// Animated glowing stars widget for Instant button
+class _GlowingStarsAnimation extends StatefulWidget {
+  const _GlowingStarsAnimation();
+
+  @override
+  State<_GlowingStarsAnimation> createState() => _GlowingStarsAnimationState();
+}
+
+class _GlowingStarsAnimationState extends State<_GlowingStarsAnimation>
+    with TickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<_Star> _stars = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    )..repeat();
+
+    // Generate random stars
+    final random = Random();
+    for (int i = 0; i < 5; i++) {
+      _stars.add(
+        _Star(
+          x: random.nextDouble(),
+          y: random.nextDouble(),
+          size: random.nextDouble() * 2 + 1,
+          delay: random.nextDouble() * 3,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return SizedBox.expand(
+          child: CustomPaint(
+            painter: _StarsPainter(
+              animation: _controller.value,
+              stars: _stars,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _Star {
+  final double x;
+  final double y;
+  final double size;
+  final double delay;
+
+  _Star({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.delay,
+  });
+}
+
+class _StarsPainter extends CustomPainter {
+  final double animation;
+  final List<_Star> stars;
+
+  _StarsPainter({
+    required this.animation,
+    required this.stars,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final star in stars) {
+      // Calculate animation progress for this star
+      double progress = (animation + star.delay / 3) % 1.0;
+
+      // Opacity animation (fade in and out)
+      double opacity = (sin(progress * pi * 2) + 1) / 2;
+
+      // Position with slight movement
+      double offsetX = sin(progress * pi * 2) * 5;
+      double offsetY = cos(progress * pi * 2) * 5;
+
+      final paint = Paint()
+        ..color = Colors.white.withOpacity(opacity * 0.8)
+        ..style = PaintingStyle.fill;
+
+      // Draw star
+      _drawStar(
+        canvas,
+        Offset(
+          star.x * size.width + offsetX,
+          star.y * size.height + offsetY,
+        ),
+        star.size,
+        paint,
+      );
+
+      // Draw glow
+      final glowPaint = Paint()
+        ..color = const Color(0xFF4CAF50).withOpacity(opacity * 0.4)
+        ..style = PaintingStyle.fill;
+
+      canvas.drawCircle(
+        Offset(
+          star.x * size.width + offsetX,
+          star.y * size.height + offsetY,
+        ),
+        star.size * 2,
+        glowPaint,
+      );
+    }
+  }
+
+  void _drawStar(Canvas canvas, Offset center, double size, Paint paint) {
+    final path = Path();
+    const numPoints = 5;
+    const innerRadius = 0.4;
+
+    for (int i = 0; i < numPoints * 2; i++) {
+      final angle = (i * pi) / numPoints - pi / 2;
+      final radius = i.isEven ? size : size * innerRadius;
+      final x = center.dx + radius * cos(angle);
+      final y = center.dy + radius * sin(angle);
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_StarsPainter oldDelegate) => true;
 }
 
