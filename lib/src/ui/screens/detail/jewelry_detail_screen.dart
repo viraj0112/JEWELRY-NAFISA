@@ -74,6 +74,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     return metal.contains('akd-silver') || metal.contains('akd-platinum');
   }
 
+  bool get _isInstantProduct {
+    final metal = widget.jewelryItem.metalType?.toLowerCase() ?? '';
+    return metal.startsWith('akd');
+  }
+
   String get _ctaButtonText {
     return _isRedirectMetal ? 'Buy Now' : 'Know Price';
   }
@@ -1182,7 +1187,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => _onGetDetailsPressed(context),
-                child: const Text('Get Details'),
+                child: Text(_isInstantProduct ? 'Know price' : 'Get Details'),
               ),
             ),
           ],
