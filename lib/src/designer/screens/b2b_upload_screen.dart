@@ -263,6 +263,25 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           throw Exception(
               'Insert was rejected for "${entry.productTitleController.text}". Please check your permissions.');
         }
+        
+        try {
+          final userId = supabase.auth.currentUser?.id;
+          if (userId != null) {
+            await supabase.from('notifications').insert({
+              'user_id': userId,
+              'type': 'milestone',
+              'title': 'Product Uploaded',
+              'body': 'Your product "${entry.productTitleController.text}" was successfully uploaded.',
+              'related_item_id': insertResult.first['id'].toString(),
+            });
+          }
+        } catch (e) {
+          debugPrint('Notification error: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to create notification: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 8)));
+          }
+        }
+
         successCount++;
       }
 
@@ -569,6 +588,24 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
           if (insertResult.isNotEmpty) {
             successCount++;
             debugPrint("Successfully inserted product: $title");
+            
+            try {
+              final userId = supabase.auth.currentUser?.id;
+              if (userId != null) {
+                await supabase.from('notifications').insert({
+                  'user_id': userId,
+                  'type': 'milestone',
+                  'title': 'Product Uploaded',
+                  'body': 'Your product "$title" was successfully uploaded.',
+                  'related_item_id': insertResult.first['id'].toString(),
+                });
+              }
+            } catch (e) {
+              debugPrint('Notification error: $e');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to create notification: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 8)));
+              }
+            }
           } else {
             failCount++;
             debugPrint(

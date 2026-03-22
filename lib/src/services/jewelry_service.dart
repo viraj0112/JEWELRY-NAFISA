@@ -7,8 +7,9 @@ import 'package:http/http.dart' as http;
 
 class JewelryService {
   final SupabaseClient _supabaseClient;
-  
-  static const String _baseUrl = 'https://dagina-ai-image-search.hf.space/search';
+
+  static const String _baseUrl =
+      'https://dagina-ai-image-search.hf.space/search';
   JewelryService(this._supabaseClient);
 
   Future<List<JewelryItem>> getProducts(
@@ -27,7 +28,7 @@ class JewelryService {
             .range(offset, offset + limit - 1)
             // Order designer products by creation date
             .order('created_at', ascending: false),
-          _supabaseClient
+        _supabaseClient
             .from('manufacturerproducts')
             .select()
             .limit(limit)
@@ -38,29 +39,35 @@ class JewelryService {
 
       final List<dynamic> productsData = responses[0] as List<dynamic>;
       final List<dynamic> designerProductsData = responses[1] as List<dynamic>;
-      final List<dynamic> manufacturerProductsData = responses[2] as List<dynamic>;
+      final List<dynamic> manufacturerProductsData =
+          responses[2] as List<dynamic>;
 
       final List<JewelryItem> productItems = productsData
-          .map((json) => JewelryItem.fromJson(json as Map<String, dynamic>)) // <-- SET FLAG
+          .map((json) => JewelryItem.fromJson(
+              json as Map<String, dynamic>)) // <-- SET FLAG
           .toList();
 
-      final List<JewelryItem> designerProductItems = designerProductsData
-          .map((json) {
-            final map = json as Map<String, dynamic>;
-            map['is_designer_product'] = true;
-            return JewelryItem.fromJson(map);
-          }) // <-- SET FLAG
-          .toList();
-      final List<JewelryItem> manufacturerProductItems = manufacturerProductsData
-          .map((json) {
-            final map = json as Map<String, dynamic>;
-            map['is_manufacturer_product'] = true;
-            return JewelryItem.fromJson(map);
-          }) // <-- SET FLAG
-          .toList();
+      final List<JewelryItem> designerProductItems =
+          designerProductsData.map((json) {
+        final map = json as Map<String, dynamic>;
+        map['is_designer_product'] = true;
+        return JewelryItem.fromJson(map);
+      }) // <-- SET FLAG
+              .toList();
+      final List<JewelryItem> manufacturerProductItems =
+          manufacturerProductsData.map((json) {
+        final map = json as Map<String, dynamic>;
+        map['is_manufacturer_product'] = true;
+        return JewelryItem.fromJson(map);
+      }) // <-- SET FLAG
+              .toList();
 
       // Combine and parse
-      final allProducts = [...productItems, ...designerProductItems,...manufacturerProductItems];
+      final allProducts = [
+        ...productItems,
+        ...designerProductItems,
+        ...manufacturerProductItems
+      ];
 
       // Shuffle for variety
       allProducts.shuffle();
@@ -111,12 +118,11 @@ class JewelryService {
 
       if (response is List) {
         // The RPC returns JSON, so we parse it directly
-        return response
-            .map((json) {
-              final map = json as Map<String, dynamic>;
-              map['is_designer_product'] = true;
-              return JewelryItem.fromJson(map);
-            }) // Assuming trending are designer
+        return response.map((json) {
+          final map = json as Map<String, dynamic>;
+          map['is_designer_product'] = true;
+          return JewelryItem.fromJson(map);
+        }) // Assuming trending are designer
             .toList();
       }
       return [];
@@ -143,10 +149,10 @@ class JewelryService {
           final fileName = 'private/search_queries/$userId/$timestamp.jpg';
 
           await supabaseClient.storage.from('search-images').uploadBinary(
-            fileName,
-            imageBytes,
-            fileOptions: const FileOptions(contentType: 'image/jpeg'),
-          );
+                fileName,
+                imageBytes,
+                fileOptions: const FileOptions(contentType: 'image/jpeg'),
+              );
           debugPrint('Image saved to Supabase: $fileName');
         } else {
           debugPrint('User not authenticated, skipping image upload');
@@ -183,7 +189,6 @@ class JewelryService {
     return jsonDecode(responseBody) as List<dynamic>;
   }
 
-
   Future<List<JewelryItem>> fetchSimilarItems({
     required String currentItemId,
     required bool isDesigner, // Need to know which table to query
@@ -202,7 +207,8 @@ class JewelryService {
         (category1 == null || category1.isEmpty) &&
         (category2 == null || category2.isEmpty) &&
         (category3 == null || category3.isEmpty)) {
-      debugPrint('Similar items: All filter fields are empty, cannot find similar products');
+      debugPrint(
+          'Similar items: All filter fields are empty, cannot find similar products');
       return [];
     }
 
@@ -224,25 +230,24 @@ class JewelryService {
 
       debugPrint('Similar items loaded: ${response.length} items found');
 
-      return response
-          .map((json) {
-            final map = json as Map<String, dynamic>;
-            if (!map.containsKey('is_designer_product')) {
-              map['is_designer_product'] = isDesigner;
-            }
-            return JewelryItem.fromJson(map);
-          })
-          .toList();
+      return response.map((json) {
+        final map = json as Map<String, dynamic>;
+        if (!map.containsKey('is_designer_product')) {
+          map['is_designer_product'] = isDesigner;
+        }
+        return JewelryItem.fromJson(map);
+      }).toList();
     } catch (e) {
       debugPrint('Error fetching similar products via RPC: $e');
       return [];
     }
   }
 
-  Future<JewelryItem?> getJewelryItem(String id, {bool? isDesignerProduct,bool? isManufacturerProduct})async {
+  Future<JewelryItem?> getJewelryItem(String id,
+      {bool? isDesignerProduct, bool? isManufacturerProduct}) async {
     try {
       final intId = int.tryParse(id);
-      
+
       // If we know it's a designer product, query designerproducts table directly
       if (isDesignerProduct == true) {
         final designerResponse = await _supabaseClient
@@ -273,7 +278,9 @@ class JewelryService {
         return null;
       }
       // If we know it's NOT a designer product, query products table directly
-      if (isDesignerProduct == false && intId != null && isManufacturerProduct == false) {
+      if (isDesignerProduct == false &&
+          intId != null &&
+          isManufacturerProduct == false) {
         final productResponse = await _supabaseClient
             .from('products')
             .select()
@@ -286,7 +293,7 @@ class JewelryService {
         debugPrint('Product with ID $id not found.');
         return null;
       }
-      
+
       // If product type is unknown, check both tables (for backward compatibility)
       // Since both tables use integer IDs, we need to check both
       if (intId != null) {
@@ -300,7 +307,7 @@ class JewelryService {
         if (productResponse != null) {
           return JewelryItem.fromJson(productResponse);
         }
-        
+
         // If not found in products, check designerproducts
         final designerResponse = await _supabaseClient
             .from('designerproducts')
@@ -364,16 +371,16 @@ class JewelryService {
   }
   // --- END NEW METHOD ---
 
-Future<List<JewelryItem>> getMyDesignerProducts() async {
-  final user = _supabaseClient.auth.currentUser;
-  
-  // Return empty list if no user is authenticated
-  if (user == null) return [];
+  Future<List<JewelryItem>> getMyDesignerProducts() async {
+    final user = _supabaseClient.auth.currentUser;
 
-  try {
-    final response = await _supabaseClient
-        .from('designerproducts')
-        .select('''
+    // Return empty list if no user is authenticated
+    if (user == null) return [];
+
+    try {
+      final response = await _supabaseClient
+          .from('designerproducts')
+          .select('''
           *,
           users (
             business_name,
@@ -381,238 +388,236 @@ Future<List<JewelryItem>> getMyDesignerProducts() async {
             country
           )
         ''')
-        .eq('user_id', user.id) // Security: Only fetch rows belonging to this user
-        .order('created_at', ascending: false);
+          .eq('user_id',
+              user.id) // Security: Only fetch rows belonging to this user
+          .order('created_at', ascending: false);
 
-    // Map the response to your JewelryItem model
-final items = response as List<Map<String, dynamic>>;
+      // Map the response to your JewelryItem model
+      final items = response as List<Map<String, dynamic>>;
 
-final itemIds = items
-    .map((item) => item['id'].toString())
-    .toList();
-final itemTitles = items
-    .map((item) => (
-          item['Product Title'] ??
-          item['product_title'] ??
-          item['title']
-        )?.toString())
-    .where((title) => title != null && title.isNotEmpty)
-    .cast<String>()
-    .toList();
+      final itemIds = items.map((item) => item['id'].toString()).toList();
+      final itemTitles = items
+          .map((item) =>
+              (item['Product Title'] ?? item['product_title'] ?? item['title'])
+                  ?.toString())
+          .where((title) => title != null && title.isNotEmpty)
+          .cast<String>()
+          .toList();
 
-    // 3. Fetch engagement counts in parallel
-    final results = await Future.wait([
-      _fetchLikesCounts(itemIds),
-      _fetchPinsCounts(itemTitles),  // pins uses title
-      _fetchViewsCounts(itemIds),
-      _fetchSharesCounts(itemIds),
-    ]);
+      // 3. Fetch engagement counts in parallel
+      final results = await Future.wait([
+        _fetchLikesCounts(itemIds),
+        _fetchPinsCounts(itemTitles), // pins uses title
+        _fetchViewsCounts(itemIds),
+        _fetchSharesCounts(itemIds),
+      ]);
 
-    final likesMap = results[0];
-    final savesMap = results[1];
-    final creditsMap = results[2];
-    final shareMap = results[3];
-    final geoMap = await getGeoAnalytics(itemIds);
+      final likesMap = results[0];
+      final savesMap = results[1];
+      final creditsMap = results[2];
+      final shareMap = results[3];
+      final geoMap = await getGeoAnalytics(itemIds);
 
-    // 4. Merge engagement data with item
-return items.map((item) {
+      // 4. Merge engagement data with item
+      return items.map((item) {
+        final itemId = item['id'].toString();
 
-  final itemId = item['id'].toString();
+        final itemTitle =
+            (item['Product Title'] ?? item['product_title'] ?? item['title'])
+                    ?.toString() ??
+                '';
 
-  final itemTitle = (
-        item['Product Title'] ??
-        item['product_title'] ??
-        item['title']
-      )?.toString() ?? '';
+        final enriched = {
+          ...item,
+          'is_designer_product': true,
+          'likes': likesMap[itemId] ?? 0,
+          'saves': savesMap[itemTitle] ?? 0,
+          'credits': creditsMap[itemId] ?? 0,
+          'share': shareMap[itemId] ?? 0,
+          'geoAnalytics':
+              geoMap[itemId] ?? [], // Now correctly passing the list of maps
+        };
 
-  final enriched = {
-    ...item,
-    'likes': likesMap[itemId] ?? 0,
-    'saves': savesMap[itemTitle] ?? 0,
-    'credits': creditsMap[itemId] ?? 0,
-    'share': shareMap[itemId] ?? 0,
-    'geoAnalytics': geoMap[itemId] ?? [], // Now correctly passing the list of maps
-  };
-
-  return JewelryItem.fromJson(enriched);
-
-}).toList();
-  } catch (e) {
-    debugPrint("Error fetching user designer products: $e");
-    return [];
-  }
-}
-
-Future<List<JewelryItem>> getMyManufacturerProducts() async {
-  final user = _supabaseClient.auth.currentUser;
-  if (user == null) return [];
-
-  try {
-    // 1. Fetch base products
-    final response = await _supabaseClient
-        .from('manufacturerproducts')
-        .select('''
-          *,
-          users (
-            business_name,
-            address,
-            country
-          )
-        ''')
-        .eq('user_id', user.id)
-        .order('created_at', ascending: false);
-
-    final items = response as List<Map<String, dynamic>>;
-    if (items.isEmpty) return [];
-
-    final itemIds = items.map((item) => item['id'].toString()).toList();
-    final itemTitles = items
-        .map((item) => (item['Product Title'] ?? item['product_title'] ?? item['title'])?.toString())
-        .where((title) => title != null && title.isNotEmpty)
-        .cast<String>()
-        .toList();
-
-    // 2. Fetch engagement counts and geo-analytics in parallel
-    // We add getGeoAnalytics(itemIds) to the Future.wait list
-    final results = await Future.wait([
-      _fetchLikesCounts(itemIds),
-      _fetchPinsCounts(itemTitles),
-      _fetchViewsCounts(itemIds),
-      _fetchSharesCounts(itemIds),
-    ]);
-
-    final likesMap = results[0] ;
-    final savesMap = results[1] ;
-    final viewsMap = results[2] ;
-    final shareMap = results[3] ;
-    final geoMap = await getGeoAnalytics(itemIds);
-
-    // 3. Merge EVERYTHING into the enriched map
-    return items.map((item) {
-      final itemId = item['id'].toString();
-      final itemTitle = (item['Product Title'] ?? item['product_title'] ?? item['title'])?.toString() ?? '';
-
-      final enriched = {
-        ...item,
-        'likes': likesMap[itemId] ?? 0,
-        'saves': savesMap[itemTitle] ?? 0,
-        'credits': viewsMap[itemId] ?? 0,
-        'share': shareMap[itemId] ?? 0,
-        'geoAnalytics': geoMap[itemId] ?? [], // Now correctly passing the list of maps
-      };
-
-      return JewelryItem.fromJson(enriched);
-    }).toList();
-
-  } catch (e) {
-    debugPrint("Error fetching user manufacturer products: $e");
-    return [];
-  }
-}
-Future<Map<String, int>> _fetchPinsCounts(List<String> titles) async {
-  try {
-    final response = await _supabaseClient
-        .from('pins')
-        .select('title')
-        .inFilter('title', titles);
-    
-    final Map<String, int> counts = {};
-    for (var pin in response as List) {
-      final title = pin['title'] as String;
-      counts[title] = (counts[title] ?? 0) + 1;
+        return JewelryItem.fromJson(enriched);
+      }).toList();
+    } catch (e) {
+      debugPrint("Error fetching user designer products: $e");
+      return [];
     }
-    return counts;
-  } catch (e) {
-    debugPrint("Error fetching saves counts: $e");
-    return {};
   }
-}
+
+  Future<List<JewelryItem>> getMyManufacturerProducts() async {
+    final user = _supabaseClient.auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      // 1. Fetch base products
+      final response =
+          await _supabaseClient.from('manufacturerproducts').select('''
+          *,
+          users (
+            business_name,
+            address,
+            country
+          )
+        ''').eq('user_id', user.id).order('created_at', ascending: false);
+
+      final items = response as List<Map<String, dynamic>>;
+      if (items.isEmpty) return [];
+
+      final itemIds = items.map((item) => item['id'].toString()).toList();
+      final itemTitles = items
+          .map((item) =>
+              (item['Product Title'] ?? item['product_title'] ?? item['title'])
+                  ?.toString())
+          .where((title) => title != null && title.isNotEmpty)
+          .cast<String>()
+          .toList();
+
+      // 2. Fetch engagement counts and geo-analytics in parallel
+      // We add getGeoAnalytics(itemIds) to the Future.wait list
+      final results = await Future.wait([
+        _fetchLikesCounts(itemIds),
+        _fetchPinsCounts(itemTitles),
+        _fetchViewsCounts(itemIds),
+        _fetchSharesCounts(itemIds),
+      ]);
+
+      final likesMap = results[0];
+      final savesMap = results[1];
+      final viewsMap = results[2];
+      final shareMap = results[3];
+      final geoMap = await getGeoAnalytics(itemIds);
+
+      // 3. Merge EVERYTHING into the enriched map
+      return items.map((item) {
+        final itemId = item['id'].toString();
+        final itemTitle =
+            (item['Product Title'] ?? item['product_title'] ?? item['title'])
+                    ?.toString() ??
+                '';
+
+        final enriched = {
+          ...item,
+          'is_manufacturer_product': true,
+          'likes': likesMap[itemId] ?? 0,
+          'saves': savesMap[itemTitle] ?? 0,
+          'credits': viewsMap[itemId] ?? 0,
+          'share': shareMap[itemId] ?? 0,
+          'geoAnalytics':
+              geoMap[itemId] ?? [], // Now correctly passing the list of maps
+        };
+
+        return JewelryItem.fromJson(enriched);
+      }).toList();
+    } catch (e) {
+      debugPrint("Error fetching user manufacturer products: $e");
+      return [];
+    }
+  }
+
+  Future<Map<String, int>> _fetchPinsCounts(List<String> titles) async {
+    try {
+      final response = await _supabaseClient
+          .from('pins')
+          .select('title')
+          .inFilter('title', titles);
+
+      final Map<String, int> counts = {};
+      for (var pin in response as List) {
+        final title = pin['title'] as String;
+        counts[title] = (counts[title] ?? 0) + 1;
+      }
+      return counts;
+    } catch (e) {
+      debugPrint("Error fetching saves counts: $e");
+      return {};
+    }
+  }
 
 // Keep the other helper methods the same (they use item_id)
-Future<Map<String, int>> _fetchLikesCounts(List<String> itemIds) async {
-  try {
-    final response = await _supabaseClient
-        .from('likes')
-        .select('item_id')
-        .inFilter('item_id', itemIds);
-    
-    final Map<String, int> counts = {};
-    for (var like in response as List) {
-      final itemId = like['item_id'] as String;
-      counts[itemId] = (counts[itemId] ?? 0) + 1;
-    }
-    return counts;
-  } catch (e) {
-    debugPrint("Error fetching likes counts: $e");
-    return {};
-  }
-}
+  Future<Map<String, int>> _fetchLikesCounts(List<String> itemIds) async {
+    try {
+      final response = await _supabaseClient
+          .from('likes')
+          .select('item_id')
+          .inFilter('item_id', itemIds);
 
-Future<Map<String, int>> _fetchViewsCounts(List<String> itemIds) async {
-  try {
-    final response = await _supabaseClient
-        .from('views')
-        .select('item_id')
-        .inFilter('item_id', itemIds);
-    
-    final Map<String, int> counts = {};
-    for (var view in response as List) {
-      final itemId = view['item_id'] as String;
-      counts[itemId] = (counts[itemId] ?? 0) + 1;
+      final Map<String, int> counts = {};
+      for (var like in response as List) {
+        final itemId = like['item_id'] as String;
+        counts[itemId] = (counts[itemId] ?? 0) + 1;
+      }
+      return counts;
+    } catch (e) {
+      debugPrint("Error fetching likes counts: $e");
+      return {};
     }
-    return counts;
-  } catch (e) {
-    debugPrint("Error fetching credits counts: $e");
-    return {};
   }
-}
 
-Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
-  try {
-    final response = await _supabaseClient
-        .from('shares')
-        .select('item_id')
-        .inFilter('item_id', itemIds);
-    
-    final Map<String, int> counts = {};
-    for (var share in response as List) {
-      final itemId = share['item_id'] as String;
-      counts[itemId] = (counts[itemId] ?? 0) + 1;
+  Future<Map<String, int>> _fetchViewsCounts(List<String> itemIds) async {
+    try {
+      final response = await _supabaseClient
+          .from('views')
+          .select('item_id')
+          .inFilter('item_id', itemIds);
+
+      final Map<String, int> counts = {};
+      for (var view in response as List) {
+        final itemId = view['item_id'] as String;
+        counts[itemId] = (counts[itemId] ?? 0) + 1;
+      }
+      return counts;
+    } catch (e) {
+      debugPrint("Error fetching credits counts: $e");
+      return {};
     }
-    return counts;
-  } catch (e) {
-    debugPrint("Error fetching share counts: $e");
-    return {};
   }
-}
 
+  Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
+    try {
+      final response = await _supabaseClient
+          .from('shares')
+          .select('item_id')
+          .inFilter('item_id', itemIds);
+
+      final Map<String, int> counts = {};
+      for (var share in response as List) {
+        final itemId = share['item_id'] as String;
+        counts[itemId] = (counts[itemId] ?? 0) + 1;
+      }
+      return counts;
+    } catch (e) {
+      debugPrint("Error fetching share counts: $e");
+      return {};
+    }
+  }
 
   /// Call this only when you need the deep-dive analytics for specific items.
-  Future<Map<String, List<Map<String, dynamic>>>> getGeoAnalytics(List<String> itemIds) async {
+  Future<Map<String, List<Map<String, dynamic>>>> getGeoAnalytics(
+      List<String> itemIds) async {
     if (itemIds.isEmpty) return {};
     for (var id in itemIds) {
       print('ID: $id, Type: ${id.runtimeType}');
     }
     print(itemIds);
     print("hell yeah");
-    
+
     try {
-      final response = await _supabaseClient.rpc(
-        'get_geo_analytics_batch',
-        params: {'item_ids': itemIds}
-      );
+      final response = await _supabaseClient
+          .rpc('get_geo_analytics_batch', params: {'item_ids': itemIds});
       print(response);
       final Map<String, List<Map<String, dynamic>>> resultMap = {};
-      
+
       for (var row in (response as List)) {
         final String itemId = row['result_item_id'].toString();
         final List<dynamic> geoData = row['location_json'] as List<dynamic>;
-        
-        resultMap[itemId] = geoData.map((e) => Map<String, dynamic>.from(e)).toList();
+
+        resultMap[itemId] =
+            geoData.map((e) => Map<String, dynamic>.from(e)).toList();
       }
       print(resultMap);
       return resultMap;
-
     } catch (e) {
       print('Geo Analytics Service Error: $e');
       return {};
@@ -650,6 +655,80 @@ Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
         'pin_id': pinId,
         'product_id': productId,
       });
+
+      try {
+        if (productId != null) {
+          String? ownerId;
+          String itemTitle = 'A product';
+
+          final tables = [
+            'designerproducts',
+            'manufacturerproducts',
+            'products'
+          ];
+          for (final table in tables) {
+            try {
+              final response = await _supabaseClient
+                  .from(table)
+                  .select('user_id, "Product Title"')
+                  .eq('id', productId)
+                  .maybeSingle();
+              if (response != null) {
+                ownerId = response['user_id'];
+                itemTitle = response['Product Title'] ?? itemTitle;
+                break;
+              }
+            } catch (_) {}
+          }
+          if (ownerId == null) {
+            for (final table in tables) {
+              try {
+                final response = await _supabaseClient
+                    .from(table)
+                    .select('user_id, title')
+                    .eq('id', productId)
+                    .maybeSingle();
+                if (response != null) {
+                  ownerId = response['user_id'];
+                  itemTitle = response['title'] ?? itemTitle;
+                  break;
+                }
+              } catch (_) {}
+            }
+          }
+
+          if (ownerId != null && ownerId != userId) {
+            await _supabaseClient.from('notifications').insert({
+              'user_id': ownerId,
+              'type': 'engagement',
+              'title': 'New Like',
+              'body': 'Someone liked your product "$itemTitle".',
+              'related_item_id': productId.toString(),
+            });
+          }
+        } else if (pinId != null) {
+          final response = await _supabaseClient
+              .from('pins')
+              .select('owner_id, title')
+              .eq('id', pinId)
+              .maybeSingle();
+          if (response != null) {
+            final ownerId = response['owner_id'];
+            final itemTitle = response['title'] ?? 'A pin';
+            if (ownerId != null && ownerId != userId) {
+              await _supabaseClient.from('notifications').insert({
+                'user_id': ownerId,
+                'type': 'engagement',
+                'title': 'New Like',
+                'body': 'Someone liked your pin "$itemTitle".',
+                'related_item_id': pinId,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error inserting like notification: $e');
+      }
     } catch (e) {
       debugPrint('Error adding like: $e');
       rethrow; // Re-throw to let the UI handle the error
@@ -763,7 +842,7 @@ Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
       ]);
 
       final Set<String> uniqueTypes = {};
-      
+
       for (var response in responses) {
         if (response is List) {
           for (var item in response) {
@@ -798,7 +877,7 @@ Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
       ]);
 
       final Set<String> uniqueCategories = {};
-      
+
       for (var response in responses) {
         if (response is List) {
           for (var item in response) {
@@ -833,7 +912,7 @@ Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
       ]);
 
       final Set<String> uniqueMetalTypes = {};
-      
+
       for (var response in responses) {
         if (response is List) {
           for (var item in response) {
@@ -874,7 +953,7 @@ Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
         'Category2': {},
         'Category3': {},
       };
-      
+
       for (var response in responses) {
         if (response is List) {
           for (var item in response) {
@@ -883,13 +962,13 @@ Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
             if (cat1 != null && cat1.isNotEmpty) {
               subFilters['Category1']!.add(cat1);
             }
-            
+
             // Category2
             final cat2 = item['Category2']?.toString().trim();
             if (cat2 != null && cat2.isNotEmpty) {
               subFilters['Category2']!.add(cat2);
             }
-            
+
             // Category3
             final cat3 = item['Category3']?.toString().trim();
             if (cat3 != null && cat3.isNotEmpty) {
@@ -907,6 +986,102 @@ Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
         'Category2': {},
         'Category3': {},
       };
+    }
+  }
+
+  /// Deletes a product, its images from storage, and all related analytics/engagement rows
+  Future<bool> deleteProduct(JewelryItem item) async {
+    try {
+      final user = _supabaseClient.auth.currentUser;
+      if (user == null) return false;
+
+      // Determine table
+      String table = item.isDesignerProduct
+          ? 'designerproducts'
+          : (item.isManufacturerProduct ? 'manufacturerproducts' : 'products');
+
+      // Double check ownership before deleting
+      final response = await _supabaseClient
+          .from(table)
+          .select('user_id')
+          .eq('id', item.id)
+          .maybeSingle();
+
+      if (response == null || response['user_id'] != user.id) {
+        debugPrint("Not authorized to delete or product not found");
+        return false;
+      }
+
+      // 1. Delete images from storage if they exist in 'designer-files' bucket
+      List<String> storagePaths = [];
+      final List<String> urlsToDelete =
+          (item.images != null && item.images!.isNotEmpty)
+              ? item.images!
+              : (item.image.isNotEmpty ? [item.image] : []);
+
+      for (var url in urlsToDelete) {
+        if (url.contains('/storage/v1/object/public/designer-files/')) {
+          final uri = Uri.parse(url);
+          final pathSegments = uri.pathSegments;
+          final bucketIndex = pathSegments.indexOf('designer-files');
+          if (bucketIndex != -1 && bucketIndex + 1 < pathSegments.length) {
+            final path = pathSegments.sublist(bucketIndex + 1).join('/');
+            storagePaths.add(Uri.decodeComponent(path));
+          }
+        }
+      }
+
+      if (storagePaths.isNotEmpty) {
+        try {
+          await _supabaseClient.storage
+              .from('designer-files')
+              .remove(storagePaths);
+        } catch (e) {
+          debugPrint("Failed to delete images: $e");
+        }
+      }
+
+      // 2. Delete child records to satisfy constraints (likes, views, shares, quotes, quote_requests, notifications)
+      try {
+        await _supabaseClient
+            .from('likes')
+            .delete()
+            .eq('item_id', item.id.toString())
+            .eq('item_table', table);
+        await _supabaseClient
+            .from('views')
+            .delete()
+            .eq('item_id', item.id.toString())
+            .eq('item_table', table);
+        await _supabaseClient
+            .from('shares')
+            .delete()
+            .eq('item_id', item.id.toString())
+            .eq('item_table', table);
+
+        // It's possible product_id is an integer in quote_requests and quotes
+        await _supabaseClient
+            .from('quote_requests')
+            .delete()
+            .eq('product_id', item.id);
+        await _supabaseClient
+            .from('quotes')
+            .delete()
+            .eq('product_id', item.id.toString());
+        await _supabaseClient
+            .from('notifications')
+            .delete()
+            .eq('related_item_id', item.id.toString());
+      } catch (e) {
+        debugPrint('Error deleting dependent records: $e');
+      }
+
+      // 3. Delete the actual product
+      await _supabaseClient.from(table).delete().eq('id', item.id);
+      return true;
+    } catch (e) {
+      debugPrint('Error deleting product: $e');
+      return false;
     }
   }
 }

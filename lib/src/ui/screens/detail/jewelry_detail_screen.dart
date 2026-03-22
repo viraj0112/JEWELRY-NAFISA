@@ -41,7 +41,7 @@ class JewelryDetailScreen extends StatefulWidget {
 }
 
 class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
-    final ScrollController _thumbnailScrollController = ScrollController();
+  final ScrollController _thumbnailScrollController = ScrollController();
   late final PageController _pageController; // Add PageController
   int _thumbnailStartIndex = 0; // Track which thumbnails to show
 
@@ -49,10 +49,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   late final JewelryService _jewelryService;
   late Future<List<JewelryItem>> _similarItemsFuture;
   int _selectedImageIndex = 0;
-late List<String> _imageUrls;
+  late List<String> _imageUrls;
 
   bool _detailsRevealed = false;
-  JewelryItem? _fullProductDetails; // Store full product details after revealing
+  JewelryItem?
+      _fullProductDetails; // Store full product details after revealing
   bool _isLoadingInteraction = true;
   bool _isLiking = false;
   bool _isSaving = false;
@@ -68,43 +69,47 @@ late List<String> _imageUrls;
   String? _shareSlug;
 
   static const _unlockDuration = Duration(days: 7);
-bool get _isRedirectMetal {
-  final metal = widget.jewelryItem.metalType?.toLowerCase() ?? '';
-  return metal.contains('akd-silver') || metal.contains('akd-platinum');
-}
+  bool get _isRedirectMetal {
+    final metal = widget.jewelryItem.metalType?.toLowerCase() ?? '';
+    return metal.contains('akd-silver') || metal.contains('akd-platinum');
+  }
 
-String get _ctaButtonText {
-  return _isRedirectMetal ? 'Know Price' : 'Get Quote';
-}
+  String get _ctaButtonText {
+    return _isRedirectMetal ? 'Buy Now' : 'Know Price';
+  }
+
   @override
   void initState() {
     super.initState();
-_itemId = widget.jewelryItem.id;
+    _itemId = widget.jewelryItem.id;
 
-if (widget.jewelryItem.isDesignerProduct) {
-  _itemTable = 'designerproducts';
-} else if (widget.jewelryItem.isManufacturerProduct) {
-  _itemTable = 'manufacturerproducts';
-} else {
-  _itemTable = 'products';
-}
+    if (widget.jewelryItem.isDesignerProduct) {
+      _itemTable = 'designerproducts';
+    } else if (widget.jewelryItem.isManufacturerProduct) {
+      _itemTable = 'manufacturerproducts';
+    } else {
+      _itemTable = 'products';
+    }
 
-print(_itemTable);
+    print(_itemTable);
 
     _jewelryService = JewelryService(supabase);
     // Use the images list if available, otherwise fallback to the single image
-    if (widget.jewelryItem.images != null && widget.jewelryItem.images!.isNotEmpty) {
+    if (widget.jewelryItem.images != null &&
+        widget.jewelryItem.images!.isNotEmpty) {
       _imageUrls = widget.jewelryItem.images!;
     } else {
       _imageUrls = [widget.jewelryItem.image];
     }
-    _pageController = PageController(initialPage: _selectedImageIndex); // Initialize PageController
+    _pageController = PageController(
+        initialPage: _selectedImageIndex); // Initialize PageController
     _initializeInteractionState();
-  void dispose() {
-    _thumbnailScrollController.dispose();
-    _pageController.dispose(); // Dispose PageController
-    super.dispose();
-  }
+    void dispose() {
+      _thumbnailScrollController.dispose();
+      _pageController.dispose(); // Dispose PageController
+      super.dispose();
+    }
+
     _similarItemsFuture = _jewelryService.fetchSimilarItems(
         currentItemId: _itemId,
         productType: widget.jewelryItem.productType,
@@ -211,7 +216,7 @@ print(_itemTable);
 
     final uid = supabase.auth.currentUser?.id;
     if (uid == null) {
-    showDialog(
+      showDialog(
         context: context,
         barrierDismissible: true,
         builder: (_) => const LoginRequiredDialog(),
@@ -252,7 +257,7 @@ print(_itemTable);
 
     final uid = supabase.auth.currentUser?.id;
     if (uid == null) {
-    showDialog(
+      showDialog(
         context: context,
         barrierDismissible: true,
         builder: (_) => const LoginRequiredDialog(),
@@ -270,15 +275,37 @@ print(_itemTable);
         _likeCount--;
       } else {
         FirebaseAnalytics.instance.logEvent(
-        name: 'like_item',
-        parameters: {
-          'item_id': _itemId,
-          'item_name': widget.jewelryItem.productTitle,
-          'content_type': 'jewelry',
-        },
-      );
+          name: 'like_item',
+          parameters: {
+            'item_id': _itemId,
+            'item_name': widget.jewelryItem.productTitle,
+            'content_type': 'jewelry',
+          },
+        );
         await supabase.from('likes').insert(
             {'user_id': uid, 'item_id': _itemId, 'item_table': _itemTable});
+
+        try {
+          final response = await supabase
+              .from(_itemTable)
+              .select('user_id')
+              .eq('id', _itemId)
+              .maybeSingle();
+          if (response != null &&
+              response['user_id'] != null &&
+              response['user_id'] != uid) {
+            await supabase.from('notifications').insert({
+              'user_id': response['user_id'],
+              'type': 'engagement',
+              'title': 'New Like',
+              'body':
+                  'Someone liked your product "${widget.jewelryItem.productTitle}".',
+              'related_item_id': _itemId.toString(),
+            });
+          }
+        } catch (e) {
+          debugPrint('Notice like insert error: $e');
+        }
 
         _likeCount++;
       }
@@ -363,10 +390,10 @@ print(_itemTable);
     if (_isSharing) return;
 
     FirebaseAnalytics.instance.logShare(
-    contentType: 'jewelry_item',
-    itemId: _itemId,
-    method: kIsWeb ? 'web_share' : 'mobile_share',
-  );
+      contentType: 'jewelry_item',
+      itemId: _itemId,
+      method: kIsWeb ? 'web_share' : 'mobile_share',
+    );
 
     setState(() {
       _isSharing = true;
@@ -447,13 +474,12 @@ print(_itemTable);
 
   void _showQuotePopup(BuildContext context) {
     // Check if metal type is silver
-     final metal = widget.jewelryItem.metalType?.toLowerCase() ?? '';
-     final url = widget.jewelryItem.scrapedUrl ?? 'nourl';
-  if (metal.contains('akd-silver') || metal.contains('akd-platinum')) {
-
-    _launchSilverProductUrl(url);
-    return;
-  }
+    final metal = widget.jewelryItem.metalType?.toLowerCase() ?? '';
+    final url = widget.jewelryItem.scrapedUrl ?? 'nourl';
+    if (metal.contains('akd-silver') || metal.contains('akd-platinum')) {
+      _launchSilverProductUrl(url);
+      return;
+    }
 
     final userProfileProvider =
         Provider.of<UserProfileProvider>(context, listen: false);
@@ -461,7 +487,7 @@ print(_itemTable);
     final UserProfile? currentUser = userProfileProvider.userProfile;
 
     if (currentUser == null) {
-        showDialog(
+      showDialog(
         context: context,
         barrierDismissible: true,
         builder: (_) => const LoginRequiredDialog(),
@@ -479,26 +505,25 @@ print(_itemTable);
     );
   }
 
-  Future<void> _launchSilverProductUrl(String websitelink ) async {
+  Future<void> _launchSilverProductUrl(String websitelink) async {
     // Update this URL to your desired website
-    if (websitelink == 'nourl'){
+    if (websitelink == 'nourl') {
       debugPrint('Url doesnt exist');
-    }
-    else{
-    
-    try {
-      final Uri url = Uri.parse(websitelink);
-      if (await canLaunchUrl(url)) {
-        await launchUrl(
-          url,
-          mode: LaunchMode.externalApplication,
-        );
-      } else {
-        debugPrint('Could not launch $websitelink');
+    } else {
+      try {
+        final Uri url = Uri.parse(websitelink);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(
+            url,
+            mode: LaunchMode.externalApplication,
+          );
+        } else {
+          debugPrint('Could not launch $websitelink');
+        }
+      } catch (e) {
+        debugPrint('Error launching URL: $e');
       }
-    } catch (e) {
-      debugPrint('Error launching URL: $e');
-    }}
+    }
   }
 
   void _onGetDetailsPressed(BuildContext context) async {
@@ -561,23 +586,22 @@ print(_itemTable);
       // Update local state based on server response
       if (response != null && response['success'] == true) {
         profile.decrementCredit(); // Optimistic update or sync with response
-        
 
         await FirebaseAnalytics.instance.logSpendVirtualCurrency(
-        itemName: 'reveal_details', // What they bought
-        virtualCurrencyName: 'credits', // Currency type
-        value: 1, // Amount spent
-      );
-      
-      // Optional: Track specifically as a "lead" generation
-      await FirebaseAnalytics.instance.logEvent(
-        name: 'get_quote_unlocked',
-        parameters: {
-          'item_id': widget.jewelryItem.id,
-          'item_name': widget.jewelryItem.productTitle,
-        },
-      );
-      
+          itemName: 'reveal_details', // What they bought
+          virtualCurrencyName: 'credits', // Currency type
+          value: 1, // Amount spent
+        );
+
+        // Optional: Track specifically as a "lead" generation
+        await FirebaseAnalytics.instance.logEvent(
+          name: 'get_quote_unlocked',
+          parameters: {
+            'item_id': widget.jewelryItem.id,
+            'item_name': widget.jewelryItem.productTitle,
+          },
+        );
+
         if (mounted) {
           // Refetch full product details with all columns
           // Pass isDesignerProduct flag to ensure we query the correct table
@@ -586,22 +610,26 @@ print(_itemTable);
             isDesignerProduct: widget.jewelryItem.isDesignerProduct,
             isManufacturerProduct: widget.jewelryItem.isManufacturerProduct,
           );
-          
+
           setState(() {
             _detailsRevealed = true;
             if (fullProduct != null) {
               _fullProductDetails = fullProduct;
               // Update image URLs if new images are available
-              if (fullProduct.images != null && fullProduct.images!.isNotEmpty) {
+              if (fullProduct.images != null &&
+                  fullProduct.images!.isNotEmpty) {
                 _imageUrls = fullProduct.images!;
               }
             }
             // Refetch similar items after revealing details to get more results
             _similarItemsFuture = _jewelryService.fetchSimilarItems(
               currentItemId: _itemId,
-              productType: _fullProductDetails?.productType ?? widget.jewelryItem.productType,
-              category: _fullProductDetails?.category ?? widget.jewelryItem.category,
-              subCategory: _fullProductDetails?.subCategory ?? widget.jewelryItem.subCategory,
+              productType: _fullProductDetails?.productType ??
+                  widget.jewelryItem.productType,
+              category:
+                  _fullProductDetails?.category ?? widget.jewelryItem.category,
+              subCategory: _fullProductDetails?.subCategory ??
+                  widget.jewelryItem.subCategory,
               limit: 80,
               isDesigner: widget.jewelryItem.isDesignerProduct,
             );
@@ -619,7 +647,8 @@ print(_itemTable);
       if (mounted) {
         scaffoldMessenger.showSnackBar(
           SnackBar(
-            content: Text('Could not get details. Please try again. Error: ${e is PostgrestException ? e.message : e.toString()}'),
+            content: Text(
+                'Could not get details. Please try again. Error: ${e is PostgrestException ? e.message : e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -655,492 +684,523 @@ print(_itemTable);
     );
   }
 
-Widget _buildWideLayout(BuildContext context) {
-  // This is the "desktop" layout.
-  return Column(
-    children: [
-      Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              tooltip: 'Close',
-            ),
-          ],
-        ),
-      ),
-      Expanded(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 2,
-              child: SingleChildScrollView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: Column(
-                  children: [
-                    // --- ADDITION: Wrapped image with InteractiveViewer for zoom ---
-                    Consumer<UserProfileProvider>(
-                      builder: (context, userProfile, child) {
-                        final bool isLocked = !userProfile.isMember && _selectedImageIndex > 0;
-                        
-                        return AspectRatio(
-                          aspectRatio: widget.jewelryItem.aspectRatio,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              PageView.builder(
-                                controller: _pageController,
-                                itemCount: _imageUrls.length,
-                                onPageChanged: (index) {
-                                  setState(() {
-                                    _selectedImageIndex = index;
-                                    // Update thumbnail scroll if needed
-                                    if (index < _thumbnailStartIndex) {
-                                      _thumbnailStartIndex = index;
-                                    } else if (index >= _thumbnailStartIndex + 3) {
-                                      _thumbnailStartIndex = index - 2;
-                                    }
-                                  });
-                                },
-                                itemBuilder: (context, index) {
-                                  // Lock logic per image
-                                  final bool isImageLocked = !userProfile.isMember && index > 0;
-                                  
-                                  return InteractiveViewer(
-                                    minScale: 1.0,
-                                    maxScale: isImageLocked ? 1.0 : 4.0, // Disable zoom if locked
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(16),
-                                      child: ImageFiltered(
-                                        imageFilter: ImageFilter.blur(
-                                          sigmaX: isImageLocked ? 10.0 : 0.0,
-                                          sigmaY: isImageLocked ? 10.0 : 0.0,
-                                        ),
-                                        child: CachedNetworkImage(
-                                          imageUrl: _imageUrls[index],
-                                          fit: BoxFit.cover,
-                                          errorWidget: (_, __, ___) => const Center(
-                                              child: Icon(Icons.broken_image, size: 48)),
-                                          placeholder: (context, url) => createBlurUpPlaceholder(),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              if (isLocked)
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.6),
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.lock, color: Colors.white),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        "Members Only",
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              // --- ADDITION: Desktop Navigation Arrows ---
-                              if (_imageUrls.length > 1) ...[
-                                Positioned(
-                                  left: 16,
-                                  child: IconButton(
-                                    onPressed: _selectedImageIndex > 0
-                                        ? () {
-                                            _pageController.previousPage(
-                                              duration: const Duration(milliseconds: 300),
-                                              curve: Curves.easeInOut,
-                                            );
-                                          }
-                                        : null,
-                                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                                    style: IconButton.styleFrom(
-                                      backgroundColor: Colors.black.withOpacity(0.5),
-                                      padding: const EdgeInsets.all(12),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  right: 16,
-                                  child: IconButton(
-                                    onPressed: _selectedImageIndex < _imageUrls.length - 1
-                                        ? () {
-                                            _pageController.nextPage(
-                                              duration: const Duration(milliseconds: 300),
-                                              curve: Curves.easeInOut,
-                                            );
-                                          }
-                                        : null,
-                                    icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
-                                    style: IconButton.styleFrom(
-                                      backgroundColor: Colors.black.withOpacity(0.5),
-                                      padding: const EdgeInsets.all(12),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              // --- END ADDITION ---
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    // --- END ADDITION ---
-                    const SizedBox(height: 16),
-                    _buildContentSection(context),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 3,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
-                    child: Text("More like this",
-                        style: Theme.of(context).textTheme.titleLarge),
-                  ),
-                  Expanded(
-                      child: _buildSimilarItemsGrid(
-                          isSliver: false)), // Pass false for non-sliver
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
-
-Widget _buildNarrowLayout() {
-  return DefaultTabController(
-    length: 2,
-    child: CustomScrollView(
-      slivers: [
-        // ---------------- IMAGE SLIVER ----------------
-        SliverAppBar(
-          expandedHeight: 400,
-          pinned: true,
-          stretch: true,
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          leading: Container(
-            margin: const EdgeInsets.all(8.0),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.4),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              padding: EdgeInsets.zero,
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ),
-          flexibleSpace: FlexibleSpaceBar(
-            background: Consumer<UserProfileProvider>(
-              builder: (context, userProfile, child) {
-                final bool isLocked =
-                    !userProfile.isMember && _selectedImageIndex > 0;
-
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    PageView.builder(
-                      controller: _pageController,
-                      itemCount: _imageUrls.length,
-                      onPageChanged: (index) {
-                        setState(() {
-                          _selectedImageIndex = index;
-                          if (index < _thumbnailStartIndex) {
-                            _thumbnailStartIndex = index;
-                          } else if (index >= _thumbnailStartIndex + 3) {
-                            _thumbnailStartIndex = index - 2;
-                          }
-                        });
-                      },
-                      itemBuilder: (context, index) {
-                        final bool isImageLocked =
-                            !userProfile.isMember && index > 0;
-
-                        return InteractiveViewer(
-                          minScale: 1.0,
-                          maxScale: isImageLocked ? 1.0 : 4.0,
-                          child: ImageFiltered(
-                            imageFilter: ImageFilter.blur(
-                              sigmaX: isImageLocked ? 10.0 : 0.0,
-                              sigmaY: isImageLocked ? 10.0 : 0.0,
-                            ),
-                            child: CachedNetworkImage(
-                              imageUrl: _imageUrls[index],
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) => createBlurUpPlaceholder(),
-                              errorWidget: (_, __, ___) =>
-                                  const Center(child: Icon(Icons.broken_image)),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    if (isLocked)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.lock, color: Colors.white),
-                            SizedBox(width: 8),
-                            Text(
-                              "Members Only",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
-
-        // ---------------- TAB BAR (SEPARATE SLIVER) ----------------
-        SliverToBoxAdapter(
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(40),
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color.fromARGB(255, 194, 201, 198),
-                    Color(0xFF006435).withOpacity(0.6),
-                  ],
-                ),
-              ),
-              child:const TabBar(
-  indicator: BoxDecoration(), // removes underline completely
-  indicatorSize: TabBarIndicatorSize.tab,
-  labelColor: Colors.white,       // active tab text
-  unselectedLabelColor: Colors.black, // inactive tab text
-  labelStyle: TextStyle(
-    fontWeight: FontWeight.bold,
-  ),
-  tabs: [
-    Tab(text: 'Details'),
-    Tab(text: 'More Like This'),
-  ],
-),
-            ),
-          ),
-        ),
-
-        // ---------------- TAB CONTENT ----------------
-        SliverFillRemaining(
-          child: TabBarView(
+  Widget _buildWideLayout(BuildContext context) {
+    // This is the "desktop" layout.
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              SingleChildScrollView(
-                child: _buildContentSection(context),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                tooltip: 'Close',
               ),
-              _buildSimilarItemsGrid(isSliver: false),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 2,
+                child: SingleChildScrollView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: Column(
+                    children: [
+                      // --- ADDITION: Wrapped image with InteractiveViewer for zoom ---
+                      Consumer<UserProfileProvider>(
+                        builder: (context, userProfile, child) {
+                          final bool isLocked =
+                              !userProfile.isMember && _selectedImageIndex > 0;
+
+                          return AspectRatio(
+                            aspectRatio: widget.jewelryItem.aspectRatio,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                PageView.builder(
+                                  controller: _pageController,
+                                  itemCount: _imageUrls.length,
+                                  onPageChanged: (index) {
+                                    setState(() {
+                                      _selectedImageIndex = index;
+                                      // Update thumbnail scroll if needed
+                                      if (index < _thumbnailStartIndex) {
+                                        _thumbnailStartIndex = index;
+                                      } else if (index >=
+                                          _thumbnailStartIndex + 3) {
+                                        _thumbnailStartIndex = index - 2;
+                                      }
+                                    });
+                                  },
+                                  itemBuilder: (context, index) {
+                                    // Lock logic per image
+                                    final bool isImageLocked =
+                                        !userProfile.isMember && index > 0;
+
+                                    return InteractiveViewer(
+                                      minScale: 1.0,
+                                      maxScale: isImageLocked
+                                          ? 1.0
+                                          : 4.0, // Disable zoom if locked
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(16),
+                                        child: ImageFiltered(
+                                          imageFilter: ImageFilter.blur(
+                                            sigmaX: isImageLocked ? 10.0 : 0.0,
+                                            sigmaY: isImageLocked ? 10.0 : 0.0,
+                                          ),
+                                          child: CachedNetworkImage(
+                                            imageUrl: _imageUrls[index],
+                                            fit: BoxFit.cover,
+                                            errorWidget: (_, __, ___) =>
+                                                const Center(
+                                                    child: Icon(
+                                                        Icons.broken_image,
+                                                        size: 48)),
+                                            placeholder: (context, url) =>
+                                                createBlurUpPlaceholder(),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                if (isLocked)
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.6),
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.lock, color: Colors.white),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          "Retailer Only",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                // --- ADDITION: Desktop Navigation Arrows ---
+                                if (_imageUrls.length > 1) ...[
+                                  Positioned(
+                                    left: 16,
+                                    child: IconButton(
+                                      onPressed: _selectedImageIndex > 0
+                                          ? () {
+                                              _pageController.previousPage(
+                                                duration: const Duration(
+                                                    milliseconds: 300),
+                                                curve: Curves.easeInOut,
+                                              );
+                                            }
+                                          : null,
+                                      icon: const Icon(Icons.arrow_back_ios,
+                                          color: Colors.white),
+                                      style: IconButton.styleFrom(
+                                        backgroundColor:
+                                            Colors.black.withOpacity(0.5),
+                                        padding: const EdgeInsets.all(12),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: 16,
+                                    child: IconButton(
+                                      onPressed: _selectedImageIndex <
+                                              _imageUrls.length - 1
+                                          ? () {
+                                              _pageController.nextPage(
+                                                duration: const Duration(
+                                                    milliseconds: 300),
+                                                curve: Curves.easeInOut,
+                                              );
+                                            }
+                                          : null,
+                                      icon: const Icon(Icons.arrow_forward_ios,
+                                          color: Colors.white),
+                                      style: IconButton.styleFrom(
+                                        backgroundColor:
+                                            Colors.black.withOpacity(0.5),
+                                        padding: const EdgeInsets.all(12),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                // --- END ADDITION ---
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      // --- END ADDITION ---
+                      const SizedBox(height: 16),
+                      _buildContentSection(context),
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+                      child: Text("More like this",
+                          style: Theme.of(context).textTheme.titleLarge),
+                    ),
+                    Expanded(
+                        child: _buildSimilarItemsGrid(
+                            isSliver: false)), // Pass false for non-sliver
+                  ],
+                ),
+              ),
             ],
           ),
         ),
       ],
-    ),
-  );
-}
+    );
+  }
 
-Widget _buildContentSection(BuildContext context) {
-  final theme = Theme.of(context);
-  // Use full product details if available, otherwise use initial item
-  final item = _fullProductDetails ?? widget.jewelryItem;
-
-  final bool showTitle = _detailsRevealed;
-  final bool showFullDetails = _detailsRevealed;
-  print('showTitle: $showTitle, showFullDetails: $showFullDetails');
-  print('Title: ${item.productTitle}');
-  return Padding(
-    padding: const EdgeInsets.all(16.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Updated Row with thumbnails and action buttons
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildImageThumbnails(), // Thumbnails on the left
-            Row(
-              children: _buildActionButtons(), // Action buttons on the right
+  Widget _buildNarrowLayout() {
+    return DefaultTabController(
+      length: 2,
+      child: CustomScrollView(
+        slivers: [
+          // ---------------- IMAGE SLIVER ----------------
+          SliverAppBar(
+            expandedHeight: 400,
+            pinned: true,
+            stretch: true,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            leading: Container(
+              margin: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.4),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                padding: EdgeInsets.zero,
+                onPressed: () => Navigator.of(context).pop(),
+              ),
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          showTitle ? item.productTitle : "Jewellery Design",
-          style: theme.textTheme.headlineMedium,
-        ),
-        if (_likeCount > 0) ...[
+            flexibleSpace: FlexibleSpaceBar(
+              background: Consumer<UserProfileProvider>(
+                builder: (context, userProfile, child) {
+                  final bool isLocked =
+                      !userProfile.isMember && _selectedImageIndex > 0;
+
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      PageView.builder(
+                        controller: _pageController,
+                        itemCount: _imageUrls.length,
+                        onPageChanged: (index) {
+                          setState(() {
+                            _selectedImageIndex = index;
+                            if (index < _thumbnailStartIndex) {
+                              _thumbnailStartIndex = index;
+                            } else if (index >= _thumbnailStartIndex + 3) {
+                              _thumbnailStartIndex = index - 2;
+                            }
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          final bool isImageLocked =
+                              !userProfile.isMember && index > 0;
+
+                          return InteractiveViewer(
+                            minScale: 1.0,
+                            maxScale: isImageLocked ? 1.0 : 4.0,
+                            child: ImageFiltered(
+                              imageFilter: ImageFilter.blur(
+                                sigmaX: isImageLocked ? 10.0 : 0.0,
+                                sigmaY: isImageLocked ? 10.0 : 0.0,
+                              ),
+                              child: CachedNetworkImage(
+                                imageUrl: _imageUrls[index],
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) =>
+                                    createBlurUpPlaceholder(),
+                                errorWidget: (_, __, ___) => const Center(
+                                    child: Icon(Icons.broken_image)),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      if (isLocked)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.lock, color: Colors.white),
+                              SizedBox(width: 8),
+                              Text(
+                                "Retailer Only",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+
+          // ---------------- TAB BAR (SEPARATE SLIVER) ----------------
+          SliverToBoxAdapter(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(40),
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color.fromARGB(255, 194, 201, 198),
+                      Color(0xFF006435).withOpacity(0.6),
+                    ],
+                  ),
+                ),
+                child: const TabBar(
+                  indicator: BoxDecoration(), // removes underline completely
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelColor: Colors.white, // active tab text
+                  unselectedLabelColor: Colors.black, // inactive tab text
+                  labelStyle: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  tabs: [
+                    Tab(text: 'Details'),
+                    Tab(text: 'More Like This'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // ---------------- TAB CONTENT ----------------
+          SliverFillRemaining(
+            child: TabBarView(
+              children: [
+                SingleChildScrollView(
+                  child: _buildContentSection(context),
+                ),
+                _buildSimilarItemsGrid(isSliver: false),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentSection(BuildContext context) {
+    final theme = Theme.of(context);
+    // Use full product details if available, otherwise use initial item
+    final item = _fullProductDetails ?? widget.jewelryItem;
+
+    final bool showTitle = _detailsRevealed;
+    final bool showFullDetails = _detailsRevealed;
+    print('showTitle: $showTitle, showFullDetails: $showFullDetails');
+    print('Title: ${item.productTitle}');
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Updated Row with thumbnails and action buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildImageThumbnails(), // Thumbnails on the left
+              Row(
+                children: _buildActionButtons(), // Action buttons on the right
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Text(
-            '$_likeCount ${_likeCount == 1 ? 'like' : 'likes'}',
-            style:
-                theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+            showTitle ? item.productTitle : "Jewellery Design",
+            style: theme.textTheme.headlineMedium,
           ),
-        ],
-        const SizedBox(height: 24),
-        if (showFullDetails) ...[
-          Text("Product Details", style: theme.textTheme.titleLarge),
-          const SizedBox(height: 12),
-          if (item.metalPurity != null && item.metalPurity!.isNotEmpty)
-            _buildDetailRow("Metal Purity: ", item.metalPurity!),
-          if (item.goldWeight != null && item.goldWeight!.isNotEmpty)
-            _buildDetailRow("Metal Weight: ", item.goldWeight!),
-          if (item.metalWeight != null && item.metalWeight!.isNotEmpty)
-            _buildDetailRow("Metal Weight: ", item.metalWeight!),
-          if (item.metalColor != null && item.metalColor!.isNotEmpty)
-            _buildDetailRow("Metal Color: ", item.metalColor!),
-          if (item.metalFinish != null && item.metalFinish!.isNotEmpty)
-            _buildDetailRow("Metal Finish: ", item.metalFinish!),
-          if (item.metalType != null && item.metalType!.isNotEmpty)
-            _buildDetailRow("Metal Type: ", item.metalType!),
-          ...(() {
-            if (item.stoneType != null) {
-              final stoneTypeValue = _filterAndJoinList(item.stoneType);
-              if (stoneTypeValue.isNotEmpty) {
-                return [_buildDetailRow("Stone Type:", stoneTypeValue)];
-              }
-            }
-            return <Widget>[];
-          })(),
-          ...(() {
-            if (item.stoneColor != null) {
-              final stoneColorValue = _filterAndJoinList(item.stoneColor);
-              if (stoneColorValue.isNotEmpty) {
-                return [_buildDetailRow("Stone Color: ", stoneColorValue)];
-              }
-            }
-            return <Widget>[];
-          })(),
-          ...(() {
-            if (item.stoneCount != null) {
-              final stoneCountValue = _filterAndJoinList(item.stoneCount);
-              if (stoneCountValue.isNotEmpty) {
-                return [_buildDetailRow("Stone Count: ", stoneCountValue)];
-              }
-            }
-            return <Widget>[];
-          })(),
-          ...(() {
-            if (item.stonePurity != null) {
-              final stonePurityValue = _filterAndJoinList(item.stonePurity);
-              if (stonePurityValue.isNotEmpty) {
-                return [_buildDetailRow("Stone Purity: ", stonePurityValue)];
-              }
-            }
-            return <Widget>[];
-          })(),
-          ...(() {
-            if (item.stoneCut != null) {
-              final stoneCutValue = _filterAndJoinList(item.stoneCut);
-              if (stoneCutValue.isNotEmpty) {
-                return [_buildDetailRow("Stone Cut", stoneCutValue)];
-              }
-            }
-            return <Widget>[];
-          })(),
-          ...(() {
-            if (item.stoneUsed != null) {
-              final stoneUsedValue = _filterAndJoinList(item.stoneUsed);
-              if (stoneUsedValue.isNotEmpty) {
-                return [_buildDetailRow("Stone Used: ", stoneUsedValue)];
-              }
-            }
-            return <Widget>[];
-          })(),
-          ...(() {
-            if (item.stoneWeight != null) {
-              final stoneWeightValue = _filterAndJoinList(item.stoneWeight);
-              if (stoneWeightValue.isNotEmpty) {
-                return [_buildDetailRow("Stone Weight: ", stoneWeightValue)];
-              }
-            }
-            return <Widget>[];
-          })(),
-          ...(() {
-            if (item.stoneSetting != null) {
-              final stoneSettingValue = _filterAndJoinList(item.stoneSetting);
-              if (stoneSettingValue.isNotEmpty) {
-                return [_buildDetailRow("Stone Settings: ", stoneSettingValue)];
-              }
-            }
-            return <Widget>[];
-          })(),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => _showQuotePopup(context),
-            child: Text(_ctaButtonText),
+          if (item.price != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                '₹${item.price}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
             ),
-          ),
-        ] else ...[
-          Text(
-            'Unlock detailed product specifications by using a credit.',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => _onGetDetailsPressed(context),
-              child: const Text('Get Details'),
+          if (_likeCount > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              '$_likeCount ${_likeCount == 1 ? 'like' : 'likes'}',
+              style:
+                  theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
             ),
-          ),
+          ],
+          const SizedBox(height: 24),
+          if (showFullDetails) ...[
+            Text("Product Details", style: theme.textTheme.titleLarge),
+            const SizedBox(height: 12),
+            if (item.metalPurity != null && item.metalPurity!.isNotEmpty)
+              _buildDetailRow("Metal Purity: ", item.metalPurity!),
+            if (item.goldWeight != null && item.goldWeight!.isNotEmpty)
+              _buildDetailRow("Metal Weight: ", item.goldWeight!),
+            if (item.metalWeight != null && item.metalWeight!.isNotEmpty)
+              _buildDetailRow("Metal Weight: ", item.metalWeight!),
+            if (item.metalColor != null && item.metalColor!.isNotEmpty)
+              _buildDetailRow("Metal Color: ", item.metalColor!),
+            if (item.metalFinish != null && item.metalFinish!.isNotEmpty)
+              _buildDetailRow("Metal Finish: ", item.metalFinish!),
+            if (item.metalType != null && item.metalType!.isNotEmpty)
+              _buildDetailRow("Metal Type: ", item.metalType!),
+            ...(() {
+              if (item.stoneType != null) {
+                final stoneTypeValue = _filterAndJoinList(item.stoneType);
+                if (stoneTypeValue.isNotEmpty) {
+                  return [_buildDetailRow("Stone Type:", stoneTypeValue)];
+                }
+              }
+              return <Widget>[];
+            })(),
+            ...(() {
+              if (item.stoneColor != null) {
+                final stoneColorValue = _filterAndJoinList(item.stoneColor);
+                if (stoneColorValue.isNotEmpty) {
+                  return [_buildDetailRow("Stone Color: ", stoneColorValue)];
+                }
+              }
+              return <Widget>[];
+            })(),
+            ...(() {
+              if (item.stoneCount != null) {
+                final stoneCountValue = _filterAndJoinList(item.stoneCount);
+                if (stoneCountValue.isNotEmpty) {
+                  return [_buildDetailRow("Stone Count: ", stoneCountValue)];
+                }
+              }
+              return <Widget>[];
+            })(),
+            ...(() {
+              if (item.stonePurity != null) {
+                final stonePurityValue = _filterAndJoinList(item.stonePurity);
+                if (stonePurityValue.isNotEmpty) {
+                  return [_buildDetailRow("Stone Purity: ", stonePurityValue)];
+                }
+              }
+              return <Widget>[];
+            })(),
+            ...(() {
+              if (item.stoneCut != null) {
+                final stoneCutValue = _filterAndJoinList(item.stoneCut);
+                if (stoneCutValue.isNotEmpty) {
+                  return [_buildDetailRow("Stone Cut", stoneCutValue)];
+                }
+              }
+              return <Widget>[];
+            })(),
+            ...(() {
+              if (item.stoneUsed != null) {
+                final stoneUsedValue = _filterAndJoinList(item.stoneUsed);
+                if (stoneUsedValue.isNotEmpty) {
+                  return [_buildDetailRow("Stone Used: ", stoneUsedValue)];
+                }
+              }
+              return <Widget>[];
+            })(),
+            ...(() {
+              if (item.stoneWeight != null) {
+                final stoneWeightValue = _filterAndJoinList(item.stoneWeight);
+                if (stoneWeightValue.isNotEmpty) {
+                  return [_buildDetailRow("Stone Weight: ", stoneWeightValue)];
+                }
+              }
+              return <Widget>[];
+            })(),
+            ...(() {
+              if (item.stoneSetting != null) {
+                final stoneSettingValue = _filterAndJoinList(item.stoneSetting);
+                if (stoneSettingValue.isNotEmpty) {
+                  return [
+                    _buildDetailRow("Stone Settings: ", stoneSettingValue)
+                  ];
+                }
+              }
+              return <Widget>[];
+            })(),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _showQuotePopup(context),
+                child: Text(_ctaButtonText),
+              ),
+            ),
+          ] else ...[
+            Text(
+              'Unlock detailed product specifications by using a credit.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _onGetDetailsPressed(context),
+                child: const Text('Get Details'),
+              ),
+            ),
+          ],
         ],
-      ],
-    ),
-  );
-}
+      ),
+    );
+  }
+
   // Helper function to filter out null/empty values from lists
   String _filterAndJoinList(List<String>? list) {
     if (list == null || list.isEmpty) return '';
     final filtered = list.where((s) {
       final trimmed = s.trim();
-      return trimmed.isNotEmpty && 
-             trimmed.toLowerCase() != 'null' &&
-             trimmed.toLowerCase() != 'none' &&
-             trimmed.toLowerCase() != 'n/a' &&
-             trimmed.toLowerCase() != 'na';
+      return trimmed.isNotEmpty &&
+          trimmed.toLowerCase() != 'null' &&
+          trimmed.toLowerCase() != 'none' &&
+          trimmed.toLowerCase() != 'n/a' &&
+          trimmed.toLowerCase() != 'na';
     }).toList();
     return filtered.join(', ');
   }
@@ -1148,7 +1208,7 @@ Widget _buildContentSection(BuildContext context) {
   Widget _buildDetailRow(String title, String value) {
     final trimmedValue = value.trim();
     // Don't display if value is empty, null, "null", "none", "n/a", or "na"
-    if (trimmedValue.isEmpty || 
+    if (trimmedValue.isEmpty ||
         trimmedValue.toLowerCase() == 'null' ||
         trimmedValue.toLowerCase() == 'none' ||
         trimmedValue.toLowerCase() == 'n/a' ||
@@ -1168,104 +1228,111 @@ Widget _buildContentSection(BuildContext context) {
     );
   }
 
-Widget _buildImageThumbnails() {
-  if (_imageUrls.length <= 1) return const SizedBox.shrink();
-  
-  // Calculate visible thumbnails (max 3 at a time)
-  final visibleCount = _imageUrls.length > 3 ? 3 : _imageUrls.length;
-  final maxStartIndex = _imageUrls.length - visibleCount;
-  
-  return SizedBox(
-    width: 270, // Increased width: 3 thumbnails (60x3=180) + margins (8x6=48) + arrows (2x16=32)
-    height: 60,
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Left Arrow
-        if (_imageUrls.length > 3)
-          IconButton(
-            icon: const Icon(Icons.arrow_back_ios, size: 16),
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            onPressed: _thumbnailStartIndex > 0
-                ? () {
-                    setState(() {
-                      // Jump back by 3 images (but not below 0)
-                      _thumbnailStartIndex = (_thumbnailStartIndex - 3).clamp(0, maxStartIndex);
-                    });
-                  }
-                : null,
-            style: IconButton.styleFrom(
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          )
-        else
-          const SizedBox(width: 0),
-        
-        // Thumbnails (show only 3)
-        ...List.generate(visibleCount, (i) {
-          final index = _thumbnailStartIndex + i;
-          final isSelected = index == _selectedImageIndex;
-          
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedImageIndex = index;
-              });
-              _pageController.animateToPage(
-                index,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
-            },
-            child: Container(
-              width: 60,
-              height: 60,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
-                  width: isSelected ? 3 : 1,
-                ),
-                borderRadius: BorderRadius.circular(8),
+  Widget _buildImageThumbnails() {
+    if (_imageUrls.length <= 1) return const SizedBox.shrink();
+
+    // Calculate visible thumbnails (max 3 at a time)
+    final visibleCount = _imageUrls.length > 3 ? 3 : _imageUrls.length;
+    final maxStartIndex = _imageUrls.length - visibleCount;
+
+    return SizedBox(
+      width:
+          270, // Increased width: 3 thumbnails (60x3=180) + margins (8x6=48) + arrows (2x16=32)
+      height: 60,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Left Arrow
+          if (_imageUrls.length > 3)
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios, size: 16),
+              padding: const EdgeInsets.all(4),
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              onPressed: _thumbnailStartIndex > 0
+                  ? () {
+                      setState(() {
+                        // Jump back by 3 images (but not below 0)
+                        _thumbnailStartIndex =
+                            (_thumbnailStartIndex - 3).clamp(0, maxStartIndex);
+                      });
+                    }
+                  : null,
+              style: IconButton.styleFrom(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: CachedNetworkImage(
-                  imageUrl: _imageUrls[index],
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => const Icon(Icons.broken_image, size: 20),
-                  placeholder: (context, url) => createBlurUpPlaceholder(),
+            )
+          else
+            const SizedBox(width: 0),
+
+          // Thumbnails (show only 3)
+          ...List.generate(visibleCount, (i) {
+            final index = _thumbnailStartIndex + i;
+            final isSelected = index == _selectedImageIndex;
+
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedImageIndex = index;
+                });
+                _pageController.animateToPage(
+                  index,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              },
+              child: Container(
+                width: 60,
+                height: 60,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: isSelected
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey,
+                    width: isSelected ? 3 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: CachedNetworkImage(
+                    imageUrl: _imageUrls[index],
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) =>
+                        const Icon(Icons.broken_image, size: 20),
+                    placeholder: (context, url) => createBlurUpPlaceholder(),
+                  ),
                 ),
               ),
-            ),
-          );
-        }),
-        
-        // Right Arrow
-        if (_imageUrls.length > 3)
-          IconButton(
-            icon: const Icon(Icons.arrow_forward_ios, size: 16),
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            onPressed: _thumbnailStartIndex < maxStartIndex
-                ? () {
-                    setState(() {
-                      // Jump forward by 3 images (but not beyond max)
-                      _thumbnailStartIndex = (_thumbnailStartIndex + 3).clamp(0, maxStartIndex);
-                    });
-                  }
-                : null,
-            style: IconButton.styleFrom(
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          )
-        else
-          const SizedBox(width: 0),
-      ],
-    ),
-  );
-}
+            );
+          }),
+
+          // Right Arrow
+          if (_imageUrls.length > 3)
+            IconButton(
+              icon: const Icon(Icons.arrow_forward_ios, size: 16),
+              padding: const EdgeInsets.all(4),
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              onPressed: _thumbnailStartIndex < maxStartIndex
+                  ? () {
+                      setState(() {
+                        // Jump forward by 3 images (but not beyond max)
+                        _thumbnailStartIndex =
+                            (_thumbnailStartIndex + 3).clamp(0, maxStartIndex);
+                      });
+                    }
+                  : null,
+              style: IconButton.styleFrom(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            )
+          else
+            const SizedBox(width: 0),
+        ],
+      ),
+    );
+  }
+
   List<Widget> _buildActionButtons() {
     final iconColor = Theme.of(context).iconTheme.color;
     return [
@@ -1349,9 +1416,10 @@ Widget _buildImageThumbnails() {
               onTap: () {
                 // --- FIX: Use GoRouter push for deep linking support ---
                 // Pass isDesigner query param to avoid ID collisions
-                        final isDesigner = item.isDesignerProduct;
-        final isManufacturer = item.isManufacturerProduct;
-        context.push('/product/${item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
+                final isDesigner = item.isDesignerProduct;
+                final isManufacturer = item.isManufacturerProduct;
+                context.push(
+                    '/product/${item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
                 // --- END FIX ---
               },
               child: Card(

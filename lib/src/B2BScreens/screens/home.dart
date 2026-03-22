@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; 
+import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
@@ -22,7 +22,7 @@ class _HomePageState extends State<HomePage> {
   late Future<List<JewelryItem>> _future;
   late JewelryService _jewelryService;
   List<Map<String, dynamic>> _geoAnalytics = [];
-  
+
   // User type detection
   bool _isManufacturer = false;
   bool _isPremium = false;
@@ -32,16 +32,17 @@ class _HomePageState extends State<HomePage> {
     super.initState();
 
     _jewelryService = JewelryService(Supabase.instance.client);
-    
+
     // Get user profile to determine if manufacturer or designer
-    final userProfile = Provider.of<UserProfileProvider>(context, listen: false).userProfile;
-    
+    final userProfile =
+        Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+
     // Detect manufacturer
     _isManufacturer = userProfile?.manufacturerProfile != null;
-    
+
     // For designers: fetch premium status (for now, assuming false - fetch from DB if needed)
     _isPremium = false; // TODO: Fetch from users table if user is designer
-    
+
     // If user has manufacturerProfile, load manufacturer products; otherwise load designer products
     if (_isManufacturer) {
       _future = _jewelryService.getMyManufacturerProducts();
@@ -49,7 +50,7 @@ class _HomePageState extends State<HomePage> {
       _future = _jewelryService.getMyDesignerProducts();
     }
   }
-  
+
   /// Unlock logic: Manufacturers always see geoAnalytics, Designers only if premium
   bool get _isUnlocked => _isManufacturer || _isPremium;
 
@@ -57,7 +58,7 @@ class _HomePageState extends State<HomePage> {
   bool _matchesFilter(JewelryItem item) {
     if (widget.filters == null || widget.filters!.isEmpty) return true;
     final f = widget.filters!;
-    
+
     // 1. Location (Mock: assumes item.users['address'] contains specific location string)
     if (f.location != null && f.location != 'India') {
       // Just an example check
@@ -66,24 +67,26 @@ class _HomePageState extends State<HomePage> {
 
     // 2. Product Type
     if (f.productType != null) {
-      if (item.productType != f.productType && item.category != f.productType) return false;
+      if (item.productType != f.productType && item.category != f.productType)
+        return false;
     }
 
     // 3. Category
     if (f.category != null) {
-      if (item.category != f.category && item.subCategory != f.category) return false; 
+      if (item.category != f.category && item.subCategory != f.category)
+        return false;
     }
-    
+
     // 3a. Category1
     if (f.category1 != null) {
       if (item.category1 != f.category1) return false;
     }
-    
+
     // 3b. Category2
     if (f.category2 != null) {
       if (item.category2 != f.category2) return false;
     }
-    
+
     // 3c. Category3
     if (f.category3 != null) {
       if (item.category3 != f.category3) return false;
@@ -91,13 +94,14 @@ class _HomePageState extends State<HomePage> {
 
     // 4. Metal Type
     if (f.metalType != null) {
-      if (item.metalType != f.metalType && item.metalPurity != f.metalType) return false;
+      if (item.metalType != f.metalType && item.metalPurity != f.metalType)
+        return false;
     }
 
     // 5. Demand Level (Approximation)
     if (f.demandLevel != null) {
       if (f.demandLevel == 'Rising' && (item.isTrending != true)) return false;
-      if (f.demandLevel == 'High' && ((item.likes ?? 0) < 20)) return false; 
+      if (f.demandLevel == 'High' && ((item.likes ?? 0) < 20)) return false;
     }
 
     return true;
@@ -123,18 +127,18 @@ class _HomePageState extends State<HomePage> {
           // Apply filters
           final allProducts = snapshot.data!;
           final products = allProducts.where(_matchesFilter).toList();
-          
+
           if (products.isEmpty) {
-             return Center(
-               child: Column(
-                 mainAxisAlignment: MainAxisAlignment.center,
-                 children: [
-                   const Icon(Icons.search_off, size: 48, color: Colors.grey),
-                   const SizedBox(height: 16),
-                   const Text("No products match your filters"),
-                 ],
-               ),
-             );
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.search_off, size: 48, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text("No products match your filters"),
+                ],
+              ),
+            );
           }
 
           return LayoutBuilder(
@@ -143,25 +147,26 @@ class _HomePageState extends State<HomePage> {
               int crossAxisCount = 2; // Mobile default
               if (constraints.maxWidth > 600) crossAxisCount = 3; // Tablet
               if (constraints.maxWidth > 900) crossAxisCount = 4; // Desktop
-              if (constraints.maxWidth > 1200) crossAxisCount = 4; // Keep 4 columns on large screens
+              if (constraints.maxWidth > 1200)
+                crossAxisCount = 4; // Keep 4 columns on large screens
 
               return Center(
                 // child: ConstrainedBox(
                 //   constraints: const BoxConstraints(maxWidth: 1280), // max-w-7xl from Tailwind
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(16).copyWith(bottom: 80),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
-                      childAspectRatio: 0.70, // Slightly taller cards
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                    ),
-                    itemCount: products.length,
-                    itemBuilder: (context, index) {
-                      return _ProductCard(item: products[index]);
-                    },
+                child: GridView.builder(
+                  padding: const EdgeInsets.all(16).copyWith(bottom: 80),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    childAspectRatio: 0.70, // Slightly taller cards
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
                   ),
-                );
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    return _ProductCard(item: products[index]);
+                  },
+                ),
+              );
               // );
             },
           );
@@ -188,7 +193,7 @@ class _ProductCardState extends State<_ProductCard> {
   String _getDemandLevel() {
     final likes = widget.item.likes ?? 0;
     final isTrending = widget.item.isTrending ?? false;
-    
+
     if (isTrending || likes > 1000) return 'High demand';
     if (likes > 500) return 'Rising demand';
     return 'Medium demand';
@@ -221,14 +226,15 @@ class _ProductCardState extends State<_ProductCard> {
   void _showInsights(BuildContext context) {
     // Get parent state to access unlock status
     final homeState = context.findAncestorStateOfType<_HomePageState>();
-    
+
     showModalBottomSheet(
       context: context,
-      constraints: BoxConstraints.expand(width: MediaQuery.of(context).size.width),
+      constraints:
+          BoxConstraints.expand(width: MediaQuery.of(context).size.width),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _InsightsBottomSheet(
-        item: widget.item, 
+        item: widget.item,
         geoAnalytics: widget.item.geoAnalytics ?? [],
         isManufacturer: homeState?._isManufacturer ?? false,
         isPremium: homeState?._isPremium ?? false,
@@ -238,7 +244,7 @@ class _ProductCardState extends State<_ProductCard> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.item.productTitle ?? 'Unknown Product'; 
+    final title = widget.item.productTitle ?? 'Unknown Product';
     final category = widget.item.category ?? '';
     final subCategory = widget.item.subCategory ?? '';
     final price = widget.item.price?.toString() ?? '0';
@@ -248,13 +254,13 @@ class _ProductCardState extends State<_ProductCard> {
     final String imageUrl = images.isNotEmpty ? images[0] : '';
 
     // Location logic
-    final String location = widget.item.users?['address'] ?? 'India'; 
-    
+    final String location = widget.item.users?['address'] ?? 'India';
+
     final int likes = widget.item.likes ?? 0;
     final int saves = widget.item.saves ?? 0;
     final int credits = widget.item.credits ?? 0;
     final bool isTrending = widget.item.isTrending ?? false;
-    
+
     final demandLevel = _getDemandLevel();
     final demandColors = _getDemandColors();
 
@@ -315,14 +321,15 @@ class _ProductCardState extends State<_ProductCard> {
                                 ),
                               ),
                       ),
-                      
+
                       // Trending Badge (Top Left)
                       if (isTrending)
                         Positioned(
                           top: 12,
                           left: 12,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
                                 colors: [
@@ -360,7 +367,7 @@ class _ProductCardState extends State<_ProductCard> {
                             ),
                           ),
                         ),
-                      
+
                       // Overlay with Action Buttons (Hover OR Tap)
                       if (showOverlay)
                         Positioned.fill(
@@ -383,16 +390,19 @@ class _ProductCardState extends State<_ProductCard> {
                                     // View Insights Button (Compact for Mobile)
                                     ElevatedButton.icon(
                                       onPressed: () {
-                                        setState(() => _isTapped = false); // Close overlay
+                                        setState(() =>
+                                            _isTapped = false); // Close overlay
                                         _showInsights(context);
                                       },
-                                      icon: const Icon(Icons.visibility, size: 18),
+                                      icon: const Icon(Icons.visibility,
+                                          size: 18),
                                       label: const Text(
                                         'View Insights',
                                         style: TextStyle(fontSize: 14),
                                       ),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF10B981),
+                                        backgroundColor:
+                                            const Color(0xFF10B981),
                                         foregroundColor: Colors.white,
                                         elevation: 4,
                                         padding: const EdgeInsets.symmetric(
@@ -400,60 +410,111 @@ class _ProductCardState extends State<_ProductCard> {
                                           vertical: 12,
                                         ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(24),
+                                          borderRadius:
+                                              BorderRadius.circular(24),
                                         ),
                                       ),
                                     ),
-                                    
-                                    const SizedBox(height: 12),
-                                    
-                                    // Action Buttons Row
-                                    // Row(
-                                    //   mainAxisAlignment: MainAxisAlignment.center,
-                                    //   mainAxisSize: MainAxisSize.min,
-                                    //   children: [
-                                    //     // Like Button
-                                    //     Container(
-                                    //       width: 44,
-                                    //       height: 44,
-                                    //       decoration: const BoxDecoration(
-                                    //         color: Colors.white,
-                                    //         shape: BoxShape.circle,
-                                    //       ),
-                                    //       child: IconButton(
-                                    //         icon: const Icon(Icons.favorite_border, size: 20),
-                                    //         padding: EdgeInsets.zero,
-                                    //         onPressed: () {
-                                    //           // Handle like
-                                    //         },
-                                    //       ),
-                                    //     ),
-                                    //     const SizedBox(width: 12),
-                                        
-                                    //     // Save Button
-                                    //     Container(
-                                    //       width: 44,
-                                    //       height: 44,
-                                    //       decoration: const BoxDecoration(
-                                    //         color: Colors.white,
-                                    //         shape: BoxShape.circle,
-                                    //       ),
-                                    //       child: IconButton(
-                                    //         icon: const Icon(Icons.bookmark_border, size: 20),
-                                    //         padding: EdgeInsets.zero,
-                                    //         onPressed: () {
-                                    //           // Handle save
-                                    //         },
-                                    //       ),
-                                    //     ),
-                                    //   ],
-                                    // ),
                                   ],
                                 ),
                               ),
                             ),
                           ),
                         ),
+
+                      // DELETE BUTTON
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(20),
+                            onTap: () async {
+                              // Show confirmation
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Delete Product'),
+                                  content: const Text(
+                                      'Are you sure you want to delete this product? This action cannot be undone and deletes all stats and images.'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text('Delete',
+                                          style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true && mounted) {
+                                // Call delete
+                                final homeState = context
+                                    .findAncestorStateOfType<_HomePageState>();
+                                if (homeState != null) {
+                                  // Show loading indicator
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content:
+                                              Text('Deleting product...')));
+                                  final success = await homeState
+                                      ._jewelryService
+                                      .deleteProduct(widget.item);
+                                  if (success && mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Product deleted successfully')));
+                                    // Refresh feed
+                                    homeState.setState(() {
+                                      if (homeState._isManufacturer) {
+                                        homeState._future = homeState
+                                            ._jewelryService
+                                            .getMyManufacturerProducts();
+                                      } else {
+                                        homeState._future = homeState
+                                            ._jewelryService
+                                            .getMyDesignerProducts();
+                                      }
+                                    });
+                                  } else if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Failed to delete product'),
+                                            backgroundColor: Colors.red));
+                                  }
+                                }
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.9),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -477,7 +538,7 @@ class _ProductCardState extends State<_ProductCard> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      
+
                       // Category • SubCategory
                       Text(
                         "$category · $subCategory",
@@ -489,12 +550,13 @@ class _ProductCardState extends State<_ProductCard> {
                           height: 1.2,
                         ),
                       ),
-                      
+
                       const SizedBox(height: 12),
-                      
+
                       // Demand Level Badge
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: demandColors.$1,
                           border: Border.all(
@@ -541,9 +603,9 @@ class _ProductCardState extends State<_ProductCard> {
                           ],
                         ),
                       ),
-                      
+
                       const SizedBox(height: 12),
-                      
+
                       // Footer: Stats & Credits
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -563,7 +625,7 @@ class _ProductCardState extends State<_ProductCard> {
                             ),
                           ),
                           const SizedBox(width: 16),
-                          
+
                           // Saves
                           const Icon(
                             Icons.bookmark_border,
@@ -578,9 +640,9 @@ class _ProductCardState extends State<_ProductCard> {
                               color: Color(0xFF6B7280),
                             ),
                           ),
-                          
+
                           const Spacer(),
-                          
+
                           // Price / Credits
                           Text(
                             "$credits credits",
@@ -603,6 +665,7 @@ class _ProductCardState extends State<_ProductCard> {
     );
   }
 }
+
 class _InsightsBottomSheet extends StatelessWidget {
   final dynamic item; // Replace 'dynamic' with your JewelryItem model
   final List<Map<String, dynamic>> geoAnalytics;
@@ -610,8 +673,8 @@ class _InsightsBottomSheet extends StatelessWidget {
   final bool isPremium;
 
   const _InsightsBottomSheet({
-    super.key, 
-    required this.item, 
+    super.key,
+    required this.item,
     this.geoAnalytics = const [],
     this.isManufacturer = false,
     this.isPremium = false,
@@ -630,9 +693,9 @@ class _InsightsBottomSheet extends StatelessWidget {
     final String imageUrl = images.isNotEmpty ? images[0] : '';
     final int likes = item.likes ?? 0;
     final int saves = item.saves ?? 0;
-    final int shares = item.share ?? 0; 
+    final int shares = item.share ?? 0;
     final int credits = item.credits ?? 0;
-    
+
     // Unlock logic: Manufacturers always see full insights, designers don't unless premium
     final bool isUnlocked = isManufacturer || isPremium;
 
@@ -667,7 +730,8 @@ class _InsightsBottomSheet extends StatelessWidget {
           Flexible(
             child: ScrollConfiguration(
               // REMOVES THE SCROLLBAR HANDLE
-              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+              behavior:
+                  ScrollConfiguration.of(context).copyWith(scrollbars: false),
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,7 +740,8 @@ class _InsightsBottomSheet extends StatelessWidget {
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         children: [
-                          _buildProductInfo(imageUrl, title, category, subCategory, weight, metalPurity, metalType),
+                          _buildProductInfo(imageUrl, title, category,
+                              subCategory, weight, metalPurity, metalType),
                           const SizedBox(height: 24),
                           _buildStatsRow(likes, saves, shares, credits),
                         ],
@@ -696,16 +761,20 @@ class _InsightsBottomSheet extends StatelessWidget {
                               // Display geo analytics if available
                               if (geoAnalytics.isNotEmpty)
                                 ...geoAnalytics.take(5).map((geo) {
-                                  final location = geo['location'] as String? ?? 'Unknown';
-                                  final percentage = (geo['percentage'] as num?)?.toInt() ?? 0;
+                                  final location =
+                                      geo['location'] as String? ?? 'Unknown';
+                                  final percentage =
+                                      (geo['percentage'] as num?)?.toInt() ?? 0;
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 12),
-                                    child: _LocationProgress(city: location, percentage: percentage),
+                                    child: _LocationProgress(
+                                        city: location, percentage: percentage),
                                   );
                                 }).toList()
                               else ...[
                                 // Fallback if no geo data
-                                const _LocationProgress(city: 'None', percentage: 0),
+                                const _LocationProgress(
+                                    city: 'None', percentage: 0),
                                 const SizedBox(height: 12),
                                 // const _LocationProgress(city: 'Delhi', percentage: 28),
                                 // const SizedBox(height: 12),
@@ -723,7 +792,8 @@ class _InsightsBottomSheet extends StatelessWidget {
                           Positioned.fill(
                             child: ClipRect(
                               child: BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 6.0, sigmaY: 6.0),
+                                filter:
+                                    ImageFilter.blur(sigmaX: 6.0, sigmaY: 6.0),
                                 child: Container(
                                   color: Colors.white.withOpacity(0.3),
                                   alignment: Alignment.center,
@@ -754,35 +824,47 @@ class _InsightsBottomSheet extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Text('Post Insights', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text('Post Insights',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const Spacer(),
           IconButton(
             icon: const Icon(Icons.close, size: 20),
             onPressed: () => Navigator.pop(context),
-            style: IconButton.styleFrom(backgroundColor: const Color(0xFFF3F4F6), shape: const CircleBorder()),
+            style: IconButton.styleFrom(
+                backgroundColor: const Color(0xFFF3F4F6),
+                shape: const CircleBorder()),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProductInfo(String url, String title, String cat, String sub, String w, String p, String m) {
+  Widget _buildProductInfo(String url, String title, String cat, String sub,
+      String w, String p, String m) {
     return Row(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: url.isNotEmpty 
-            ? Image.network(url, width: 80, height: 80, fit: BoxFit.cover)
-            : Container(width: 80, height: 80, color: Colors.grey[200], child: const Icon(Icons.image)),
+          child: url.isNotEmpty
+              ? Image.network(url, width: 80, height: 80, fit: BoxFit.cover)
+              : Container(
+                  width: 80,
+                  height: 80,
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.image)),
         ),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              Text('$cat · $sub', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-              Text('${w}g · $p $m', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('$cat · $sub',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+              Text('${w}g · $p $m',
+                  style: TextStyle(color: Colors.grey[400], fontSize: 12)),
             ],
           ),
         ),
@@ -793,17 +875,36 @@ class _InsightsBottomSheet extends StatelessWidget {
   Widget _buildStatsRow(int l, int s, int sh, int c) {
     return Row(
       children: [
-        Expanded(child: _StatCard(icon: Icons.favorite, iconColor: Colors.red, value: '$l', label: 'Likes', bgColor: const Color(0xFFF9FAFB))),
+        Expanded(
+            child: _StatCard(
+                icon: Icons.favorite,
+                iconColor: Colors.red,
+                value: '$l',
+                label: 'Likes',
+                bgColor: const Color(0xFFF9FAFB))),
         const SizedBox(width: 8),
-        Expanded(child: _StatCard(icon: Icons.bookmark, iconColor: Colors.blue, value: '$s', label: 'Saves', bgColor: const Color(0xFFF9FAFB))),
+        Expanded(
+            child: _StatCard(
+                icon: Icons.bookmark,
+                iconColor: Colors.blue,
+                value: '$s',
+                label: 'Saves',
+                bgColor: const Color(0xFFF9FAFB))),
         const SizedBox(width: 8),
-        Expanded(child: _StatCard(icon: Icons.share, iconColor: Colors.purple, value: '$sh', label: 'Shares', bgColor: const Color(0xFFF9FAFB))),
+        Expanded(
+            child: _StatCard(
+                icon: Icons.share,
+                iconColor: Colors.purple,
+                value: '$sh',
+                label: 'Shares',
+                bgColor: const Color(0xFFF9FAFB))),
         const SizedBox(width: 8),
-        Expanded(child: _StatCard(
-          icon: Icons.trending_up, 
-          iconColor: Colors.amberAccent, 
-          value: '$c', 
-          label: 'Credits', 
+        Expanded(
+            child: _StatCard(
+          icon: Icons.trending_up,
+          iconColor: Colors.amberAccent,
+          value: '$c',
+          label: 'Credits',
           bgColor: const Color(0xFFECFDF5),
           border: Colors.amberAccent,
           valueColor: Colors.amberAccent,
@@ -813,76 +914,83 @@ class _InsightsBottomSheet extends StatelessWidget {
   }
 
   Widget _buildUpgradeCard() {
-  return Container(
-    // Restrict width but let height be dynamic
-    constraints: const BoxConstraints(maxWidth: 320),
-    margin: const EdgeInsets.symmetric(horizontal: 24),
-    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20), // Reduced vertical padding
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xFFFFB800), width: 1.5),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.1),
-          blurRadius: 20,
-          offset: const Offset(0, 10),
-        ),
-      ],
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min, // Crucial: This prevents vertical expansion
-      children: [
-        // Crown/Premium Icon
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: const BoxDecoration(
-            color: Color(0xFFFFB800),
-            shape: BoxShape.circle,
+    return Container(
+      // Restrict width but let height be dynamic
+      constraints: const BoxConstraints(maxWidth: 320),
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(
+          horizontal: 24, vertical: 20), // Reduced vertical padding
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFFFB800), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
-          child: const Icon(Icons.workspace_premium, color: Colors.white, size: 28),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          "Unlock Full Insights",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          "Get access to detailed GEO analytics, demand trends, and actionable insights.",
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.grey, 
-            fontSize: 13, 
-            height: 1.4, // Improves readability without adding height
-          ),
-        ),
-        const SizedBox(height: 20),
-        // Upgrade Button
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFB800),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 14), // Slightly thinner button
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ],
+      ),
+      child: Column(
+        mainAxisSize:
+            MainAxisSize.min, // Crucial: This prevents vertical expansion
+        children: [
+          // Crown/Premium Icon
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFB800),
+              shape: BoxShape.circle,
             ),
-            child: const Text("Upgrade to Premium", style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Icon(Icons.workspace_premium,
+                color: Colors.white, size: 28),
           ),
-        ),
-      ],
-    ),
-  );
-}
+          const SizedBox(height: 16),
+          const Text(
+            "Unlock Full Insights",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Get access to detailed GEO analytics, demand trends, and actionable insights.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 13,
+              height: 1.4, // Improves readability without adding height
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Upgrade Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFB800),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                    vertical: 14), // Slightly thinner button
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Upgrade to Premium",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildGeoHeader() {
     return Row(
       children: const [
-        Text('Top GEO Locations', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Text('Top GEO Locations',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         SizedBox(width: 8),
         Icon(Icons.trending_up, size: 16, color: Colors.amberAccent),
       ],
@@ -901,7 +1009,10 @@ class _InsightsBottomSheet extends StatelessWidget {
         children: const [
           Icon(Icons.trending_up, color: Colors.black, size: 20),
           SizedBox(width: 12),
-          Expanded(child: Text('Demand increasing in West India, peak season approaching', style: TextStyle(color: Color(0xFF065F46)))),
+          Expanded(
+              child: Text(
+                  'Demand increasing in West India, peak season approaching',
+                  style: TextStyle(color: Color(0xFF065F46)))),
         ],
       ),
     );

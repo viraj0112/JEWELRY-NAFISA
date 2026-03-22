@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/models/designer_profile.dart';
 import 'package:jewelry_nafisa/src/models/manufacturer_profile.dart';
+import 'package:jewelry_nafisa/src/widgets/edit_business_profile_dialog.dart';
 import 'page_template.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -100,27 +101,22 @@ class _ProfilePageState extends State<ProfilePage> {
 
       final userId = user.id;
       List<dynamic> productsData;
-      if (_profileType == 'manufacturer'){
+      if (_profileType == 'manufacturer') {
         productsData = await _supabase
-          .from('designerproducts')
-          .select('id')
-          .eq('user_id', userId);
-
-      }else{
-  productsData = await _supabase
+            .from('designerproducts')
+            .select('id')
+            .eq('user_id', userId);
+      } else {
+        productsData = await _supabase
             .from('manufacturerproducts')
             .select('id')
             .eq('user_id', userId);
       }
       // Products — try designerproducts → manufacturerproducts → products
-      
-
 
       if (productsData.isEmpty) {
-        productsData = await _supabase
-            .from('products')
-            .select('id')
-            .eq('user_id', userId);
+        productsData =
+            await _supabase.from('products').select('id').eq('user_id', userId);
       }
 
       if (productsData.isEmpty) {
@@ -185,51 +181,52 @@ class _ProfilePageState extends State<ProfilePage> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 896), // max-w-4xl
           child: ScrollConfiguration(
-  behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32)
-                .copyWith(bottom: 80),
-            children: [
-              // ── Header Card ─────────────────────────────────────────────
-              _buildHeaderCard(initial, businessName),
+            behavior:
+                ScrollConfiguration.of(context).copyWith(scrollbars: false),
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32)
+                  .copyWith(bottom: 80),
+              children: [
+                // ── Header Card ─────────────────────────────────────────────
+                _buildHeaderCard(initial, businessName),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // ── Premium / Upgrade Card ───────────────────────────────────
-              // Manufacturer never sees this card
-              if (!_isManufacturer)
-                _isPremium
-                    ? _buildPremiumMemberCard()
-                    : _buildUpgradeBannerCard(),
+                // ── Premium / Upgrade Card ───────────────────────────────────
+                // Manufacturer never sees this card
+                if (!_isManufacturer)
+                  _isPremium
+                      ? _buildPremiumMemberCard()
+                      : _buildUpgradeBannerCard(),
 
-              if (!_isManufacturer) const SizedBox(height: 24),
+                if (!_isManufacturer) const SizedBox(height: 24),
 
-              // ── Account Settings ────────────────────────────────────────
-              _buildSettingsCard(),
+                // ── Account Settings ────────────────────────────────────────
+                _buildSettingsCard(),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // ── Sign Out ────────────────────────────────────────────────
-              Center(
-                child: TextButton.icon(
-                  onPressed: _signOut,
-                  icon: const Icon(Icons.logout,
-                      size: 16, color: Color(0xFFDC2626)),
-                  label: const Text(
-                    'Sign Out',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFFDC2626),
+                // ── Sign Out ────────────────────────────────────────────────
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _signOut,
+                    icon: const Icon(Icons.logout,
+                        size: 16, color: Color(0xFFDC2626)),
+                    label: const Text(
+                      'Sign Out',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFFDC2626),
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-              const SizedBox(height: 32),
-            ],
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -416,10 +413,14 @@ class _ProfilePageState extends State<ProfilePage> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFFBEB), Color(0xFFFEF9C3)], // amber-50 → yellow-50
+          colors: [
+            Color(0xFFFFFBEB),
+            Color(0xFFFEF9C3)
+          ], // amber-50 → yellow-50
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFCD34D), width: 2), // amber-200
+        border:
+            Border.all(color: const Color(0xFFFCD34D), width: 2), // amber-200
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,17 +476,25 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         Row(
                           children: [
-                            Expanded(child: _buildFeatureItem(features[0].$1, features[0].$2)),
+                            Expanded(
+                                child: _buildFeatureItem(
+                                    features[0].$1, features[0].$2)),
                             const SizedBox(width: 16),
-                            Expanded(child: _buildFeatureItem(features[1].$1, features[1].$2)),
+                            Expanded(
+                                child: _buildFeatureItem(
+                                    features[1].$1, features[1].$2)),
                           ],
                         ),
                         const SizedBox(height: 16),
                         Row(
                           children: [
-                            Expanded(child: _buildFeatureItem(features[2].$1, features[2].$2)),
+                            Expanded(
+                                child: _buildFeatureItem(
+                                    features[2].$1, features[2].$2)),
                             const SizedBox(width: 16),
-                            Expanded(child: _buildFeatureItem(features[3].$1, features[3].$2)),
+                            Expanded(
+                                child: _buildFeatureItem(
+                                    features[3].$1, features[3].$2)),
                           ],
                         ),
                       ],
@@ -571,8 +580,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       color: Color(0xFF111827))),
               const SizedBox(height: 2),
               Text(subtitle,
-                  style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF6B7280))),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
             ],
           ),
         ),
@@ -628,8 +637,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     SizedBox(height: 4),
                     Text(
                       'You have access to all features',
-                      style: TextStyle(
-                          fontSize: 14, color: Color(0xFF6B7280)),
+                      style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
                     ),
                   ],
                 ),
@@ -699,15 +707,27 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
           ),
-          _buildSettingItem('Edit Profile', 'Update your business information'),
+          _buildSettingItem('Edit Profile', 'Update your business information',
+              onTap: () {
+            if (_profile != null) {
+              showDialog(
+                context: context,
+                builder: (context) => EditBusinessProfileDialog(
+                  profile: _profile,
+                  profileType: _profileType,
+                  onProfileUpdated: _fetchAll,
+                ),
+              );
+            }
+          }),
           const Divider(height: 1, thickness: 1, color: Color(0xFFF3F4F6)),
-          _buildSettingItem(
-              'Notification Preferences', 'Manage your notification settings'),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFF3F4F6)),
-          _buildSettingItem(
-              'Privacy & Security', 'Control your privacy settings'),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFF3F4F6)),
-          _buildSettingItem('Help & Support', 'Get help with your account'),
+          // _buildSettingItem(
+          //     'Notification Preferences', 'Manage your notification settings'),
+          // const Divider(height: 1, thickness: 1, color: Color(0xFFF3F4F6)),
+          // _buildSettingItem(
+          //     'Privacy & Security', 'Control your privacy settings'),
+          // const Divider(height: 1, thickness: 1, color: Color(0xFFF3F4F6)),
+          // _buildSettingItem('Help & Support', 'Get help with your account'),
         ],
       ),
     );
@@ -751,9 +771,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildSettingItem(String title, String subtitle) {
+  Widget _buildSettingItem(String title, String subtitle,
+      {VoidCallback? onTap}) {
     return InkWell(
-      onTap: () {},
+      onTap: onTap ?? () {},
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Row(
@@ -774,8 +795,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
-                size: 20, color: Color(0xFF9CA3AF)),
+            const Icon(Icons.chevron_right, size: 20, color: Color(0xFF9CA3AF)),
           ],
         ),
       ),

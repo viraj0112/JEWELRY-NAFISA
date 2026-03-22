@@ -13,8 +13,8 @@ class Notification {
 
   factory Notification.fromMap(Map<String, dynamic> map) {
     return Notification(
-      id: map['id'],
-      message: map['message'],
+      id: map['id'].toString(),
+      message: map['title'] ?? map['message'] ?? 'Notification',
       isRead: map['is_read'] ?? false,
       createdAt: DateTime.parse(map['created_at']),
     );
