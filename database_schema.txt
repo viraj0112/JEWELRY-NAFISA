@@ -140,6 +140,9 @@ CREATE TABLE public.likes (
   user_id uuid NOT NULL,
   item_id text,
   item_table text,
+  country text,
+  state text,
+  pincode text,
   CONSTRAINT likes_pkey PRIMARY KEY (id),
   CONSTRAINT likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -347,6 +350,18 @@ CREATE TABLE public.referrals (
   CONSTRAINT referrals_referrer_id_fkey FOREIGN KEY (referrer_id) REFERENCES public.users(id),
   CONSTRAINT referrals_referred_id_fkey FOREIGN KEY (referred_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.saves (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  user_id uuid,
+  item_id text NOT NULL,
+  item_table text NOT NULL,
+  country text,
+  state text,
+  pincode text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT saves_pkey PRIMARY KEY (id),
+  CONSTRAINT saves_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.settings (
   key text NOT NULL,
   value text NOT NULL,
@@ -422,6 +437,8 @@ CREATE TABLE public.views (
   country text,
   item_id text,
   item_table text,
+  state text,
+  pincode text,
   CONSTRAINT views_pkey PRIMARY KEY (id),
   CONSTRAINT views_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );

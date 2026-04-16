@@ -22,6 +22,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   String selectedTimeRange = '7d';
   String selectedGeographicLevel = 'country';
   String geographicParentCode = '';
+  String selectedMetalSource = 'all';
+  String selectedMetalView = 'Type';
 
   @override
   void initState() {
@@ -105,6 +107,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             secondary: _buildCategoryInsights(dashboard.categoryInsights),
             breakpoint: 1280,
           ),
+          const SizedBox(height: 24),
+          _buildMetalAnalyticsCard(dashboard),
           const SizedBox(height: 24),
           _buildSectionPair(
             primary: _buildTopPostsTable(dashboard.topPosts),
@@ -1840,5 +1844,303 @@ class _RealtimeSparklineCard extends StatelessWidget {
         ],
       ),
     );
+  }
+  Widget _buildMetalAnalyticsCard(DashboardData dashboard) {
+    final insights = selectedMetalView == 'Type'
+        ? dashboard.metalTypeInsights
+        : dashboard.metalColorInsights;
+
+    final filtered = insights
+        .where((i) => i.sourceTable == selectedMetalSource)
+        .toList()
+      ..sort((a, b) => b.count.compareTo(a.count));
+
+    final total = filtered.isEmpty
+        ? 0
+        : filtered.map((e) => e.count).reduce((a, b) => a + b);
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Metal Distribution',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Breakdown by product metal $selectedMetalView',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  // View Selection (Type vs Color)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: ['Type', 'Color'].map((view) {
+                        final isSelected = selectedMetalView == view;
+                        return GestureDetector(
+                          onTap: () => setState(() => selectedMetalView = view),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color:
+                                  isSelected ? Colors.white : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      )
+                                    ]
+                                  : null,
+                            ),
+                            child: Text(
+                              view,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? Theme.of(context).primaryColor
+                                    : Colors.grey.shade600,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Source Filter
+                  SizedBox(
+                    width: 160,
+                    height: 40,
+                    child: DropdownButtonFormField<String>(
+                      value: selectedMetalSource,
+                      decoration: InputDecoration(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                      ),
+                      style: const TextStyle(fontSize: 13, color: Colors.black),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'all', child: Text('All Sources')),
+                        DropdownMenuItem(
+                            value: 'products', child: Text('Main Products')),
+                        DropdownMenuItem(
+                            value: 'designerproducts', child: Text('Designer')),
+                        DropdownMenuItem(
+                            value: 'manufacturerproducts',
+                            child: Text('Manufacturer')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null)
+                          setState(() => selectedMetalSource = val);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+          if (filtered.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Text('No data found for the selected filter.'),
+              ),
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Visual Chart (Progressive Bars)
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    children: filtered.take(8).map((item) {
+                      final percentage = total > 0 ? (item.count / total) : 0.0;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  item.label,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w500, fontSize: 14),
+                                ),
+                                Text(
+                                  '${item.count} items (${(percentage * 100).toStringAsFixed(1)}%)',
+                                  style: TextStyle(
+                                      color: Colors.grey.shade600, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Stack(
+                              children: [
+                                Container(
+                                  height: 8,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                FractionallySizedBox(
+                                  widthFactor: percentage,
+                                  child: Container(
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: _getMetalDisplayColor(item.label),
+                                      borderRadius: BorderRadius.circular(4),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color:
+                                              _getMetalDisplayColor(item.label)
+                                                  .withOpacity(0.3),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(width: 48),
+                // Detailed Breakdown List
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Detailed List',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                        const SizedBox(height: 16),
+                        ...filtered.map((item) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      color: _getMetalDisplayColor(item.label),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      item.label,
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${item.count}',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            )),
+                        if (total > 0) ...[
+                          const Divider(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Grand Total',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                '$total',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Color _getMetalDisplayColor(String label) {
+    final l = label.toLowerCase();
+    if (l.contains('gold')) {
+      if (l.contains('rose')) return const Color(0xFFE5B1A1);
+      if (l.contains('white')) return const Color(0xFFC4C4C4);
+      return const Color(0xFFFFD700);
+    }
+    if (l.contains('silver')) return const Color(0xFFC0C0C0);
+    if (l.contains('platinum')) return const Color(0xFFE5E4E2);
+    if (l.contains('yellow')) return const Color(0xFFFFD700);
+    if (l.contains('white')) return const Color(0xFFC4C4C4);
+    if (l.contains('rose')) return const Color(0xFFE5B1A1);
+    if (l.contains('black')) return const Color(0xFF333333);
+    if (l.contains('red')) return Colors.red.shade400;
+    if (l.contains('green')) return Colors.green.shade400;
+    if (l.contains('blue')) return Colors.blue.shade400;
+    return Colors.blueGrey.shade300;
   }
 }

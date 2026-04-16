@@ -1198,7 +1198,7 @@ class HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 18.0),
           decoration: decoration,
           child: Text(
-            metalType,
+            metalType == 'Instant' ? 'Get it' : metalType,
             style: TextStyle(
               color: textColor,
               fontWeight: FontWeight.w600,
@@ -1247,7 +1247,7 @@ class HomeScreenState extends State<HomeScreen> {
               ),
               // Text on top
               Text(
-                'Instant',
+                'Get it',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,

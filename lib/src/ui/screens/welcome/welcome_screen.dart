@@ -976,7 +976,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 18.0),
           decoration: decoration,
           child: Text(
-            metalType,
+            metalType == 'Instant' ? 'Get it' : metalType,
             style: TextStyle(
               color: textColor,
               fontWeight: FontWeight.w600,
@@ -1025,7 +1025,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
               // Text on top
               Text(
-                'Instant',
+                'Get it',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,

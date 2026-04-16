@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/activity_logs_models.dart';
 import '../providers/activity_logs_provider.dart';
 import '../widgets/admin_page_header.dart';
+import '../widgets/admin_skeletons.dart';
 import '../widgets/analytics_widgets.dart';
 
 class ActivityLogsSection extends ConsumerStatefulWidget {
@@ -36,7 +37,9 @@ class _ActivityLogsSectionState extends ConsumerState<ActivityLogsSection> {
     final summaryAsync = ref.watch(activitySummaryProvider);
 
     return summaryAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Scaffold(
+        body: AdminSkeletonView(variant: AdminSkeletonVariant.dashboard),
+      ),
       error: (err, stack) {
         _showErrorSnackBar('Failed to load activity summary: $err');
         return Center(
@@ -231,7 +234,7 @@ class _ActivityLogsSectionState extends ConsumerState<ActivityLogsSection> {
     final logsAsync = ref.watch(currentActivityLogsProvider('admin'));
 
     return logsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const AdminSkeletonView(variant: AdminSkeletonVariant.table),
       error: (err, stack) => Center(child: Text('Error: $err')),
       data: (logs) => _buildLogsTable(logs, _adminColumns, _adminRowBuilder),
     );
@@ -241,7 +244,7 @@ class _ActivityLogsSectionState extends ConsumerState<ActivityLogsSection> {
     final logsAsync = ref.watch(currentActivityLogsProvider('user'));
 
     return logsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const AdminSkeletonView(variant: AdminSkeletonVariant.table),
       error: (err, stack) => Center(child: Text('Error: $err')),
       data: (logs) => _buildLogsTable(logs, _userColumns, _userRowBuilder),
     );
@@ -251,7 +254,7 @@ class _ActivityLogsSectionState extends ConsumerState<ActivityLogsSection> {
     final logsAsync = ref.watch(currentActivityLogsProvider('export'));
 
     return logsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const AdminSkeletonView(variant: AdminSkeletonVariant.table),
       error: (err, stack) => Center(child: Text('Error: $err')),
       data: (logs) => _buildLogsTable(logs, _exportColumns, _exportRowBuilder),
     );

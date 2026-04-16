@@ -8,6 +8,8 @@ class DashboardData {
   final List<CategoryInsight> categoryInsights;
   final List<TopPost> topPosts;
   final ConversionFunnel conversionFunnel;
+  final List<MetalInsight> metalTypeInsights;
+  final List<MetalInsight> metalColorInsights;
 
   DashboardData({
     required this.kpiMetrics,
@@ -17,6 +19,20 @@ class DashboardData {
     required this.categoryInsights,
     required this.topPosts,
     required this.conversionFunnel,
+    required this.metalTypeInsights,
+    required this.metalColorInsights,
+  });
+}
+
+class MetalInsight {
+  final String label;
+  final int count;
+  final String sourceTable; // 'all', 'designerproducts', 'manufacturerproducts', 'products'
+
+  MetalInsight({
+    required this.label,
+    required this.count,
+    required this.sourceTable,
   });
 }
 

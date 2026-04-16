@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+﻿import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:ui'; // For ImageFilter
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:jewelry_nafisa/src/services/location_service.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/models/user_profile.dart';
@@ -17,6 +17,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cross_file/cross_file.dart';
+import 'dart:async' show unawaited;
 import 'dart:math';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
@@ -109,14 +110,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     _pageController = PageController(
         initialPage: _selectedImageIndex); // Initialize PageController
     _initializeInteractionState();
-    void dispose() {
-      _thumbnailScrollController.dispose();
-      _pageController.dispose(); // Dispose PageController
-      super.dispose();
-    }
 
     _similarItemsFuture = _jewelryService.fetchSimilarItems(
         currentItemId: _itemId,
+        metalType: widget.jewelryItem.metalType,
         productType: widget.jewelryItem.productType,
         category: widget.jewelryItem.category,
         subCategory: widget.jewelryItem.subCategory,
@@ -124,11 +121,17 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         category2: widget.jewelryItem.category2,
         category3: widget.jewelryItem.category3,
         limit: 80,
-        isDesigner: widget.jewelryItem.isDesignerProduct);
-
-    final jewelryService = context.read<JewelryService>();
+        isDesigner: widget.jewelryItem.isDesignerProduct,
+        isManufacturer: widget.jewelryItem.isManufacturerProduct);
 
     _logView();
+  } // end initState
+
+  @override
+  void dispose() {
+    _thumbnailScrollController.dispose();
+    _pageController.dispose();
+    super.dispose();
   }
 
   String _generateRandomSlug(int length) {
@@ -139,23 +142,23 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         length, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
 
+  // ── VIEW ─────────────────────────────────────────────────────────────────
   Future<void> _logView() async {
     final uid = supabase.auth.currentUser?.id;
-
-    String? userCountry; // <-- TODO: Set this if you have it.
-
+    final location = await LocationService.forCurrentUser();
     try {
       await supabase.from('views').insert({
         'user_id': uid,
         'item_id': _itemId,
         'item_table': _itemTable,
-        'country': userCountry,
+        ...location.toInsertMap(), // country, state, pincode
       });
     } catch (e) {
       debugPrint('Error logging view: $e');
     }
   }
 
+  // ── INITIALISE LIKE / UNLOCK STATE ───────────────────────────────────────
   Future<void> _initializeInteractionState() async {
     final uid = supabase.auth.currentUser?.id;
 
@@ -165,9 +168,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           .count(CountOption.exact)
           .match({'item_id': _itemId, 'item_table': _itemTable});
     } catch (e) {
-      debugPrint("Error getting like count: $e");
+      debugPrint('Error getting like count: $e');
       _likeCount = 0;
     }
+
     if (uid != null) {
       try {
         final likeResponse = await supabase.from('likes').select('id').match({
@@ -175,10 +179,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           'item_id': _itemId,
           'item_table': _itemTable,
         }).maybeSingle();
-
         _userLiked = (likeResponse != null);
       } catch (e) {
-        debugPrint("Error checking user like: $e");
+        debugPrint('Error checking user like: $e');
         _userLiked = false;
       }
     }
@@ -207,15 +210,14 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           }
         }
       } catch (e) {
-        debugPrint("Error checking for unlocked item details: $e");
+        debugPrint('Error checking for unlocked item details: $e');
       }
     }
 
-    if (mounted) {
-      setState(() => _isLoadingInteraction = false);
-    }
+    if (mounted) setState(() => _isLoadingInteraction = false);
   }
 
+  // ── PIN (board entry) ────────────────────────────────────────────────────
   Future<String?> _ensurePinExists() async {
     if (_pinId != null) return _pinId;
 
@@ -239,24 +241,25 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             'title': widget.jewelryItem.productTitle,
             'image_url': widget.jewelryItem.image,
             'description': widget.jewelryItem.description,
-            'share_slug': _shareSlug
+            'share_slug': _shareSlug,
           })
           .select('id')
           .single();
       _pinId = newPin['id'];
       return _pinId;
     } catch (e) {
-      debugPrint("Error creating pin on demand: $e");
+      debugPrint('Error creating pin on demand: $e');
       _shareSlug = null;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error creating interaction record: $e")),
+          SnackBar(content: Text('Error creating interaction record: $e')),
         );
       }
       return null;
     }
   }
 
+  // ── LIKE ─────────────────────────────────────────────────────────────────
   Future<void> _toggleLike() async {
     if (_isLiking || _isLoadingInteraction) return;
 
@@ -274,9 +277,12 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     try {
       if (_userLiked) {
-        await supabase.from('likes').delete().match(
-            {'user_id': uid, 'item_id': _itemId, 'item_table': _itemTable});
-
+        // Unlike — no location needed for deletes
+        await supabase.from('likes').delete().match({
+          'user_id': uid,
+          'item_id': _itemId,
+          'item_table': _itemTable,
+        });
         _likeCount--;
       } else {
         FirebaseAnalytics.instance.logEvent(
@@ -287,9 +293,17 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             'content_type': 'jewelry',
           },
         );
-        await supabase.from('likes').insert(
-            {'user_id': uid, 'item_id': _itemId, 'item_table': _itemTable});
 
+        // Insert like WITH location
+        final location = await LocationService.forCurrentUser();
+        await supabase.from('likes').insert({
+          'user_id': uid,
+          'item_id': _itemId,
+          'item_table': _itemTable,
+          ...location.toInsertMap(), // country, state, pincode
+        });
+
+        // Notify the product owner
         try {
           final response = await supabase
               .from(_itemTable)
@@ -309,40 +323,36 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             });
           }
         } catch (e) {
-          debugPrint('Notice like insert error: $e');
+          debugPrint('Notification insert error: $e');
         }
 
         _likeCount++;
       }
-      if (mounted) {
-        setState(() => _userLiked = !_userLiked);
-      }
+      if (mounted) setState(() => _userLiked = !_userLiked);
     } catch (e) {
-      debugPrint("Error toggling like: $e");
+      debugPrint('Error toggling like: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error updating like status: $e")),
+          SnackBar(content: Text('Error updating like status: $e')),
         );
       }
-      // Revert count if error
-      if (_userLiked)
-        _likeCount++;
-      else
-        _likeCount--;
+      if (_userLiked) _likeCount++; else _likeCount--;
     } finally {
       if (mounted) setState(() => _isLiking = false);
     }
   }
 
+  // ── SAVE TO BOARD ─────────────────────────────────────────────────────────
   Future<void> _saveToBoard() async {
     if (_isSaving || _isLoadingInteraction) return;
 
     final pinId = await _ensurePinExists();
-    if (pinId == null) {
-      return;
-    }
+    if (pinId == null) return;
 
     setState(() => _isSaving = true);
+
+    // Fire-and-forget: log save event with location to public.saves
+    unawaited(_logSaveEvent());
 
     final boardsProvider = context.read<BoardsProvider>();
     await boardsProvider.fetchBoards();
@@ -357,15 +367,31 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     if (mounted) setState(() => _isSaving = false);
   }
 
+  /// Logs a save event to public.saves with full location data.
+  Future<void> _logSaveEvent() async {
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) return;
+    try {
+      final location = await LocationService.forCurrentUser();
+      await supabase.from('saves').insert({
+        'user_id': uid,
+        'item_id': _itemId,
+        'item_table': _itemTable,
+        ...location.toInsertMap(), // country, state, pincode
+      });
+    } catch (e) {
+      debugPrint('Error logging save event: $e');
+    }
+  }
+
+  // ── IMAGE DOWNLOAD ────────────────────────────────────────────────────────
   Future<Uint8List> _downloadImageBytes(String imageUrl) async {
     final uri = Uri.parse(imageUrl);
 
     if (uri.path.contains('/storage/v1/')) {
       final pathSegments = uri.pathSegments;
       int bucketIndex = pathSegments.indexOf('public');
-      if (bucketIndex == -1) {
-        bucketIndex = pathSegments.indexOf('object');
-      }
+      if (bucketIndex == -1) bucketIndex = pathSegments.indexOf('object');
 
       if (bucketIndex != -1 && (bucketIndex + 1) < pathSegments.length) {
         final bucket = pathSegments[bucketIndex + 1];
@@ -373,22 +399,17 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
         if (bucket == 'designer-files') {
           try {
-            final bytes = await supabase.storage.from(bucket).download(path);
-            return bytes;
+            return await supabase.storage.from(bucket).download(path);
           } catch (e) {
-            debugPrint(
-                'Supabase download failed: $e. Falling back to http.get');
+            debugPrint('Supabase download failed: $e. Falling back to http.get');
           }
         }
       }
     }
 
     final response = await http.get(uri);
-    if (response.statusCode == 200) {
-      return response.bodyBytes;
-    } else {
-      throw Exception('Failed to download image: ${response.statusCode}');
-    }
+    if (response.statusCode == 200) return response.bodyBytes;
+    throw Exception('Failed to download image: ${response.statusCode}');
   }
 
   Future<void> _shareItem() async {
@@ -629,6 +650,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             // Refetch similar items after revealing details to get more results
             _similarItemsFuture = _jewelryService.fetchSimilarItems(
               currentItemId: _itemId,
+              metalType:
+                  _fullProductDetails?.metalType ?? widget.jewelryItem.metalType,
               productType: _fullProductDetails?.productType ??
                   widget.jewelryItem.productType,
               category:
@@ -637,6 +660,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                   widget.jewelryItem.subCategory,
               limit: 80,
               isDesigner: widget.jewelryItem.isDesignerProduct,
+              isManufacturer: widget.jewelryItem.isManufacturerProduct,
             );
           });
           scaffoldMessenger.showSnackBar(

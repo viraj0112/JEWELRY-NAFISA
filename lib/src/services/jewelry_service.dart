@@ -192,6 +192,8 @@ class JewelryService {
   Future<List<JewelryItem>> fetchSimilarItems({
     required String currentItemId,
     required bool isDesigner, // Need to know which table to query
+    bool isManufacturer = false,
+    String? metalType,
     String? productType,
     String? category,
     String? subCategory,
@@ -213,6 +215,138 @@ class JewelryService {
     }
 
     try {
+      final normalizedMetalType = metalType?.toLowerCase().trim() ?? '';
+      final isInstantProduct = normalizedMetalType.startsWith('akd');
+
+      // Instant products should fetch "More Like This" using Product Type + Category.
+      // We intentionally avoid over-constraining with sub-category/category1/2/3 exact ANDs.
+      if (isInstantProduct) {
+        Future<List<dynamic>> fetchInstantFrom(String table) async {
+          dynamic query = _supabaseClient
+              .from(table)
+              .select('''
+                id,
+                "Product Title",
+                "Image",
+                "Description",
+                "Product Type",
+                Category,
+                Category1,
+                Category2,
+                Category3,
+                "Sub Category",
+                "Metal Type",
+                "Metal Purity",
+                Plain,
+                Studded,
+                "Price"
+              ''')
+              .ilike('"Metal Type"', 'AKD%');
+
+          if (productType != null && productType.isNotEmpty) {
+            query = query.eq('"Product Type"', productType);
+          }
+
+          if (category != null && category.isNotEmpty) {
+            final c = category.trim();
+            query = query.or(
+              'Category.eq.$c,Category1.eq.$c,Category2.eq.$c,Category3.eq.$c',
+            );
+          }
+
+          final currentIntId = int.tryParse(currentItemId);
+          if (currentIntId != null) {
+            query = query.neq('id', currentIntId);
+          } else {
+            query = query.neq('id', currentItemId);
+          }
+
+          return await query.limit(limit) as List<dynamic>;
+        }
+
+        final responses = await Future.wait<List<dynamic>>([
+          fetchInstantFrom('designerproducts'),
+          fetchInstantFrom('manufacturerproducts'),
+        ]);
+
+        final combined = <JewelryItem>[
+          ...responses[0].map((json) {
+            final map = json as Map<String, dynamic>;
+            map['is_designer_product'] = true;
+            map['is_manufacturer_product'] = false;
+            return JewelryItem.fromJson(map);
+          }),
+          ...responses[1].map((json) {
+            final map = json as Map<String, dynamic>;
+            map['is_designer_product'] = false;
+            map['is_manufacturer_product'] = true;
+            return JewelryItem.fromJson(map);
+          }),
+        ];
+
+        combined.shuffle();
+        return combined.take(limit).toList();
+      }
+
+      // Manufacturer products are not covered by the existing RPC, so query
+      // manufacturerproducts directly with the same filter intent.
+      if (isManufacturer) {
+        final int? currentIntId = int.tryParse(currentItemId);
+        dynamic manufacturerQuery =
+            _supabaseClient.from('manufacturerproducts').select('''
+              id,
+              "Product Title",
+              "Image",
+              "Description",
+              "Product Type",
+              Category,
+              Category1,
+              Category2,
+              Category3,
+              "Sub Category",
+              "Metal Type",
+              "Metal Purity",
+              Plain,
+              Studded,
+              "Price"
+            ''');
+
+        if (currentIntId != null) {
+          manufacturerQuery = manufacturerQuery.neq('id', currentIntId);
+        } else {
+          manufacturerQuery = manufacturerQuery.neq('id', currentItemId);
+        }
+
+        if (productType != null && productType.isNotEmpty) {
+          manufacturerQuery = manufacturerQuery.eq('"Product Type"', productType);
+        }
+        if (category != null && category.isNotEmpty) {
+          manufacturerQuery = manufacturerQuery.eq('Category', category);
+        }
+        if (subCategory != null && subCategory.isNotEmpty) {
+          manufacturerQuery = manufacturerQuery.eq('"Sub Category"', subCategory);
+        }
+        if (category1 != null && category1.isNotEmpty) {
+          manufacturerQuery = manufacturerQuery.eq('Category1', category1);
+        }
+        if (category2 != null && category2.isNotEmpty) {
+          manufacturerQuery = manufacturerQuery.eq('Category2', category2);
+        }
+        if (category3 != null && category3.isNotEmpty) {
+          manufacturerQuery = manufacturerQuery.eq('Category3', category3);
+        }
+
+        final response = await manufacturerQuery.limit(limit) as List<dynamic>;
+        debugPrint(
+            'Similar items loaded from manufacturerproducts: ${response.length} items found');
+
+        return response.map((json) {
+          final map = json as Map<String, dynamic>;
+          map['is_manufacturer_product'] = true;
+          return JewelryItem.fromJson(map);
+        }).toList();
+      }
+
       final response = await _supabaseClient.rpc(
         'get_similar_products',
         params: {
@@ -234,6 +368,9 @@ class JewelryService {
         final map = json as Map<String, dynamic>;
         if (!map.containsKey('is_designer_product')) {
           map['is_designer_product'] = isDesigner;
+        }
+        if (!map.containsKey('is_manufacturer_product')) {
+          map['is_manufacturer_product'] = false;
         }
         return JewelryItem.fromJson(map);
       }).toList();

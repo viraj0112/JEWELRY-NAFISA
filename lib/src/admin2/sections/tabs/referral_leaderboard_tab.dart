@@ -2,12 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/users_provider.dart';
+import '../../widgets/admin_skeletons.dart';
 
 class ReferralLeaderboardTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<UsersProvider>();
-    if (prov.loading) return const Center(child: CircularProgressIndicator());
+    if (prov.loading) return const AdminSkeletonView(variant: AdminSkeletonVariant.list);
     final lb = prov.leaderboard;
     if (lb.isEmpty) return const Center(child: Text('No referral data found.'));
 

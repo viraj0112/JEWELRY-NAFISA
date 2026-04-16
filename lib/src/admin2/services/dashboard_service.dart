@@ -19,6 +19,8 @@ class DashboardService {
       final categoryInsights = await _fetchCategoryInsights();
       final topPosts = await _fetchTopPosts();
       final conversionFunnel = await _fetchConversionFunnel();
+      final metalTypeInsights = await _fetchMetalMetrics('Metal Type');
+      final metalColorInsights = await _fetchMetalMetrics('Metal Color');
 
       return DashboardData(
         kpiMetrics: kpiMetrics,
@@ -28,6 +30,8 @@ class DashboardService {
         categoryInsights: categoryInsights,
         topPosts: topPosts,
         conversionFunnel: conversionFunnel,
+        metalTypeInsights: metalTypeInsights,
+        metalColorInsights: metalColorInsights,
       );
     } catch (e) {
       debugPrint('Error fetching dashboard data: $e');
@@ -227,6 +231,7 @@ class DashboardService {
   }
 
   /// Fetch Geographic Data
+  /// [level] can be 'country' (top heatmap) or 'state' (India drill‑down).
   static Future<GeographicData> _fetchGeographicData(
       String level, String parentCode) async {
     final cacheKey = 'geographic_${level}_$parentCode';
@@ -235,44 +240,41 @@ class DashboardService {
     }
 
     try {
-      String column;
-      switch (level) {
-        case 'country':
-          column = 'country';
-          break;
-        case 'state':
-          column = 'region'; // Assuming region maps to state
-          break;
-        default:
-          column = 'country';
-      }
+      // Both 'country' and 'state' are real columns on the views table now.
+      final column = (level == 'state') ? 'state' : 'country';
 
-      final response = await _supabase
+      // Build query — if drilling into a specific country, filter by it.
+      var query = _supabase
           .from('views')
-          .select('$column, user_id')
+          .select('$column')
           .not(column, 'is', null);
 
-      Map<String, int> geoCounts = {};
-      int totalUsers = response.length;
+      if (level == 'state' && parentCode.isNotEmpty) {
+        query = query.eq('country', parentCode) as dynamic;
+      }
 
-      for (final view in response) {
-        final code = view[column] ?? 'Unknown';
+      final response = await query;
+
+      final Map<String, int> geoCounts = {};
+      for (final row in response) {
+        final code = (row[column] as String?)?.trim() ?? 'Unknown';
+        if (code.isEmpty) continue;
         geoCounts[code] = (geoCounts[code] ?? 0) + 1;
       }
 
-      List<GeographicItem> items = geoCounts.entries.map((entry) {
-        final percentage =
-            totalUsers > 0 ? (entry.value / totalUsers) * 100 : 0.0;
+      final totalViews = geoCounts.values.fold(0, (a, b) => a + b);
+
+      final items = geoCounts.entries.map((entry) {
+        final pct = totalViews > 0 ? (entry.value / totalViews) * 100 : 0.0;
         return GeographicItem(
           code: entry.key,
           name: entry.key,
           userCount: entry.value,
-          percentage: percentage.toDouble(),
-          isGrowing: true, // Simplified
+          percentage: pct.toDouble(),
+          isGrowing: true,
         );
-      }).toList();
-
-      items.sort((a, b) => b.userCount.compareTo(a.userCount));
+      }).toList()
+        ..sort((a, b) => b.userCount.compareTo(a.userCount));
 
       final geoData = GeographicData(
         level: level,
@@ -284,11 +286,65 @@ class DashboardService {
       return geoData;
     } catch (e) {
       debugPrint('Error fetching geographic data: $e');
-      return GeographicData(
-        level: level,
-        parentCode: parentCode,
-        items: [],
-      );
+      return GeographicData(level: level, parentCode: parentCode, items: []);
+    }
+  }
+
+  /// Unified engagement intensity per location (views + likes + saves).
+  /// Used by the "Global Resonance" heatmap in the admin analytics screen.
+  static Future<List<Map<String, dynamic>>> fetchEngagementByLocation() async {
+    const cacheKey = 'engagement_by_location';
+    if (_isCacheValid(cacheKey)) {
+      return List<Map<String, dynamic>>.from(_cache[cacheKey] as List);
+    }
+
+    try {
+      // Pull all three tables' country/state columns
+      final viewsRes  = await _supabase.from('views').select('country, state');
+      final likesRes  = await _supabase.from('likes').select('country, state');
+      final savesRes  = await _supabase.from('saves').select('country, state');
+
+      // Aggregate per (country, state) key
+      final Map<String, Map<String, dynamic>> agg = {};
+
+      void count(List<dynamic> rows, String field) {
+        for (final row in rows) {
+          final country = (row['country'] as String?)?.trim() ?? '';
+          if (country.isEmpty) continue;
+          final state   = (row['state']   as String?)?.trim() ?? '';
+          final key     = '$country|$state';
+          agg.putIfAbsent(key, () => {
+            'country': country,
+            'state': state,
+            'views': 0,
+            'likes': 0,
+            'saves': 0,
+          });
+          agg[key]![field] = (agg[key]![field] as int) + 1;
+        }
+      }
+
+      count(viewsRes, 'views');
+      count(likesRes, 'likes');
+      count(savesRes, 'saves');
+
+      // Sort by intensity score: views + likes*2 + saves*3
+      final result = agg.values.toList()
+        ..sort((a, b) {
+          final scoreA = (a['views'] as int) +
+              (a['likes'] as int) * 2 +
+              (a['saves'] as int) * 3;
+          final scoreB = (b['views'] as int) +
+              (b['likes'] as int) * 2 +
+              (b['saves'] as int) * 3;
+          return scoreB.compareTo(scoreA);
+        });
+
+      _cacheResult(cacheKey, result);
+      return result;
+    } catch (e) {
+      debugPrint('Error fetching engagement by location: $e');
+      return [];
     }
   }
 
@@ -531,6 +587,68 @@ class DashboardService {
         membership: FunnelStage(
             name: 'Membership', users: 0, percentage: 0, changeFromPrevious: 0),
       );
+    }
+  }
+
+  static Future<List<MetalInsight>> _fetchMetalMetrics(String column) async {
+    final cacheKey = 'metal_metrics_${column.replaceAll(' ', '_').toLowerCase()}';
+    if (_isCacheValid(cacheKey)) {
+      return _cache[cacheKey] as List<MetalInsight>;
+    }
+
+    try {
+      final tables = [
+        'products',
+        'designerproducts',
+        'manufacturerproducts',
+      ];
+
+      List<MetalInsight> allInsights = [];
+
+      for (final table in tables) {
+        final response = await _supabase
+            .from(table)
+            .select(column)
+            .order(column); // Sorting helps in grouping if done in SQL, but we process in Dart
+
+        if (response.isEmpty) continue;
+
+        Map<String, int> counts = {};
+        for (final item in response) {
+          final val = (item[column] as String?)?.trim();
+          if (val != null && val.isNotEmpty) {
+            counts[val] = (counts[val] ?? 0) + 1;
+          }
+        }
+
+        counts.forEach((label, count) {
+          allInsights.add(MetalInsight(
+            label: label,
+            count: count,
+            sourceTable: table,
+          ));
+        });
+      }
+
+      // Add "All" aggregation
+      Map<String, int> globalCounts = {};
+      for (final insight in allInsights) {
+        globalCounts[insight.label] = (globalCounts[insight.label] ?? 0) + insight.count;
+      }
+
+      globalCounts.forEach((label, count) {
+        allInsights.add(MetalInsight(
+          label: label,
+          count: count,
+          sourceTable: 'all',
+        ));
+      });
+
+      _cacheResult(cacheKey, allInsights);
+      return allInsights;
+    } catch (e) {
+      debugPrint('Error fetching metal metrics ($column): $e');
+      return [];
     }
   }
 

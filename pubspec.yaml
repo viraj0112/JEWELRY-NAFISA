@@ -19,7 +19,7 @@ dependencies:
 
   # Core & State Management
   go_router: ^14.2.1
-  supabase_flutter: ^2.5.0
+  supabase_flutter: ^2.10.0
   flutter_hooks: ^0.18.5
   hooks_riverpod: ^2.3.6
   flutter_riverpod: ^2.5.1

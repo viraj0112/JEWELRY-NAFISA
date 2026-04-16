@@ -88,3 +88,7 @@ app.*.map.json
 *.md
 docs/
 aws/
+
+stitch_quote_tracking/
+adminscreens.txt
+test/

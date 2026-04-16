@@ -3,12 +3,13 @@ import 'package:flutter/services.dart'; // Import for Clipboard
 import 'package:provider/provider.dart';
 import '../../providers/users_provider.dart';
 import 'package:intl/intl.dart';
+import '../../widgets/admin_skeletons.dart';
 
 class NonMembersTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<UsersProvider>();
-    if (prov.loading) return const Center(child: CircularProgressIndicator());
+    if (prov.loading) return const AdminSkeletonView(variant: AdminSkeletonVariant.list);
     
     final users = prov.nonMembers;
     

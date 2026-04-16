@@ -9,6 +9,7 @@ import '../models/reports_models.dart';
 import '../providers/reports_provider.dart';
 import '../services/reports_service.dart';
 import '../widgets/admin_page_header.dart';
+import '../widgets/admin_skeletons.dart';
 import '../widgets/analytics_widgets.dart';
 
 class ReportsSection extends ConsumerStatefulWidget {
@@ -50,7 +51,9 @@ class _ReportsSectionState extends ConsumerState<ReportsSection> {
     final reportsAsync = ref.watch(reportsDataProvider);
 
     return reportsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Scaffold(
+        body: AdminSkeletonView(variant: AdminSkeletonVariant.dashboard),
+      ),
       error: (err, stack) {
         _showErrorSnackBar('Failed to load reports data: $err');
         return Center(

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/creators_provider.dart';
 import '../widgets/admin_page_header.dart';
+import '../widgets/admin_skeletons.dart';
 import '../widgets/creators_filter_bar.dart';
 import '../widgets/creators_tabs.dart';
 import './tabs/creators_3d_tab.dart';
@@ -73,7 +74,7 @@ class _CreatorsSectionState extends State<CreatorsSection> {
                   const SizedBox(height: 12),
                   Expanded(
                     child: provider.loading
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const AdminSkeletonView(variant: AdminSkeletonVariant.cards)
                         : _buildTabContent(provider),
                   ),
                 ],

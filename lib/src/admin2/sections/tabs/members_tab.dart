@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Import for Clipboard
 import 'package:provider/provider.dart';
 import '../../providers/users_provider.dart';
+import '../../widgets/admin_skeletons.dart';
 
 class MembersTab extends StatelessWidget {
   @override
@@ -9,7 +10,7 @@ class MembersTab extends StatelessWidget {
     final prov = context.watch<UsersProvider>();
 
     if (prov.loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const AdminSkeletonView(variant: AdminSkeletonVariant.table);
     }
     if (prov.error.isNotEmpty) {
       return Center(child: Text('Error: ${prov.error}'));
