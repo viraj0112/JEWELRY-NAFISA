@@ -32,10 +32,8 @@ class NewAdminDataService {
 
   Future<DashboardSnapshot> fetchDashboardSnapshot() async {
     final users = await _client.from('users').select('id');
-    final pending = await _client
-        .from('assets')
-        .select('id')
-        .eq('status', 'pending');
+    final pending =
+        await _client.from('assets').select('id').eq('status', 'pending');
     int totalQuotes = 0;
     try {
       totalQuotes = await _client.from('quote_requests').count();
@@ -168,7 +166,7 @@ class NewAdminDataService {
     final rows = await _client
         .from('users')
         .select(
-            'id,full_name,username,business_name,email,role,is_member,credits_remaining,approval_status,last_credit_refresh,created_at')
+            'id,full_name,username,business_name,email,role,is_member,credits_remaining,approval_status,last_credit_refresh,created_at,last_activity_at')
         .order('created_at', ascending: false)
         .limit(limit);
 
@@ -184,6 +182,7 @@ class NewAdminDataService {
             approvalStatus: (row['approval_status'] as String?) ?? 'pending',
             lastCreditRefresh: _tryParseDate(row['last_credit_refresh']),
             createdAt: _tryParseDate(row['created_at']),
+            lastActivityAt: _tryParseDate(row['last_activity_at']),
           ),
         )
         .toList();
@@ -227,10 +226,12 @@ class NewAdminDataService {
       final userId = '${row['user_id'] ?? ''}';
       // Use the actual status column from quote_requests
       final status = (row['status'] as String?) ?? 'pending';
-      
+
       return QuoteRecord(
         id: '${row['id']}',
-        userName: (row['user_name'] as String?) ?? uploaderNames[userId] ?? 'Unknown user',
+        userName: (row['user_name'] as String?) ??
+            uploaderNames[userId] ??
+            'Unknown user',
         userEmail: (row['user_email'] as String?) ?? '',
         productTitle: (row['product_title'] as String?) ?? 'Untitled item',
         productTable: (row['product_table'] as String?) ?? '',
@@ -240,17 +241,44 @@ class NewAdminDataService {
         userId: userId,
         creatorName: uploaderNames[userId] ?? '',
         metalType: (row['metal_type'] as String?) ?? '',
+        metalPurity: (row['metal_purity'] as String?) ?? '',
+        goldWeight: (row['gold_weight'] as String?) ?? '',
+        metalColor: (row['metal_color'] as String?) ?? '',
+        metalFinish: (row['metal_finish'] as String?) ?? '',
+        stoneType: _toStringList(row['stone_type']),
+        stoneColor: _toStringList(row['stone_color']),
+        stoneCount: _toStringList(row['stone_count']),
+        stonePurity: _toStringList(row['stone_purity']),
+        stoneCut: _toStringList(row['stone_cut']),
+        stoneUsed: _toStringList(row['stone_used']),
+        stoneWeight: _toStringList(row['stone_weight']),
+        stoneSetting: _toStringList(row['stone_setting']),
+        additionalNotes: (row['additional_notes'] as String?) ?? '',
+        productUrl: (row['product_url'] as String?) ?? '',
+        phoneNumber: (row['phone_number'] as String?) ?? '',
+        metalWeight: (row['metal_weight'] as String?) ?? '',
+        netWeight: (row['net_weight'] as String?) ?? '',
+        dimension: (row['dimension'] as String?) ?? '',
+        designType: (row['design_type'] as String?) ?? '',
+        artForm: (row['art_form'] as String?) ?? '',
+        plating: (row['plating'] as String?) ?? '',
+        enamelWork: _toStringList(row['enamel_work']),
+        customizable: _toStringList(row['customizable']),
+        category: (row['category'] as String?) ?? '',
+        subCategory: (row['sub_category'] as String?) ?? '',
+        plain: (row['plain'] as String?) ?? '',
+        studded: _toStringList(row['studded']),
       );
     }).toList();
   }
 
   /// Bulk update quote requests status
-  Future<void> updateQuoteRequestsStatus(List<String> ids, String status) async {
+  Future<void> updateQuoteRequestsStatus(
+      List<String> ids, String status) async {
     if (ids.isEmpty) return;
     await _client
         .from('quote_requests')
-        .update({'status': status})
-        .inFilter('id', ids);
+        .update({'status': status}).inFilter('id', ids);
   }
 
   /// Send a notification to a specific user
@@ -345,163 +373,240 @@ class NewAdminDataService {
     String table = 'all',
     String searchTerm = '',
     int limit = 100,
+    int minLikes = 0,
+    int minViews = 0,
+    int minShares = 0,
+    int minCreditsUsed = 0,
+    String? productType,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
     final normalizedTerm = searchTerm.trim();
     final includesProducts = table == 'all' || table == 'products';
     final includesDesigner = table == 'all' || table == 'designerproducts';
-    final includesManufacturer = table == 'all' || table == 'manufacturerproducts';
-    final perTableLimit = table == 'all' ? (limit ~/ 3).clamp(1, limit) : limit;
+    final includesManufacturer =
+        table == 'all' || table == 'manufacturerproducts';
+
+    // Increase fetch limit during manual aggregation to ensure enough results remain after filtering
+    final fetchLimit =
+        (minLikes > 0 || minViews > 0 || minShares > 0 || minCreditsUsed > 0)
+            ? 300
+            : limit;
+
+    int calculatedLimit = fetchLimit ~/ 3;
+    if (calculatedLimit < 1) calculatedLimit = 1;
+    final perTableLimit = table == 'all' ? calculatedLimit : fetchLimit;
 
     final productRows = <dynamic>[];
     final designerRows = <dynamic>[];
     final manufacturerRows = <dynamic>[];
 
+    // Fetch base product records
     if (includesProducts) {
-      var query = _client.from('products').select('id,"Product Title","Category","Image","Images",user_id');
+      var query = _client.from('products').select(
+          'id,"Product Title","Category","Image","Images",user_id,"Product Type"');
       if (normalizedTerm.isNotEmpty) {
         query = query.ilike('Product Title', '%$normalizedTerm%');
       }
-      productRows.addAll(await query
-          .order('id', ascending: false)
-          .limit(perTableLimit));
+      // Note: 'products' table lacks 'created_at', so date filtering is skipped here.
+
+      productRows.addAll(
+          await query.order('id', ascending: false).limit(perTableLimit));
     }
 
     if (includesDesigner) {
-      var query = _client.from('designerproducts').select('id,"Product Title","Category","Image",created_at,user_id');
+      var query = _client.from('designerproducts').select(
+          'id,"Product Title","Category","Image",created_at,user_id,"Product Type"');
       if (normalizedTerm.isNotEmpty) {
         query = query.ilike('Product Title', '%$normalizedTerm%');
       }
+      if (startDate != null)
+        query = query.gte('created_at', startDate.toIso8601String());
+      if (endDate != null)
+        query = query.lte('created_at', endDate.toIso8601String());
+
       designerRows.addAll(await query
           .order('created_at', ascending: false)
           .limit(perTableLimit));
     }
 
     if (includesManufacturer) {
-      var query = _client.from('manufacturerproducts').select('id,"Product Title","Category","Image",created_at,user_id');
+      var query = _client.from('manufacturerproducts').select(
+          'id,"Product Title","Category","Image",created_at,user_id,"Product Type"');
       if (normalizedTerm.isNotEmpty) {
         query = query.ilike('Product Title', '%$normalizedTerm%');
       }
+      if (startDate != null)
+        query = query.gte('created_at', startDate.toIso8601String());
+      if (endDate != null)
+        query = query.lte('created_at', endDate.toIso8601String());
+
       manufacturerRows.addAll(await query
           .order('created_at', ascending: false)
           .limit(perTableLimit));
     }
 
+    // Collect all IDs for batch metric fetching
+    final allProductIds = [
+      ...productRows.map((r) => r['id'].toString()),
+      ...designerRows.map((r) => r['id'].toString()),
+      ...manufacturerRows.map((r) => r['id'].toString()),
+    ];
+    print('ActivityLog: allProductIds = $allProductIds');
+
+    if (allProductIds.isEmpty) return [];
+
+    // Parallel fetch of engagement metrics for the current batch
+    // Quote IDs to ensure PostgREST treats them as text strings, avoiding type match failures
+    final quotedIds = allProductIds.map((id) => '"$id"').toList();
+
+    final metricsResults = await Future.wait([
+      _client
+          .from('likes')
+          .select('item_id, item_table')
+          .inFilter('item_id', quotedIds),
+      _client
+          .from('views')
+          .select('item_id, item_table')
+          .inFilter('item_id', quotedIds),
+      _client
+          .from('shares')
+          .select('item_id, item_table')
+          .inFilter('item_id', quotedIds),
+      _client
+          .from('user_unlocked_items')
+          .select('item_id')
+          .inFilter('item_id', quotedIds),
+    ]);
+
+    final likesRows = metricsResults[0] as List;
+    final viewsRows = metricsResults[1] as List;
+    final sharesRows = metricsResults[2] as List;
+    final unlocksRows = metricsResults[3] as List;
+
+    // Helper to build count maps
+    Map<String, int> _countBySource(List rows, bool useTable) {
+      final counts = <String, int>{};
+      for (var row in rows) {
+        final id = row['item_id'].toString();
+        final tableSuffix =
+            useTable ? (row['item_table'] ?? 'products') : 'all';
+        final key = '$tableSuffix:$id';
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
+      return counts;
+    }
+
+    final likesMap = _countBySource(likesRows, true);
+    final viewsMap = _countBySource(viewsRows, true);
+    final sharesMap = _countBySource(sharesRows, true);
+    print(
+        'ActivityLog: Found ${likesRows.length} likes, ${viewsRows.length} views, ${sharesRows.length} shares, ${unlocksRows.length} unlocks.');
+
+    // Unlock map ignores table (matching old pattern)
+    final unlocksMap = <String, int>{};
+    for (var row in unlocksRows) {
+      final id = row['item_id'].toString();
+      unlocksMap[id] = (unlocksMap[id] ?? 0) + 1;
+    }
+
+    print('ActivityLog likesRows: $likesRows');
     final uploaderMap = await _fetchUploaderMap([
       ...productRows.map((row) => '${row['user_id'] ?? ''}'),
       ...designerRows.map((row) => '${row['user_id'] ?? ''}'),
       ...manufacturerRows.map((row) => '${row['user_id'] ?? ''}'),
     ]);
 
-    final items = <InventoryItem>[
-      ...productRows.map(
-        (row) {
-          final userId = '${row['user_id'] ?? ''}';
-          final owner = uploaderMap[userId];
-          return InventoryItem(
-            id: 'products:${row['id']}',
-            title: (row['Product Title'] as String?) ?? 'Untitled Product',
-            category: (row['Category'] as String?) ?? 'Uncategorized',
-            status: 'uploaded',
-            source: 'products',
-            thumbUrl: _extractImage(row['Image'], fallback: row['Images'] as String?),
-            mediaUrl: _extractImage(row['Image'], fallback: row['Images'] as String?),
-            ownerId: userId,
-            ownerName: owner?['name'] ?? 'Unknown creator',
-            ownerEmail: owner?['email'] ?? '',
-            createdAt: null,
-          );
-        },
-      ),
-      ...designerRows.map(
-        (row) {
-          final userId = '${row['user_id'] ?? ''}';
-          final owner = uploaderMap[userId];
-          return InventoryItem(
-            id: 'designerproducts:${row['id']}',
-            title: (row['Product Title'] as String?) ?? 'Untitled Product',
-            category: (row['Category'] as String?) ?? 'Uncategorized',
-            status: 'uploaded',
-            source: 'designerproducts',
-            thumbUrl: _extractImage(row['Image']),
-            mediaUrl: _extractImage(row['Image']),
-            ownerId: userId,
-            ownerName: owner?['name'] ?? 'Unknown creator',
-            ownerEmail: owner?['email'] ?? '',
-            createdAt: _tryParseDate(row['created_at']),
-          );
-        },
-      ),
-      ...manufacturerRows.map(
-        (row) {
-          final userId = '${row['user_id'] ?? ''}';
-          final owner = uploaderMap[userId];
-          return InventoryItem(
-            id: 'manufacturerproducts:${row['id']}',
-            title: (row['Product Title'] as String?) ?? 'Untitled Product',
-            category: (row['Category'] as String?) ?? 'Uncategorized',
-            status: 'uploaded',
-            source: 'manufacturerproducts',
-            thumbUrl: _extractImage(row['Image']),
-            mediaUrl: _extractImage(row['Image']),
-            ownerId: userId,
-            ownerName: owner?['name'] ?? 'Unknown creator',
-            ownerEmail: owner?['email'] ?? '',
-            createdAt: _tryParseDate(row['created_at']),
-          );
-        },
-      ),
+    InventoryItem _mapRow(dynamic row, String source) {
+      final id = row['id'].toString();
+      final userId = '${row['user_id'] ?? ''}';
+      final owner = uploaderMap[userId];
+      final key = '$source:$id';
+
+      return InventoryItem(
+        id: key,
+        title: (row['Product Title'] as String?) ?? 'Untitled Product',
+        category: (row['Category'] as String?) ?? 'Uncategorized',
+        status: 'uploaded',
+        source: source,
+        thumbUrl:
+            _extractImage(row['Image'], fallback: row['Images'] as String?),
+        mediaUrl:
+            _extractImage(row['Image'], fallback: row['Images'] as String?),
+        ownerId: userId,
+        ownerName: owner?['name'] ?? 'Unknown creator',
+        ownerEmail: owner?['email'] ?? '',
+        createdAt:
+            source == 'products' ? null : _tryParseDate(row['created_at']),
+        likesCount: likesMap[key] ?? 0,
+        viewsCount: viewsMap[key] ?? 0,
+        sharesCount: sharesMap[key] ?? 0,
+        creditsUsed: unlocksMap[id] ?? 0,
+        productType: row['Product Type'] as String?,
+      );
+    }
+
+    var items = [
+      ...productRows.map((r) => _mapRow(r, 'products')),
+      ...designerRows.map((r) => _mapRow(r, 'designerproducts')),
+      ...manufacturerRows.map((r) => _mapRow(r, 'manufacturerproducts')),
     ];
 
+    // Final filtering in Dart
+    if (minLikes > 0)
+      items = items.where((i) => i.likesCount >= minLikes).toList();
+    if (minViews > 0)
+      items = items.where((i) => i.viewsCount >= minViews).toList();
+    if (minShares > 0)
+      items = items.where((i) => i.sharesCount >= minShares).toList();
+    if (minCreditsUsed > 0)
+      items = items.where((i) => i.creditsUsed >= minCreditsUsed).toList();
+    if (productType != null && productType.trim().isNotEmpty) {
+      final pType = productType.trim().toLowerCase();
+      items =
+          items.where((i) => i.productType?.toLowerCase() == pType).toList();
+    }
+
+    // Sort by date
     items.sort((a, b) {
       final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final dateCompare = bDate.compareTo(aDate);
-      if (dateCompare != 0) return dateCompare;
-      return a.source.compareTo(b.source);
+      return bDate.compareTo(aDate);
     });
 
     return items.take(limit).toList();
   }
 
   Future<void> setUserCredits({
-  required String userId,
-  required int credits,
-}) async {
-  final now = DateTime.now().toUtc().toIso8601String();
-  
-  await _client
-      .from('users')
-      .update({
-        'credits_remaining': credits,
-        'last_credit_refresh': now,
-      })
-      .eq('id', userId);
-}
+    required String userId,
+    required int credits,
+  }) async {
+    final now = DateTime.now().toUtc().toIso8601String();
 
-Future<void> refreshAllUserCredits({
-  required int memberCredits,
-  required int nonMemberCredits,
-}) async {
-  final now = DateTime.now().toUtc().toIso8601String();
-  
-  // Refresh member credits
-  await _client
-      .from('users')
-      .update({
-        'credits_remaining': memberCredits,
-        'last_credit_refresh': now,
-      })
-      .eq('is_member', true);
-  
-  // Refresh non-member credits
-  await _client
-      .from('users')
-      .update({
-        'credits_remaining': nonMemberCredits,
-        'last_credit_refresh': now,
-      })
-      .eq('is_member', false);
-}
+    await _client.from('users').update({
+      'credits_remaining': credits,
+      'last_credit_refresh': now,
+    }).eq('id', userId);
+  }
+
+  Future<void> refreshAllUserCredits({
+    required int memberCredits,
+    required int nonMemberCredits,
+  }) async {
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    // Refresh member credits
+    await _client.from('users').update({
+      'credits_remaining': memberCredits,
+      'last_credit_refresh': now,
+    }).eq('is_member', true);
+
+    // Refresh non-member credits
+    await _client.from('users').update({
+      'credits_remaining': nonMemberCredits,
+      'last_credit_refresh': now,
+    }).eq('is_member', false);
+  }
 
   Future<void> createInventoryAsset({
     required String title,
@@ -528,7 +633,8 @@ Future<void> refreshAllUserCredits({
     });
   }
 
-  Future<int> bulkCreateInventoryAssets(List<Map<String, dynamic>> items) async {
+  Future<int> bulkCreateInventoryAssets(
+      List<Map<String, dynamic>> items) async {
     if (items.isEmpty) return 0;
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
@@ -580,11 +686,7 @@ Future<void> refreshAllUserCredits({
     for (final entry in values.entries) {
       final updated = await _client
           .from('settings')
-          .upsert({
-            'key': entry.key,
-            'value': entry.value,
-            'updated_at': now
-          })
+          .upsert({'key': entry.key, 'value': entry.value, 'updated_at': now})
           .select('key')
           .maybeSingle();
 
@@ -634,8 +736,10 @@ Future<void> refreshAllUserCredits({
     );
 
     logs.sort((a, b) {
-      final ad = _tryParseDate(a['timestamp']) ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bd = _tryParseDate(b['timestamp']) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final ad = _tryParseDate(a['timestamp']) ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      final bd = _tryParseDate(b['timestamp']) ??
+          DateTime.fromMillisecondsSinceEpoch(0);
       return bd.compareTo(ad);
     });
 
@@ -690,6 +794,57 @@ Future<void> refreshAllUserCredits({
 
     await _client.from('notifications').insert(rows);
     return rows.length;
+  }
+
+  /// Broadcast a notification to a specific list of user IDs.
+  ///
+  /// This method allows the admin to target individual users directly,
+  /// bypassing the predefined audience filters. The `userIds` list should
+  /// contain Supabase user IDs. The notification payload mirrors the one used
+  /// in `broadcastNotification`.
+  Future<int> broadcastToSpecificUsers({
+    required List<String> userIds,
+    required String subject,
+    required String body,
+    String urgency = 'standard',
+    DateTime? scheduledFor,
+  }) async {
+    if (userIds.isEmpty) return 0;
+    final rows = userIds
+        .map(
+          (id) => {
+            'user_id': id,
+            'type': urgency == 'high' ? 'opportunity' : 'default',
+            'title': subject,
+            'body': body,
+            if (scheduledFor != null)
+              'created_at': scheduledFor.toUtc().toIso8601String(),
+          },
+        )
+        .toList();
+    await _client.from('notifications').insert(rows);
+    return rows.length;
+  }
+
+  /// Search for users by optional username, email, or phone.
+  /// Returns a list of user maps containing at least id, username, email, and phone.
+  Future<List<Map<String, dynamic>>> searchUsers({
+    String? username,
+    String? email,
+    String? phone,
+  }) async {
+    var query = _client.from('users').select('id,username,email,phone');
+    if (username != null && username.isNotEmpty) {
+      query = query.ilike('username', username);
+    }
+    if (email != null && email.isNotEmpty) {
+      query = query.ilike('email', email);
+    }
+    if (phone != null && phone.isNotEmpty) {
+      query = query.ilike('phone', phone);
+    }
+    final rows = await query;
+    return List<Map<String, dynamic>>.from(rows);
   }
 
   Future<List<CurationFeedItem>> fetchCurationFeed({int? limit}) async {
@@ -903,7 +1058,8 @@ Future<void> refreshAllUserCredits({
       final xauRate = (rates['XAU'] as num?)?.toDouble() ?? 0;
       final xagRate = (rates['XAG'] as num?)?.toDouble() ?? 0;
 
-      final double goldPriceInInr = xauRate > 0 ? (1 / xauRate).toDouble() : 0.0;
+      final double goldPriceInInr =
+          xauRate > 0 ? (1 / xauRate).toDouble() : 0.0;
       final double silverPriceInInr =
           xagRate > 0 ? (1 / xagRate).toDouble() : 0.0;
 
@@ -957,7 +1113,7 @@ Future<void> refreshAllUserCredits({
           .from(table)
           .select('id')
           .range(offset, offset + pageSize - 1);
-      total += rows.length;
+      total += (rows as List).length;
       if (rows.length < pageSize) break;
       offset += pageSize;
     }
@@ -1026,7 +1182,10 @@ Future<void> refreshAllUserCredits({
 
   List<String> _toStringList(dynamic value) {
     if (value is List) {
-      return value.map((e) => e?.toString() ?? '').where((e) => e.isNotEmpty).toList();
+      return value
+          .map((e) => e?.toString() ?? '')
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
     return const [];
   }
@@ -1131,6 +1290,7 @@ Future<void> refreshAllUserCredits({
         .map((part) => part[0].toUpperCase() + part.substring(1))
         .join(' ');
   }
+
   Future<List<MetalInsight>> _fetchMetalMetrics(String column) async {
     final List<MetalInsight> insights = [];
 
@@ -1183,5 +1343,52 @@ Future<void> refreshAllUserCredits({
     }
 
     return insights;
+  }
+
+  double _toDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value.trim()) ?? 0.0;
+    return 0.0;
+  }
+
+  Future<JewelryPricingMasterData> fetchPricingMetadata() async {
+    try {
+      final rows =
+          await _client.from('settings').select('key,value').inFilter('key', [
+        'rate_gold',
+        'rate_silver',
+        'rate_platinum',
+        'making_groups',
+        'stone_groups',
+        'admin_whatsapp_target'
+      ]);
+
+      final Map<String, String> data = {
+        for (var row in rows) (row['key'] as String): (row['value'] as String)
+      };
+
+      return JewelryPricingMasterData(
+        rateGold: double.tryParse(data['rate_gold'] ?? '0') ?? 0,
+        rateSilver: double.tryParse(data['rate_silver'] ?? '0') ?? 0,
+        ratePlatinum: double.tryParse(data['rate_platinum'] ?? '0') ?? 0,
+        makingGroups: _parseJsonToMap(data['making_groups']),
+        stoneGroups: _parseJsonToMap(data['stone_groups']),
+        whatsappTarget: data['admin_whatsapp_target'] ?? '918879018801',
+      );
+    } catch (_) {
+      return JewelryPricingMasterData.empty();
+    }
+  }
+
+  Map<String, double> _parseJsonToMap(String? jsonStr) {
+    if (jsonStr == null || jsonStr.isEmpty) return {};
+    try {
+      final decoded = json.decode(jsonStr);
+      if (decoded is Map) {
+        return decoded.map((k, v) => MapEntry(k.toString(), _toDouble(v)));
+      }
+    } catch (_) {}
+    return {};
   }
 }

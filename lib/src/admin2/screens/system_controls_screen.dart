@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/new_admin_models.dart';
 import '../services/new_admin_data_service.dart';
@@ -26,8 +27,14 @@ class SystemControlsScreen extends StatefulWidget {
 class _SystemControlsScreenState extends State<SystemControlsScreen> {
   late final TextEditingController _memberCreditsController;
   late final TextEditingController _nonMemberCreditsController;
+  // Controller for admin-configurable credit deduction per click (default 5)
+  late final TextEditingController _creditDeductionController;
   final TextEditingController _subjectController = TextEditingController();
   final TextEditingController _bodyController = TextEditingController();
+  // Controllers for specific user targeting (username, email, phone)
+  late final TextEditingController _usernameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
 
   String _audience = 'manufacturers';
   String _scheduleMode = 'immediate';
@@ -38,12 +45,169 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
   final List<String> _recentActions = [];
   List<Map<String, dynamic>> _dbLedger = const [];
   bool _loadingLedger = true;
+  // State for specific user search and selection
+  List<Map<String, dynamic>> _userSearchResults = [];
+  String? _selectedUserId;
+
+  // Added: Method to save credit settings (including credit deduction amount)
+  Future<void> _saveCreditSettings() async {
+    final member = int.tryParse(_memberCreditsController.text.trim());
+    final nonMember = int.tryParse(_nonMemberCreditsController.text.trim());
+    if (member == null || nonMember == null || member < 0 || nonMember < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter valid credit values')),
+      );
+      return;
+    }
+
+    setState(() => _savingSettings = true);
+    try {
+      // Prepare settings map including credit deduction amount
+      final settingsMap = {
+        'monthly_member_credits': '$member',
+        'monthly_non_member_credits': '$nonMember',
+        // Persist the admin-configurable credit deduction per click
+        'credit_deduction_amount':
+            _creditDeductionController.text.trim().isNotEmpty
+                ? _creditDeductionController.text.trim()
+                : '5',
+      };
+      await widget.dataService.upsertSystemSettings(settingsMap);
+
+      // Also update individual user credits
+      await widget.dataService.refreshAllUserCredits(
+        memberCredits: member,
+        nonMemberCredits: nonMember,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _recentActions.insert(
+          0,
+          'Treasury update: Members $member, External $nonMember credits',
+        );
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Treasury parameters updated')),
+      );
+      widget.onRefreshRequested();
+      _loadLedger();
+    } catch (e) {
+      if (!mounted) return;
+      final message = e.toString();
+      if (message.contains('42501')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Permission denied by database policy while updating settings. '
+              'Please allow admin update on settings keys.',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update settings: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingSettings = false);
+    }
+  }
+
+  // Added: Method to search for specific users based on entered criteria
+  Future<void> _searchSpecificUsers() async {
+    final username = _usernameController.text.trim();
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+
+    // Use the data service to search users; null values are ignored
+    final results = await widget.dataService.searchUsers(
+      username: username.isNotEmpty ? username : null,
+      email: email.isNotEmpty ? email : null,
+      phone: phone.isNotEmpty ? phone : null,
+    );
+    setState(() {
+      _userSearchResults = results;
+      _selectedUserId = null;
+    });
+  }
+
+  // Added: Method to send broadcast (including specific user handling)
+  Future<void> _sendBroadcast() async {
+    final subject = _subjectController.text.trim();
+    final body = _bodyController.text.trim();
+    if (subject.isEmpty || body.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Subject and message are required')),
+      );
+      return;
+    }
+
+    setState(() => _sendingBroadcast = true);
+    try {
+      int recipients = 0;
+      if (_audience == 'specific_users') {
+        // Determine which user IDs to target
+        final List<String> ids = [];
+        if (_selectedUserId != null) {
+          ids.add(_selectedUserId!);
+        } else {
+          // If no specific selection, broadcast to all search results
+          ids.addAll(_userSearchResults.map((u) => u['id'] as String));
+        }
+        recipients = await widget.dataService.broadcastToSpecificUsers(
+          userIds: ids,
+          subject: subject,
+          body: body,
+          urgency: _urgencyLevel,
+          scheduledFor: _effectiveScheduleTime(),
+        );
+      } else {
+        recipients = await widget.dataService.broadcastNotification(
+          audience: _audience,
+          subject: subject,
+          body: body,
+          urgency: _urgencyLevel,
+          scheduledFor: _effectiveScheduleTime(),
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _recentActions.insert(
+          0,
+          'Broadcast "$subject" queued for $recipients recipients (${_scheduleLabel(_scheduleMode)}).',
+        );
+        _subjectController.clear();
+        _bodyController.clear();
+        if (_audience == 'specific_users') {
+          // Reset specific user fields after broadcast
+          _usernameController.clear();
+          _emailController.clear();
+          _phoneController.clear();
+          _userSearchResults = [];
+          _selectedUserId = null;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Broadcast sent to $recipients users')),
+      );
+      _loadLedger();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Broadcast failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _sendingBroadcast = false);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _memberCreditsController = TextEditingController(
-      text: _settingValue(['monthly_member_credits', 'member_monthly_credits'], '5000'),
+      text: _settingValue(
+          ['monthly_member_credits', 'member_monthly_credits'], '5000'),
     );
     _nonMemberCreditsController = TextEditingController(
       text: _settingValue(
@@ -51,6 +215,12 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
         '1200',
       ),
     );
+    _creditDeductionController = TextEditingController(
+      text: _settingValue(['credit_deduction_amount'], '5'),
+    );
+    _usernameController = TextEditingController();
+    _emailController = TextEditingController();
+    _phoneController = TextEditingController();
     _loadLedger();
   }
 
@@ -58,6 +228,10 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
   void dispose() {
     _memberCreditsController.dispose();
     _nonMemberCreditsController.dispose();
+    _creditDeductionController.dispose();
+    _usernameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     _subjectController.dispose();
     _bodyController.dispose();
     super.dispose();
@@ -114,6 +288,8 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
         _buildCreditsPanel(),
         const SizedBox(height: 10),
         _buildReserveCard(),
+        const SizedBox(height: 10),
+        _buildLogoutCard(),
       ],
     );
   }
@@ -144,7 +320,8 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
               CircleAvatar(
                 radius: 12,
                 backgroundColor: Color(0xFFE1EFE8),
-                child: Icon(Icons.attach_money, size: 14, color: Color(0xFF0A4F3F)),
+                child: Icon(Icons.attach_money,
+                    size: 14, color: Color(0xFF0A4F3F)),
               ),
             ],
           ),
@@ -158,6 +335,12 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
             label: 'TIER 2: NON-MEMBERS',
             controller: _nonMemberCreditsController,
           ),
+          const SizedBox(height: 10),
+          // Credit deduction per click input
+          _CreditLineInput(
+            label: 'CREDIT DEDUCTION PER CLICK',
+            controller: _creditDeductionController,
+          ),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
@@ -165,9 +348,7 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
               onPressed: _savingSettings ? null : _saveCreditSettings,
               icon: const Icon(Icons.save_outlined, size: 16),
               label: Text(
-                _savingSettings
-                    ? 'Updating...'
-                    : 'Update Treasury Parameters',
+                _savingSettings ? 'Updating...' : 'Update Treasury Parameters',
               ),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF034033),
@@ -186,7 +367,8 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
 
   Widget _buildReserveCard() {
     final member = int.tryParse(_memberCreditsController.text.trim()) ?? 0;
-    final nonMember = int.tryParse(_nonMemberCreditsController.text.trim()) ?? 0;
+    final nonMember =
+        int.tryParse(_nonMemberCreditsController.text.trim()) ?? 0;
     final reserve = (member * 30) + (nonMember * 120);
 
     return Container(
@@ -243,6 +425,67 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await Supabase.instance.client.auth.signOut();
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Logout failed: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildLogoutCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F2F1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Admin Session',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF242B28),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Securely end your administrative session. You will be required to log in again to access the dashboard.',
+            style: TextStyle(fontSize: 12, color: Color(0xFF5A6A64)),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _signOut,
+              icon: const Icon(Icons.logout, size: 16),
+              label: const Text('Log Out Safely'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red.shade700,
+                side: BorderSide(color: Colors.red.shade200),
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
             ),
           ),
         ],
@@ -320,8 +563,95 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
               _audienceChip('manufacturers', 'All Manufacturers'),
               _audienceChip('verified_gemologists', 'Verified Gemologists'),
               _audienceChip('new_onboardings', 'New Onboardings'),
+              _audienceChip('specific_users', 'Specific Users'),
             ],
           ),
+          // Input fields for specific user targeting when audience is specific_users
+          if (_audience == 'specific_users') ...[
+            const SizedBox(height: 8),
+            const Text(
+              'USERNAME (optional)',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF667772),
+              ),
+            ),
+            const SizedBox(height: 4),
+            TextField(
+              controller: _usernameController,
+              decoration: const InputDecoration(
+                hintText: 'e.g., johndoe',
+                filled: true,
+                fillColor: Color(0xFFEDEEED),
+                contentPadding: EdgeInsets.all(10),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'EMAIL ID',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF667772),
+              ),
+            ),
+            const SizedBox(height: 4),
+            TextField(
+              controller: _emailController,
+              decoration: const InputDecoration(
+                hintText: 'e.g., user@example.com',
+                filled: true,
+                fillColor: Color(0xFFEDEEED),
+                contentPadding: EdgeInsets.all(10),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'PHONE NUMBER (optional)',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF667772),
+              ),
+            ),
+            const SizedBox(height: 4),
+            TextField(
+              controller: _phoneController,
+              decoration: const InputDecoration(
+                hintText: 'e.g., +1234567890',
+                filled: true,
+                fillColor: Color(0xFFEDEEED),
+                contentPadding: EdgeInsets.all(10),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Button to search for matching users
+            ElevatedButton(
+              onPressed: _searchSpecificUsers,
+              child: const Text('Search Users'),
+            ),
+            const SizedBox(height: 8),
+            // Dropdown to select a user from search results
+            if (_userSearchResults.isNotEmpty)
+              DropdownButton<String>(
+                isExpanded: true,
+                hint: const Text('Select User'),
+                value: _selectedUserId,
+                items: _userSearchResults
+                    .map((u) => DropdownMenuItem<String>(
+                          value: u['id'] as String?,
+                          child: Text(
+                            '${u['username'] ?? u['email'] ?? 'User'}',
+                          ),
+                        ))
+                    .toList(),
+                onChanged: (val) {
+                  setState(() => _selectedUserId = val);
+                },
+              ),
+            const SizedBox(height: 12),
+          ],
           const SizedBox(height: 14),
           const Text(
             'SUBJECT LINE',
@@ -339,7 +669,8 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
               isDense: true,
               filled: true,
               fillColor: Color(0xFFF9FAF9),
-              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             ),
           ),
           const SizedBox(height: 12),
@@ -474,8 +805,8 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
                 Expanded(
                   child: Text(
                     value,
-                    style:
-                        const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
                 const Icon(Icons.keyboard_arrow_down, size: 18),
@@ -604,104 +935,6 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
     );
   }
 
-  Future<void> _saveCreditSettings() async {
-    final member = int.tryParse(_memberCreditsController.text.trim());
-    final nonMember = int.tryParse(_nonMemberCreditsController.text.trim());
-    if (member == null || nonMember == null || member < 0 || nonMember < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter valid credit values')),
-      );
-      return;
-    }
-
-    setState(() => _savingSettings = true);
-    try {
-      await widget.dataService.upsertSystemSettings({
-        'monthly_member_credits': '$member',
-        'monthly_non_member_credits': '$nonMember',
-      });
-
-      // Also update individual user credits
-      await widget.dataService.refreshAllUserCredits(
-        memberCredits: member,
-        nonMemberCredits: nonMember,
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _recentActions.insert(
-          0,
-          'Treasury update: Members $member, External $nonMember credits',
-        );
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Treasury parameters updated')),
-      );
-      widget.onRefreshRequested();
-      _loadLedger();
-    } catch (e) {
-      if (!mounted) return;
-      final message = e.toString();
-      if (message.contains('42501')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Permission denied by database policy while updating settings. '
-              'Please allow admin update on settings keys.',
-            ),
-          ),
-        );
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update settings: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _savingSettings = false);
-    }
-  }
-
-  Future<void> _sendBroadcast() async {
-    final subject = _subjectController.text.trim();
-    final body = _bodyController.text.trim();
-    if (subject.isEmpty || body.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Subject and message are required')),
-      );
-      return;
-    }
-    setState(() => _sendingBroadcast = true);
-    try {
-      final recipients = await widget.dataService.broadcastNotification(
-        audience: _audience,
-        subject: subject,
-        body: body,
-        urgency: _urgencyLevel,
-        scheduledFor: _effectiveScheduleTime(),
-      );
-      if (!mounted) return;
-      setState(() {
-        _recentActions.insert(
-          0,
-          'Broadcast "$subject" queued for $recipients recipients (${_scheduleLabel(_scheduleMode)}).',
-        );
-        _subjectController.clear();
-        _bodyController.clear();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Broadcast sent to $recipients users')),
-      );
-      _loadLedger();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Broadcast failed: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _sendingBroadcast = false);
-    }
-  }
-
   String _scheduleLabel(String mode) {
     switch (mode) {
       case 'in_1h':
@@ -738,7 +971,9 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
         return now.add(const Duration(hours: 1));
       case 'today_6pm':
         final today6 = DateTime(now.year, now.month, now.day, 18);
-        return today6.isAfter(now) ? today6 : today6.add(const Duration(days: 1));
+        return today6.isAfter(now)
+            ? today6
+            : today6.add(const Duration(days: 1));
       case 'custom':
         return _customScheduleAt;
       case 'immediate':
@@ -882,7 +1117,8 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
                             ),
                             title: Text(
                               (row['title'] as String?) ?? 'System event',
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
                             ),
                             subtitle: Text(_formatLedgerTime(row['timestamp'])),
                             trailing: Text(

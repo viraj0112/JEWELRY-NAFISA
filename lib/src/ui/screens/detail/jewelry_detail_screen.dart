@@ -336,7 +336,10 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           SnackBar(content: Text('Error updating like status: $e')),
         );
       }
-      if (_userLiked) _likeCount++; else _likeCount--;
+      if (_userLiked)
+        _likeCount++;
+      else
+        _likeCount--;
     } finally {
       if (mounted) setState(() => _isLiking = false);
     }
@@ -401,7 +404,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           try {
             return await supabase.storage.from(bucket).download(path);
           } catch (e) {
-            debugPrint('Supabase download failed: $e. Falling back to http.get');
+            debugPrint(
+                'Supabase download failed: $e. Falling back to http.get');
           }
         }
       }
@@ -611,12 +615,18 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
       // Update local state based on server response
       if (response != null && response['success'] == true) {
-        profile.decrementCredit(); // Optimistic update or sync with response
+        int deductedAmount = response['deducted_amount'] ?? 1;
+
+        if (response['credits_remaining'] != null) {
+          profile.syncCredits(response['credits_remaining'] as int);
+        } else {
+          profile.deductCredits(deductedAmount);
+        }
 
         await FirebaseAnalytics.instance.logSpendVirtualCurrency(
           itemName: 'reveal_details', // What they bought
           virtualCurrencyName: 'credits', // Currency type
-          value: 1, // Amount spent
+          value: deductedAmount, // Amount spent
         );
 
         // Optional: Track specifically as a "lead" generation
@@ -650,8 +660,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             // Refetch similar items after revealing details to get more results
             _similarItemsFuture = _jewelryService.fetchSimilarItems(
               currentItemId: _itemId,
-              metalType:
-                  _fullProductDetails?.metalType ?? widget.jewelryItem.metalType,
+              metalType: _fullProductDetails?.metalType ??
+                  widget.jewelryItem.metalType,
               productType: _fullProductDetails?.productType ??
                   widget.jewelryItem.productType,
               category:
@@ -664,8 +674,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             );
           });
           scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text('Details revealed! One credit used.'),
+            SnackBar(
+              content: Text(
+                  'Details revealed! $deductedAmount credit${deductedAmount > 1 ? 's' : ''} used.'),
               backgroundColor: Colors.green,
             ),
           );

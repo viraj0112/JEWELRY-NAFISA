@@ -88,7 +88,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
 
   Future<AnalyticsBundle> _loadBundle() async {
     final days = int.tryParse(_selectedTimeRange) ?? 30;
-    final results = await Future.wait([
+    final results = await Future.wait<dynamic>([
       widget.dataService.fetchAnalytics(days: days),
       widget.dataService.fetchQuoteTracking(limit: 500),
       widget.dataService.fetchCurationFeed(limit: 100),

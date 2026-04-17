@@ -53,6 +53,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   _UserTypeFilter _userTypeFilter = _UserTypeFilter.all;
   _UserSort _userSort = _UserSort.lastActivity;
+  DateTime? _startDateFilter;
+  DateTime? _endDateFilter;
   bool _creatingAccount = false;
   final Set<String> _selectedUserIds = {};
 
@@ -61,6 +63,25 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final query = widget.searchQuery.trim().toLowerCase();
     var filtered = widget.rows.where((row) {
       if (!_matchesUserFilter(row, _userTypeFilter)) return false;
+
+      if (_startDateFilter != null || _endDateFilter != null) {
+        final joined = row.createdAt;
+        if (joined == null) return false;
+        final d = DateTime(joined.year, joined.month, joined.day);
+
+        if (_startDateFilter != null) {
+          final start = DateTime(_startDateFilter!.year,
+              _startDateFilter!.month, _startDateFilter!.day);
+          if (d.isBefore(start)) return false;
+        }
+
+        if (_endDateFilter != null) {
+          final end = DateTime(
+              _endDateFilter!.year, _endDateFilter!.month, _endDateFilter!.day);
+          if (d.isAfter(end)) return false;
+        }
+      }
+
       if (query.isEmpty) return true;
       return row.name.toLowerCase().contains(query) ||
           row.email.toLowerCase().contains(query) ||
@@ -113,7 +134,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: Color(0xFF1B7A59), size: 18),
+                const Icon(Icons.check_circle,
+                    color: Color(0xFF1B7A59), size: 18),
                 const SizedBox(width: 10),
                 Text(
                   '${_selectedUserIds.length} users selected',
@@ -140,7 +162,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             OutlinedButton.icon(
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Sync started for Google Sheets')),
+                  const SnackBar(
+                      content: Text('Sync started for Google Sheets')),
                 );
               },
               icon: const Icon(Icons.grid_view_rounded),
@@ -246,6 +269,52 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           )
                           .toList(),
                     ),
+                    const SizedBox(width: 16),
+                    InputChip(
+                      avatar: const Icon(Icons.calendar_today, size: 16),
+                      label: Text(_startDateFilter == null
+                          ? 'From'
+                          : 'From: ${widget.dateFormat.format(_startDateFilter!)}'),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _startDateFilter ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          setState(() => _startDateFilter = picked);
+                        }
+                      },
+                      onDeleted: _startDateFilter == null
+                          ? null
+                          : () {
+                              setState(() => _startDateFilter = null);
+                            },
+                    ),
+                    const SizedBox(width: 8),
+                    InputChip(
+                      avatar: const Icon(Icons.event, size: 16),
+                      label: Text(_endDateFilter == null
+                          ? 'To'
+                          : 'To: ${widget.dateFormat.format(_endDateFilter!)}'),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _endDateFilter ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          setState(() => _endDateFilter = picked);
+                        }
+                      },
+                      onDeleted: _endDateFilter == null
+                          ? null
+                          : () {
+                              setState(() => _endDateFilter = null);
+                            },
+                    ),
                     if (MediaQuery.of(context).size.width >= 1000) ...[
                       const Spacer(),
                       Text(
@@ -324,13 +393,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   label: Checkbox(
                     value: rows.isNotEmpty &&
                         _selectedUserIds.length >= rows.take(25).length &&
-                        rows.take(25).every((r) => _selectedUserIds.contains(r.id)),
+                        rows
+                            .take(25)
+                            .every((r) => _selectedUserIds.contains(r.id)),
                     onChanged: (val) {
                       setState(() {
                         if (val == true) {
-                          _selectedUserIds.addAll(rows.take(25).map((r) => r.id));
+                          _selectedUserIds
+                              .addAll(rows.take(25).map((r) => r.id));
                         } else {
-                          _selectedUserIds.removeAll(rows.take(25).map((r) => r.id));
+                          _selectedUserIds
+                              .removeAll(rows.take(25).map((r) => r.id));
                         }
                       });
                     },
@@ -339,6 +412,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 const DataColumn(label: Text('User Name')),
                 const DataColumn(label: Text('Type')),
                 const DataColumn(label: Text('Credit Balance')),
+                const DataColumn(label: Text('Joined Date')),
                 const DataColumn(label: Text('Last Activity')),
                 const DataColumn(label: Text('Actions')),
               ],
@@ -378,7 +452,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                             children: [
                               Text(
                                 row.name,
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700),
                               ),
                               Text(
                                 row.email,
@@ -402,8 +477,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         ),
                         DataCell(
                           Text(
+                            row.createdAt != null
+                                ? widget.dateFormat.format(row.createdAt!)
+                                : '-',
+                            style: const TextStyle(color: Color(0xFF5E6F68)),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
                             _formatLastActivity(
-                              row.lastCreditRefresh ?? row.createdAt,
+                              row.lastActivityAt ?? row.createdAt,
                             ),
                             style: const TextStyle(color: Color(0xFF5E6F68)),
                           ),
@@ -488,7 +571,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 const SizedBox(height: 3),
                 Text(
                   row.email,
-                  style: const TextStyle(color: Color(0xFF61706A), fontSize: 12),
+                  style:
+                      const TextStyle(color: Color(0xFF61706A), fontSize: 12),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -506,8 +590,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Last activity: ${_formatLastActivity(row.lastCreditRefresh ?? row.createdAt)}',
-                  style: const TextStyle(color: Color(0xFF5E6F68), fontSize: 12),
+                  'Joined: ${row.createdAt != null ? widget.dateFormat.format(row.createdAt!) : '-'}',
+                  style:
+                      const TextStyle(color: Color(0xFF5E6F68), fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Last activity: ${_formatLastActivity(row.lastActivityAt ?? row.createdAt)}',
+                  style:
+                      const TextStyle(color: Color(0xFF5E6F68), fontSize: 12),
                 ),
                 const SizedBox(height: 12),
                 Wrap(
@@ -675,8 +766,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             key: formKey,
             child: TextFormField(
               controller: adjustmentController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(signed: true),
+              keyboardType: const TextInputType.numberWithOptions(signed: true),
               decoration: const InputDecoration(
                 labelText: 'Credits delta',
                 hintText: 'Use positive or negative value',
@@ -830,10 +920,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         ? 0
         : _parseCredits(userRows.first['credits_remaining']);
 
-    final quoteRows = await client
-        .from('quote_requests')
-        .select('id')
-        .eq('user_id', userId);
+    final quoteRows =
+        await client.from('quote_requests').select('id').eq('user_id', userId);
 
     final referralRows = await client
         .from('referrals')
@@ -877,9 +965,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Future<void> _downloadFilteredCsv(List<UserLedgerRow> filteredRows) async {
     final rowsToExport = _selectedUserIds.isEmpty
         ? filteredRows
-        : filteredRows
-            .where((r) => _selectedUserIds.contains(r.id))
-            .toList();
+        : filteredRows.where((r) => _selectedUserIds.contains(r.id)).toList();
 
     final now = DateTime.now();
     final exportDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
@@ -888,9 +974,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       ['Generated At', exportDate],
       ['Filter', _userTypeFilter.label],
       ['Sort', _userSort.label],
-      ['Search Query', widget.searchQuery.trim().isEmpty ? '-' : widget.searchQuery.trim()],
+      [
+        'Search Query',
+        widget.searchQuery.trim().isEmpty ? '-' : widget.searchQuery.trim()
+      ],
       ['Total Rows', rowsToExport.length],
-      ['Selection Status', _selectedUserIds.isEmpty ? 'All Filtered' : 'Manually Selected'],
+      [
+        'Selection Status',
+        _selectedUserIds.isEmpty ? 'All Filtered' : 'Manually Selected'
+      ],
       [],
       [
         'User ID',
@@ -968,7 +1060,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     children: [
                       TextFormField(
                         controller: nameController,
-                        decoration: const InputDecoration(labelText: 'Full name'),
+                        decoration:
+                            const InputDecoration(labelText: 'Full name'),
                         validator: (v) => (v == null || v.trim().isEmpty)
                             ? 'Name is required'
                             : null,
@@ -985,7 +1078,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: passwordController,
-                        decoration: const InputDecoration(labelText: 'Password'),
+                        decoration:
+                            const InputDecoration(labelText: 'Password'),
                         obscureText: true,
                         validator: (v) => (v == null || v.length < 6)
                             ? 'Min 6 characters'
@@ -994,7 +1088,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       const SizedBox(height: 10),
                       DropdownButtonFormField<_UserTypeFilter>(
                         value: selectedType,
-                        decoration: const InputDecoration(labelText: 'Account type'),
+                        decoration:
+                            const InputDecoration(labelText: 'Account type'),
                         items: const [
                           DropdownMenuItem(
                             value: _UserTypeFilter.customers,
@@ -1135,7 +1230,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
         .replaceAll(RegExp(r'_+'), '_')
         .replaceAll(RegExp(r'^_|_$'), '');
-    if (normalized.isEmpty) return 'user_${DateTime.now().millisecondsSinceEpoch}';
+    if (normalized.isEmpty)
+      return 'user_${DateTime.now().millisecondsSinceEpoch}';
     return '${normalized}_${DateTime.now().millisecondsSinceEpoch}';
   }
 }

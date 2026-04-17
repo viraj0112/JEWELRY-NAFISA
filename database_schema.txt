@@ -426,6 +426,7 @@ CREATE TABLE public.users (
   setup_stage integer DEFAULT 0,
   setup_complete boolean DEFAULT false,
   age smallint,
+  last_activity_at timestamp with time zone,
   CONSTRAINT users_pkey PRIMARY KEY (id),
   CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
   CONSTRAINT users_referred_by_fkey FOREIGN KEY (referred_by) REFERENCES public.users(id)

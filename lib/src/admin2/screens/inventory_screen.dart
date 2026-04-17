@@ -617,6 +617,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
           ),
           const DataColumn(label: Text('Asset Name')),
+          const DataColumn(label: Text('Type')),
+          const DataColumn(label: Text('Likes')),
+          const DataColumn(label: Text('Views')),
+          const DataColumn(label: Text('Shares')),
+          const DataColumn(label: Text('Unlocks')),
           const DataColumn(label: Text('Table')),
           const DataColumn(label: Text('Status')),
           const DataColumn(label: Text('Modified By')),
@@ -652,6 +657,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     ),
                   ),
                   DataCell(Text('${item.title} (#${item.id.substring(0, item.id.length.clamp(0, 8))})')),
+                  DataCell(Text(item.productType ?? '-')),
+                  DataCell(Text('${item.likesCount}')),
+                  DataCell(Text('${item.viewsCount}')),
+                  DataCell(Text('${item.sharesCount}')),
+                  DataCell(Text('${item.creditsUsed}')),
                   DataCell(Text(item.source)),
                   DataCell(_statusChip(item.status)),
                   DataCell(Text(item.ownerName)),
@@ -733,6 +743,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
+                    _metricIcon(Icons.favorite_border, item.likesCount),
+                    const SizedBox(width: 8),
+                    _metricIcon(Icons.visibility_outlined, item.viewsCount),
+                    const SizedBox(width: 8),
+                    _metricIcon(Icons.share_outlined, item.sharesCount),
+                    const SizedBox(width: 8),
+                    _metricIcon(Icons.lock_open_outlined, item.creditsUsed),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
                     const Icon(Icons.person_outline, size: 14, color: Color(0xFF5E6F68)),
                     const SizedBox(width: 4),
                     Text(
@@ -772,6 +794,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
       child: Text(status, style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w700)),
+    );
+  }
+
+  Widget _metricIcon(IconData icon, int count) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: const Color(0xFF5E6F68)),
+        const SizedBox(width: 4),
+        Text(
+          '$count',
+          style: const TextStyle(color: Color(0xFF5E6F68), fontSize: 12),
+        ),
+      ],
     );
   }
 
@@ -1125,6 +1161,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Future<void> _showAllActivityDialog() async {
     var selectedTable = 'all';
     var draftFilterText = '';
+    
+    // Advanced Filters State
+    bool showAdvancedFilters = false;
+    int minLikes = 0;
+    int minViews = 0;
+    int minShares = 0;
+    int minCreditsUsed = 0;
+    String productType = '';
+    
+    final minLikesCtrl = TextEditingController();
+    final minViewsCtrl = TextEditingController();
+    final minSharesCtrl = TextEditingController();
+    final minCreditsCtrl = TextEditingController();
+    final productTypeCtrl = TextEditingController();
+    final startDateCtrl = TextEditingController();
+    final endDateCtrl = TextEditingController();
+    
     var loading = false;
     String? loadError;
     var rows = <InventoryItem>[];
@@ -1139,10 +1192,25 @@ class _InventoryScreenState extends State<InventoryScreen> {
         loadError = null;
       });
       try {
+        minLikes = int.tryParse(minLikesCtrl.text) ?? 0;
+        minViews = int.tryParse(minViewsCtrl.text) ?? 0;
+        minShares = int.tryParse(minSharesCtrl.text) ?? 0;
+        minCreditsUsed = int.tryParse(minCreditsCtrl.text) ?? 0;
+        productType = productTypeCtrl.text.trim();
+        final startDate = DateTime.tryParse(startDateCtrl.text.trim());
+        final endDate = DateTime.tryParse(endDateCtrl.text.trim());
+        
         final data = await widget.dataService.fetchContentActivityLog(
           table: selectedTable,
           searchTerm: draftFilterText,
           limit: 1000, // Load more for pagination
+          minLikes: minLikes,
+          minViews: minViews,
+          minShares: minShares,
+          minCreditsUsed: minCreditsUsed,
+          productType: productType,
+          startDate: startDate,
+          endDate: endDate,
         );
         setDialogState(() {
           rows = data;
@@ -1342,15 +1410,179 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Icon(Icons.tune, size: 18),
-                          label: Text(loading ? 'Applying...' : 'Apply Filter'),
+                              : const Icon(Icons.check_circle_outline, size: 18),
+                          label: Text(loading ? 'Applying...' : 'Apply Filters'),
                           style: FilledButton.styleFrom(
                             backgroundColor: const Color(0xFF0A4F3F),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: 2,
                           ),
                         );
+
+                        final resetButton = TextButton.icon(
+                          onPressed: loading
+                              ? null
+                              : () {
+                                  setDialogState(() {
+                                    minLikesCtrl.clear();
+                                    minViewsCtrl.clear();
+                                    minSharesCtrl.clear();
+                                    minCreditsCtrl.clear();
+                                    productTypeCtrl.clear();
+                                    startDateCtrl.clear();
+                                    endDateCtrl.clear();
+                                    filterCtrl.clear();
+                                    draftFilterText = '';
+                                  });
+                                  loadRows(setDialogState);
+                                },
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Reset'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF61726C),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                        );
+
+                        final toggleFiltersCmd = IconButton(
+                          icon: Icon(
+                            showAdvancedFilters ? Icons.expand_less : Icons.expand_more,
+                            color: const Color(0xFF0A4F3F),
+                          ),
+                          tooltip: 'Toggle Advanced Filters',
+                          onPressed: () {
+                            setDialogState(() {
+                              showAdvancedFilters = !showAdvancedFilters;
+                            });
+                          },
+                        );
+
+                        Widget _buildMetricField(String label, IconData icon, TextEditingController controller) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7FAF8),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFD9E3DE)),
+                            ),
+                            child: TextField(
+                              controller: controller,
+                              keyboardType: TextInputType.number,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                              decoration: InputDecoration(
+                                labelText: label,
+                                prefixIcon: Icon(icon, size: 20, color: const Color(0xFF0A4F3F)),
+                                labelStyle: const TextStyle(color: Color(0xFF61726C), fontSize: 13),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              ),
+                            ),
+                          );
+                        }
+
+                        Future<void> pickDate(TextEditingController ctrl, String title) async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2101),
+                            helpText: 'Select $title',
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: const ColorScheme.light(
+                                    primary: Color(0xFF0A4F3F),
+                                    onPrimary: Colors.white,
+                                    onSurface: Color(0xFF0A4F3F),
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (picked != null) {
+                            setDialogState(() {
+                              ctrl.text = widget.dateFormat.format(picked);
+                            });
+                          }
+                        }
+
+                        final advancedFiltersView = showAdvancedFilters
+                            ? Container(
+                                margin: const EdgeInsets.only(top: 16, bottom: 8),
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: const Color(0xFFD9E3DE), width: 1.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.03),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Engagement Metrics',
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0A4F3F)),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    GridView.count(
+                                      crossAxisCount: stacked ? 2 : 4,
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      mainAxisSpacing: 12,
+                                      crossAxisSpacing: 12,
+                                      childAspectRatio: 2.2,
+                                      children: [
+                                        _buildMetricField('Min Likes', Icons.favorite_outline, minLikesCtrl),
+                                        _buildMetricField('Min Views', Icons.visibility_outlined, minViewsCtrl),
+                                        _buildMetricField('Min Shares', Icons.share_outlined, minSharesCtrl),
+                                        _buildMetricField('Min Unlocks', Icons.lock_open_outlined, minCreditsCtrl),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 20),
+                                    const Text(
+                                      'Classification & Time Period',
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0A4F3F)),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 2,
+                                          child: _buildMetricField('Product Type', Icons.category_outlined, productTypeCtrl),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: () => pickDate(startDateCtrl, 'Start Date'),
+                                            child: IgnorePointer(
+                                              child: _buildMetricField('From', Icons.calendar_today_outlined, startDateCtrl),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: () => pickDate(endDateCtrl, 'End Date'),
+                                            child: IgnorePointer(
+                                              child: _buildMetricField('To', Icons.calendar_today_outlined, endDateCtrl),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : const SizedBox.shrink();
 
                         final countBadge = Align(
                           alignment: stacked ? Alignment.centerLeft : Alignment.centerRight,
@@ -1376,29 +1608,44 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             children: [
                               filterField,
                               const SizedBox(height: 12),
-                              Row(
+                                  Row(
                                 children: [
                                   Expanded(child: rowsPerPageField),
-                                  const SizedBox(width: 12),
+                                  const SizedBox(width: 8),
+                                  toggleFiltersCmd,
+                                  const SizedBox(width: 8),
+                                  resetButton,
+                                  const SizedBox(width: 8),
                                   applyButton,
                                 ],
                               ),
+                              advancedFiltersView,
                               const SizedBox(height: 10),
                               countBadge,
                             ],
                           );
                         }
 
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Expanded(child: filterField),
-                            const SizedBox(width: 12),
-                            SizedBox(width: 170, child: rowsPerPageField),
-                            const SizedBox(width: 12),
-                            applyButton,
-                            const SizedBox(width: 12),
-                            countBadge,
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Expanded(child: filterField),
+                                const SizedBox(width: 12),
+                                SizedBox(width: 170, child: rowsPerPageField),
+                                const SizedBox(width: 12),
+                                toggleFiltersCmd,
+                                const SizedBox(width: 8),
+                                resetButton,
+                                const SizedBox(width: 8),
+                                applyButton,
+                                const SizedBox(width: 16),
+                                countBadge,
+                              ],
+                            ),
+                            advancedFiltersView,
                           ],
                         );
                       },
@@ -1653,6 +1900,11 @@ class _InventoryDataSource extends DataTableSource {
     return DataRow(
       cells: [
         DataCell(Text('${item.title} (#${item.id.substring(0, item.id.length.clamp(0, 8))})')),
+        DataCell(Text(item.productType ?? '-')),
+        DataCell(Text('${item.likesCount}')),
+        DataCell(Text('${item.viewsCount}')),
+        DataCell(Text('${item.sharesCount}')),
+        DataCell(Text('${item.creditsUsed}')),
         DataCell(Text(item.source)),
         DataCell(statusBuilder(item.status)),
         DataCell(Text(item.ownerName)),

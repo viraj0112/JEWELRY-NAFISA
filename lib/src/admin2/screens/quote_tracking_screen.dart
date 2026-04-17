@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/new_admin_models.dart';
 import '../services/new_admin_data_service.dart';
@@ -86,9 +87,8 @@ class _QuoteTrackingScreenState extends State<QuoteTrackingScreen> {
   // Queue capacity: % of designer vs manufacturer requests
   double get _designerCapacity {
     if (_totalQuotes == 0) return 0;
-    final d = widget.quotes
-        .where((q) => q.productTable.contains('designer'))
-        .length;
+    final d =
+        widget.quotes.where((q) => q.productTable.contains('designer')).length;
     return (d / _totalQuotes).clamp(0.0, 1.0);
   }
 
@@ -150,29 +150,49 @@ class _QuoteTrackingScreenState extends State<QuoteTrackingScreen> {
     }
   }
 
-  void _handleReply(QuoteRecord q, String message) async {
-    if (message.trim().isEmpty) return;
+  void _handleReply(
+    QuoteRecord q,
+    String message,
+    double total,
+    String breakdown,
+  ) async {
+    if (message.trim().isEmpty && total == 0) return;
     setState(() => _isProcessing = true);
     try {
       // 1. Update status to responded
       await widget.dataService.updateQuoteRequestsStatus([q.id], 'responded');
+
       // 2. Send notification to user
-      // Assuming QuoteRecord should have user_id. Let's check NewAdminDataService logic.
-      // In fetchQuoteTracking, we have userId.
-      // Wait, let's verify if QuoteRecord has userId. 
-      // Checking snippet from earlier: productId, userId, status...
-      
-      // We'll need a way to get userId if it's not in QuoteRecord.
-      // Actually, I'll update QuoteRecord model to include userId if it's missing.
-      
+      final noteBody = total > 0
+          ? 'Hey! The estimated cost for your requested item is ₹${total.toStringAsFixed(0)}.\n\nBreakdown:\n$breakdown\n\nAdmin Message: $message'
+          : message;
+
       await widget.dataService.sendUserNotification(
-        userId: q.userId, // I will add this to the model
-        title: 'New Response to your Quote Request',
-        body: message,
+        userId: q.userId,
+        title: 'New Quote Response',
+        body: noteBody,
         relatedItemId: q.productId,
       );
-      
+
       widget.onRefreshRequested();
+
+      // 3. WhatsApp Redirect
+      if (total > 0) {
+        final pricing = await widget.dataService.fetchPricingMetadata();
+        final target = pricing.whatsappTarget.replaceAll(RegExp(r'\D'), '');
+        final waText = Uri.encodeComponent(
+          'Hello, I am interested in the quote for "${q.productTitle}".\n\n'
+          'Estimated Total: ₹${total.toStringAsFixed(0)}\n'
+          'Breakdown:\n$breakdown\n\n'
+          'Admin Note: $message',
+        );
+        final waUrl = Uri.parse('https://wa.me/$target?text=$waText');
+
+        if (await canLaunchUrl(waUrl)) {
+          await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+        }
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Response sent successfully')),
@@ -289,7 +309,7 @@ class _QuoteTrackingScreenState extends State<QuoteTrackingScreen> {
             ),
           ],
         ),
-        
+
         // ── Floating Bulk Action Bar ─────────────────────────────────────
         if (_selectedIds.isNotEmpty)
           _BulkActionBar(
@@ -338,13 +358,14 @@ class _QuoteTrackingScreenState extends State<QuoteTrackingScreen> {
       builder: (_) => _QuoteDetailDialog(
         quote: q,
         dateFormat: _fmt,
-        onReply: (msg) {
+        dataService: widget.dataService,
+        onReply: (msg, total, breakdown) {
           Navigator.pop(context);
-          _handleReply(q, msg);
+          _handleReply(q, msg, total, breakdown);
         },
         onStatusUpdate: (st) {
           Navigator.pop(context);
-          _bulkUpdateStatus(st); // Use same logic even for single
+          _bulkUpdateStatus(st);
         },
       ),
     );
@@ -581,9 +602,9 @@ class _QuoteTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final allSelected = rows.isNotEmpty &&
-        rows.every((r) => selectedIds.contains(r.id));
-    
+    final allSelected =
+        rows.isNotEmpty && rows.every((r) => selectedIds.contains(r.id));
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -594,8 +615,7 @@ class _QuoteTable extends StatelessWidget {
         children: [
           // ── Table header ───────────────────────────────────────────────
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: Color(0xFFE8EEE9))),
             ),
@@ -641,8 +661,7 @@ class _QuoteTable extends StatelessWidget {
 
           // ── Pagination ─────────────────────────────────────────────────
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: Color(0xFFE8EEE9))),
             ),
@@ -651,8 +670,7 @@ class _QuoteTable extends StatelessWidget {
                 Text(
                   'Showing ${rows.isEmpty ? 0 : currentPage * pageSize + 1}–'
                   '${(currentPage * pageSize + rows.length)} of $totalCount entries',
-                  style:
-                      TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                 ),
                 const Spacer(),
                 _PaginationControls(
@@ -781,28 +799,32 @@ class _QuoteRow extends StatelessWidget {
           // PRODUCT
           Expanded(
             flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  quote.productTitle,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontStyle: FontStyle.italic,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (quote.metalType.isNotEmpty)
+            child: InkWell(
+              onTap: onActionTap,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    quote.metalType,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade500,
+                    quote.productTitle,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w500,
+                      decoration: TextDecoration.underline,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-              ],
+                  if (quote.metalType.isNotEmpty)
+                    Text(
+                      quote.metalType,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
             ),
           ),
 
@@ -885,7 +907,11 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, bg, fg) = switch (status) {
-      'responded' => ('Responded', const Color(0xFFE6F6EE), const Color(0xFF1E7C4A)),
+      'responded' => (
+          'Responded',
+          const Color(0xFFE6F6EE),
+          const Color(0xFF1E7C4A)
+        ),
       'closed' => ('Closed', const Color(0xFFF0F0F0), const Color(0xFF666666)),
       _ => ('Pending', const Color(0xFFFFF3DC), const Color(0xFF96730A)),
     };
@@ -1134,11 +1160,6 @@ class _InsightCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1B3D2F),
         borderRadius: BorderRadius.circular(10),
-        image: const DecorationImage(
-          image: AssetImage('assets/jewel_pattern.png'),
-          fit: BoxFit.cover,
-          opacity: 0.07,
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1189,12 +1210,14 @@ class _QuoteDetailDialog extends StatefulWidget {
     required this.dateFormat,
     required this.onReply,
     required this.onStatusUpdate,
+    required this.dataService,
   });
 
   final QuoteRecord quote;
   final DateFormat dateFormat;
-  final Function(String) onReply;
+  final Function(String message, double total, String breakdown) onReply;
   final Function(String) onStatusUpdate;
+  final NewAdminDataService dataService;
 
   @override
   State<_QuoteDetailDialog> createState() => _QuoteDetailDialogState();
@@ -1204,9 +1227,272 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
   final TextEditingController _msgCtrl = TextEditingController();
   bool _showReplyBox = false;
 
+  // Calculator State
+  JewelryPricingMasterData? _pricing;
+  bool _loadingPricing = false;
+
+  final _rateCtrl = TextEditingController();
+  final _weightCtrl = TextEditingController();
+  final _makingCtrl = TextEditingController();
+  final _stoneRateCtrl = TextEditingController();
+  final _stoneWeightCtrl = TextEditingController();
+
+  String _selectedMetal = 'Gold';
+  String _selectedMakingGroup = 'Custom';
+  String _selectedStoneGroup = 'Custom';
+
+  @override
+  void initState() {
+    super.initState();
+    _weightCtrl.text = widget.quote.goldWeight.replaceAll(RegExp(r'[^0-9.]'), '');
+    if (widget.quote.stoneWeight.isNotEmpty) {
+      _stoneWeightCtrl.text =
+          widget.quote.stoneWeight.first.replaceAll(RegExp(r'[^0-9.]'), '');
+    }
+    _loadPricing();
+
+    for (final ctrl in [
+      _rateCtrl,
+      _weightCtrl,
+      _makingCtrl,
+      _stoneRateCtrl,
+      _stoneWeightCtrl
+    ]) {
+      ctrl.addListener(() => setState(() {}));
+    }
+  }
+
+  Future<void> _loadPricing() async {
+    setState(() => _loadingPricing = true);
+    try {
+      final p = await widget.dataService.fetchPricingMetadata();
+      setState(() {
+        _pricing = p;
+        _applyMetalRate();
+      });
+    } finally {
+      if (mounted) setState(() => _loadingPricing = false);
+    }
+  }
+
+  void _applyMetalRate() {
+    if (_pricing == null) return;
+    if (_selectedMetal == 'Gold') {
+      _rateCtrl.text = _pricing!.rateGold.toString();
+    } else if (_selectedMetal == 'Silver') {
+      _rateCtrl.text = _pricing!.rateSilver.toString();
+    } else {
+      _rateCtrl.text = _pricing!.ratePlatinum.toString();
+    }
+  }
+
+  void _applyMakingRate(String group) {
+    if (_pricing == null) return;
+    if (group != 'Custom' && _pricing!.makingGroups.containsKey(group)) {
+      _makingCtrl.text = _pricing!.makingGroups[group].toString();
+    }
+  }
+
+  void _applyStoneRate(String group) {
+    if (_pricing == null) return;
+    if (group != 'Custom' && _pricing!.stoneGroups.containsKey(group)) {
+      _stoneRateCtrl.text = _pricing!.stoneGroups[group].toString();
+    }
+  }
+
+  double get _total {
+    final r = double.tryParse(_rateCtrl.text) ?? 0;
+    final w = double.tryParse(_weightCtrl.text) ?? 0;
+    final m = double.tryParse(_makingCtrl.text) ?? 0;
+    final sr = double.tryParse(_stoneRateCtrl.text) ?? 0;
+    final sw = double.tryParse(_stoneWeightCtrl.text) ?? 0;
+    return (r * w) + (m * w) + (sr * sw);
+  }
+
+  String get _breakdown {
+    final r = double.tryParse(_rateCtrl.text) ?? 0;
+    final w = double.tryParse(_weightCtrl.text) ?? 0;
+    final m = double.tryParse(_makingCtrl.text) ?? 0;
+    final sr = double.tryParse(_stoneRateCtrl.text) ?? 0;
+    final sw = double.tryParse(_stoneWeightCtrl.text) ?? 0;
+    final parts = [
+      'Metal: ₹${r.toStringAsFixed(0)} x ${w.toStringAsFixed(2)}g',
+      'Making: ₹${m.toStringAsFixed(0)} x ${w.toStringAsFixed(2)}g',
+      if (sw > 0) 'Stones: ₹${sr.toStringAsFixed(0)} x ${sw.toStringAsFixed(2)}ct',
+    ];
+    return parts.join('\n');
+  }
+
+  Widget _buildCalculator() {
+    if (_loadingPricing) {
+      return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8EEE9).withOpacity(0.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFDDE5E0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'QUOTE CALCULATOR',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: Color(0xFF668A73)),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _formField('Metal Type', DropdownButton<String>(
+                  value: _selectedMetal,
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() {
+                        _selectedMetal = v;
+                        _applyMetalRate();
+                      });
+                    }
+                  },
+                  items: ['Gold', 'Silver', 'Platinum'].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                )),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _formField('Metal Rate (₹)', TextField(
+                  controller: _rateCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                )),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _formField('Weight (g)', TextField(
+                  controller: _weightCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                )),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _formField('Making Group', DropdownButton<String>(
+                  value: _selectedMakingGroup,
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() {
+                        _selectedMakingGroup = v;
+                        _applyMakingRate(v);
+                      });
+                    }
+                  },
+                  items: <String>[...(_pricing?.makingGroups.keys ?? const <String>[]), 'Custom'].map((m) => DropdownMenuItem<String>(value: m, child: Text(m))).toList(),
+                )),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _formField('Making/g (₹)', TextField(
+                  controller: _makingCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                )),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _formField('Stone Group', DropdownButton<String>(
+                  value: _selectedStoneGroup,
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() {
+                        _selectedStoneGroup = v;
+                        _applyStoneRate(v);
+                      });
+                    }
+                  },
+                  items: <String>[...(_pricing?.stoneGroups.keys ?? const <String>[]), 'Custom'].map((m) => DropdownMenuItem<String>(value: m, child: Text(m))).toList(),
+                )),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _formField('Stone/ct (₹)', TextField(
+                  controller: _stoneRateCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                )),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _formField('Stone Wt (ct)', TextField(
+                  controller: _stoneWeightCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                )),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: Color(0xFFDDE5E0)),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('TOTAL ESTIMATE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1B3D2F))),
+              Text(
+                '₹${NumberFormat('#,###').format(_total)}',
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: Color(0xFF1B3D2F)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _formField(String label, Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF668A73))),
+        const SizedBox(height: 4),
+        Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFFDDE5E0)),
+          ),
+          alignment: Alignment.center,
+          child: child,
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _msgCtrl.dispose();
+    _rateCtrl.dispose();
+    _weightCtrl.dispose();
+    _makingCtrl.dispose();
+    _stoneRateCtrl.dispose();
+    _stoneWeightCtrl.dispose();
     super.dispose();
   }
 
@@ -1244,9 +1530,93 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
               _DetailRow(label: 'Email', value: widget.quote.userEmail),
               if (widget.quote.creatorName.isNotEmpty)
                 _DetailRow(label: 'Creator', value: widget.quote.creatorName),
-              _DetailRow(label: 'Product table', value: widget.quote.productTable),
+              _DetailRow(
+                  label: 'Product table', value: widget.quote.productTable),
               if (widget.quote.metalType.isNotEmpty)
                 _DetailRow(label: 'Metal type', value: widget.quote.metalType),
+              if (widget.quote.metalPurity.isNotEmpty)
+                _DetailRow(
+                    label: 'Metal purity', value: widget.quote.metalPurity),
+              if (widget.quote.goldWeight.isNotEmpty)
+                _DetailRow(
+                    label: 'Gold weight', value: widget.quote.goldWeight),
+              if (widget.quote.metalColor.isNotEmpty)
+                _DetailRow(
+                    label: 'Metal color', value: widget.quote.metalColor),
+              if (widget.quote.metalFinish.isNotEmpty)
+                _DetailRow(
+                    label: 'Metal finish', value: widget.quote.metalFinish),
+              if (widget.quote.metalWeight.isNotEmpty)
+                _DetailRow(
+                    label: 'Metal weight', value: widget.quote.metalWeight),
+              if (widget.quote.netWeight.isNotEmpty)
+                _DetailRow(label: 'Net weight', value: widget.quote.netWeight),
+              if (widget.quote.dimension.isNotEmpty)
+                _DetailRow(label: 'Dimension', value: widget.quote.dimension),
+              if (widget.quote.designType.isNotEmpty)
+                _DetailRow(
+                    label: 'Design type', value: widget.quote.designType),
+              if (widget.quote.artForm.isNotEmpty)
+                _DetailRow(label: 'Art form', value: widget.quote.artForm),
+              if (widget.quote.plating.isNotEmpty)
+                _DetailRow(label: 'Plating', value: widget.quote.plating),
+              if (widget.quote.category.isNotEmpty)
+                _DetailRow(label: 'Category', value: widget.quote.category),
+              if (widget.quote.subCategory.isNotEmpty)
+                _DetailRow(
+                    label: 'Sub category', value: widget.quote.subCategory),
+              if (widget.quote.plain.isNotEmpty)
+                _DetailRow(label: 'Plain', value: widget.quote.plain),
+              if (widget.quote.stoneType.isNotEmpty)
+                _DetailRow(
+                    label: 'Stone type',
+                    value: widget.quote.stoneType.join(', ')),
+              if (widget.quote.stoneColor.isNotEmpty)
+                _DetailRow(
+                    label: 'Stone color',
+                    value: widget.quote.stoneColor.join(', ')),
+              if (widget.quote.stoneCount.isNotEmpty)
+                _DetailRow(
+                    label: 'Stone count',
+                    value: widget.quote.stoneCount.join(', ')),
+              if (widget.quote.stonePurity.isNotEmpty)
+                _DetailRow(
+                    label: 'Stone purity',
+                    value: widget.quote.stonePurity.join(', ')),
+              if (widget.quote.stoneCut.isNotEmpty)
+                _DetailRow(
+                    label: 'Stone cut',
+                    value: widget.quote.stoneCut.join(', ')),
+              if (widget.quote.stoneUsed.isNotEmpty)
+                _DetailRow(
+                    label: 'Stone used',
+                    value: widget.quote.stoneUsed.join(', ')),
+              if (widget.quote.stoneWeight.isNotEmpty)
+                _DetailRow(
+                    label: 'Stone weight',
+                    value: widget.quote.stoneWeight.join(', ')),
+              if (widget.quote.stoneSetting.isNotEmpty)
+                _DetailRow(
+                    label: 'Stone setting',
+                    value: widget.quote.stoneSetting.join(', ')),
+              if (widget.quote.enamelWork.isNotEmpty)
+                _DetailRow(
+                    label: 'Enamel work',
+                    value: widget.quote.enamelWork.join(', ')),
+              if (widget.quote.customizable.isNotEmpty)
+                _DetailRow(
+                    label: 'Customizable',
+                    value: widget.quote.customizable.join(', ')),
+              if (widget.quote.studded.isNotEmpty)
+                _DetailRow(
+                    label: 'Studded', value: widget.quote.studded.join(', ')),
+              if (widget.quote.additionalNotes.isNotEmpty)
+                _DetailRow(
+                    label: 'Additional notes',
+                    value: widget.quote.additionalNotes),
+              if (widget.quote.productUrl.isNotEmpty)
+                _DetailRow(
+                    label: 'Product URL', value: widget.quote.productUrl),
               _DetailRow(
                 label: 'Requested on',
                 value: widget.quote.createdAt != null
@@ -1256,7 +1626,6 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
               const SizedBox(height: 24),
               const Divider(height: 1),
               const SizedBox(height: 24),
-
               if (!_showReplyBox)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -1280,6 +1649,7 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    _buildCalculator(),
                     const Text(
                       'Compose Response',
                       style: TextStyle(
@@ -1291,7 +1661,7 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
                     const SizedBox(height: 10),
                     TextField(
                       controller: _msgCtrl,
-                      maxLines: 4,
+                      maxLines: 2,
                       decoration: InputDecoration(
                         hintText: 'Type your message to the user here…',
                         filled: true,
@@ -1308,13 +1678,14 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         TextButton(
-                          onPressed: () => setState(() => _showReplyBox = false),
+                          onPressed: () =>
+                              setState(() => _showReplyBox = false),
                           child: const Text('Cancel'),
                         ),
                         const SizedBox(width: 12),
                         _ActionBtn(
                           label: 'Send Response',
-                          onTap: () => widget.onReply(_msgCtrl.text),
+                          onTap: () => widget.onReply(_msgCtrl.text, _total, _breakdown),
                         ),
                       ],
                     ),
@@ -1419,7 +1790,8 @@ class _BulkActionBar extends StatelessWidget {
                 onTap: isProcessing ? null : onRespond,
                 icon: Icons.reply_all_rounded,
               ),
-              const VerticalDivider(color: Colors.white24, width: 24, indent: 8, endIndent: 8),
+              const VerticalDivider(
+                  color: Colors.white24, width: 24, indent: 8, endIndent: 8),
               GestureDetector(
                 onTap: onCancel,
                 child: const Icon(Icons.close, color: Colors.white, size: 20),
