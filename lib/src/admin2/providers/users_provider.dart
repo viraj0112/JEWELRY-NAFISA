@@ -1,6 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:csv/csv.dart';
+import 'package:universal_html/html.dart' as html;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 
 // Ensure you have initialized Supabase in main.dart
 final supabase = Supabase.instance.client;
@@ -204,7 +209,62 @@ class UsersProvider extends ChangeNotifier {
   }
 
   Future<void> exportCsv() async {
-    // implement server-side or client CSV building
+    final allUsers = [...members, ...nonMembers];
+    if (allUsers.isEmpty) return;
+
+    final now = DateTime.now();
+    final exportDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+    
+    final List<List<dynamic>> rows = [
+      ['User Management Export'],
+      ['Generated At', exportDate],
+      ['Total Records', allUsers.length],
+      [],
+      [
+        'User ID',
+        'Name',
+        'Email',
+        'Phone',
+        'Status',
+        'Tier',
+        'Is Member',
+        'Credits',
+        'Boards',
+        'Shares',
+        'Referrals',
+        'Last Active'
+      ],
+      ...allUsers.map((u) => [
+        u.id,
+        u.name,
+        u.email,
+        u.phone,
+        u.status,
+        u.tier,
+        u.isMember ? 'Yes' : 'No',
+        u.credits,
+        u.boards,
+        u.shares,
+        u.referrals,
+        u.lastActive?.toIso8601String() ?? 'N/A',
+      ]),
+    ];
+
+    final csvString = const ListToCsvConverter().convert(rows);
+    final fileName = 'users_export_${now.millisecondsSinceEpoch}.csv';
+
+    if (kIsWeb) {
+      final bytes = utf8.encode(csvString);
+      final blob = html.Blob([bytes], 'text/csv');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', fileName)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } else {
+      // For mobile/desktop, we could use path_provider but for now just log or use share_plus
+      debugPrint('CSV Export prepared: ${rows.length} rows');
+    }
   }
 
   @override

@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 
 import 'package:csv/csv.dart';
@@ -17,12 +16,14 @@ import 'moderation_screen.dart';
 import 'system_controls_screen.dart';
 import 'user_management_screen.dart';
 import 'quote_tracking_screen.dart';
+import 'teams_screen.dart';
 
 enum _AdminView {
   dashboard('Dashboard'),
   moderation('Moderation'),
   userManagement('User Management'),
   quoteTracking('Quote Tracking'),
+  teams('Teams'),
   analytics('Analytics'),
   inventory('Inventory'),
   settings('Settings');
@@ -104,6 +105,9 @@ class _MainScreenState extends State<MainScreen> {
         case _AdminView.quoteTracking:
           _quotesFuture = _dataService.fetchQuoteTracking();
           break;
+        case _AdminView.teams:
+          // Teams screen uses CreatorsProvider, no future to refresh here
+          break;
         case _AdminView.analytics:
           _analyticsFuture = _dataService.fetchAnalytics();
           break;
@@ -157,7 +161,9 @@ class _MainScreenState extends State<MainScreen> {
                     searchController: _searchController,
                     onRefresh: _refreshCurrentView,
                     showMenuButton: isMobile,
-                    onMenuTap: isMobile ? () => _scaffoldKey.currentState?.openDrawer() : null,
+                    onMenuTap: isMobile
+                        ? () => _scaffoldKey.currentState?.openDrawer()
+                        : null,
                   ),
                   Expanded(
                     child: SingleChildScrollView(
@@ -208,6 +214,8 @@ class _MainScreenState extends State<MainScreen> {
             builder: (data) => _buildQuotes(data),
           ),
         );
+      case _AdminView.teams:
+        return const TeamsScreen();
       case _AdminView.analytics:
         return FutureBuilder<List<DailyAnalyticsPoint>>(
           future: _analyticsFuture,
@@ -246,6 +254,7 @@ class _MainScreenState extends State<MainScreen> {
           _AdminView.moderation => AdminSkeletonVariant.cards,
           _AdminView.userManagement => AdminSkeletonVariant.table,
           _AdminView.quoteTracking => AdminSkeletonVariant.table,
+          _AdminView.teams => AdminSkeletonVariant.cards,
           _AdminView.analytics => AdminSkeletonVariant.dashboard,
           _AdminView.inventory => AdminSkeletonVariant.cards,
           _AdminView.settings => AdminSkeletonVariant.list,
@@ -464,7 +473,8 @@ class _MainScreenState extends State<MainScreen> {
         'Table': item.sourceTable,
         'Price': item.priceLabel.isEmpty ? 'N/A' : item.priceLabel,
         'Quote Requests': '${item.quoteRequests}',
-        'Created': item.createdAt == null ? '-' : _dateFormat.format(item.createdAt!),
+        'Created':
+            item.createdAt == null ? '-' : _dateFormat.format(item.createdAt!),
       },
     );
   }
@@ -478,7 +488,8 @@ class _MainScreenState extends State<MainScreen> {
         'Uploader': item.uploaderName,
         'Email': item.uploaderEmail.isEmpty ? 'N/A' : item.uploaderEmail,
         'Price': item.priceLabel.isEmpty ? 'N/A' : item.priceLabel,
-        'Created': item.createdAt == null ? '-' : _dateFormat.format(item.createdAt!),
+        'Created':
+            item.createdAt == null ? '-' : _dateFormat.format(item.createdAt!),
       },
     );
   }
@@ -527,7 +538,8 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                       ),
                     ),
-                  if (imageUrl != null && imageUrl.isNotEmpty) const SizedBox(height: 16),
+                  if (imageUrl != null && imageUrl.isNotEmpty)
+                    const SizedBox(height: 16),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
@@ -624,7 +636,8 @@ class _MainScreenState extends State<MainScreen> {
                 },
                 leading: _Thumb(imageUrl: item.imageUrl),
                 title: Text(item.title),
-                subtitle: Text('${item.sourceTable} • ${item.quoteRequests} quotes'),
+                subtitle:
+                    Text('${item.sourceTable} • ${item.quoteRequests} quotes'),
                 trailing: const Icon(Icons.chevron_right),
               );
             },
@@ -672,7 +685,9 @@ class _MainScreenState extends State<MainScreen> {
                   '${item.sourceTable}\n${item.uploaderName}${item.uploaderEmail.isEmpty ? '' : ' • ${item.uploaderEmail}'}',
                 ),
                 trailing: Text(
-                  item.createdAt == null ? '-' : _dateFormat.format(item.createdAt!),
+                  item.createdAt == null
+                      ? '-'
+                      : _dateFormat.format(item.createdAt!),
                 ),
               );
             },
@@ -910,9 +925,8 @@ class _MainScreenState extends State<MainScreen> {
               MetalInsight(label: e.key, count: e.value, sourceTable: 'all'))
           .toList();
     } else {
-      filtered = insights
-          .where((i) => i.sourceTable == _selectedMetalSource)
-          .toList();
+      filtered =
+          insights.where((i) => i.sourceTable == _selectedMetalSource).toList();
     }
     filtered.sort((a, b) => b.count.compareTo(a.count));
 
@@ -1390,7 +1404,8 @@ class _TopBar extends StatelessWidget {
               const Icon(Icons.notifications_none),
               const SizedBox(width: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -1555,106 +1570,109 @@ class _CurationCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: Container(
-      width: cardWidth,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8E5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: SizedBox(
-                  height: 150,
-                  width: double.infinity,
-                  child: item.imageUrl == null || item.imageUrl!.isEmpty
-                      ? Container(
-                          color: const Color(0xFFE9EFEC),
-                          alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.diamond_outlined,
-                            color: Color(0xFF6A7A73),
-                          ),
-                        )
-                      : Container(
-                          color: Colors.white,
-                          child: Image.network(
-                            item.imageUrl!,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: const Color(0xFFE9EFEC),
-                              alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.broken_image_outlined,
-                                color: Color(0xFF6A7A73),
+        width: cardWidth,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8E5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(12)),
+                  child: SizedBox(
+                    height: 150,
+                    width: double.infinity,
+                    child: item.imageUrl == null || item.imageUrl!.isEmpty
+                        ? Container(
+                            color: const Color(0xFFE9EFEC),
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.diamond_outlined,
+                              color: Color(0xFF6A7A73),
+                            ),
+                          )
+                        : Container(
+                            color: Colors.white,
+                            child: Image.network(
+                              item.imageUrl!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: const Color(0xFFE9EFEC),
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.broken_image_outlined,
+                                  color: Color(0xFF6A7A73),
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                  ),
                 ),
-              ),
-              if (showNewTag)
-                const Positioned(
-                  left: 8,
-                  top: 8,
-                  child: _NewTag(),
-                ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.sourceTable,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF5E6F68)),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      item.priceLabel.isEmpty ? 'Price N/A' : item.priceLabel,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0A4F3F),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEAF6EF),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        '${item.quoteRequests} quotes',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF256745),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                if (showNewTag)
+                  const Positioned(
+                    left: 8,
+                    top: 8,
+                    child: _NewTag(),
+                  ),
               ],
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.sourceTable,
+                    style:
+                        const TextStyle(fontSize: 12, color: Color(0xFF5E6F68)),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        item.priceLabel.isEmpty ? 'Price N/A' : item.priceLabel,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0A4F3F),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEAF6EF),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '${item.quoteRequests} quotes',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF256745),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }
@@ -1705,20 +1723,23 @@ class _AppraisalTile extends StatelessWidget {
                   ),
                   Text(
                     item.sourceTable,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF5E6F68)),
+                    style:
+                        const TextStyle(fontSize: 12, color: Color(0xFF5E6F68)),
                   ),
                   Text(
                     item.uploaderName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF4E5F58)),
+                    style:
+                        const TextStyle(fontSize: 11, color: Color(0xFF4E5F58)),
                   ),
                   if (item.uploaderEmail.isNotEmpty)
                     Text(
                       item.uploaderEmail,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF6D7D76)),
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF6D7D76)),
                     ),
                 ],
               ),
@@ -1733,8 +1754,11 @@ class _AppraisalTile extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 Text(
-                  item.createdAt == null ? '-' : dateFormat.format(item.createdAt!),
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF5E6F68)),
+                  item.createdAt == null
+                      ? '-'
+                      : dateFormat.format(item.createdAt!),
+                  style:
+                      const TextStyle(fontSize: 11, color: Color(0xFF5E6F68)),
                 ),
               ],
             ),
@@ -1814,13 +1838,13 @@ class _MarketPulseRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPositive = point.changePercent >= 0;
     final isGold = point.symbol.toUpperCase() == 'XAU';
-    final trendColor = isGold ? const Color(0xFFD7A93C) : const Color(0xFFC8CDD3);
+    final trendColor =
+        isGold ? const Color(0xFFD7A93C) : const Color(0xFFC8CDD3);
     final barFill = point.changePercent == 0
         ? (isGold ? 0.72 : 0.48)
         : ((point.changePercent.abs() / 5).clamp(0, 1)).toDouble();
-    final priceText = point.priceUsd <= 0
-        ? 'N/A'
-        : '₹${point.priceUsd.toStringAsFixed(2)}';
+    final priceText =
+        point.priceUsd <= 0 ? 'N/A' : '₹${point.priceUsd.toStringAsFixed(2)}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

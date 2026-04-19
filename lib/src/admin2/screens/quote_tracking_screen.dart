@@ -137,14 +137,56 @@ class _QuoteTrackingScreenState extends State<QuoteTrackingScreen> {
     });
   }
 
-  Future<void> _bulkUpdateStatus(String status) async {
-    if (_selectedIds.isEmpty) return;
+  Future<void> _launchProductUrl(String url) async {
+    if (url.isEmpty) return;
+    final uri = Uri.parse(url);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch $url';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening link: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _updateStatus(String status, {List<String>? targetIds}) async {
+    final ids = targetIds ?? _selectedIds.toList();
+    if (ids.isEmpty) return;
+
     setState(() => _isProcessing = true);
     try {
-      await widget.dataService
-          .updateQuoteRequestsStatus(_selectedIds.toList(), status);
-      _selectedIds.clear();
+      await widget.dataService.updateQuoteRequestsStatus(ids, status);
+      if (targetIds != null) {
+        _selectedIds.removeAll(targetIds);
+      } else {
+        _selectedIds.clear();
+      }
       widget.onRefreshRequested();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ids.length == 1
+                ? 'Status updated successfully'
+                : '${ids.length} quotes updated successfully'),
+            backgroundColor: const Color(0xFF1B3D2F),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update status: $e'),
+            backgroundColor: Colors.red.shade800,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -271,6 +313,7 @@ class _QuoteTrackingScreenState extends State<QuoteTrackingScreen> {
               onSelectAll: _toggleSelectAll,
               onSelectRow: _toggleSelect,
               onActionTap: _showQuoteDetail,
+              onPreviewTap: (q) => _launchProductUrl(q.productUrl),
             ),
             const SizedBox(height: 28),
 
@@ -315,8 +358,8 @@ class _QuoteTrackingScreenState extends State<QuoteTrackingScreen> {
           _BulkActionBar(
             selectedCount: _selectedIds.length,
             isProcessing: _isProcessing,
-            onClose: () => _bulkUpdateStatus('closed'),
-            onRespond: () => _bulkUpdateStatus('responded'),
+            onClose: () => _updateStatus('closed'),
+            onRespond: () => _updateStatus('responded'),
             onCancel: () => setState(() => _selectedIds.clear()),
           ),
       ],
@@ -365,8 +408,9 @@ class _QuoteTrackingScreenState extends State<QuoteTrackingScreen> {
         },
         onStatusUpdate: (st) {
           Navigator.pop(context);
-          _bulkUpdateStatus(st);
+          _updateStatus(st, targetIds: [q.id]);
         },
+        onLaunchUrl: _launchProductUrl,
       ),
     );
   }
@@ -586,6 +630,7 @@ class _QuoteTable extends StatelessWidget {
     required this.selectedIds,
     required this.onSelectAll,
     required this.onSelectRow,
+    required this.onPreviewTap,
   });
 
   final List<QuoteRecord> rows;
@@ -599,6 +644,7 @@ class _QuoteTable extends StatelessWidget {
   final Set<String> selectedIds;
   final ValueChanged<bool?> onSelectAll;
   final void Function(String, bool?) onSelectRow;
+  final ValueChanged<QuoteRecord> onPreviewTap;
 
   @override
   Widget build(BuildContext context) {
@@ -657,6 +703,9 @@ class _QuoteTable extends StatelessWidget {
                   isSelected: selectedIds.contains(q.id),
                   onSelect: (v) => onSelectRow(q.id, v),
                   onActionTap: () => onActionTap(q),
+                  onPreviewTap: q.productUrl.isNotEmpty
+                      ? () => onPreviewTap(q)
+                      : null,
                 )),
 
           // ── Pagination ─────────────────────────────────────────────────
@@ -712,6 +761,7 @@ class _QuoteRow extends StatelessWidget {
     required this.onActionTap,
     required this.isSelected,
     required this.onSelect,
+    this.onPreviewTap,
   });
 
   final QuoteRecord quote;
@@ -719,6 +769,7 @@ class _QuoteRow extends StatelessWidget {
   final bool isSelected;
   final ValueChanged<bool?> onSelect;
   final VoidCallback onActionTap;
+  final VoidCallback? onPreviewTap;
 
   @override
   Widget build(BuildContext context) {
@@ -804,15 +855,29 @@ class _QuoteRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    quote.productTitle,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontStyle: FontStyle.italic,
-                      fontWeight: FontWeight.w500,
-                      decoration: TextDecoration.underline,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          quote.productTitle,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.underline,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (onPreviewTap != null)
+                        IconButton(
+                          icon: const Icon(Icons.open_in_new, size: 14),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: onPreviewTap,
+                          tooltip: 'Preview Product',
+                        ),
+                    ],
                   ),
                   if (quote.metalType.isNotEmpty)
                     Text(
@@ -933,7 +998,7 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
-// ── Pagination ───────────────────────────────────────────────────────────────
+// ── Pagination ──────────────────────────────────────────────────────────────
 
 class _PaginationControls extends StatelessWidget {
   const _PaginationControls({
@@ -1211,6 +1276,7 @@ class _QuoteDetailDialog extends StatefulWidget {
     required this.onReply,
     required this.onStatusUpdate,
     required this.dataService,
+    required this.onLaunchUrl,
   });
 
   final QuoteRecord quote;
@@ -1218,6 +1284,7 @@ class _QuoteDetailDialog extends StatefulWidget {
   final Function(String message, double total, String breakdown) onReply;
   final Function(String) onStatusUpdate;
   final NewAdminDataService dataService;
+  final ValueChanged<String> onLaunchUrl;
 
   @override
   State<_QuoteDetailDialog> createState() => _QuoteDetailDialogState();
@@ -1624,6 +1691,26 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
                     : '—',
               ),
               const SizedBox(height: 24),
+              if (widget.quote.productUrl.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => widget.onLaunchUrl(widget.quote.productUrl),
+                      icon: const Icon(Icons.open_in_new, size: 18),
+                      label: const Text('View Original Product'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: const BorderSide(color: Color(0xFF1B3D2F)),
+                        foregroundColor: const Color(0xFF1B3D2F),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               const Divider(height: 1),
               const SizedBox(height: 24),
               if (!_showReplyBox)

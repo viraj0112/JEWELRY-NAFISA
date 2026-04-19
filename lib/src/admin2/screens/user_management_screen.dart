@@ -24,7 +24,10 @@ enum _UserTypeFilter {
 enum _UserSort {
   lastActivity('Last Activity'),
   highestCredit('Highest Credit'),
-  nameAZ('Name (A-Z)');
+  nameAZ('Name (A-Z)'),
+  highestViews('Most Views'),
+  highestLikes('Most Likes'),
+  highestShares('Most Shares');
 
   const _UserSort(this.label);
   final String label;
@@ -55,6 +58,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   _UserSort _userSort = _UserSort.lastActivity;
   DateTime? _startDateFilter;
   DateTime? _endDateFilter;
+
+  // Engagement filters
+  int _minViews = 0;
+  int _minLikes = 0;
+  int _minShares = 0;
+
   bool _creatingAccount = false;
   final Set<String> _selectedUserIds = {};
 
@@ -63,6 +72,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final query = widget.searchQuery.trim().toLowerCase();
     var filtered = widget.rows.where((row) {
       if (!_matchesUserFilter(row, _userTypeFilter)) return false;
+
+      // Engagement Filters
+      if (row.totalViews < _minViews) return false;
+      if (row.totalLikes < _minLikes) return false;
+      if (row.totalShares < _minShares) return false;
 
       if (_startDateFilter != null || _endDateFilter != null) {
         final joined = row.createdAt;
@@ -98,6 +112,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           return b.creditsRemaining.compareTo(a.creditsRemaining);
         case _UserSort.nameAZ:
           return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        case _UserSort.highestViews:
+          return b.totalViews.compareTo(a.totalViews);
+        case _UserSort.highestLikes:
+          return b.totalLikes.compareTo(a.totalLikes);
+        case _UserSort.highestShares:
+          return b.totalShares.compareTo(a.totalShares);
       }
     });
 
@@ -315,6 +335,24 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               setState(() => _endDateFilter = null);
                             },
                     ),
+                    const SizedBox(width: 12),
+                    _EngagementThresholdChip(
+                      label: 'Min Views',
+                      value: _minViews,
+                      onChanged: (v) => setState(() => _minViews = v),
+                    ),
+                    const SizedBox(width: 8),
+                    _EngagementThresholdChip(
+                      label: 'Min Likes',
+                      value: _minLikes,
+                      onChanged: (v) => setState(() => _minLikes = v),
+                    ),
+                    const SizedBox(width: 8),
+                    _EngagementThresholdChip(
+                      label: 'Min Shares',
+                      value: _minShares,
+                      onChanged: (v) => setState(() => _minShares = v),
+                    ),
                     if (MediaQuery.of(context).size.width >= 1000) ...[
                       const Spacer(),
                       Text(
@@ -412,7 +450,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 const DataColumn(label: Text('User Name')),
                 const DataColumn(label: Text('Type')),
                 const DataColumn(label: Text('Credit Balance')),
-                const DataColumn(label: Text('Joined Date')),
+                const DataColumn(label: Text('Views')),
+                const DataColumn(label: Text('Likes')),
+                const DataColumn(label: Text('Shares')),
                 const DataColumn(label: Text('Last Activity')),
                 const DataColumn(label: Text('Actions')),
               ],
@@ -477,9 +517,19 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         ),
                         DataCell(
                           Text(
-                            row.createdAt != null
-                                ? widget.dateFormat.format(row.createdAt!)
-                                : '-',
+                            row.totalViews.toString(),
+                            style: const TextStyle(color: Color(0xFF5E6F68)),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            row.totalLikes.toString(),
+                            style: const TextStyle(color: Color(0xFF5E6F68)),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            row.totalShares.toString(),
                             style: const TextStyle(color: Color(0xFF5E6F68)),
                           ),
                         ),
@@ -588,15 +638,19 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _EngagementStat(icon: Icons.visibility_outlined, value: row.totalViews),
+                    const SizedBox(width: 12),
+                    _EngagementStat(icon: Icons.thumb_up_outlined, value: row.totalLikes),
+                    const SizedBox(width: 12),
+                    _EngagementStat(icon: Icons.share_outlined, value: row.totalShares),
+                  ],
+                ),
                 const SizedBox(height: 10),
                 Text(
-                  'Joined: ${row.createdAt != null ? widget.dateFormat.format(row.createdAt!) : '-'}',
-                  style:
-                      const TextStyle(color: Color(0xFF5E6F68), fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Last activity: ${_formatLastActivity(row.lastActivityAt ?? row.createdAt)}',
+                  'Activity: ${_formatLastActivity(row.lastActivityAt ?? row.createdAt)}',
                   style:
                       const TextStyle(color: Color(0xFF5E6F68), fontSize: 12),
                 ),
@@ -988,6 +1042,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         'User ID',
         'Name',
         'Email',
+        'Phone',
         'Role',
         'Membership',
         'Credits Remaining',
@@ -1000,6 +1055,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           row.id,
           row.name,
           row.email,
+          row.phone,
           row.role,
           row.isMember ? 'Member' : 'Non-member',
           row.creditsRemaining,
@@ -1381,6 +1437,122 @@ class _UserTypeBadge extends StatelessWidget {
           letterSpacing: 0.4,
         ),
       ),
+    );
+  }
+}
+
+class _EngagementStat extends StatelessWidget {
+  final IconData icon;
+  final int value;
+
+  const _EngagementStat({required this.icon, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: const Color(0xFF5E6F68)),
+        const SizedBox(width: 4),
+        Text(
+          value.toString(),
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF5E6F68),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EngagementThresholdChip extends StatelessWidget {
+  final String label;
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  const _EngagementThresholdChip({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InputChip(
+      avatar: Icon(
+        value > 0 ? Icons.filter_alt : Icons.filter_alt_outlined,
+        size: 16,
+        color: value > 0 ? const Color(0xFF0A4F3F) : null,
+      ),
+      label: Text(value > 0 ? '$label: $value+' : label),
+      selected: value > 0,
+      onPressed: () async {
+        final result = await showDialog<int>(
+          context: context,
+          builder: (context) => _ThresholdDialog(
+            label: label,
+            initialValue: value,
+          ),
+        );
+        if (result != null) {
+          onChanged(result);
+        }
+      },
+      onDeleted: value > 0 ? () => onChanged(0) : null,
+    );
+  }
+}
+
+class _ThresholdDialog extends StatefulWidget {
+  final String label;
+  final int initialValue;
+
+  const _ThresholdDialog({required this.label, required this.initialValue});
+
+  @override
+  State<_ThresholdDialog> createState() => _ThresholdDialogState();
+}
+
+class _ThresholdDialogState extends State<_ThresholdDialog> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: widget.initialValue == 0 ? '' : widget.initialValue.toString(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Filter by ${widget.label}'),
+      content: TextField(
+        controller: _controller,
+        keyboardType: TextInputType.number,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: 'Minimum ${widget.label}',
+          hintText: 'e.g. 100',
+          border: const OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final val = int.tryParse(_controller.text) ?? 0;
+            Navigator.pop(context, val);
+          },
+          child: const Text('Apply'),
+        ),
+      ],
     );
   }
 }

@@ -990,17 +990,40 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
       }
 
       // 6. Insert to appropriate table
-      final tableName =
+      final sourceTable =
           isManufacturer ? 'manufacturerproducts' : 'designerproducts';
+      
+      final Map<String, dynamic> assetData = {
+        'title': productTitleCtrl.text.trim(),
+        'owner_id': user.id,
+        'status': 'pending',
+        'source': sourceTable,
+        'description': getTextValue(descCtrl),
+        'category': productType,
+      };
+
+      if (uploadedImageUrls.isNotEmpty) {
+        assetData['media_url'] = uploadedImageUrls.first;
+        assetData['thumb_url'] = uploadedImageUrls.first;
+      }
+
+      // Remove top-level duplicates that are now explicitly in assets schema
+      final attributes = Map<String, dynamic>.from(productData);
+      attributes.remove('user_id');
+      attributes.remove('Description');
+      attributes.remove('Product Type');
+
+      assetData['attributes'] = attributes;
+
       final result =
-          await _supabase.from(tableName).insert(productData).select();
+          await _supabase.from('assets').insert(assetData).select();
 
       if (mounted) {
         if (result.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Product published successfully to ${isManufacturer ? "Manufacturer" : "Designer"} catalog!'),
+                  'Product submitted for review! It will be visible once approved.'),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 3),
             ),

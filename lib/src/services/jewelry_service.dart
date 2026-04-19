@@ -556,7 +556,7 @@ class JewelryService {
       final geoMap = await getGeoAnalytics(itemIds);
 
       // 4. Merge engagement data with item
-      return items.map((item) {
+      final approvedItems = items.map((item) {
         final itemId = item['id'].toString();
 
         final itemTitle =
@@ -577,6 +577,9 @@ class JewelryService {
 
         return JewelryItem.fromJson(enriched);
       }).toList();
+
+      final pendingItems = await _fetchPendingAssets(user.id, 'designerproducts');
+      return [...pendingItems, ...approvedItems];
     } catch (e) {
       debugPrint("Error fetching user designer products: $e");
       return [];
@@ -600,7 +603,9 @@ class JewelryService {
         ''').eq('user_id', user.id).order('created_at', ascending: false);
 
       final items = response as List<Map<String, dynamic>>;
-      if (items.isEmpty) return [];
+      final pendingItems = await _fetchPendingAssets(user.id, 'manufacturerproducts');
+
+      if (items.isEmpty) return pendingItems;
 
       final itemIds = items.map((item) => item['id'].toString()).toList();
       final itemTitles = items
@@ -627,7 +632,7 @@ class JewelryService {
       final geoMap = await getGeoAnalytics(itemIds);
 
       // 3. Merge EVERYTHING into the enriched map
-      return items.map((item) {
+      final approvedItems = items.map((item) {
         final itemId = item['id'].toString();
         final itemTitle =
             (item['Product Title'] ?? item['product_title'] ?? item['title'])
@@ -647,6 +652,8 @@ class JewelryService {
 
         return JewelryItem.fromJson(enriched);
       }).toList();
+
+      return [...pendingItems, ...approvedItems];
     } catch (e) {
       debugPrint("Error fetching user manufacturer products: $e");
       return [];
@@ -761,8 +768,13 @@ class JewelryService {
     }
   }
 
-  Future<void> logView(
-      {String? pinId, int? productId, String? countryCode}) async {
+  Future<void> logView({
+    String? pinId,
+    int? productId,
+    String? itemId,
+    String? itemTable,
+    String? countryCode,
+  }) async {
     try {
       final userId = _supabaseClient.auth.currentUser?.id;
       if (userId == null) return; // Don't log views for guests
@@ -771,16 +783,22 @@ class JewelryService {
         'user_id': userId,
         'pin_id': pinId,
         'product_id': productId,
-        'country': countryCode, // You can get this from an IP lookup service
+        'item_id': itemId ?? (productId?.toString() ?? pinId),
+        'item_table': itemTable ?? (pinId != null ? 'pins' : 'products'),
+        'country': countryCode,
       });
     } catch (e) {
-      // Fail silently, as logging a view is not a critical error
       debugPrint('Error logging view: $e');
     }
   }
 
   /// Adds a like for a pin or a product
-  Future<void> addLike({String? pinId, int? productId}) async {
+  Future<void> addLike({
+    String? pinId,
+    int? productId,
+    String? itemId,
+    String? itemTable,
+  }) async {
     try {
       final userId = _supabaseClient.auth.currentUser?.id;
       if (userId == null) {
@@ -791,6 +809,8 @@ class JewelryService {
         'user_id': userId,
         'pin_id': pinId,
         'product_id': productId,
+        'item_id': itemId ?? (productId?.toString() ?? pinId),
+        'item_table': itemTable ?? (pinId != null ? 'pins' : 'products'),
       });
 
       try {
@@ -873,7 +893,12 @@ class JewelryService {
   }
 
   /// Removes a like based on the pin or product ID
-  Future<void> removeLike({String? pinId, int? productId}) async {
+  Future<void> removeLike({
+    String? pinId,
+    int? productId,
+    String? itemId,
+    String? itemTable,
+  }) async {
     try {
       final userId = _supabaseClient.auth.currentUser?.id;
       if (userId == null) {
@@ -883,16 +908,20 @@ class JewelryService {
       final query =
           _supabaseClient.from('likes').delete().eq('user_id', userId);
 
-      if (pinId != null) {
+      if (itemId != null && itemTable != null) {
+        query.match({'item_id': itemId, 'item_table': itemTable});
+      } else if (pinId != null) {
         query.eq('pin_id', pinId);
       } else if (productId != null) {
         query.eq('product_id', productId);
       } else {
-        throw Exception('Must provide a pinId or productId');
+        throw Exception('Must provide a pinId, productId, or itemId/itemTable');
       }
+
+      await query;
     } catch (e) {
       debugPrint('Error removing like: $e');
-      rethrow; // Re-throw to let the UI handle the error
+      rethrow;
     }
   }
 
@@ -1219,6 +1248,41 @@ class JewelryService {
     } catch (e) {
       debugPrint('Error deleting product: $e');
       return false;
+    }
+  }
+
+  // --- HELPER METHOD TO FETCH PENDING ASSETS ---
+  Future<List<JewelryItem>> _fetchPendingAssets(String userId, String source) async {
+    try {
+      final response = await _supabaseClient
+          .from('assets')
+          .select('id, title, media_url, description, category, status, attributes')
+          .eq('owner_id', userId)
+          .eq('source', source)
+          .neq('status', 'approved')
+          .order('created_at', ascending: false);
+
+      final assets = response as List<Map<String, dynamic>>;
+      return assets.map((asset) {
+        final attrs = asset['attributes'] as Map<String, dynamic>? ?? {};
+        
+        final enriched = {
+          'id': asset['id'],
+          'Product Title': asset['title'] ?? attrs['Product Title'],
+          'Image': asset['media_url'] ?? attrs['Image'],
+          'description': asset['description'] ?? attrs['Description'] ?? attrs['description'],
+          'Category': asset['category'] ?? attrs['Category'] ?? attrs['category'],
+          'status': asset['status'],
+          'is_designer_product': source == 'designerproducts',
+          'is_manufacturer_product': source == 'manufacturerproducts',
+          ...attrs,
+        };
+
+        return JewelryItem.fromJson(enriched);
+      }).toList();
+    } catch(e) {
+      debugPrint("Error fetching pending assets: $e");
+      return [];
     }
   }
 }

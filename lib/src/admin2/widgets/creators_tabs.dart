@@ -22,6 +22,8 @@ class CreatorsTabs extends StatelessWidget {
           _tab('manufacturer', 'Manufacturers', Icons.factory_outlined),
           const SizedBox(width: 8),
           _tab('works', 'Uploaded Works', Icons.cloud_upload_outlined),
+          const SizedBox(width: 8),
+          _tab('teams', 'Teams', Icons.groups_outlined),
           const Spacer(),
         ],
       ),

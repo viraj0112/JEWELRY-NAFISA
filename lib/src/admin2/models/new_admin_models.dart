@@ -43,6 +43,7 @@ class AppraisalQueueItem {
     required this.imageUrl,
     required this.createdAt,
     required this.priceLabel,
+    this.uploaderPhone = '',
   });
 
   final String id;
@@ -51,6 +52,7 @@ class AppraisalQueueItem {
   final String uploaderUserId;
   final String uploaderName;
   final String uploaderEmail;
+  final String uploaderPhone;
   final String? imageUrl;
   final DateTime? createdAt;
   final String priceLabel;
@@ -128,7 +130,10 @@ class ModerationItem {
     required this.ownerName,
     required this.ownerLocation,
     required this.ownerEmail,
+    this.ownerPhone = '',
     required this.createdAt,
+    required this.description,
+    required this.attributes,
   });
 
   final String id;
@@ -143,7 +148,10 @@ class ModerationItem {
   final String ownerName;
   final String ownerLocation;
   final String ownerEmail;
+  final String ownerPhone;
   final DateTime? createdAt;
+  final String description;
+  final Map<String, dynamic> attributes;
 }
 
 class VerificationRequest {
@@ -177,6 +185,7 @@ class UserLedgerRow {
     required this.id,
     required this.name,
     required this.email,
+    this.phone = '',
     required this.role,
     required this.isMember,
     required this.creditsRemaining,
@@ -184,11 +193,15 @@ class UserLedgerRow {
     required this.lastCreditRefresh,
     required this.createdAt,
     this.lastActivityAt,
+    this.totalLikes = 0,
+    this.totalShares = 0,
+    this.totalViews = 0,
   });
 
   final String id;
   final String name;
   final String email;
+  final String phone;
   final String role;
   final bool isMember;
   final int creditsRemaining;
@@ -196,6 +209,9 @@ class UserLedgerRow {
   final DateTime? lastCreditRefresh;
   final DateTime? createdAt;
   final DateTime? lastActivityAt;
+  final int totalLikes;
+  final int totalShares;
+  final int totalViews;
 }
 
 class QuoteRecord {
@@ -309,6 +325,7 @@ class InventoryItem {
     required this.ownerId,
     required this.ownerName,
     required this.ownerEmail,
+    this.ownerPhone = '',
     required this.createdAt,
     this.likesCount = 0,
     this.viewsCount = 0,
@@ -327,6 +344,7 @@ class InventoryItem {
   final String ownerId;
   final String ownerName;
   final String ownerEmail;
+  final String ownerPhone;
   final DateTime? createdAt;
   final int likesCount;
   final int viewsCount;

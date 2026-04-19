@@ -157,6 +157,14 @@ class AppSidebar extends StatelessWidget {
                       ),
                       _buildNavItem(
                         context,
+                        'teams',
+                        'Teams',
+                        Icons.groups_outlined,
+                        appState.activeView == 'teams',
+                        () => appState.setActiveView('teams'),
+                      ),
+                      _buildNavItem(
+                        context,
                         'product-upload',
                         'Product Upload',
                         Icons.cloud_upload_outlined,

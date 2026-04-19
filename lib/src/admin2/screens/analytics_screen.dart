@@ -20,6 +20,7 @@ class AnalyticsBundle {
     required this.metalColorInsights,
     required this.totalUsers,
     required this.totalProducts,
+    required this.geoEngagement,
   });
 
   final List<DailyAnalyticsPoint> dailyPoints;
@@ -29,6 +30,7 @@ class AnalyticsBundle {
   final List<MetalInsight> metalColorInsights;
   final int totalUsers;
   final int totalProducts;
+  final List<Map<String, dynamic>> geoEngagement;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -96,6 +98,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
       _fetchMetalInsights('Metal Color'),
       _fetchUserCount(),
       _fetchProductCount(),
+      widget.dataService.fetchGeographicEngagement(),
     ]);
 
     return AnalyticsBundle(
@@ -106,6 +109,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
       metalColorInsights: results[4] as List<MetalInsight>,
       totalUsers: results[5] as int,
       totalProducts: results[6] as int,
+      geoEngagement: results[7] as List<Map<String, dynamic>>,
     );
   }
 
@@ -1148,13 +1152,56 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildGlobalResonanceSection(AnalyticsBundle bundle) {
-    const cities = [
-      _CityData('PARIS, FR', 'High Intensity', 1.00),
-      _CityData('TOKYO, JP', 'Rising', 0.75),
-      _CityData('DUBAI, UAE', 'High Intensity', 0.88),
-      _CityData('NEW YORK, US', 'Stable', 0.62),
-      _CityData('MILAN, IT', 'Rising', 0.70),
-    ];
+    // Process real geographic data into a format the UI expects
+    final rawGeo = bundle.geoEngagement;
+    
+    // Calculate intensity for each location
+    final List<_CityData> dynamicLocations = [];
+    if (rawGeo.isNotEmpty) {
+      // Find max score for normalization
+      double maxScore = 0;
+      final scores = rawGeo.map((loc) {
+        final v = (loc['views'] as int? ?? 0);
+        final l = (loc['likes'] as int? ?? 0);
+        final s = (loc['saves'] as int? ?? 0);
+        return v + l * 2.0 + s * 3.0;
+      }).toList();
+      
+      if (scores.isNotEmpty) {
+        maxScore = scores.reduce((a, b) => a > b ? a : b);
+      }
+
+      for (int i = 0; i < rawGeo.length && i < 6; i++) {
+        final loc = rawGeo[i];
+        final country = (loc['country'] as String? ?? 'Unknown').toUpperCase();
+        final state = (loc['state'] as String? ?? '').toUpperCase();
+        final name = state.isNotEmpty ? '$state, $country' : country;
+        
+        final score = scores[i];
+        final intensity = maxScore > 0 ? (score / maxScore) : 0.0;
+        
+        String status = 'Stable';
+        if (intensity > 0.8) status = 'High Intensity';
+        else if (intensity > 0.5) status = 'Rising';
+
+        dynamicLocations.add(_CityData(name, status, intensity.clamp(0.1, 1.0)));
+      }
+    }
+
+    // Ensure we always show 5 items for a consistent UI
+    final displayLocations = List<_CityData>.from(dynamicLocations);
+    if (displayLocations.isEmpty) {
+      displayLocations.add(_CityData('NO DATA YET', 'Stable', 0.1));
+    }
+    
+    // Pad to 5 exactly
+    while (displayLocations.length < 5) {
+      displayLocations.add(_CityData('AWAITING DATA', 'Stable', 0.05));
+    }
+    
+    if (displayLocations.length > 5) {
+      displayLocations.removeRange(5, displayLocations.length);
+    }
 
     return _Card(
       child: LayoutBuilder(builder: (ctx, bc) {
@@ -1183,7 +1230,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
               ),
             ),
             const SizedBox(height: 28),
-            ...cities.asMap().entries.map((e) {
+            ...displayLocations.asMap().entries.map((e) {
               final idx = e.key;
               final city = e.value;
               final isRising = city.status == 'Rising';
@@ -1279,7 +1326,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
           child: Container(
             color: const Color(0xFF1A2E28),
             child: CustomPaint(
-              painter: _WorldMapCustomPainter(gold: _gold, green: _green),
+              painter: _WorldMapCustomPainter(
+                gold: _gold, 
+                green: _green,
+                locations: bundle.geoEngagement,
+              ),
               child: const SizedBox.expand(),
             ),
           ),
@@ -2391,164 +2442,248 @@ class _PredictiveAestheticCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _WorldMapCustomPainter extends CustomPainter {
-  const _WorldMapCustomPainter({required this.gold, required this.green});
+  const _WorldMapCustomPainter({
+    required this.gold,
+    required this.green,
+    required this.locations,
+  });
+
   final Color gold;
   final Color green;
+  final List<Map<String, dynamic>> locations;
+
+  // Accurate 80-column equirectangular world map grid (cols=80, rows=30)
+  // Each 'x' represents a land cell
+  static const List<String> worldGrid = [
+    "                                                                                ",
+    "          xxxxxxxx   x                                xxxxxxx                   ",
+    "       xxxxxxxxxxxxxxxxxxxxxx              xxxxxxxxxxxxxxxxxxxxxxx  xxx          ",
+    " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx       ",
+    " xxxxxxxxxxxxxxxxxxxxxxxxxx xxxxx        xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "  xxxxxxxxxxxxxxxxxxxx  xxxxx           xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx      ",
+    "   xxxxxxxxxxxxxxxxx   xxxxx           xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    ",
+    "   xxxxxxxxx  xxxxxx                   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    ",
+    "    xxxxxxxx  xxxxx                     xxxxxxxxxxxxxxxxxxxxxxxxxx    xxxx      ",
+    "      xxxxxx  xxx                         xxxxxxxxxxxxxxxxxxxxxxxxxxx           ",
+    "       xxxx                               xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx      ",
+    "       xxx             x                   xxxxxxxxxxxxxxxxxxxxxxxxxxxx  x      ",
+    "       xxxx           xx                    xxxxxxxxxxxxxxxxxxxxxxxxx           ",
+    "       xxxxx         xxx     x              xxxxxxxxxxxxxxxxxxxxxxxx             ",
+    "        xxxxx                xxx            xxxxxxxxxxxxxxxxxxxxxxx x            ",
+    "          xxx               xxxx            xxxxxxxxxxxxxxxxxxxxxxxx             ",
+    "                             xxx             xxxxxxxxxxxxxxxxxxxxx               ",
+    "                              xx              xxxxxxxxxxxxxx  xxx                ",
+    "                               x                                                ",
+    "                                                  xxxxxxxxxxxxxxxxxxxxxxxxx     ",
+    "   xxxxxxxxxxxxxxxxxxxxxxx        xxxxxxxxxxxxxxxxxxxxxxxx   xxx    xxxxxxxxxx  ",
+    "   xxxxxx      xxxxxxxxxxxxxxxxxxxxxxxxxx                              xxxxx    ",
+    "   xxxxx        xxxxxxxxxxxxxxxxxx                                      xxxx    ",
+    "    xxx          xxxxxxxxxxxx                                            xxx    ",
+    "                  xxxxxxxx                                              xxx     ",
+    "                   xxxxxx                                              xx       ",
+    "                    xxx                                                         ",
+    "                                                                                ",
+    "                                                                                ",
+    "                                                                                ",
+  ];
+
+  // Country capital coordinates in (lon, lat) for equirectangular projection
+  static const Map<String, List<double>> _countryCoords = {
+    'USA':  [-95.7, 37.1],
+    'CA':   [-96.8, 56.1],
+    'MX':   [-102.5, 23.6],
+    'BR':   [-51.9, -14.2],
+    'AR':   [-63.6, -38.4],
+    'GB':   [-3.4, 55.3],
+    'FR':   [2.2, 46.2],
+    'DE':   [10.4, 51.2],
+    'IT':   [12.5, 41.8],
+    'ES':   [-3.7, 40.4],
+    'RU':   [105.3, 61.5],
+    'TR':   [35.2, 38.9],
+    'NG':   [8.6, 9.0],
+    'ZA':   [22.9, -30.5],
+    'EG':   [30.8, 26.8],
+    'IN':   [78.9, 20.5],
+    'CN':   [104.1, 35.8],
+    'JP':   [138.2, 36.2],
+    'KR':   [127.7, 35.9],
+    'AU':   [133.7, -25.2],
+    'ID':   [113.9, -0.7],
+    'AE':   [53.8, 23.4],
+    'SA':   [44.5, 23.8],
+    'PK':   [69.3, 30.3],
+    'SG':   [103.8, 1.3],
+    'HK':   [114.1, 22.3],
+    'TH':   [100.9, 15.9],
+    'CH':   [8.2, 46.8],
+    'NL':   [5.3, 52.1],
+    'BE':   [4.4, 50.5],
+    'PT':   [-8.2, 39.4],
+  };
+
+  Offset _geoToOffset(double lon, double lat, double w, double h) {
+    final x = (lon + 180) / 360 * w;
+    final y = (90 - lat) / 180 * h;
+    return Offset(x, y);
+  }
+
+  Offset? _getGeoOffset(String country, double w, double h) {
+    final cleaned = country.trim().toUpperCase();
+
+    // Direct lookup in our coord map
+    if (_countryCoords.containsKey(cleaned)) {
+      final c = _countryCoords[cleaned]!;
+      return _geoToOffset(c[0], c[1], w, h);
+    }
+
+    // Fuzzy name matching
+    final nameMap = {
+      'INDIA': 'IN', 'BHARAT': 'IN',
+      'UNITED STATES': 'USA', 'US': 'USA', 'AMERICA': 'USA',
+      'UNITED KINGDOM': 'GB', 'UK': 'GB', 'ENGLAND': 'GB', 'BRITAIN': 'GB',
+      'UNITED ARAB EMIRATES': 'AE', 'UAE': 'AE', 'EMIRATES': 'AE',
+      'SAUDI': 'SA', 'SAUDI ARABIA': 'SA',
+      'JAPAN': 'JP', 'CHINA': 'CN', 'BRAZIL': 'BR', 'AUSTRALIA': 'AU',
+      'FRANCE': 'FR', 'GERMANY': 'DE', 'ITALY': 'IT', 'SPAIN': 'ES',
+      'RUSSIA': 'RU', 'CANADA': 'CA', 'SINGAPORE': 'SG', 'HONG KONG': 'HK',
+      'THAILAND': 'TH', 'SOUTH KOREA': 'KR', 'KOREA': 'KR',
+      'INDONESIA': 'ID', 'PAKISTAN': 'PK', 'TURKEY': 'TR',
+      'NETHERLANDS': 'NL', 'SWITZERLAND': 'CH', 'MEXICO': 'MX',
+      'NIGERIA': 'NG', 'SOUTH AFRICA': 'ZA', 'EGYPT': 'EG',
+      'MAHARASHTRA': 'IN', 'DELHI': 'IN', 'MUMBAI': 'IN',
+      'NEW YORK': 'USA', 'CALIFORNIA': 'USA', 'TEXAS': 'USA',
+      'DUBAI': 'AE', 'ABU DHABI': 'AE',
+    };
+
+    for (final entry in nameMap.entries) {
+      if (cleaned.contains(entry.key)) {
+        final code = entry.value;
+        if (_countryCoords.containsKey(code)) {
+          final c = _countryCoords[code]!;
+          return _geoToOffset(c[0], c[1], w, h);
+        }
+      }
+    }
+
+    return null;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
 
-    // Background done via Container color
+    // ── 1. Land dot matrix ─────────────────────────────────────────────────────
+    final int cols = 80;
+    final int rows = worldGrid.length;
+    final double cellW = w / cols;
+    final double cellH = h / rows;
 
-    // Draw simplified continent blobs
-    final landPaint = Paint()
-      ..color = const Color(0xFF2A4A3E)
+    final landDotPaint = Paint()
+      ..color = Colors.white.withOpacity(0.30)
       ..style = PaintingStyle.fill;
 
-    // North America
-    _drawBlob(canvas, landPaint, [
-      Offset(w * 0.05, h * 0.18),
-      Offset(w * 0.22, h * 0.10),
-      Offset(w * 0.32, h * 0.15),
-      Offset(w * 0.30, h * 0.42),
-      Offset(w * 0.18, h * 0.55),
-      Offset(w * 0.08, h * 0.45),
-    ]);
+    for (int r = 0; r < rows; r++) {
+      final line = worldGrid[r];
+      for (int c = 0; c < line.length && c < cols; c++) {
+        if (line[c] == 'x' || line[c] == 'X') {
+          canvas.drawCircle(
+            Offset(c * cellW + cellW / 2, r * cellH + cellH / 2),
+            2.0,
+            landDotPaint,
+          );
+        }
+      }
+    }
 
-    // South America
-    _drawBlob(canvas, landPaint, [
-      Offset(w * 0.20, h * 0.60),
-      Offset(w * 0.32, h * 0.57),
-      Offset(w * 0.35, h * 0.80),
-      Offset(w * 0.25, h * 0.92),
-      Offset(w * 0.14, h * 0.82),
-    ]);
-
-    // Europe
-    _drawBlob(canvas, landPaint, [
-      Offset(w * 0.42, h * 0.14),
-      Offset(w * 0.55, h * 0.12),
-      Offset(w * 0.58, h * 0.28),
-      Offset(w * 0.48, h * 0.36),
-      Offset(w * 0.40, h * 0.28),
-    ]);
-
-    // Africa
-    _drawBlob(canvas, landPaint, [
-      Offset(w * 0.43, h * 0.40),
-      Offset(w * 0.58, h * 0.38),
-      Offset(w * 0.60, h * 0.72),
-      Offset(w * 0.48, h * 0.85),
-      Offset(w * 0.38, h * 0.72),
-      Offset(w * 0.38, h * 0.48),
-    ]);
-
-    // Asia
-    _drawBlob(canvas, landPaint, [
-      Offset(w * 0.56, h * 0.10),
-      Offset(w * 0.88, h * 0.08),
-      Offset(w * 0.92, h * 0.38),
-      Offset(w * 0.80, h * 0.52),
-      Offset(w * 0.62, h * 0.48),
-      Offset(w * 0.54, h * 0.28),
-    ]);
-
-    // Australia
-    _drawBlob(canvas, landPaint, [
-      Offset(w * 0.76, h * 0.60),
-      Offset(w * 0.92, h * 0.58),
-      Offset(w * 0.94, h * 0.78),
-      Offset(w * 0.80, h * 0.82),
-      Offset(w * 0.74, h * 0.72),
-    ]);
-
-    // Grid lines (latitude/longitude)
+    // ── 2. Subtle grid lines ──────────────────────────────────────────────────
     final gridPaint = Paint()
-      ..color = Colors.white.withOpacity(0.05)
+      ..color = Colors.white.withOpacity(0.04)
       ..strokeWidth = 0.5
       ..style = PaintingStyle.stroke;
 
     for (int i = 1; i < 6; i++) {
-      canvas.drawLine(
-        Offset(0, h * i / 6),
-        Offset(w, h * i / 6),
-        gridPaint,
-      );
+      canvas.drawLine(Offset(0, h * i / 6), Offset(w, h * i / 6), gridPaint);
     }
-    for (int i = 1; i < 8; i++) {
-      canvas.drawLine(
-        Offset(w * i / 8, 0),
-        Offset(w * i / 8, h),
-        gridPaint,
-      );
+    for (int i = 1; i < 9; i++) {
+      canvas.drawLine(Offset(w * i / 8, 0), Offset(w * i / 8, h), gridPaint);
     }
 
-    // Hotspot glow cities (luxury hubs)
-    final hotspots = [
-      // Paris
-      Offset(w * 0.485, h * 0.225),
-      // Tokyo
-      Offset(w * 0.855, h * 0.270),
-      // Dubai
-      Offset(w * 0.630, h * 0.360),
-      // New York
-      Offset(w * 0.290, h * 0.295),
-      // Milan
-      Offset(w * 0.508, h * 0.260),
-    ];
+    // ── 3. Intensity hotspots ─────────────────────────────────────────────────
+    // Build list of (offset, intensity) pairs
+    final List<MapEntry<Offset, double>> hotspots = [];
 
-    for (int i = 0; i < hotspots.length; i++) {
-      final pt = hotspots[i];
-      final intensity = 1.0 - i * 0.15;
+    if (locations.isNotEmpty) {
+      final scores = locations.map((loc) {
+        final v = (loc['views'] as int? ?? 0).toDouble();
+        final l = (loc['likes'] as int? ?? 0).toDouble();
+        final s = (loc['saves'] as int? ?? 0).toDouble();
+        return v + l * 2.0 + s * 3.0;
+      }).toList();
 
-      // Outer glow rings
-      for (final r in [22.0, 14.0, 8.0]) {
-        canvas.drawCircle(
-          pt,
-          r,
-          Paint()
-            ..color = gold.withOpacity(0.04 * intensity * (24 / r))
-            ..style = PaintingStyle.fill,
-        );
+      final maxScore = scores.fold(0.0, (a, b) => a > b ? a : b);
+
+      for (int i = 0; i < locations.length; i++) {
+        final country = (locations[i]['country'] as String? ?? '').toUpperCase();
+        // Also try state-level match
+        final state = (locations[i]['state'] as String? ?? '').toUpperCase();
+        Offset? pt = _getGeoOffset(state.isNotEmpty ? state : country, w, h)
+            ?? _getGeoOffset(country, w, h);
+        if (pt == null) continue;
+        final intensity = maxScore > 0 ? (scores[i] / maxScore).clamp(0.1, 1.0) : 0.3;
+        hotspots.add(MapEntry(pt, intensity));
       }
-
-      // Core dot
-      canvas.drawCircle(
-        pt,
-        3.5,
-        Paint()
-          ..color = gold.withOpacity(0.9)
-          ..style = PaintingStyle.fill,
-      );
-      canvas.drawCircle(
-        pt,
-        3.5,
-        Paint()
-          ..color = Colors.white.withOpacity(0.4)
-          ..strokeWidth = 1
-          ..style = PaintingStyle.stroke,
-      );
     }
-  }
 
-  void _drawBlob(Canvas canvas, Paint paint, List<Offset> pts) {
-    if (pts.length < 3) return;
-    final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-    for (int i = 1; i < pts.length; i++) {
-      final prev = pts[i - 1];
-      final curr = pts[i];
-      final cp1x = prev.dx + (curr.dx - prev.dx) * 0.5;
-      final cp2x = curr.dx - (curr.dx - prev.dx) * 0.5;
-      path.cubicTo(cp1x, prev.dy, cp2x, curr.dy, curr.dx, curr.dy);
+    // Fallback demo hotspots when no data yet (so map doesn't look empty)
+    if (hotspots.isEmpty) {
+      final demo = [
+        ['IN', 0.9], ['AE', 0.6], ['GB', 0.5], ['USA', 0.4], ['SG', 0.3],
+      ];
+      for (final d in demo) {
+        final pt = _getGeoOffset(d[0] as String, w, h);
+        if (pt != null) hotspots.add(MapEntry(pt, d[1] as double));
+      }
     }
-    path.close();
-    canvas.drawPath(path, paint);
+
+    for (final entry in hotspots) {
+      final pt = entry.key;
+      final intensity = entry.value;
+      final r = 28.0 * intensity + 10.0;
+
+      // Outermost soft glow
+      canvas.drawCircle(pt, r * 1.8, Paint()
+        ..color = gold.withOpacity(0.06 * intensity)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
+        ..style = PaintingStyle.fill);
+
+      // Mid glow ring
+      canvas.drawCircle(pt, r, Paint()
+        ..color = gold.withOpacity(0.12 * intensity)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6)
+        ..style = PaintingStyle.fill);
+
+      // Inner ring
+      canvas.drawCircle(pt, r * 0.4, Paint()
+        ..color = gold.withOpacity(0.35 * intensity)
+        ..style = PaintingStyle.fill);
+
+      // Core bright dot
+      canvas.drawCircle(pt, 4.0 + intensity * 3.0, Paint()
+        ..color = gold.withOpacity(0.85 + intensity * 0.15)
+        ..style = PaintingStyle.fill);
+
+      // White highlight at center
+      canvas.drawCircle(pt, 2.0, Paint()
+        ..color = Colors.white.withOpacity(0.7)
+        ..style = PaintingStyle.fill);
+    }
   }
 
   @override
-  bool shouldRepaint(_WorldMapCustomPainter old) => false;
+  bool shouldRepaint(covariant _WorldMapCustomPainter oldDelegate) =>
+      oldDelegate.locations != locations;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'dashboard_service.dart';
 import '../models/new_admin_models.dart';
 
 class NewAdminDataService {
@@ -55,7 +55,7 @@ class NewAdminDataService {
     final rows = await _client
         .from('assets')
         .select(
-            'id,title,status,category,thumb_url,media_url,source,tags,owner_id,created_at,owner:users!assets_owner_id_fkey(full_name,business_name,email,country)')
+            'id,title,status,category,thumb_url,media_url,description,attributes,source,tags,owner_id,created_at,owner:users!assets_owner_id_fkey(full_name,business_name,email,phone,country)')
         .eq('status', 'pending')
         .order('created_at', ascending: false)
         .limit(limit);
@@ -75,7 +75,10 @@ class NewAdminDataService {
             ownerName: _ownerName(row['owner']),
             ownerLocation: _ownerLocation(row['owner']),
             ownerEmail: _ownerEmail(row['owner']),
+            ownerPhone: _ownerPhone(row['owner']),
             createdAt: _tryParseDate(row['created_at']),
+            description: (row['description'] as String?) ?? '',
+            attributes: (row['attributes'] as Map<String, dynamic>?) ?? {},
           ),
         )
         .toList();
@@ -85,7 +88,7 @@ class NewAdminDataService {
     final rows = await _client
         .from('assets')
         .select(
-            'id,title,status,category,thumb_url,media_url,source,tags,owner_id,created_at,owner:users!assets_owner_id_fkey(full_name,business_name,email,country)')
+            'id,title,status,category,thumb_url,media_url,description,attributes,source,tags,owner_id,created_at,owner:users!assets_owner_id_fkey(full_name,business_name,email,phone,country)')
         .neq('status', 'pending')
         .order('updated_at', ascending: false)
         .limit(limit);
@@ -105,7 +108,10 @@ class NewAdminDataService {
             ownerName: _ownerName(row['owner']),
             ownerLocation: _ownerLocation(row['owner']),
             ownerEmail: _ownerEmail(row['owner']),
+            ownerPhone: _ownerPhone(row['owner']),
             createdAt: _tryParseDate(row['created_at']),
+            description: (row['description'] as String?) ?? '',
+            attributes: (row['attributes'] as Map<String, dynamic>?) ?? {},
           ),
         )
         .toList();
@@ -146,10 +152,96 @@ class NewAdminDataService {
     required String assetId,
     required bool approve,
   }) async {
+    final status = approve ? 'approved' : 'rejected';
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    // Fetch the asset metadata regardless of outcome to send notification
+    final assetResult = await _client
+        .from('assets')
+        .select(
+            'source, title, description, media_url, thumb_url, category, tags, owner_id, attributes')
+        .eq('id', assetId)
+        .maybeSingle();
+
     await _client.from('assets').update({
-      'status': approve ? 'approved' : 'rejected',
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
+      'status': status,
+      'updated_at': now,
     }).eq('id', assetId);
+
+    if (approve && assetResult != null) {
+      try {
+        final source = assetResult['source'] as String?;
+        if (source == 'designerproducts' || source == 'manufacturerproducts') {
+          // Check if it already exists there by title and owner
+          final existingProduct = await _client
+              .from(source!)
+              .select('id')
+              .eq('Product Title', assetResult['title'] ?? '')
+              .eq('user_id', assetResult['owner_id'] ?? '')
+              .maybeSingle();
+
+          final attributes =
+              (assetResult['attributes'] as Map<String, dynamic>?) ?? {};
+
+          if (existingProduct != null) {
+            // Update existing
+            await _client.from(source).update({
+              'Image': assetResult['media_url'] != null
+                  ? [assetResult['media_url']]
+                  : null,
+              'Description': assetResult['description'],
+              'Product Tags': assetResult['tags'],
+              ...attributes,
+            }).eq('id', existingProduct['id']);
+          } else {
+            // Insert new
+            await _client.from(source).insert({
+              'Product Title': assetResult['title'],
+              'Description': assetResult['description'],
+              'Image': assetResult['media_url'] != null
+                  ? [assetResult['media_url']]
+                  : null,
+              'Product Type': assetResult['category'],
+              'user_id': assetResult['owner_id'],
+              'Product Tags': assetResult['tags'],
+              ...attributes,
+            });
+          }
+        }
+      } catch (e) {
+        print('Error updating product table after moderation: $e');
+        // Don't fail the moderation if the sync fails
+      }
+    }
+
+    if (assetResult != null) {
+      final ownerId = assetResult['owner_id'] as String?;
+      final title = assetResult['title'] ?? 'Your submission';
+      if (ownerId != null && ownerId.isNotEmpty) {
+        try {
+          await _client.from('notifications').insert({
+            'user_id': ownerId,
+            'type': 'milestone',
+            'title': approve ? 'Product Approved' : 'Product Rejected',
+            'body': approve
+                ? 'Your product "$title" has been approved and published to the platform.'
+                : 'Your product "$title" has been rejected.',
+            'related_item_id': assetId,
+          });
+        } catch (e) {
+          print('Failed to send moderation notification to user: $e');
+        }
+      }
+    }
+  }
+
+  Future<void> moderateAssetsBulk(
+      List<String> assetIds, {
+      required bool approve,
+  }) async {
+    for (final id in assetIds) {
+      await moderateAsset(assetId: id, approve: approve);
+    }
   }
 
   Future<void> updateVerificationStatus({
@@ -166,26 +258,73 @@ class NewAdminDataService {
     final rows = await _client
         .from('users')
         .select(
-            'id,full_name,username,business_name,email,role,is_member,credits_remaining,approval_status,last_credit_refresh,created_at,last_activity_at')
+            'id,full_name,username,business_name,email,phone,role,is_member,credits_remaining,approval_status,last_credit_refresh,created_at,last_activity_at')
         .order('created_at', ascending: false)
         .limit(limit);
 
-    return rows
-        .map<UserLedgerRow>(
-          (row) => UserLedgerRow(
-            id: '${row['id']}',
-            name: _resolveDisplayName(row),
-            email: (row['email'] as String?) ?? '',
-            role: (row['role'] as String?) ?? 'member',
-            isMember: row['is_member'] as bool? ?? false,
-            creditsRemaining: _toInt(row['credits_remaining']),
-            approvalStatus: (row['approval_status'] as String?) ?? 'pending',
-            lastCreditRefresh: _tryParseDate(row['last_credit_refresh']),
-            createdAt: _tryParseDate(row['created_at']),
-            lastActivityAt: _tryParseDate(row['last_activity_at']),
-          ),
-        )
-        .toList();
+    if (rows.isEmpty) return [];
+
+    final userIds = rows.map((r) => '${r['id']}').toList();
+
+    // 1. Fetch assets owned by these users to get asset_id -> owner_id mapping
+    final assetsRes = await _client
+        .from('assets')
+        .select('id, owner_id')
+        .inFilter('owner_id', userIds);
+    
+    final Map<String, String> assetToOwner = {};
+    final Set<String> relevantAssetIds = {};
+    for (final a in assetsRes) {
+      final aid = '${a['id']}';
+      final oid = '${a['owner_id']}';
+      assetToOwner[aid] = oid;
+      relevantAssetIds.add(aid);
+    }
+
+    // 2. Fetch engagement metrics for these assets
+    final Map<String, Map<String, int>> userMetrics = {};
+    for (final uid in userIds) {
+      userMetrics[uid] = {'v': 0, 'l': 0, 's': 0};
+    }
+
+    if (relevantAssetIds.isNotEmpty) {
+      // Use inFilter for batch fetch
+      final analyticsRes = await _client
+          .from('analytics_daily')
+          .select('asset_id, views, likes, shares')
+          .inFilter('asset_id', relevantAssetIds.toList());
+
+      for (final stat in analyticsRes) {
+        final aid = '${stat['asset_id']}';
+        final ownerId = assetToOwner[aid];
+        if (ownerId != null && userMetrics.containsKey(ownerId)) {
+          userMetrics[ownerId]!['v'] = (userMetrics[ownerId]!['v'] ?? 0) + (stat['views'] as int? ?? 0);
+          userMetrics[ownerId]!['l'] = (userMetrics[ownerId]!['l'] ?? 0) + (stat['likes'] as int? ?? 0);
+          userMetrics[ownerId]!['s'] = (userMetrics[ownerId]!['s'] ?? 0) + (stat['shares'] as int? ?? 0);
+        }
+      }
+    }
+
+    return rows.map<UserLedgerRow>((row) {
+      final uid = '${row['id']}';
+      final metrics = userMetrics[uid] ?? {'v': 0, 'l': 0, 's': 0};
+      return UserLedgerRow(
+        id: uid,
+        name: _resolveDisplayName(row),
+        email: (row['email'] as String?) ?? '',
+        phone: (row['phone'] as String?) ?? '',
+        role: (row['role'] as String?) ?? 'member',
+        isMember: row['is_member'] as bool? ?? false,
+        creditsRemaining: _toInt(row['credits_remaining']),
+        approvalStatus: (row['approval_status'] as String?) ?? 'pending',
+        lastCreditRefresh: _tryParseDate(row['last_credit_refresh']),
+        createdAt: _tryParseDate(row['created_at']),
+        lastActivityAt: _tryParseDate(row['last_activity_at']),
+        totalViews: metrics['v'] ?? 0,
+        totalLikes: metrics['l'] ?? 0,
+        totalShares: metrics['s'] ?? 0,
+      );
+    }).toList();
   }
 
   Future<List<QuoteRecord>> fetchQuoteTracking({int limit = 200}) async {
@@ -255,7 +394,7 @@ class NewAdminDataService {
         stoneSetting: _toStringList(row['stone_setting']),
         additionalNotes: (row['additional_notes'] as String?) ?? '',
         productUrl: (row['product_url'] as String?) ?? '',
-        phoneNumber: (row['phone_number'] as String?) ?? '',
+        phoneNumber: (row['user_phone'] as String?) ?? (row['phone_number'] as String?) ?? '',
         metalWeight: (row['metal_weight'] as String?) ?? '',
         netWeight: (row['net_weight'] as String?) ?? '',
         dimension: (row['dimension'] as String?) ?? '',
@@ -342,11 +481,17 @@ class NewAdminDataService {
     return items;
   }
 
+  Future<List<Map<String, dynamic>>> fetchGeographicEngagement() async {
+    // We delegate to DashboardService which already has the complex aggregation logic
+    return await DashboardService.fetchEngagementByLocation();
+  }
+
   Future<List<InventoryItem>> fetchInventory({int limit = 100}) async {
+
     final rows = await _client
         .from('assets')
         .select(
-            'id,title,category,status,source,thumb_url,media_url,owner_id,created_at,owner:users!assets_owner_id_fkey(full_name,business_name,email)')
+            'id,title,category,status,source,thumb_url,media_url,owner_id,created_at,owner:users!assets_owner_id_fkey(full_name,business_name,email,phone)')
         .order('created_at', ascending: false)
         .limit(limit);
 
@@ -363,6 +508,7 @@ class NewAdminDataService {
             ownerId: '${row['owner_id'] ?? ''}',
             ownerName: _ownerName(row['owner']),
             ownerEmail: _ownerEmail(row['owner']),
+            ownerPhone: _ownerPhone(row['owner']),
             createdAt: _tryParseDate(row['created_at']),
           ),
         )
@@ -458,7 +604,7 @@ class NewAdminDataService {
 
     // Parallel fetch of engagement metrics for the current batch
     // Quote IDs to ensure PostgREST treats them as text strings, avoiding type match failures
-    final quotedIds = allProductIds.map((id) => '"$id"').toList();
+    final quotedIds = allProductIds.toList();
 
     final metricsResults = await Future.wait([
       _client
@@ -536,6 +682,7 @@ class NewAdminDataService {
         ownerId: userId,
         ownerName: owner?['name'] ?? 'Unknown creator',
         ownerEmail: owner?['email'] ?? '',
+        ownerPhone: owner?['phone'] ?? '',
         createdAt:
             source == 'products' ? null : _tryParseDate(row['created_at']),
         likesCount: likesMap[key] ?? 0,
@@ -1216,6 +1363,13 @@ class NewAdminDataService {
     return '';
   }
 
+  String _ownerPhone(dynamic owner) {
+    if (owner is Map<String, dynamic>) {
+      return (owner['phone'] as String?)?.trim() ?? '';
+    }
+    return '';
+  }
+
   Future<Map<String, Map<String, String>>> _fetchUploaderMap(
     Iterable<String> rawIds,
   ) async {
@@ -1225,7 +1379,7 @@ class NewAdminDataService {
 
     final rows = await _client
         .from('users')
-        .select('id,full_name,business_name,email')
+        .select('id,full_name,business_name,email,phone')
         .inFilter('id', uploaderIds.toList());
 
     final uploaderMap = <String, Map<String, String>>{};
@@ -1234,6 +1388,7 @@ class NewAdminDataService {
       uploaderMap[id] = {
         'name': _ownerName(row),
         'email': _ownerEmail(row),
+        'phone': _ownerPhone(row),
       };
     }
     return uploaderMap;

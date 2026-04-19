@@ -225,13 +225,8 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           return text.isEmpty ? null : text;
         }
 
-        // Insert directly into designerproducts table with proper column names
-        final insertResult = await supabase.from('designerproducts').insert({
-          'Product Title': entry.productTitleController.text.trim(),
-          'Description': getTextValue(entry.descriptionController),
-          'Image': uploadedImageUrls.isEmpty ? null : uploadedImageUrls,
+        final Map<String, dynamic> attributes = {
           'Price': getTextValue(entry.priceController),
-          'Product Tags': tagsToList(entry.productTagsController),
           'Gold Weight': getTextValue(entry.goldWeightController),
           'Metal Purity': getTextValue(entry.metalPurityController),
           'Metal Finish': getTextValue(entry.metalFinishController),
@@ -241,7 +236,6 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           'Stone Setting': textToList(entry.stoneSettingController),
           'Stone Count': textToList(entry.stoneCountController),
           'Collection Name': getTextValue(entry.collectionNameController),
-          'Product Type': getTextValue(entry.productTypeController),
           'Gender': entry.gender,
           'Theme': getTextValue(entry.themeController),
           'Metal Type': getTextValue(entry.metalTypeController),
@@ -257,13 +251,41 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           'Enamel Work': textToList(entry.enamelWorkController),
           'Customizable':
               entry.customizable == null ? null : [entry.customizable],
+        };
+
+        // Remove nulls to keep JSON clean
+        attributes.removeWhere((key, value) => value == null);
+
+        // Insert directly into designerproducts table with proper column names
+        // Products go to designerproducts but with an initial status to require moderation
+        // Note: For full moderation flow as intended by the new admin panel,
+        // this should ideally go to 'assets' table first, but keeping the current schema
+        // with an added 'status' field for moderation if it exists, or just adding to
+        // assets for moderation queue
+        final userId = supabase.auth.currentUser?.id;
+        final insertResult = await supabase.from('assets').insert({
+          'title': entry.productTitleController.text.trim(),
+          'description': getTextValue(entry.descriptionController),
+          'media_url': uploadedImageUrls.isEmpty
+              ? null
+              : uploadedImageUrls
+                  .first, // Just taking first for now, can be updated
+          'thumb_url':
+              uploadedImageUrls.isEmpty ? null : uploadedImageUrls.first,
+          'category': getTextValue(entry.productTypeController),
+          'owner_id': userId,
+          'status': 'pending', // This ensures it shows up in moderation
+          'source':
+              'designerproducts', // Track where it should ultimately end up
+          'tags': tagsToList(entry.productTagsController),
+          'attributes': attributes,
         }).select();
 
         if (insertResult.isEmpty) {
           throw Exception(
               'Insert was rejected for "${entry.productTitleController.text}". Please check your permissions.');
         }
-        
+
         try {
           final userId = supabase.auth.currentUser?.id;
           if (userId != null) {
@@ -271,14 +293,18 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
               'user_id': userId,
               'type': 'milestone',
               'title': 'Product Uploaded',
-              'body': 'Your product "${entry.productTitleController.text}" was successfully uploaded.',
+              'body':
+                  'Your product "${entry.productTitleController.text}" was successfully uploaded.',
               'related_item_id': insertResult.first['id'].toString(),
             });
           }
         } catch (e) {
           debugPrint('Notification error: $e');
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to create notification: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 8)));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text('Failed to create notification: $e'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 8)));
           }
         }
 
@@ -556,10 +582,7 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
         }
 
         // Build the product data matching designerproducts table schema
-        final Map<String, dynamic> productData = {
-          'Product Title': title,
-          'Image': uploadedImageUrls.isEmpty ? null : uploadedImageUrls,
-        };
+        final Map<String, dynamic> attributes = {};
 
         // Map CSV columns to designerproducts columns
         for (int j = 0; j < headers.length; j++) {
@@ -572,23 +595,48 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
           if (header == 'Product Title' || header == 'Image') continue;
 
           if (arrayHeaders.contains(header)) {
-            productData[header] = parseArrayValue(value);
+            attributes[header] = parseArrayValue(value);
           } else {
-            productData[header] = getStringValue(value);
+            attributes[header] = getStringValue(value);
           }
         }
 
+        attributes.removeWhere((key, value) => value == null);
+
         try {
-          // Insert directly into designerproducts table
-          final insertResult = await supabase
-              .from('designerproducts')
-              .insert(productData)
-              .select();
+          // Add standard required fields for bulk
+          final Map<String, dynamic> assetData = {
+            'title': title,
+            'owner_id': supabase.auth.currentUser?.id,
+            'status': 'pending',
+            'source': 'designerproducts',
+            'attributes': attributes,
+          };
+
+          if (attributes.containsKey('Description')) {
+            assetData['description'] = attributes['Description'];
+          }
+          if (attributes.containsKey('Product Type')) {
+            assetData['category'] = attributes['Product Type'];
+          }
+          if (attributes.containsKey('Product Tags')) {
+            assetData['tags'] = attributes['Product Tags'];
+          }
+
+          if (uploadedImageUrls.isNotEmpty) {
+            assetData['media_url'] = uploadedImageUrls.first;
+            assetData['thumb_url'] = uploadedImageUrls.first;
+            attributes['Image'] = uploadedImageUrls;
+          }
+
+          // Insert directly into assets table for moderation
+          final insertResult =
+              await supabase.from('assets').insert(assetData).select();
 
           if (insertResult.isNotEmpty) {
             successCount++;
             debugPrint("Successfully inserted product: $title");
-            
+
             try {
               final userId = supabase.auth.currentUser?.id;
               if (userId != null) {
@@ -603,7 +651,10 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
             } catch (e) {
               debugPrint('Notification error: $e');
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to create notification: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 8)));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Failed to create notification: $e'),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 8)));
               }
             }
           } else {

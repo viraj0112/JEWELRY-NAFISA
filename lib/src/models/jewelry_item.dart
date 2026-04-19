@@ -55,6 +55,9 @@ class JewelryItem {
   final String? category1;
   final String? category2;
   final String? category3;
+  
+  // --- MODERATION STATUS ---
+  final String? status;
 
   JewelryItem({
     required this.id,
@@ -105,6 +108,7 @@ class JewelryItem {
     this.credits,
     this.share,
     this.geoAnalytics,
+    this.status,
   });
 
 factory JewelryItem.fromJson(Map<String, dynamic> json) {
@@ -170,6 +174,7 @@ factory JewelryItem.fromJson(Map<String, dynamic> json) {
     category1: _parseString(json['Category1']),
     category2: _parseString(json['Category2']),
     category3: _parseString(json['Category3']),
+    status: _parseString(json['status']) ?? 'published',
     );
 }
 

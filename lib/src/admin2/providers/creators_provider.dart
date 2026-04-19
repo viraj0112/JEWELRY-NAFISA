@@ -1,3 +1,8 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:csv/csv.dart';
+import 'package:universal_html/html.dart' as html;
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -22,6 +27,7 @@ class CreatorModel {
     required this.id,
     required this.fullName,
     this.email,
+    this.phone,
     this.avatarUrl,
     required this.approvalStatus,
     required this.businessType,
@@ -33,6 +39,8 @@ class CreatorModel {
     this.totalViews = 0,
     this.avgRating = 0.0,
   });
+
+  final String? phone;
 }
 
 class WorkModel {
@@ -91,6 +99,7 @@ class CreatorsProvider extends ChangeNotifier {
         id,
         full_name,
         email,
+        phone,
         avatar_url,
         approval_status,
         business_type,
@@ -98,7 +107,7 @@ class CreatorsProvider extends ChangeNotifier {
         is_approved,
         created_at,
         role
-      ''').inFilter('role', ['designer', 'manufacturer']);
+      ''').inFilter('role', ['designer', 'manufacturer', 'admin']);
 
       final List<dynamic> data = res;
       creators = [];
@@ -108,6 +117,7 @@ class CreatorsProvider extends ChangeNotifier {
           id: c['id'],
           fullName: (c['full_name'] ?? 'Unknown').toString(),
           email: c['email'] as String?,
+          phone: c['phone'] as String?,
           avatarUrl: c['avatar_url'] as String?,
           approvalStatus: (c['approval_status'] ?? 'pending').toString(),
           businessType: (c['business_type'] ?? '3d_artist').toString(),
@@ -296,6 +306,70 @@ class CreatorsProvider extends ChangeNotifier {
             (w.status.toLowerCase() == 'pending' ||
                 w.status.toLowerCase() == 'under_review'))
         .toList();
+  }
+
+  Future<void> exportCsv() async {
+    if (creators.isEmpty) return;
+
+    final now = DateTime.now();
+    final exportDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+    
+    final List<List<dynamic>> rows = [
+      ['Creators/Designers Management Export'],
+      ['Generated At', exportDate],
+      ['Total Records', creators.length],
+      [],
+      [
+        'Creator ID',
+        'Name',
+        'Email',
+        'Phone',
+        'Type/Role',
+        'Business Type',
+        'Location',
+        'Status',
+        'Is Approved',
+        'Works Count',
+        'Total Views',
+        'Average Rating',
+        'Created At'
+      ],
+      ...creators.map((c) => [
+        c.id,
+        c.fullName,
+        c.email ?? 'N/A',
+        c.phone ?? 'N/A',
+        c.role,
+        c.businessType,
+        c.location ?? 'N/A',
+        c.approvalStatus,
+        c.isApproved ? 'Yes' : 'No',
+        c.worksCount,
+        c.totalViews,
+        c.avgRating.toStringAsFixed(1),
+        c.createdAt.toIso8601String(),
+      ]),
+    ];
+
+    final csvString = const ListToCsvConverter().convert(rows);
+    final fileName = 'creators_export_${now.millisecondsSinceEpoch}.csv';
+
+    if (kIsWeb) {
+      final bytes = utf8.encode(csvString);
+      final blob = html.Blob([bytes], 'text/csv');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', fileName)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } else {
+      debugPrint('Export CSV ready: ${rows.length} rows');
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   // --- Actions ---

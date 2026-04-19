@@ -46,6 +46,7 @@ Future<List<int>?> _generateExcelInBackground(Map<String, dynamic> params) async
     'User ID',
     'Username',
     'Email',
+    'Phone',
     'Full Name',
     'Liked At',
   ]);
@@ -56,6 +57,7 @@ Future<List<int>?> _generateExcelInBackground(Map<String, dynamic> params) async
     'User ID',
     'Username',
     'Email',
+    'Phone',
     'Full Name',
     'Platform',
     'Shared At',
@@ -67,6 +69,7 @@ Future<List<int>?> _generateExcelInBackground(Map<String, dynamic> params) async
     'User ID',
     'Username',
     'Email',
+    'Phone',
     'Full Name',
     'Country',
     'Viewed At',
@@ -87,6 +90,7 @@ Future<List<int>?> _generateExcelInBackground(Map<String, dynamic> params) async
         like['user_id']?.toString() ?? '',
         user?['username']?.toString() ?? 'Unknown',
         user?['email']?.toString() ?? '',
+        user?['phone']?.toString() ?? '',
         user?['full_name']?.toString() ?? '',
         like['created_at']?.toString() ?? '',
       ]);
@@ -101,6 +105,7 @@ Future<List<int>?> _generateExcelInBackground(Map<String, dynamic> params) async
         share['user_id']?.toString() ?? '',
         user?['username']?.toString() ?? 'Unknown',
         user?['email']?.toString() ?? '',
+        user?['phone']?.toString() ?? '',
         user?['full_name']?.toString() ?? '',
         share['share_platform']?.toString() ?? '',
         share['created_at']?.toString() ?? '',
@@ -116,6 +121,7 @@ Future<List<int>?> _generateExcelInBackground(Map<String, dynamic> params) async
         view['user_id']?.toString() ?? '',
         user?['username']?.toString() ?? 'Unknown',
         user?['email']?.toString() ?? '',
+        user?['phone']?.toString() ?? '',
         user?['full_name']?.toString() ?? '',
         view['country']?.toString() ?? '',
         view['created_at']?.toString() ?? '',
@@ -321,7 +327,7 @@ class _ContentSectionState extends State<ContentSection> {
       // Fetch likes with user details
       final likesDataFuture = supabase
           .from('likes')
-          .select('id, created_at, user_id, users(username, email, full_name)')
+          .select('id, created_at, user_id, users(username, email, phone, full_name)')
           .eq('item_id', itemId)
           .eq('item_table', itemTable);
 
@@ -329,7 +335,7 @@ class _ContentSectionState extends State<ContentSection> {
       final sharesDataFuture = supabase
           .from('shares')
           .select(
-              'id, created_at, user_id, share_platform, users(username, email, full_name)')
+              'id, created_at, user_id, share_platform, users(username, email, phone, full_name)')
           .eq('item_id', itemId)
           .eq('item_table', itemTable);
 
@@ -337,7 +343,7 @@ class _ContentSectionState extends State<ContentSection> {
       final viewsDataFuture = supabase
           .from('views')
           .select(
-              'id, created_at, user_id, country, users(username, email, full_name)')
+              'id, created_at, user_id, country, users(username, email, phone, full_name)')
           .eq('item_id', itemId)
           .eq('item_table', itemTable);
 
@@ -484,6 +490,7 @@ class _ContentSectionState extends State<ContentSection> {
         'User ID',
         'Username',
         'Email',
+        'Phone',
         'Full Name',
         'Action Type',
         'Created At',
@@ -500,6 +507,7 @@ class _ContentSectionState extends State<ContentSection> {
         item['user_id'] ?? '',
         user?['username'] ?? 'Unknown',
         user?['email'] ?? '',
+        user?['phone'] ?? '',
         user?['full_name'] ?? '',
         type,
         item['created_at'] ?? '',

@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:universal_html/html.dart' as html;
 
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/new_admin_models.dart';
 import '../services/new_admin_data_service.dart';
 import '../widgets/admin_skeletons.dart';
@@ -37,6 +38,8 @@ class InventoryScreen extends StatefulWidget {
 class _InventoryScreenState extends State<InventoryScreen> {
   bool _busyManual = false;
   bool _busyBulk = false;
+  List<PlatformFile>? _csvFiles;
+  List<PlatformFile>? _imageFiles;
   late Future<List<InventoryItem>> _activityLogFuture;
   final Set<String> _selectedItemIds = {};
 
@@ -320,7 +323,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
           const SizedBox(height: 12),
           InkWell(
-            onTap: _busyBulk ? null : _importCsvAndUpload,
+            onTap: _busyBulk ? null : _showBulkUploadWizard,
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(18),
@@ -344,7 +347,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: _busyBulk ? null : _importCsvAndUpload,
+              onPressed: _busyBulk ? null : _showBulkUploadWizard,
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFFE9C96E),
                 foregroundColor: const Color(0xFF133226),
@@ -900,68 +903,268 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
   }
 
-  Future<void> _importCsvAndUpload() async {
-    setState(() => _busyBulk = true);
-    try {
-      final picked = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['csv'],
-        withData: true,
-      );
-      if (picked == null || picked.files.isEmpty || picked.files.first.bytes == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('CSV selection cancelled')),
-          );
-        }
-        return;
-      }
+  Future<void> _showBulkUploadWizard() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: !_busyBulk,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final hasCsv = _csvFiles != null && _csvFiles!.isNotEmpty;
+          final hasImages = _imageFiles != null && _imageFiles!.isNotEmpty;
 
-      final bytes = picked.files.first.bytes!;
+          return AlertDialog(
+            title: const Text('Bulk Upload Wizard (Legacy Sync)'),
+            content: SizedBox(
+              width: 500,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Follow these steps to synchronize your local catalog with the hub.',
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
+                  const SizedBox(height: 20),
+                  _wizardStepItem(
+                    index: 1,
+                    title: 'Select CSV Manifest',
+                    isDone: hasCsv,
+                    onTap: () async {
+                      final picked = await FilePicker.platform.pickFiles(
+                        type: FileType.custom,
+                        allowedExtensions: ['csv'],
+                        withData: true,
+                      );
+                      if (picked != null) {
+                        setDialogState(() => _csvFiles = picked.files);
+                        setState(() => _csvFiles = picked.files);
+                      }
+                    },
+                    subtitle: hasCsv ? _csvFiles!.first.name : 'Required: .csv file',
+                  ),
+                  const SizedBox(height: 12),
+                  _wizardStepItem(
+                    index: 2,
+                    title: 'Select Product Images',
+                    isDone: hasImages,
+                    onTap: () async {
+                      final picked = await FilePicker.platform.pickFiles(
+                        type: FileType.image,
+                        allowMultiple: true,
+                        withData: true,
+                      );
+                      if (picked != null) {
+                        setDialogState(() => _imageFiles = picked.files);
+                        setState(() => _imageFiles = picked.files);
+                      }
+                    },
+                    subtitle: hasImages 
+                        ? '${_imageFiles!.length} images selected' 
+                        : 'Optional: Select all product photos',
+                  ),
+                  const SizedBox(height: 24),
+                  if (_busyBulk)
+                    const Center(
+                      child: Column(
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 12),
+                          Text('Processing batch and uploading images...', 
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: _busyBulk ? null : () {
+                  setState(() {
+                    _csvFiles = null;
+                    _imageFiles = null;
+                  });
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: (_busyBulk || !hasCsv) ? null : () async {
+                  setDialogState(() => _busyBulk = true);
+                  setState(() => _busyBulk = true);
+                  
+                  await _processBulkUploadWithImages();
+                  
+                  if (mounted) {
+                    Navigator.of(context).pop();
+                  }
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFE9C96E),
+                  foregroundColor: const Color(0xFF133226),
+                ),
+                child: const Text('Start Sync'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _wizardStepItem({
+    required int index,
+    required String title,
+    required String subtitle,
+    required bool isDone,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: _busyBulk ? null : onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: isDone ? const Color(0xFF1B7A59) : const Color(0xFFD9E3DE)),
+          borderRadius: BorderRadius.circular(12),
+          color: isDone ? const Color(0xFFF0F7F4) : Colors.transparent,
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 14,
+              backgroundColor: isDone ? const Color(0xFF1B7A59) : const Color(0xFFD9E3DE),
+              child: isDone 
+                ? const Icon(Icons.check, size: 16, color: Colors.white)
+                : Text('$index', style: const TextStyle(fontSize: 12, color: Color(0xFF5D6D67))),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _processBulkUploadWithImages() async {
+    if (_csvFiles == null || _csvFiles!.isEmpty) return;
+
+    try {
+      final bytes = _csvFiles!.first.bytes!;
       final csvString = utf8.decode(bytes, allowMalformed: true);
       final table = const CsvToListConverter().convert(csvString);
       if (table.length < 2) throw Exception('CSV has no data rows');
 
       final headers = table.first.map((e) => e.toString().trim().toLowerCase()).toList();
       String cell(List<dynamic> row, String key) {
-        final idx = headers.indexOf(key);
+        final idx = headers.indexOf(key.toLowerCase());
         if (idx < 0 || idx >= row.length) return '';
         return row[idx].toString().trim();
       }
 
+      final supabase = Supabase.instance.client;
       final rows = <Map<String, dynamic>>[];
+      
       for (final r in table.sublist(1)) {
-        final title = cell(r, 'title');
-        final mediaUrl = cell(r, 'media_url');
-        if (title.isEmpty || mediaUrl.isEmpty) {
-          continue;
+        // Support both 'title' and 'Product Title' (from old logic)
+        String title = cell(r, 'title');
+        if (title.isEmpty) title = cell(r, 'Product Title');
+        
+        if (title.isEmpty) continue;
+
+        String? finalMediaUrl = cell(r, 'media_url');
+        if (finalMediaUrl.isEmpty) finalMediaUrl = cell(r, 'Image'); // Old logic field
+
+        // --- IMAGE MATCHING LOGIC (Old Logic Integration) ---
+        if (_imageFiles != null && _imageFiles!.isNotEmpty) {
+          final matchingFiles = _imageFiles!.where((file) {
+            final name = file.name.toLowerCase();
+            final titleLower = title.toLowerCase();
+            final fileNameWithoutExt = name.contains('.') 
+                ? name.substring(0, name.lastIndexOf('.')) 
+                : name;
+            
+            // Match exact title OR title followed by -Image
+            return fileNameWithoutExt == titleLower || 
+                   fileNameWithoutExt.startsWith('$titleLower-image') ||
+                   fileNameWithoutExt.startsWith('$titleLower-img');
+          }).toList();
+
+          if (matchingFiles.isNotEmpty) {
+            // Sort to pick 'Image1' or just the first one
+            matchingFiles.sort((a, b) => a.name.compareTo(b.name));
+            final fileToUpload = matchingFiles.first;
+            
+            try {
+              final storagePath = 'bulk_admin/${DateTime.now().millisecondsSinceEpoch}_${fileToUpload.name}';
+              await supabase.storage.from('assets').uploadBinary(
+                storagePath, 
+                fileToUpload.bytes!,
+                fileOptions: FileOptions(contentType: 'image/jpeg'),
+              );
+              finalMediaUrl = supabase.storage.from('assets').getPublicUrl(storagePath);
+            } catch (e) {
+              debugPrint('Failed to upload matched image for $title: $e');
+            }
+          }
         }
+
+        // If we still have no media URL, skip or use a placeholder
+        if (finalMediaUrl != null && finalMediaUrl.isEmpty) finalMediaUrl = null;
+
         rows.add({
           'title': title,
-          'category': cell(r, 'category').isEmpty ? 'General' : cell(r, 'category'),
-          'description': cell(r, 'description'),
-          'media_url': mediaUrl,
-          'thumb_url': cell(r, 'thumb_url').isEmpty ? null : cell(r, 'thumb_url'),
-          'status': cell(r, 'status').isEmpty ? 'pending' : cell(r, 'status'),
+          'category': cell(r, 'category').isEmpty ? (cell(r, 'Product Type').isEmpty ? 'General' : cell(r, 'Product Type')) : cell(r, 'category'),
+          'description': cell(r, 'description').isEmpty ? cell(r, 'Description') : cell(r, 'description'),
+          'media_url': finalMediaUrl,
+          'thumb_url': finalMediaUrl,
+          'status': 'pending',
           'source': 'bulk_admin',
+          'attributes': {
+            'Price': cell(r, 'Price'),
+            'Metal Type': cell(r, 'Metal Type'),
+            'Gold Weight': cell(r, 'Gold Weight'),
+            'Metal Purity': cell(r, 'Metal Purity'),
+          },
         });
       }
 
-      if (rows.isEmpty) throw Exception('No valid rows. Require columns: title, media_url');
+      if (rows.isEmpty) throw Exception('No valid products found in CSV.');
+      
       final inserted = await widget.dataService.bulkCreateInventoryAssets(rows);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Processed batch ledger: $inserted entries created')),
-      );
-      widget.onRefreshRequested();
-      setState(_refreshActivityLog);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully synced $inserted products to moderation queue.'),
+            backgroundColor: const Color(0xFF1B7A59),
+          ),
+        );
+        widget.onRefreshRequested();
+        setState(() {
+          _csvFiles = null;
+          _imageFiles = null;
+          _busyBulk = false;
+          _refreshActivityLog();
+        });
+      }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('CSV processing failed: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _busyBulk = false);
+      debugPrint('Bulk sync error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sync failed: $e'), backgroundColor: Colors.red),
+        );
+        setState(() => _busyBulk = false);
+      }
     }
   }
 
@@ -1042,7 +1245,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
         'Category',
         'Status',
         'Source (Table)',
-        'Owner',
+        'Owner Name',
+        'Owner Email',
+        'Owner Phone',
         'Created At',
       ],
       ...rowsToExport.map(
@@ -1053,6 +1258,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
           item.status,
           item.source,
           item.ownerName,
+          item.ownerEmail,
+          item.ownerPhone,
           item.createdAt?.toIso8601String() ?? '',
         ],
       ),

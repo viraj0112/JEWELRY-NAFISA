@@ -34,6 +34,27 @@ class _ModerationScreenState extends State<ModerationScreen> {
   bool _actionBusy = false;
   List<ModerationItem> _archive = const [];
   List<VerificationRequest> _verification = const [];
+  Set<String> _selectedItems = {};
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedItems.contains(id)) {
+        _selectedItems.remove(id);
+      } else {
+        _selectedItems.add(id);
+      }
+    });
+  }
+
+  void _selectAll(List<ModerationItem> items) {
+    setState(() {
+      if (_selectedItems.length == items.length) {
+        _selectedItems.clear();
+      } else {
+        _selectedItems.addAll(items.map((e) => e.id));
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -101,8 +122,10 @@ class _ModerationScreenState extends State<ModerationScreen> {
           archiveCount: filteredArchive.length,
         ),
         const SizedBox(height: 14),
-        if (_activeTab == _ModerationTab.pending)
+        if (_activeTab == _ModerationTab.pending) ...[
+          if (filteredPending.isNotEmpty) _buildSelectionBar(filteredPending),
           _buildPendingGrid(filteredPending),
+        ],
         if (_activeTab == _ModerationTab.verification)
           _buildVerificationList(filteredVerification),
         if (_activeTab == _ModerationTab.archive)
@@ -215,12 +238,17 @@ class _ModerationScreenState extends State<ModerationScreen> {
           childAspectRatio: columns == 1 ? 0.96 : 0.72,
           children: items
               .map(
-                (item) => _SubmissionCard(
-                  item: item,
-                  dateFormat: widget.dateFormat,
-                  busy: _actionBusy,
-                  onApprove: () => _moderate(item, approve: true),
-                  onReject: () => _moderate(item, approve: false),
+                (item) => InkWell(
+                  onTap: () => _showDetailsDialog(item),
+                  child: _SubmissionCard(
+                    item: item,
+                    dateFormat: widget.dateFormat,
+                    busy: _actionBusy,
+                    isSelected: _selectedItems.contains(item.id),
+                    onSelectRequested: () => _toggleSelection(item.id),
+                    onApprove: () => _moderate(item, approve: true),
+                    onReject: () => _moderate(item, approve: false),
+                  ),
                 ),
               )
               .toList(),
@@ -508,6 +536,130 @@ class _ModerationScreenState extends State<ModerationScreen> {
     if (parts.length == 1) return parts.first[0].toUpperCase();
     return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
   }
+  Widget _buildSelectionBar(List<ModerationItem> items) {
+    final allSelected = _selectedItems.length == items.length;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Checkbox(
+            value: allSelected,
+            onChanged: (v) => _selectAll(items),
+          ),
+          Text(allSelected ? 'Deselect All' : 'Select All'),
+          const SizedBox(width: 20),
+          if (_selectedItems.isNotEmpty) ...[
+            Text('${_selectedItems.length} selected', style: const TextStyle(fontWeight: FontWeight.bold)),
+            const Spacer(),
+            OutlinedButton(
+              onPressed: _actionBusy ? null : () => _moderateBulk(approve: false),
+              child: const Text('Reject Selected'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: _actionBusy ? null : () => _moderateBulk(approve: true),
+              child: const Text('Approve Selected'),
+            ),
+          ] else const Spacer(),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _moderateBulk({required bool approve}) async {
+    if (_selectedItems.isEmpty) return;
+    setState(() => _actionBusy = true);
+    try {
+      await widget.dataService.moderateAssetsBulk(
+        _selectedItems.toList(),
+        approve: approve,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${_selectedItems.length} items ${approve ? 'approved' : 'rejected'}')),
+      );
+      setState(() => _selectedItems.clear());
+      widget.onRefreshRequested();
+      _loadArchive();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed bulk moderation: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _actionBusy = false);
+    }
+  }
+
+  void _showDetailsDialog(ModerationItem item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: Container(
+          width: 800,
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 1,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: _itemImage(item),
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                flex: 1,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(item.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Text('Owner: ${item.ownerName} (${item.ownerEmail})'),
+                      Text('Location: ${item.ownerLocation}'),
+                      const SizedBox(height: 16),
+                      Text('Category: ${item.category} / Source: ${item.source}'),
+                      Text('Tags: ${item.tags.join(", ")}'),
+                      const SizedBox(height: 16),
+                      const Text('Description:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(item.description.isNotEmpty ? item.description : 'No description.'),
+                      const SizedBox(height: 16),
+                      const Text('Attributes:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ...item.attributes.entries.map((e) => Text('${e.key}: ${e.value}')),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: _actionBusy ? null : () {
+                              Navigator.of(ctx).pop();
+                              _moderate(item, approve: false);
+                            },
+                            child: const Text('Reject'),
+                          ),
+                          const SizedBox(width: 12),
+                          FilledButton(
+                            onPressed: _actionBusy ? null : () {
+                              Navigator.of(ctx).pop();
+                              _moderate(item, approve: true);
+                            },
+                            child: const Text('Approve'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _SubmissionCard extends StatelessWidget {
@@ -517,6 +669,8 @@ class _SubmissionCard extends StatelessWidget {
     required this.busy,
     required this.onApprove,
     required this.onReject,
+    this.isSelected = false,
+    this.onSelectRequested,
   });
 
   final ModerationItem item;
@@ -524,6 +678,8 @@ class _SubmissionCard extends StatelessWidget {
   final bool busy;
   final VoidCallback onApprove;
   final VoidCallback onReject;
+  final bool isSelected;
+  final VoidCallback? onSelectRequested;
 
   @override
   Widget build(BuildContext context) {
@@ -545,21 +701,39 @@ class _SubmissionCard extends StatelessWidget {
                     Positioned(
                       top: 8,
                       right: 8,
-                      child: Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: badgeColor,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          badgeLabel,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: badgeColor,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              badgeLabel,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (onSelectRequested != null) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.8),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Checkbox(
+                                value: isSelected,
+                                onChanged: (_) => onSelectRequested!(),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
