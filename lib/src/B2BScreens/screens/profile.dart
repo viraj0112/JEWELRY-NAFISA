@@ -125,13 +125,13 @@ class _ProfilePageState extends State<ProfilePage> {
       }
 
       final productIds = productsData.map((e) => e['id'].toString()).toList();
-      final idsString = '(${productIds.map((id) => '"$id"').join(',')})';
+
 
       // Views = credits
       final viewsResponse = await _supabase
           .from('views')
           .select('item_id')
-          .filter('item_id', 'in', idsString);
+          .inFilter('item_id', productIds);
 
       if (mounted) {
         setState(() {

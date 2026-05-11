@@ -327,6 +327,7 @@ CREATE TABLE public.quote_requests (
   additional_notes text,
   phone_number text,
   product_url text,
+  status text DEFAULT 'pending'::text,
   CONSTRAINT quote_requests_pkey PRIMARY KEY (id),
   CONSTRAINT quote_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );

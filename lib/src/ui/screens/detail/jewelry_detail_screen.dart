@@ -826,7 +826,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                                         Icon(Icons.lock, color: Colors.white),
                                         SizedBox(width: 8),
                                         Text(
-                                          "Retailer Only",
+                                          "Donors Only",
                                           style: TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
@@ -1000,7 +1000,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                               Icon(Icons.lock, color: Colors.white),
                               SizedBox(width: 8),
                               Text(
-                                "Retailer Only",
+                                "Donors Only",
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,

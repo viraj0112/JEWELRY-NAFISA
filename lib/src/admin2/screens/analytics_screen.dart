@@ -6,6 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/new_admin_models.dart';
 import '../services/new_admin_data_service.dart';
+import '../services/dashboard_service.dart';
+import '../../widgets/geo_analytics_widget.dart';
+import '../../services/geo_analytics_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Analytics Data Bundle
@@ -21,6 +24,7 @@ class AnalyticsBundle {
     required this.totalUsers,
     required this.totalProducts,
     required this.geoEngagement,
+    required this.geoData,
   });
 
   final List<DailyAnalyticsPoint> dailyPoints;
@@ -31,6 +35,7 @@ class AnalyticsBundle {
   final int totalUsers;
   final int totalProducts;
   final List<Map<String, dynamic>> geoEngagement;
+  final GeoAnalyticsData geoData;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,6 +104,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
       _fetchUserCount(),
       _fetchProductCount(),
       widget.dataService.fetchGeographicEngagement(),
+      GeoAnalyticsService.fetchGeoData(), // Admin: platform-wide
     ]);
 
     return AnalyticsBundle(
@@ -110,14 +116,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
       totalUsers: results[5] as int,
       totalProducts: results[6] as int,
       geoEngagement: results[7] as List<Map<String, dynamic>>,
+      geoData: results[8] as GeoAnalyticsData,
     );
   }
 
   Future<List<MetalInsight>> _fetchMetalInsights(String column) async {
-    final data = await widget.dataService.fetchDashboardViewData();
-    return column == 'Metal Type'
-        ? data.metalTypeInsights
-        : data.metalColorInsights;
+    // Directly call the lightweight metal metrics method instead of
+    // fetchDashboardViewData() which triggers 6 heavy sub-queries per call.
+    // Map from dashboard_models.MetalInsight to new_admin_models.MetalInsight
+    final dashboardResults = await DashboardService.fetchMetalMetrics(column);
+    return dashboardResults
+        .map((m) => MetalInsight(
+              label: m.label,
+              count: m.count,
+              sourceTable: m.sourceTable,
+            ))
+        .toList();
   }
 
   Future<int> _fetchUserCount() async {
@@ -469,14 +483,48 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
           const SizedBox(height: 28),
           _buildMetalAndQuoteRow(bundle),
         ],
+        // ── Geo Analytics Section ──────────────────────────────────────
+        const SizedBox(height: 28),
+        _buildGeoAnalyticsSection(bundle),
         const SizedBox(height: 40),
       ],
     );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // GEO ANALYTICS SECTION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildGeoAnalyticsSection(AnalyticsBundle bundle) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: GeoAnalyticsWidget(
+        data: bundle.geoData,
+        title: 'Platform Geo Analytics',
+        subtitle:
+            'Analyze views, likes, shares and saves across all products by country, state and pincode.',
+        primaryColor: _green,
+        accentColor: _gold,
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // PAGE HEADER
   // ═══════════════════════════════════════════════════════════════════════════
+
 
   Widget _buildPageHeader(AnalyticsBundle bundle) {
     return Column(

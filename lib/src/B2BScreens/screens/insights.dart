@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:jewelry_nafisa/src/services/geo_analytics_service.dart';
+import 'package:jewelry_nafisa/src/widgets/geo_analytics_widget.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui';
 import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
@@ -17,7 +18,6 @@ class InsightsPage extends StatefulWidget {
 
 class _InsightsPageState extends State<InsightsPage> {
   final SupabaseClient _supabase = Supabase.instance.client;
-  late final JewelryService _jewelryService;
   bool _isLoading = true;
   
   // Determine user type
@@ -39,8 +39,8 @@ class _InsightsPageState extends State<InsightsPage> {
   List<Map<String, dynamic>> _topProducts = [];
   List<Map<String, dynamic>> _recentActivity = [];
 
-  // Geo analytics: [{location: "District, State", percentage: 42.5}, ...]
-  List<Map<String, dynamic>> _geoAnalytics = [];
+  // Geo analytics data (shared widget data model)
+  GeoAnalyticsData _geoData = GeoAnalyticsData.empty;
 
   // Premium status
   bool _isPremiumDesigner = false;
@@ -48,7 +48,6 @@ class _InsightsPageState extends State<InsightsPage> {
   @override
   void initState() {
     super.initState();
-    _jewelryService = JewelryService(_supabase);
     
     // Get user profile to determine if manufacturer
     final userProfile = Provider.of<UserProfileProvider>(context, listen: false).userProfile;
@@ -108,24 +107,24 @@ class _InsightsPageState extends State<InsightsPage> {
       }
 
       final productIds = productsData.map((e) => e['id'].toString()).toList();
-      final productsMap = {for (var e in productsData) e['id'].toString(): e};
-      final idsString = '(${productIds.map((id) => '"$id"').join(',')})';
 
-      // 3. Fetch metrics in parallel
+      // 3. Fetch metrics in parallel using correct Supabase SDK syntax
       final results = await Future.wait([
-        _supabase.from('views').select('item_id').filter('item_id', 'in', idsString),
-        _supabase.from('likes').select('item_id').filter('item_id', 'in', idsString),
-        _supabase.from('shares').select('item_id').filter('item_id', 'in', idsString),
+        _supabase.from('views').select('item_id').inFilter('item_id', productIds),
+        _supabase.from('likes').select('item_id').inFilter('item_id', productIds),
+        _supabase.from('shares').select('item_id').inFilter('item_id', productIds),
+        _supabase.from('saves').select('item_id').inFilter('item_id', productIds),
       ]);
 
       final viewsResponse = results[0] as List;
       final likesResponse = results[1] as List;
       final sharesResponse = results[2] as List;
+      final savesResponse = results[3] as List;
 
-      // 4. Geo Analytics (only fetch if unlocked)
-      List<Map<String, dynamic>> geoData = [];
+      // 4. Geo Analytics — use shared service
+      GeoAnalyticsData geoData = GeoAnalyticsData.empty;
       if (_isManufacturer || _isPremiumDesigner) {
-        geoData = await _fetchGeoAnalytics(productIds);
+        geoData = await GeoAnalyticsService.fetchGeoData(productIds: productIds);
       }
 
       // 5. Top Products by views
@@ -181,10 +180,10 @@ class _InsightsPageState extends State<InsightsPage> {
           _totalViews = viewsResponse.length;
           _totalLikes = likesResponse.length;
           _totalShares = sharesResponse.length;
-          _totalSaves = 0;
+          _totalSaves = savesResponse.length;
           _topProducts = top4;
           _recentActivity = activityLog;
-          _geoAnalytics = geoData;
+          _geoData = geoData;
           _isLoading = false;
         });
       }
@@ -194,51 +193,6 @@ class _InsightsPageState extends State<InsightsPage> {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Geo Analytics — Use RPC function for overall portfolio analytics
-  // -------------------------------------------------------------------------
-
-  Future<List<Map<String, dynamic>>> _fetchGeoAnalytics(List<String> itemIds) async {
-    try {
-      if (itemIds.isEmpty) return [];
-
-      // Call the RPC function that returns aggregated geo analytics for all items
-      final geoDataMap = await _jewelryService.getGeoAnalytics(itemIds);
-      
-      if (geoDataMap.isEmpty) return [];
-
-      // Aggregate geo data from all products
-      final locationCounts = <String, int>{};
-      int totalViews = 0;
-
-      // Iterate through all products and their geo data
-      for (var geoList in geoDataMap.values) {
-        for (var entry in geoList) {
-          final location = entry['location'] as String?;
-          final count = entry['percentage'] as num?; // This is actually the count from RPC
-          
-          if (location != null && location.isNotEmpty && count != null) {
-            locationCounts[location] = (locationCounts[location] ?? 0) + count.toInt();
-            totalViews += count.toInt();
-          }
-        }
-      }
-
-      if (totalViews == 0) return [];
-
-      // Convert to percentages, sorted descending
-      final sorted = locationCounts.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
-
-      return sorted.map((e) => {
-        'location': e.key,
-        'percentage': (e.value / totalViews) * 100,
-      }).toList();
-    } catch (e) {
-      debugPrint('Error fetching geo analytics: $e');
-      return [];
-    }
-  }
 
   // -------------------------------------------------------------------------
   // Helpers
@@ -325,27 +279,23 @@ LayoutBuilder(builder: (context, constraints) {
 
                   const SizedBox(height: 32),
 
-                  // Top Products + Traffic Analysis (Geo)
-                  LayoutBuilder(builder: (context, constraints) {
-                    if (constraints.maxWidth < 900) {
-                      return Column(
-                        children: [
-                          _buildTopProductsCard(),
-                          const SizedBox(height: 24),
-                          _buildTrafficAnalysisCard(),
-                        ],
-                      );
-                    } else {
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(flex: 5, child: _buildTopProductsCard()),
-                          const SizedBox(width: 24),
-                          Expanded(flex: 4, child: _buildTrafficAnalysisCard()),
-                        ],
-                      );
-                    }
-                  }),
+                  // Top Products
+                  _buildTopProductsCard(),
+
+                  const SizedBox(height: 32),
+
+                  // Geo Analytics — Full widget with tabs
+                  if (_isUnlocked)
+                    GeoAnalyticsWidget(
+                      data: _geoData,
+                      title: 'Geographic Insights',
+                      subtitle:
+                          'Analyze views, likes, shares and saves of your products by country, state and pincode.',
+                      primaryColor: const Color(0xFF0A4F3F),
+                      accentColor: const Color(0xFFD4AF37),
+                    )
+                  else
+                    _buildLockedGeoCard(),
 
                   const SizedBox(height: 32),
 
@@ -527,13 +477,10 @@ LayoutBuilder(builder: (context, constraints) {
     );
   }
 
-  /// Traffic Analysis card — shows real geo data for unlocked users,
-  /// blurred upgrade prompt for free designers.
-  Widget _buildTrafficAnalysisCard() {
-    final topGeo = _geoAnalytics.take(5).toList();
-
+  /// Locked geo analytics card — shown for free designers.
+  Widget _buildLockedGeoCard() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -541,192 +488,104 @@ LayoutBuilder(builder: (context, constraints) {
       ),
       child: Stack(
         children: [
-          // ── Content (always rendered, blurred when locked) ──────────────
+          // Blurred placeholder
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Card header
-              Row(
-                children: [
-                  Text("Traffic Analysis",
-                      style: GoogleFonts.inter(
-                          fontSize: 16, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.trending_up,
-                      size: 16, color: Colors.amberAccent),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                "Top viewer locations across all your products",
-                style: GoogleFonts.inter(
-                    fontSize: 12, color: Colors.grey[500]),
-              ),
-              const SizedBox(height: 20),
-
-              // Geo list
-              if (topGeo.isEmpty)
-                _buildGeoRow('None', 0)
-              else
-                ...topGeo.map((entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: _buildGeoRow(
-                        entry['location'] as String,
-                        (entry['percentage'] as double).round(),
-                      ),
-                    )),
-
-              const SizedBox(height: 20),
-
-              // Insight banner
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  border: Border.all(color: const Color(0xFFD1FAE5)),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.trending_up,
-                        color: Colors.black, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        topGeo.isNotEmpty
-                            ? 'Highest demand from ${topGeo.first['location']} '
-                                '(${(topGeo.first['percentage'] as double).toStringAsFixed(1)}% of views)'
-                            : 'No demand data available yet',
-                        style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: const Color(0xFF065F46)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
+              Text('Geographic Insights',
+                  style: GoogleFonts.inter(
+                      fontSize: 18, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
+              Text('Detailed country, state, and pincode breakdown',
+                  style: GoogleFonts.inter(
+                      fontSize: 13, color: Colors.grey[500])),
+              const SizedBox(height: 32),
+              // Placeholder rows
+              for (int i = 0; i < 4; i++) ...[  
+                Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
             ],
           ),
-
-          // ── Premium blur overlay (free designers only) ──────────────────
-          if (!_isUnlocked)
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+          // Blur overlay with upgrade prompt
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                child: Container(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  alignment: Alignment.center,
                   child: Container(
-                    color: Colors.white.withOpacity(0.3),
-                    alignment: Alignment.center,
-                    child: _buildUpgradeCard(),
+                    constraints: const BoxConstraints(maxWidth: 300),
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: const Color(0xFFD4AF37), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: const BoxDecoration(
+                              color: Color(0xFFD4AF37),
+                              shape: BoxShape.circle),
+                          child: const Icon(Icons.workspace_premium,
+                              color: Colors.white, size: 24),
+                        ),
+                        const SizedBox(height: 12),
+                        Text('Unlock Full Insights',
+                            style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Get access to detailed GEO analytics, demand trends, and actionable insights.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                              color: Colors.grey, fontSize: 12),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {},
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD4AF37),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: Text('Upgrade to Premium',
+                                style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13)),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGeoRow(String location, int percentage) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                location,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                    fontSize: 13, color: const Color(0xFF374151)),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '$percentage%',
-              style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF111827)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: percentage / 100,
-            minHeight: 8,
-            backgroundColor: const Color(0xFFF3F4F6),
-            valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFF10B981)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildUpgradeCard() {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 280),
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFFFB800), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(
-                color: Color(0xFFFFB800), shape: BoxShape.circle),
-            child: const Icon(Icons.workspace_premium,
-                color: Colors.white, size: 20),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            "Unlock Full Insights",
-            style: GoogleFonts.inter(
-                fontSize: 14, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Get access to detailed GEO analytics, demand trends, and actionable insights.",
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-                color: Colors.grey, fontSize: 11, height: 1.3),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFB800),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              child: Text("Upgrade to Premium",
-                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12)),
             ),
           ),
         ],

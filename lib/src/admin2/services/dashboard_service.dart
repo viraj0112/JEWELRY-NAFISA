@@ -19,8 +19,8 @@ class DashboardService {
       final categoryInsights = await _fetchCategoryInsights();
       final topPosts = await _fetchTopPosts();
       final conversionFunnel = await _fetchConversionFunnel();
-      final metalTypeInsights = await _fetchMetalMetrics('Metal Type');
-      final metalColorInsights = await _fetchMetalMetrics('Metal Color');
+      final metalTypeInsights = await fetchMetalMetrics('Metal Type');
+      final metalColorInsights = await fetchMetalMetrics('Metal Color');
 
       return DashboardData(
         kpiMetrics: kpiMetrics,
@@ -313,7 +313,7 @@ class DashboardService {
           if (country.isEmpty) continue;
           final state   = (row['state']   as String?)?.trim() ?? '';
           final key     = '$country|$state';
-          agg.putIfAbsent(key, () => {
+          agg.putIfAbsent(key, () => <String, dynamic>{
             'country': country,
             'state': state,
             'views': 0,
@@ -590,7 +590,7 @@ class DashboardService {
     }
   }
 
-  static Future<List<MetalInsight>> _fetchMetalMetrics(String column) async {
+  static Future<List<MetalInsight>> fetchMetalMetrics(String column) async {
     final cacheKey = 'metal_metrics_${column.replaceAll(' ', '_').toLowerCase()}';
     if (_isCacheValid(cacheKey)) {
       return _cache[cacheKey] as List<MetalInsight>;
@@ -606,28 +606,35 @@ class DashboardService {
       List<MetalInsight> allInsights = [];
 
       for (final table in tables) {
-        final response = await _supabase
-            .from(table)
-            .select(column)
-            .order(column); // Sorting helps in grouping if done in SQL, but we process in Dart
+        try {
+          // Column names with spaces (e.g. "Metal Type") must be double-quoted
+          // in the PostgREST select/order parameters.
+          final quotedColumn = '"$column"';
+          final response = await _supabase
+              .from(table)
+              .select(quotedColumn);
 
-        if (response.isEmpty) continue;
+          if (response.isEmpty) continue;
 
-        Map<String, int> counts = {};
-        for (final item in response) {
-          final val = (item[column] as String?)?.trim();
-          if (val != null && val.isNotEmpty) {
-            counts[val] = (counts[val] ?? 0) + 1;
+          Map<String, int> counts = {};
+          for (final item in response) {
+            // Access the row value using the original unquoted column name
+            final val = (item[column] as String?)?.trim();
+            if (val != null && val.isNotEmpty) {
+              counts[val] = (counts[val] ?? 0) + 1;
+            }
           }
-        }
 
-        counts.forEach((label, count) {
-          allInsights.add(MetalInsight(
-            label: label,
-            count: count,
-            sourceTable: table,
-          ));
-        });
+          counts.forEach((label, count) {
+            allInsights.add(MetalInsight(
+              label: label,
+              count: count,
+              sourceTable: table,
+            ));
+          });
+        } catch (e) {
+          debugPrint('Metal metrics: skipping table $table for column "$column": $e');
+        }
       }
 
       // Add "All" aggregation
@@ -692,8 +699,7 @@ class DashboardService {
     if (assetIds.length == 1) {
       query = query.eq('asset_id', assetIds.first);
     } else {
-      final formattedIds = '(${assetIds.map((id) => '"$id"').join(',')})';
-      query = query.filter('asset_id', 'in', formattedIds);
+      query = query.inFilter('asset_id', assetIds);
     }
     return query;
   }
