@@ -28,10 +28,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   static const int _initialItems = 100;
   static const int _itemsPerPage = 25;
   String _selectedMetalType = 'Gold';
+  String _selectedAkdMetalType = 'All';
   String _selectedProductType = 'All';
   List<String> _availableProductTypes = ['All'];
   String _selectedCategory = 'All';
   List<String> _availableCategories = ['All'];
+
+  List<String> _akdMetalTypeOptions = ['All'];
+  bool _isLoadingAkdMetalTypes = false;
 
   @override
   void initState() {
@@ -220,10 +224,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       List<dynamic> manufacturerData = [];
 
       try {
-          PostgrestFilterBuilder<dynamic> designerQuery = _supabase
-              .from('designerproducts')
-              .select(selectColumns)
-              .ilike('"Metal Type"', 'AKD%');
+        var designerQuery = _supabase
+            .from('designerproducts')
+            .select(selectColumns);
+
+        if (_selectedAkdMetalType != 'All') {
+          designerQuery = designerQuery.eq('"Metal Type"', _selectedAkdMetalType);
+        } else {
+          designerQuery = designerQuery.ilike('"Metal Type"', 'AKD%');
+        }
 
         if (_selectedProductType != 'All') {
           designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
@@ -238,16 +247,20 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         designerData = await designerQuery
             .order('created_at', ascending: false)
             .range(0, 199);
-        debugPrint('In-house Designer: ${designerData.length} AKD* items');
       } catch (e) {
-        debugPrint('✗ Designer products error: $e');
+        debugPrint('Error loading in-house designer: $e');
       }
 
       try {
-          PostgrestFilterBuilder<dynamic> manufacturerQuery = _supabase
-              .from('manufacturerproducts')
-              .select(selectColumns)
-              .ilike('"Metal Type"', 'AKD%');
+        var manufacturerQuery = _supabase
+            .from('manufacturerproducts')
+            .select(selectColumns);
+
+        if (_selectedAkdMetalType != 'All') {
+          manufacturerQuery = manufacturerQuery.eq('"Metal Type"', _selectedAkdMetalType);
+        } else {
+          manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', 'AKD%');
+        }
 
         if (_selectedProductType != 'All') {
           manufacturerQuery = manufacturerQuery.eq('"Product Type"', _selectedProductType);
@@ -262,9 +275,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         manufacturerData = await manufacturerQuery
             .order('created_at', ascending: false)
             .range(0, 199);
-        debugPrint('In-house Manufacturer: ${manufacturerData.length} AKD* items');
       } catch (e) {
-        debugPrint('✗ Manufacturer products error: $e');
+        debugPrint('Error loading in-house manufacturer: $e');
       }
 
       final List<JewelryItem> allItems = [];
@@ -289,7 +301,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         );
       }
 
-      debugPrint('Total in-house items: ${allItems.length}');
       allItems.shuffle();
       return allItems;
     } catch (e) {
@@ -318,20 +329,98 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   String? _effectiveMetalTypeForFilters(String metalType) {
-    if (metalType == 'Instant') return 'AKD';
+    if (metalType == 'Instant') {
+      if (_selectedAkdMetalType != 'All') {
+        return _selectedAkdMetalType;
+      }
+      return 'AKD';
+    }
     if (metalType == 'All') return null;
     return metalType;
+  }
+
+  Future<void> _loadAkdMetalTypes() async {
+    setState(() {
+      _isLoadingAkdMetalTypes = true;
+      _akdMetalTypeOptions = ['All'];
+    });
+    try {
+      final Set<String> akdTypes = {};
+      
+      final designerRes = await _supabase
+          .from('designerproducts')
+          .select('"Metal Type"')
+          .ilike('"Metal Type"', 'AKD-%');
+      if (designerRes is List) {
+        for (var row in designerRes) {
+          final val = row['Metal Type'] as String?;
+          if (val != null && val.isNotEmpty) {
+            akdTypes.add(val);
+          }
+        }
+      }
+
+      final manufacturerRes = await _supabase
+          .from('manufacturerproducts')
+          .select('"Metal Type"')
+          .ilike('"Metal Type"', 'AKD-%');
+      if (manufacturerRes is List) {
+        for (var row in manufacturerRes) {
+          final val = row['Metal Type'] as String?;
+          if (val != null && val.isNotEmpty) {
+            akdTypes.add(val);
+          }
+        }
+      }
+
+      final List<String> fetched = akdTypes.toList()..sort();
+      
+      if (mounted) {
+        setState(() {
+          _akdMetalTypeOptions = ['All', ...fetched];
+          _isLoadingAkdMetalTypes = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading AKD metal types: $e');
+      if (mounted) {
+        setState(() => _isLoadingAkdMetalTypes = false);
+      }
+    }
+  }
+
+  Future<void> _onAkdMetalTypeChanged(String? value) async {
+    if (value == null) return;
+    setState(() {
+      _selectedAkdMetalType = value;
+      _selectedProductType = 'All';
+      _selectedCategory = 'All';
+      _availableProductTypes = ['All'];
+      _availableCategories = ['All'];
+    });
+
+    final effectiveMetal = _effectiveMetalTypeForFilters('Instant');
+    if (effectiveMetal != null) {
+      await _fetchProductTypes(effectiveMetal);
+    }
+    await _loadProducts();
   }
 
   Future<void> _onMetalTypeChanged(String value) async {
     setState(() {
       _selectedMetalType = value;
+      _selectedAkdMetalType = 'All';
       _selectedProductType = 'All';
       _availableProductTypes = ['All'];
       _selectedCategory = 'All';
       _availableCategories = ['All'];
     });
     _displayedCount = _initialItems;
+    
+    if (value == 'Instant') {
+      await _loadAkdMetalTypes();
+    }
+
     if (value != 'All') {
       await _fetchProductTypes(value);
     }
@@ -701,50 +790,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 12.0,
-              runSpacing: 8.0,
-              children: [
-                Text(
-                  'Choose Your Style',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: const Color(0xFF006435),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                ),
-                // Reset button (centered with title)
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _resetFilters,
-                    borderRadius: BorderRadius.circular(12.0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12.0,
-                        vertical: 6.0,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: const Color(0xFFE0E0E0),
-                          width: 1.0,
-                        ),
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.close, size: 16),
-                          SizedBox(width: 4.0),
-                          Text('Reset', style: TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                    ),
+            child: Text(
+              'Choose Your Style',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: const Color(0xFF006435),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
                   ),
-                ),
-              ],
             ),
           ),
           Padding(
@@ -752,14 +804,43 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
-                const SizedBox(width: 6.0),
-                _buildMetalTypeButton('Silver', _selectedMetalType == 'Silver'),
-                const SizedBox(width: 6.0),
+                if (_selectedMetalType != 'Instant') ...[
+                  _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
+                  const SizedBox(width: 6.0),
+                  _buildMetalTypeButton('Silver', _selectedMetalType == 'Silver'),
+                  const SizedBox(width: 6.0),
+                ],
                 _buildMetalTypeButton('Instant', _selectedMetalType == 'Instant'),
               ],
             ),
           ),
+          if (_selectedMetalType == 'Instant')
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6.0),
+                      child: Text(
+                        'Select Metal',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                    _buildAnimatedOvalDropdown(
+                      value: _selectedAkdMetalType,
+                      items: _akdMetalTypeOptions,
+                      onChanged: _onAkdMetalTypeChanged,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 260),
             transitionBuilder: (child, animation) {
@@ -800,7 +881,37 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   )
                 : const SizedBox.shrink(key: ValueKey('categoryDropdownEmpty')),
           ),
+          if (_selectedMetalType != 'Gold' ||
+              _selectedProductType != 'All' ||
+              _selectedCategory != 'All')
+            Padding(
+              padding: const EdgeInsets.only(top: 6.0),
+              child: _buildResetButton(),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildResetButton() {
+    return OutlinedButton.icon(
+      onPressed: _resetFilters,
+      icon: const Icon(Icons.clear, size: 12),
+      label: const Text(
+        'Reset',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFF424242),
+        side: const BorderSide(color: Color(0xFFE0E0E0), width: 1.5),
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+        minimumSize: const Size(0, 28),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8.0),
+        ),
       ),
     );
   }
@@ -886,11 +997,26 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   color: Color(0xFF2F2F2F),
                   fontWeight: FontWeight.w500,
                 ),
+                selectedItemBuilder: (BuildContext context) {
+                  return items.map<Widget>((String item) {
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        item.replaceAll('AKD-', ''),
+                        style: const TextStyle(
+                          color: Color(0xFF2F2F2F),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }).toList();
+                },
                 items: items
                     .map(
                       (item) => DropdownMenuItem(
                         value: item,
-                        child: Text(item, overflow: TextOverflow.ellipsis),
+                        child: Text(item.replaceAll('AKD-', ''), overflow: TextOverflow.ellipsis),
                       ),
                     )
                     .toList(),

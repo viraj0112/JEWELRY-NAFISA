@@ -55,12 +55,16 @@ class HomeScreenState extends State<HomeScreen> {
 
   // Selected filter values
   String _selectedMetalType = 'Gold';
+  String _selectedAkdMetalType = 'All';
   String _selectedProductType = 'All';
   String _selectedCategory = 'All';
   String _selectedSubCategory = 'All';
   String _selectedMetalPurity = 'All';
   String? _selectedPlain;
   String? _selectedStudded;
+
+  List<String> _akdMetalTypeOptions = ['All'];
+  bool _isLoadingAkdMetalTypes = false;
 
   String? _hoveredItemId;
   String? _tappedItemId;
@@ -458,13 +462,34 @@ class HomeScreenState extends State<HomeScreen> {
       List<dynamic> manufacturerData = [];
 
       try {
-          var designerQuery = _supabase
-              .from('designerproducts')
-              .select(selectColumns)
-              .ilike('"Metal Type"', 'AKD%');
+        var designerQuery = _supabase
+            .from('designerproducts')
+            .select(selectColumns);
+
+        if (_selectedAkdMetalType != 'All') {
+          designerQuery = designerQuery.eq('"Metal Type"', _selectedAkdMetalType);
+        } else {
+          designerQuery = designerQuery.ilike('"Metal Type"', 'AKD%');
+        }
 
         if (_selectedProductType != 'All') {
           designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
+        }
+        if (_selectedCategory != 'All') {
+          final categoryFilter = 'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
+          designerQuery = designerQuery.or(categoryFilter);
+        }
+        if (_selectedSubCategory != 'All') {
+          designerQuery = designerQuery.eq('"Sub Category"', _selectedSubCategory);
+        }
+        if (_selectedMetalPurity != 'All') {
+          designerQuery = designerQuery.eq('"Metal Purity"', _selectedMetalPurity);
+        }
+        if (_selectedPlain != null) {
+          designerQuery = designerQuery.eq('Plain', _selectedPlain!);
+        }
+        if (_selectedStudded != null) {
+          designerQuery = designerQuery.contains('Studded', ['$_selectedStudded']);
         }
 
         final designerQueryPaged = designerQuery
@@ -477,13 +502,34 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       try {
-          var manufacturerQuery = _supabase
-              .from('manufacturerproducts')
-              .select(selectColumns)
-              .ilike('"Metal Type"', 'AKD%');
+        var manufacturerQuery = _supabase
+            .from('manufacturerproducts')
+            .select(selectColumns);
+
+        if (_selectedAkdMetalType != 'All') {
+          manufacturerQuery = manufacturerQuery.eq('"Metal Type"', _selectedAkdMetalType);
+        } else {
+          manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', 'AKD%');
+        }
 
         if (_selectedProductType != 'All') {
           manufacturerQuery = manufacturerQuery.eq('"Product Type"', _selectedProductType);
+        }
+        if (_selectedCategory != 'All') {
+          final categoryFilter = 'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
+          manufacturerQuery = manufacturerQuery.or(categoryFilter);
+        }
+        if (_selectedSubCategory != 'All') {
+          manufacturerQuery = manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
+        }
+        if (_selectedMetalPurity != 'All') {
+          manufacturerQuery = manufacturerQuery.eq('"Metal Purity"', _selectedMetalPurity);
+        }
+        if (_selectedPlain != null) {
+          manufacturerQuery = manufacturerQuery.eq('Plain', _selectedPlain!);
+        }
+        if (_selectedStudded != null) {
+          manufacturerQuery = manufacturerQuery.contains('Studded', ['$_selectedStudded']);
         }
 
         final manufacturerQueryPaged = manufacturerQuery
@@ -584,7 +630,12 @@ class HomeScreenState extends State<HomeScreen> {
 
   // Handlers for dependent dropdowns
   String? _effectiveMetalTypeForFilters(String metalType) {
-    if (metalType == 'Instant') return 'AKD';
+    if (metalType == 'Instant') {
+      if (_selectedAkdMetalType != 'All') {
+        return _selectedAkdMetalType;
+      }
+      return 'AKD';
+    }
     if (metalType == 'All') return null;
     return metalType;
   }
@@ -657,10 +708,91 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
 
+  Future<void> _loadAkdMetalTypes() async {
+    setState(() {
+      _isLoadingAkdMetalTypes = true;
+      _akdMetalTypeOptions = ['All'];
+    });
+    try {
+      final Set<String> akdTypes = {};
+      
+      // Query designerproducts table
+      final designerRes = await _supabase
+          .from('designerproducts')
+          .select('"Metal Type"')
+          .ilike('"Metal Type"', 'AKD-%');
+      if (designerRes is List) {
+        for (var row in designerRes) {
+          final val = row['Metal Type'] as String?;
+          if (val != null && val.isNotEmpty) {
+            akdTypes.add(val);
+          }
+        }
+      }
+
+      // Query manufacturerproducts table
+      final manufacturerRes = await _supabase
+          .from('manufacturerproducts')
+          .select('"Metal Type"')
+          .ilike('"Metal Type"', 'AKD-%');
+      if (manufacturerRes is List) {
+        for (var row in manufacturerRes) {
+          final val = row['Metal Type'] as String?;
+          if (val != null && val.isNotEmpty) {
+            akdTypes.add(val);
+          }
+        }
+      }
+
+      // Convert back and sort
+      final List<String> fetched = akdTypes.toList()..sort();
+      
+      if (mounted) {
+        setState(() {
+          _akdMetalTypeOptions = ['All', ...fetched];
+          _isLoadingAkdMetalTypes = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading AKD metal types: $e');
+      if (mounted) {
+        setState(() => _isLoadingAkdMetalTypes = false);
+      }
+    }
+  }
+
+  Future<void> _onAkdMetalTypeChanged(String? value) async {
+    if (value == null) return;
+    setState(() {
+      _selectedAkdMetalType = value;
+      _selectedProductType = 'All';
+      _selectedCategory = 'All';
+      _selectedSubCategory = 'All';
+      _selectedMetalPurity = 'All';
+      _productTypeOptions = ['All'];
+      _categoryOptions = ['All'];
+      _subCategoryOptions = ['All'];
+      _metalPurity = ['All'];
+      _isLoadingProductTypes = true;
+    });
+
+    final effectiveMetal = _effectiveMetalTypeForFilters('Instant');
+    final newProductTypes = await _fetchProductTypesForMetal(effectiveMetal!);
+
+    if (mounted) {
+      setState(() {
+        _productTypeOptions = ['All', ...newProductTypes];
+        _isLoadingProductTypes = false;
+      });
+    }
+    _applyFilters();
+  }
+
   /// Called when "Metal Type" filter changes
   Future<void> _onMetalTypeChanged(String value) async {
     setState(() {
       _selectedMetalType = value;
+      _selectedAkdMetalType = 'All';
       // Reset all dependent filters
       _selectedProductType = 'All';
       _selectedCategory = 'All';
@@ -668,11 +800,16 @@ class HomeScreenState extends State<HomeScreen> {
       _selectedMetalPurity = 'All';
       // Clear options and show loading
       _productTypeOptions = ['All'];
+      _akdMetalTypeOptions = ['All'];
       _categoryOptions = ['All'];
       _subCategoryOptions = ['All'];
       _metalPurity = ['All'];
       _isLoadingProductTypes = true;
     });
+
+    if (value == 'Instant') {
+      await _loadAkdMetalTypes();
+    }
 
     // Fetch Product Types based on Metal Type
     List<String> newProductTypes;
@@ -782,6 +919,7 @@ class HomeScreenState extends State<HomeScreen> {
   void _resetFilters() {
     setState(() {
       _selectedMetalType = 'All';
+      _selectedAkdMetalType = 'All';
       _selectedProductType = 'All';
       _selectedCategory = 'All';
       _selectedSubCategory = 'All';
@@ -791,6 +929,7 @@ class HomeScreenState extends State<HomeScreen> {
 
       // Reset option lists to default
       _productTypeOptions = ['All'];
+      _akdMetalTypeOptions = ['All'];
       _categoryOptions = ['All'];
       _subCategoryOptions = ['All'];
     });
@@ -1017,14 +1156,47 @@ class HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
-                const SizedBox(width: 6.0),
-                _buildMetalTypeButton('Silver', _selectedMetalType == 'Silver'),
-                const SizedBox(width: 6.0),
+                if (_selectedMetalType != 'Instant') ...[
+                  _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
+                  const SizedBox(width: 6.0),
+                  _buildMetalTypeButton('Silver', _selectedMetalType == 'Silver'),
+                  const SizedBox(width: 6.0),
+                ],
                 _buildMetalTypeButton('Instant', _selectedMetalType == 'Instant'),
               ],
             ),
           ),
+
+          // AKD Metal Type Filter (only visible when Get it is selected)
+          if (_selectedMetalType == 'Instant')
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6.0),
+                      child: Text(
+                        'Select Metal',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                    _buildDropdownFilter(
+                      hint: 'Metal Type',
+                      options: _akdMetalTypeOptions,
+                      selectedValue: _selectedAkdMetalType,
+                      onChanged: _onAkdMetalTypeChanged,
+                      isLoading: _isLoadingAkdMetalTypes,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           
           // Product Type Filter - Show for all metal types (Gold, Silver, In-house)
           AnimatedSwitcher(
@@ -1044,13 +1216,36 @@ class HomeScreenState extends State<HomeScreen> {
                     key: const ValueKey('homeProductTypeFilter'),
                     padding: const EdgeInsets.only(bottom: 8.0),
                     child: Center(
-                      child: _buildDropdownFilter(
-                        hint: 'Product Type',
-                        options: _productTypeOptions,
-                        selectedValue: _selectedProductType,
-                        onChanged: _onProductTypeChanged,
-                        isLoading: _isLoadingProductTypes,
-                      ),
+                      child: _selectedMetalType == 'Instant'
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                  child: Text(
+                                    'Product Type',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ),
+                                _buildBubbleFilter(
+                                  options: _productTypeOptions,
+                                  selectedValue: _selectedProductType,
+                                  onChanged: _onProductTypeChanged,
+                                  isLoading: _isLoadingProductTypes,
+                                ),
+                              ],
+                            )
+                          : _buildDropdownFilter(
+                              hint: 'Product Type',
+                              options: _productTypeOptions,
+                              selectedValue: _selectedProductType,
+                              onChanged: _onProductTypeChanged,
+                              isLoading: _isLoadingProductTypes,
+                            ),
                     ),
                   )
                 : const SizedBox.shrink(key: ValueKey('homeProductTypeFilterEmpty')),
@@ -1419,7 +1614,7 @@ class HomeScreenState extends State<HomeScreen> {
                 return Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    item,
+                    item.replaceAll('AKD-', ''),
                     style: const TextStyle(
                       color: Color(0xFF2F2F2F),
                       fontSize: 15,
@@ -1433,7 +1628,7 @@ class HomeScreenState extends State<HomeScreen> {
               return DropdownMenuItem<String>(
                 value: value,
                 child: Text(
-                  value,
+                  value.replaceAll('AKD-', ''),
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.black87,

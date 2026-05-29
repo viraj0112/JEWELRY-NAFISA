@@ -72,7 +72,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   static const _unlockDuration = Duration(days: 7);
   bool get _isRedirectMetal {
     final metal = widget.jewelryItem.metalType?.toLowerCase() ?? '';
-    return metal.contains('akd-silver') || metal.contains('akd-platinum');
+    return metal.startsWith('akd-');
   }
 
   bool get _isInstantProduct {
@@ -506,7 +506,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     // Check if metal type is silver
     final metal = widget.jewelryItem.metalType?.toLowerCase() ?? '';
     final url = widget.jewelryItem.scrapedUrl ?? 'nourl';
-    if (metal.contains('akd-silver') || metal.contains('akd-platinum')) {
+    if (metal.startsWith('akd-')) {
       _launchSilverProductUrl(url);
       return;
     }

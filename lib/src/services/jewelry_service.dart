@@ -83,26 +83,103 @@ class JewelryService {
     if (query.isEmpty) return [];
 
     try {
-      // --- OPTIMIZED: Use Full Text Search RPC ---
-      final response = await _supabaseClient.rpc(
-        'search_products_fts',
-        params: {
-          'search_query': query,
-          'limit_count': 50,
-        },
-      );
+      final List<JewelryItem> results = [];
 
-      if (response is List) {
-        return response.map((json) {
-          final map = json as Map<String, dynamic>;
-          // The RPC returns 'is_designer_product' directly
-          return JewelryItem.fromJson(map);
-        }).toList();
+      // 1. Call full text search RPC for products and designerproducts
+      try {
+        final rpcResponse = await _supabaseClient.rpc(
+          'search_products_fts',
+          params: {
+            'search_query': query,
+            'limit_count': 50,
+          },
+        );
+
+        if (rpcResponse is List) {
+          results.addAll(rpcResponse.map((json) {
+            final map = json as Map<String, dynamic>;
+            return JewelryItem.fromJson(map);
+          }));
+        }
+      } catch (e) {
+        debugPrint('Error with RPC search_products_fts: $e');
       }
-      return [];
+
+      // 2. Query manufacturerproducts directly to search for matching items
+      // (as it is not included in the database RPC function)
+      try {
+        final manufacturerResponse = await _supabaseClient
+            .from('manufacturerproducts')
+            .select('''
+              id,
+              "Product Title",
+              "Image",
+              "Description",
+              "Product Type",
+              Category,
+              Category1,
+              Category2,
+              Category3,
+              "Sub Category",
+              "Metal Type",
+              "Metal Purity",
+              Plain,
+              Studded,
+              "Price"
+            ''')
+            .or(
+              'Product Title.ilike.%$query%,'
+              'Description.ilike.%$query%,'
+              'Product Type.ilike.%$query%,'
+              'Category.ilike.%$query%,'
+              'Category1.ilike.%$query%,'
+              'Category2.ilike.%$query%,'
+              'Category3.ilike.%$query%'
+            )
+            .limit(50);
+
+        if (manufacturerResponse is List) {
+          results.addAll(manufacturerResponse.map((json) {
+            final map = json as Map<String, dynamic>;
+            map['is_designer_product'] = false;
+            map['is_manufacturer_product'] = true;
+            return JewelryItem.fromJson(map);
+          }));
+        }
+      } catch (e) {
+        debugPrint('Error searching manufacturerproducts: $e');
+      }
+
+      // 3. Sort combined results by relevance to match FTS scoring
+      // - Title matches first (1)
+      // - Product Type matches second (2)
+      // - Category matches third (3)
+      // - Others (4)
+      results.sort((a, b) {
+        int getRelevance(JewelryItem item) {
+          final title = (item.productTitle ?? '').toLowerCase();
+          final type = (item.productType ?? '').toLowerCase();
+          final q = query.toLowerCase();
+          if (title.contains(q)) return 1;
+          if (type.contains(q)) return 2;
+          if ((item.category?.toLowerCase().contains(q) ?? false) ||
+              (item.category1?.toLowerCase().contains(q) ?? false) ||
+              (item.category2?.toLowerCase().contains(q) ?? false) ||
+              (item.category3?.toLowerCase().contains(q) ?? false)) return 3;
+          return 4;
+        }
+
+        final relA = getRelevance(a);
+        final relB = getRelevance(b);
+        if (relA != relB) {
+          return relA.compareTo(relB);
+        }
+        return (a.productTitle ?? '').compareTo(b.productTitle ?? '');
+      });
+
+      return results.take(50).toList();
     } catch (e) {
       debugPrint('Error searching products: $e');
-      // Fallback to old method if RPC fails (optional, but good for safety)
       return [];
     }
   }

@@ -779,6 +779,7 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
       }
 
       final Map<String, Map<String, String>> details = {};
+      final Set<String> missingIds = top.toSet();
 
       for (final entry in byTable.entries) {
         try {
@@ -788,6 +789,7 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
               .inFilter('id', entry.value);
           for (final row in (rows as List)) {
             final id = row['id'].toString();
+            missingIds.remove(id);
             String imgUrl = '';
             final img = row['Image'];
             if (img is List && img.isNotEmpty) {
@@ -802,6 +804,35 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
             };
           }
         } catch (_) {}
+      }
+
+      // Fallback for any IDs that weren't found (e.g. incorrect table hint)
+      if (missingIds.isNotEmpty) {
+        for (final table in const ['products', 'designerproducts', 'manufacturerproducts']) {
+          if (missingIds.isEmpty) break;
+          try {
+            final rows = await _supabase
+                .from(table)
+                .select('id, "Product Title", "Image"')
+                .inFilter('id', missingIds.toList());
+            for (final row in (rows as List)) {
+              final id = row['id'].toString();
+              missingIds.remove(id);
+              String imgUrl = '';
+              final img = row['Image'];
+              if (img is List && img.isNotEmpty) {
+                imgUrl = img[0].toString();
+              } else if (img is String) {
+                imgUrl = img;
+              }
+              details[id] = {
+                'title': (row['Product Title'] as String?) ?? 'Untitled Product',
+                'image': imgUrl,
+                'table': table,
+              };
+            }
+          } catch (_) {}
+        }
       }
 
       if (mounted) setState(() { _details = details; _loading = false; });
