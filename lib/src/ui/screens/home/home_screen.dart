@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -72,7 +73,10 @@ class HomeScreenState extends State<HomeScreen> {
   
   // Logo animation state
   double _scrollOffset = 0.0;
-  static const double _logoAnimationThreshold = 100.0; // Start animating after 100px scroll
+  static const double _logoAnimationThreshold = 100.0;
+
+  // Onboarding delay timer
+  Timer? _onboardingTimer;
 
   @override
   void initState() {
@@ -82,14 +86,41 @@ class HomeScreenState extends State<HomeScreen> {
     // Add scroll listener for infinite scroll and logo animation
     _scrollController.addListener(_onScroll);
     _scrollController.addListener(_onScrollForLogo);
+    // Start 45-second onboarding delay for new users
+    _startOnboardingDelayIfNeeded();
   }
 
   @override
   void dispose() {
+    _onboardingTimer?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.removeListener(_onScrollForLogo);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// After 45 seconds, if the user hasn't completed onboarding, navigate them
+  /// to the appropriate onboarding screen.
+  void _startOnboardingDelayIfNeeded() {
+    _onboardingTimer = Timer(const Duration(seconds: 45), () {
+      if (!mounted) return;
+      final provider = Provider.of<UserProfileProvider>(context, listen: false);
+      final profile = provider.userProfile;
+      // Only redirect if onboarding is genuinely incomplete
+      if (profile == null || profile.isSetupComplete == true) return;
+
+      final stage = profile.onboardingStage;
+      final String route;
+      if (stage == 0) {
+        route = '/onboarding/location';
+      } else if (stage == 1) {
+        route = '/onboarding/gender';
+      } else {
+        route = '/onboarding/categories';
+      }
+      debugPrint('⏰ 45s elapsed — redirecting to onboarding: $route (stage $stage)');
+      context.go(route);
+    });
   }
 
   void _onScroll() {
@@ -1707,7 +1738,7 @@ class HomeScreenState extends State<HomeScreen> {
       onPressed: _resetFilters,
       icon: const Icon(Icons.clear, size: 12),
       label: const Text(
-        'Reset',
+        'Back To Menu',
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,

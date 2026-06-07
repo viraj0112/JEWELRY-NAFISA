@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:postcode_checker/postcode_checker.dart' as Postcode;
-import "package:supabase_flutter/supabase_flutter.dart";
 import 'package:firebase_analytics/firebase_analytics.dart';
 
 class OnboardingScreen1Location extends StatefulWidget {
@@ -23,8 +22,8 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   final TextEditingController _countryController = TextEditingController();
   final TextEditingController _zipController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  String? _selectedCountryCode; 
-  String? _selectedDialCode;
+  String? _selectedCountryCode;   // e.g. "IN"
+  String? _selectedDialCode;      // e.g. "+91"
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -43,8 +42,10 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     );
     _animationController.forward();
     
-    // Initialize the default dial code
+    // Initialize the default dial code and country (India)
     _selectedDialCode = '+91';
+    _selectedCountryCode = 'IN';
+    _countryController.text = 'India';
   }
 
   @override
@@ -54,6 +55,26 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     _zipController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  /// When the phone dial code changes, auto-update the country picker to match.
+  void _onDialCodeChanged(CountryCode code) {
+    final newCode = code.code;
+    final newName = code.name ?? '';
+    final newDial = code.dialCode ?? _selectedDialCode ?? '+91';
+
+    // Only update country if we have a valid non-empty country code
+    if (newCode != null && newCode.isNotEmpty) {
+      setState(() {
+        _selectedDialCode = newDial;
+        _selectedCountryCode = newCode;
+        _countryController.text = newName;
+      });
+    } else {
+      setState(() {
+        _selectedDialCode = newDial;
+      });
+    }
   }
 
   void _nextStage() async {
@@ -87,10 +108,12 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     }
 
     // Attempt to find the Postcode.CountryCode enum from the selected country code
-    final Postcode.CountryCode? countryEnum = Postcode.CountryCode.values.cast<Postcode.CountryCode?>().firstWhere(
-      (e) => e?.code == _selectedCountryCode,
-      orElse: () => null, 
-    );
+    final Postcode.CountryCode? countryEnum = Postcode.CountryCode.values
+        .cast<Postcode.CountryCode?>()
+        .firstWhere(
+          (e) => e?.code == _selectedCountryCode,
+          orElse: () => null,
+        );
     
     if (countryEnum == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -138,6 +161,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     );
 
     if (mounted) {
+      // Stage 0 done → go to combined Gender+Age screen (stage 1)
       GoRouter.of(context).go('/onboarding/gender');
     }
   }
@@ -216,10 +240,8 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   Widget _buildLogoSection() {
     return Column(
       children: [
-        // Add your logo image here
         Image.asset(
           'assets/icons/dagina2.png',
-          // 'assets/images/logo.png', // Replace with your actual logo path
           height: 80,
           errorBuilder: (context, error, stackTrace) {
             return Container(
@@ -253,6 +275,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
   }
 
   Widget _buildProgressIndicator() {
+    // 3 steps: Location (active), Gender+Age, Categories
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -282,7 +305,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Pick your country',
+          'Tell us about yourself',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -300,61 +323,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
         ),
         const SizedBox(height: 32),
 
-        // Country Dropdown
-        _buildLabel('Country'),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE0E0E0)),
-          ),
-          child: CountryCodePicker(
-            onChanged: (CountryCode code) {
-              _countryController.text = code.name ?? '';
-              _selectedCountryCode = code.code;
-              setState(() {});
-            },
-            favorite: const ['+91', 'IN', '+1', 'US', '+44', 'GB'],
-            showCountryOnly: true,
-            showOnlyCountryWhenClosed: true,
-            alignLeft: true,
-            flagWidth: 30,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            dialogSize: const Size(400, 500),
-            dialogBackgroundColor: Colors.white,
-            searchDecoration: InputDecoration(
-              hintText: 'Search Country',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 16,
-              color: Colors.black87,
-            ),
-            searchStyle: const TextStyle(
-              color: Colors.black87,
-            ),
-            dialogTextStyle: const TextStyle(
-              color: Colors.black87,
-              fontSize: 16,
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Pin Code
-        _buildLabel('Pin Code'),
-        const SizedBox(height: 8),
-        _buildTextField(
-          controller: _zipController,
-          hintText: 'Value',
-          keyboardType: TextInputType.text,
-        ),
-        const SizedBox(height: 24),
-
-        // Phone Number
+        // ── Phone Number (FIRST — drives country auto-detection) ──────────────
         _buildLabel('Phone Number'),
         const SizedBox(height: 8),
         Container(
@@ -366,11 +335,9 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
           child: Row(
             children: [
               CountryCodePicker(
-                onChanged: (CountryCode code) {
-                  _selectedDialCode = code.dialCode;
-                },
+                onChanged: _onDialCodeChanged,   // ← auto-syncs country
                 initialSelection: 'IN',
-                favorite: const ['+91', 'IN', '+1', 'US'],
+                favorite: const ['+91', 'IN', '+1', 'US', '+44', 'GB'],
                 showCountryOnly: false,
                 showOnlyCountryWhenClosed: false,
                 alignLeft: false,
@@ -399,21 +366,67 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
                     fontSize: 16,
                   ),
                   decoration: const InputDecoration(
-                    hintText: '',
+                    hintText: 'Enter phone number',
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 12),
-                    hintStyle: TextStyle(
-                      color: Colors.black38,
-                    ),
+                    hintStyle: TextStyle(color: Colors.black38),
                   ),
                 ),
               ),
             ],
           ),
         ),
+        const SizedBox(height: 24),
+
+        // ── Country (auto-filled from phone dial code, but still editable) ───
+        _buildLabel('Country'),
+        const SizedBox(height: 8),
+        // Show a read-only text field displaying the auto-detected country name.
+        // The user can tap the phone dial code picker above to change it.
+        // We avoid rebuilding CountryCodePicker with a ValueKey to prevent
+        // the DropdownButton assertion error.
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F5F5),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE0E0E0)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              const Icon(Icons.flag_outlined, size: 20, color: Colors.black54),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _countryController.text.isNotEmpty
+                      ? _countryController.text
+                      : 'India',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              const Text(
+                'Auto-detected',
+                style: TextStyle(fontSize: 12, color: Colors.black38),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // ── Pin Code ──────────────────────────────────────────────────────────
+        _buildLabel('Pin Code / ZIP Code'),
+        const SizedBox(height: 8),
+        _buildTextField(
+          controller: _zipController,
+          hintText: 'Enter your postal / ZIP code',
+          keyboardType: TextInputType.text,
+        ),
         const SizedBox(height: 40),
 
-        // Next Button
+        // ── Next Button ───────────────────────────────────────────────────────
         SizedBox(
           height: 50,
           child: ElevatedButton(
@@ -466,9 +479,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
         filled: true,
         fillColor: Colors.white,
         hintText: hintText,
-        hintStyle: const TextStyle(
-          color: Colors.black38,
-        ),
+        hintStyle: const TextStyle(color: Colors.black38),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFFE0E0E0)),

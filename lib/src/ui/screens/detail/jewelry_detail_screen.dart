@@ -11,7 +11,6 @@ import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
 import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
-import 'package:jewelry_nafisa/src/ui/widgets/get_quote_dialog.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -582,14 +581,106 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
       return;
     }
 
-    final bool? useCredit = await showDialog<bool>(
-      context: context,
-      builder: (context) => const GetQuoteDialog(),
-    );
+    // Check if user has consumed 80% or more of their credits BEFORE proceeding
+    bool shouldShowWarning = false;
+    int creditsRemaining = profile.creditsRemaining;
+    int creditsAllocated = 10; // default
 
-    if (useCredit == true) {
-      await _useQuoteCredit(context);
+    try {
+      final uid = supabase.auth.currentUser?.id;
+      if (uid != null) {
+        // Fetch user's credit allocation info
+        final userResponse = await supabase
+            .from('users')
+            .select('credits_remaining')
+            .eq('id', uid)
+            .single();
+
+        creditsRemaining = userResponse['credits_remaining'] as int? ?? 0;
+
+        // Get monthly credit allocation from settings
+        final settingsResponse = await supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'monthly_credits')
+            .maybeSingle();
+
+        creditsAllocated = settingsResponse != null
+            ? int.tryParse(settingsResponse['value'] as String? ?? '10') ?? 10
+            : 10;
+
+        // Calculate percentage remaining
+        final percentageRemaining =
+            creditsAllocated > 0 ? (creditsRemaining / creditsAllocated) * 100 : 0.0;
+
+        // Show warning if 80% or more has been consumed (20% or less remaining)
+        shouldShowWarning = percentageRemaining <= 20;
+      }
+    } catch (e) {
+      debugPrint('Error checking credit usage: $e');
+      // Continue anyway if there's an error checking
     }
+
+    // If 80%+ credits consumed, show warning popup BEFORE using credits
+    if (shouldShowWarning && mounted) {
+      final bool? proceedAnyway = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('⚠️ Low Credits Warning'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'You have used 80% or more of your allocated credits!',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Credits Remaining: $creditsRemaining / $creditsAllocated',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Percentage Used: ${creditsAllocated > 0 ? (((creditsAllocated - creditsRemaining) / creditsAllocated) * 100).toStringAsFixed(1) : '0.0'}%',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Do you want to proceed and use a credit? Consider sharing your referral code to earn more credits!',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+                context.push('/referral');
+              },
+              child: const Text('Share Referral Code'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Use Credits'),
+            ),
+          ],
+        ),
+      );
+
+      // If user cancels or dismisses, don't proceed
+      if (proceedAnyway != true) {
+        return;
+      }
+    }
+
+    // Directly use the credit and reveal details (no intermediate popup)
+    await _useQuoteCredit(context);
   }
 
   Future<void> _useQuoteCredit(BuildContext context) async {
@@ -613,32 +704,40 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         'p_is_designer': widget.jewelryItem.isDesignerProduct,
       });
 
-      // Update local state based on server response
-      if (response != null && response['success'] == true) {
-        int deductedAmount = response['deducted_amount'] ?? 1;
+       // Update local state based on server response
+       if (response != null && response['success'] == true) {
+         int deductedAmount = response['deducted_amount'] ?? 1;
+         int creditsRemaining = response['credits_remaining'] ?? 0;
+         int creditsAllocated = response['credits_allocated'] ?? creditsRemaining + deductedAmount;
 
-        if (response['credits_remaining'] != null) {
-          profile.syncCredits(response['credits_remaining'] as int);
-        } else {
-          profile.deductCredits(deductedAmount);
-        }
+         if (response['credits_remaining'] != null) {
+           profile.syncCredits(creditsRemaining);
+         } else {
+           profile.deductCredits(deductedAmount);
+         }
 
-        await FirebaseAnalytics.instance.logSpendVirtualCurrency(
-          itemName: 'reveal_details', // What they bought
-          virtualCurrencyName: 'credits', // Currency type
-          value: deductedAmount, // Amount spent
-        );
+         await FirebaseAnalytics.instance.logSpendVirtualCurrency(
+           itemName: 'reveal_details', // What they bought
+           virtualCurrencyName: 'credits', // Currency type
+           value: deductedAmount, // Amount spent
+         );
 
-        // Optional: Track specifically as a "lead" generation
-        await FirebaseAnalytics.instance.logEvent(
-          name: 'get_quote_unlocked',
-          parameters: {
-            'item_id': widget.jewelryItem.id,
-            'item_name': widget.jewelryItem.productTitle,
-          },
-        );
+         // Optional: Track specifically as a "lead" generation
+         await FirebaseAnalytics.instance.logEvent(
+           name: 'get_quote_unlocked',
+           parameters: {
+             'item_id': widget.jewelryItem.id,
+             'item_name': widget.jewelryItem.productTitle,
+           },
+         );
 
-        if (mounted) {
+         // Check if 80% of credits have been consumed (20% or less remaining)
+         final percentageRemaining = (creditsRemaining / creditsAllocated) * 100;
+         if (percentageRemaining <= 20 && mounted) {
+           _showCreditUsageWarning(creditsRemaining, creditsAllocated);
+         }
+
+         if (mounted) {
           // Refetch full product details with all columns
           // Pass isDesignerProduct flag to ensure we query the correct table
           final fullProduct = await _jewelryService.getJewelryItem(
@@ -694,6 +793,55 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         );
       }
     }
+  }
+
+  void _showCreditUsageWarning(int creditsRemaining, int creditsAllocated) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Credit Usage Alert'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'You have used 80% of your allocated credits!',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Credits Remaining: $creditsRemaining / $creditsAllocated',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Percentage Used: ${(((creditsAllocated - creditsRemaining) / creditsAllocated) * 100).toStringAsFixed(1)}%',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Share your referral code to earn more credits and continue exploring!',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to referral screen or share referral code
+              context.push('/referral');
+            },
+            child: const Text('Share Referral Code'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -1269,7 +1417,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildImageThumbnails() {
-    if (_imageUrls.length <= 1) return const SizedBox.shrink();
+    // Hide thumbnails completely - user wants only 1 image visible
+    return const SizedBox.shrink();
+    
+    // Original code kept for reference but disabled:
+    // if (_imageUrls.length <= 1) return const SizedBox.shrink();
 
     // Calculate visible thumbnails (max 3 at a time)
     final visibleCount = _imageUrls.length > 3 ? 3 : _imageUrls.length;

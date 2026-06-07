@@ -195,12 +195,12 @@ class _OnboardingScreen3CategoriesState
     children: [
      Row(
       children: [
-       IconButton(
-        onPressed: () => GoRouter.of(context).go('/onboarding/occasions'),
-        // FIX: Use onSurface for icon color
-        icon: Icon(Icons.arrow_back_rounded, color: colorScheme.onSurface), 
-        iconSize: 28,
-       ),
+        IconButton(
+         onPressed: () => GoRouter.of(context).go('/onboarding/gender'),
+         // FIX: Use onSurface for icon color
+         icon: Icon(Icons.arrow_back_rounded, color: colorScheme.onSurface), 
+         iconSize: 28,
+        ),
        const Spacer(),
        // Dots are active as this is the final step
        _buildProgressDot(true), 

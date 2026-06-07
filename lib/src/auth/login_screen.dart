@@ -183,9 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Container(
               decoration: const BoxDecoration(
                 image: DecorationImage(
-                  image: NetworkImage(
-                    'https://static.vecteezy.com/system/resources/previews/035/081/140/non_2x/women-s-jewelry-gold-chain-trendy-jewelry-on-a-silk-background-photo.JPG',
-                  ),
+                  image: AssetImage('assets/icons/loginscreen.jpg'),
                   fit: BoxFit.cover,
                 ),
               ),

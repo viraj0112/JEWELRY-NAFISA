@@ -191,16 +191,28 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
       debugPrint('Total items before dedup: ${allItems.length}');
 
-      // Remove duplicates by image + table source combination
+      // Commented out: Remove duplicates by image + table source combination
       // This keeps the same image if it comes from different tables
+      // final uniqueProducts = <JewelryItem>[];
+      // final Set<String> seenCombinations = {};
+      //
+      // for (var product in allItems) {
+      //   // Use image + table source as unique key instead of just image
+      //   final key = '${product.image}-${product.isDesignerProduct}-${product.isManufacturerProduct}';
+      //   if (!seenCombinations.contains(key)) {
+      //     seenCombinations.add(key);
+      //     uniqueProducts.add(product);
+      //   }
+      // }
+      // uniqueProducts.shuffle();
+
+      // Show only single image per product (no duplicates)
       final uniqueProducts = <JewelryItem>[];
-      final Set<String> seenCombinations = {};
+      final Set<String> seenImages = {};
 
       for (var product in allItems) {
-        // Use image + table source as unique key instead of just image
-        final key = '${product.image}-${product.isDesignerProduct}-${product.isManufacturerProduct}';
-        if (!seenCombinations.contains(key)) {
-          seenCombinations.add(key);
+        if (!seenImages.contains(product.image)) {
+          seenImages.add(product.image);
           uniqueProducts.add(product);
         }
       }
@@ -832,10 +844,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         ),
                       ),
                     ),
-                    _buildAnimatedOvalDropdown(
-                      value: _selectedAkdMetalType,
-                      items: _akdMetalTypeOptions,
+                    _buildBubbleFilter(
+                      options: _akdMetalTypeOptions,
+                      selectedValue: _selectedAkdMetalType,
                       onChanged: _onAkdMetalTypeChanged,
+                      isLoading: _isLoadingAkdMetalTypes,
                     ),
                   ],
                 ),
@@ -853,13 +866,30 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 child: SlideTransition(position: offsetAnimation, child: child),
               );
             },
-            child: _selectedMetalType != 'All'
+            child: _selectedMetalType != 'All' && _availableProductTypes.length > 1
                 ? Padding(
-                    key: const ValueKey('productTypeDropdown'),
-                    padding: const EdgeInsets.only(top: 12.0),
-                    child: _buildProductTypeDropdown(),
+                    key: const ValueKey('productTypeBubbles'),
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: _buildBubbleFilter(
+                      options: _availableProductTypes,
+                      selectedValue: _selectedProductType,
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedProductType = value;
+                            _selectedCategory = 'All';
+                            _availableCategories = ['All'];
+                          });
+                          _fetchCategories(
+                            metalType: _selectedMetalType,
+                            productType: value,
+                          );
+                          _loadProducts();
+                        }
+                      },
+                    ),
                   )
-                : const SizedBox.shrink(key: ValueKey('productTypeDropdownEmpty')),
+                : const SizedBox.shrink(key: ValueKey('productTypeBubblesEmpty')),
           ),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 260),
@@ -873,13 +903,22 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 child: SlideTransition(position: offsetAnimation, child: child),
               );
             },
-            child: _selectedMetalType != 'All' && _selectedProductType != 'All'
+            child: _selectedMetalType != 'All' && _selectedProductType != 'All' && _availableCategories.length > 1
                 ? Padding(
-                    key: const ValueKey('categoryDropdown'),
-                    padding: const EdgeInsets.only(top: 10.0),
-                    child: _buildCategoryDropdown(),
+                    key: const ValueKey('categoryBubbles'),
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: _buildBubbleFilter(
+                      options: _availableCategories,
+                      selectedValue: _selectedCategory,
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _selectedCategory = value);
+                          _loadProducts();
+                        }
+                      },
+                    ),
                   )
-                : const SizedBox.shrink(key: ValueKey('categoryDropdownEmpty')),
+                : const SizedBox.shrink(key: ValueKey('categoryBubblesEmpty')),
           ),
           if (_selectedMetalType != 'Gold' ||
               _selectedProductType != 'All' ||
@@ -898,7 +937,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       onPressed: _resetFilters,
       icon: const Icon(Icons.clear, size: 12),
       label: const Text(
-        'Reset',
+        'Back To Menu',
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
@@ -913,40 +952,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           borderRadius: BorderRadius.circular(8.0),
         ),
       ),
-    );
-  }
-
-  Widget _buildProductTypeDropdown() {
-    return _buildAnimatedOvalDropdown(
-      value: _selectedProductType,
-      items: _availableProductTypes,
-      onChanged: (value) {
-        if (value != null) {
-          setState(() {
-            _selectedProductType = value;
-            _selectedCategory = 'All';
-            _availableCategories = ['All'];
-          });
-          _fetchCategories(
-            metalType: _selectedMetalType,
-            productType: value,
-          );
-          _loadProducts();
-        }
-      },
-    );
-  }
-
-  Widget _buildCategoryDropdown() {
-    return _buildAnimatedOvalDropdown(
-      value: _selectedCategory,
-      items: _availableCategories,
-      onChanged: (value) {
-        if (value != null) {
-          setState(() => _selectedCategory = value);
-          _loadProducts();
-        }
-      },
     );
   }
 
@@ -1022,6 +1027,77 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     .toList(),
                 onChanged: onChanged,
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBubbleFilter({
+    required List<String> options,
+    required String selectedValue,
+    required ValueChanged<String?> onChanged,
+    bool isLoading = false,
+  }) {
+    if (isLoading) {
+      return const SizedBox(
+        height: 32,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    // Filter out 'All' from display
+    final displayOptions = options.where((opt) => opt != 'All').toList();
+
+    if (displayOptions.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 6.0,
+      runSpacing: 6.0,
+      children: displayOptions.map((option) => _buildBubbleChip(
+        option,
+        selectedValue == option,
+        () => onChanged(option),
+      )).toList(),
+    );
+  }
+
+  Widget _buildBubbleChip(String label, bool isSelected, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 6.0),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF006435) : Colors.white,
+            borderRadius: BorderRadius.circular(16.0),
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFF006435)
+                  : const Color(0xFFE0E0E0),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isSelected
+                    ? const Color(0xFF006435).withOpacity(0.25)
+                    : Colors.grey.withOpacity(0.15),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : const Color(0xFF424242),
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              fontSize: 12,
             ),
           ),
         ),
