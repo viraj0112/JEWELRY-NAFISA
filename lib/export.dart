@@ -12,4 +12,11 @@ import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_categories.dart';
+// Auth screens
+import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
+import 'package:jewelry_nafisa/src/auth/login_screen.dart';
+import 'package:jewelry_nafisa/src/auth/email_signup_screen.dart';
+import 'package:jewelry_nafisa/src/auth/phone_auth_screen.dart';
+// Services
+import 'package:jewelry_nafisa/src/services/msg91_otp_service.dart';
 // import 'package:jewelry_nafisa/src/b2b/b2b_shell.dart';

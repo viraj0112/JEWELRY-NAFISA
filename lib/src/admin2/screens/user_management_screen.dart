@@ -546,6 +546,36 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                             spacing: 10,
                             runSpacing: 6,
                             children: [
+                              if (_needsApproval(row)) ...[
+                                InkWell(
+                                  onTap: () => _onUpdateApproval(
+                                    row,
+                                    approve: true,
+                                  ),
+                                  child: const Text(
+                                    'Approve',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12,
+                                      color: Color(0xFF006435),
+                                    ),
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: () => _onUpdateApproval(
+                                    row,
+                                    approve: false,
+                                  ),
+                                  child: const Text(
+                                    'Reject',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12,
+                                      color: Color(0xFF9D241B),
+                                    ),
+                                  ),
+                                ),
+                              ],
                               InkWell(
                                 onTap: () => _onAdjustCredits(row),
                                 child: const Text(
@@ -659,6 +689,24 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
+                    if (_needsApproval(row)) ...[
+                      FilledButton.icon(
+                        onPressed: () => _onUpdateApproval(
+                          row,
+                          approve: true,
+                        ),
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text('Approve'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _onUpdateApproval(
+                          row,
+                          approve: false,
+                        ),
+                        icon: const Icon(Icons.close, size: 16),
+                        label: const Text('Reject'),
+                      ),
+                    ],
                     OutlinedButton(
                       onPressed: () => _onAdjustCredits(row),
                       child: const Text('Adjust Credits'),
@@ -776,6 +824,43 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   void _onViewLedger(UserLedgerRow row) {
     _showLedgerDialog(row);
+  }
+
+  bool _needsApproval(UserLedgerRow row) {
+    return row.approvalStatus.toLowerCase() != 'approved';
+  }
+
+  Future<void> _onUpdateApproval(
+    UserLedgerRow row, {
+    required bool approve,
+  }) async {
+    try {
+      await Supabase.instance.client.from('users').update({
+        'approval_status': approve ? 'approved' : 'rejected',
+        'is_approved': approve,
+      }).eq('id', row.id);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            approve ? '${row.name} approved' : '${row.name} rejected',
+          ),
+        ),
+      );
+      widget.onRequestRefresh();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            approve
+                ? 'Failed to approve ${row.name}: $e'
+                : 'Failed to reject ${row.name}: $e',
+          ),
+        ),
+      );
+    }
   }
 
   bool _matchesUserFilter(UserLedgerRow row, _UserTypeFilter filter) {

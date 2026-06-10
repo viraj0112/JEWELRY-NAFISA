@@ -37,6 +37,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   List<String> _akdMetalTypeOptions = ['All'];
   bool _isLoadingAkdMetalTypes = false;
 
+  String _displayMetalType(String value) {
+    return value.replaceFirst(RegExp(r'^AKD-', caseSensitive: false), '');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -849,6 +853,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       selectedValue: _selectedAkdMetalType,
                       onChanged: _onAkdMetalTypeChanged,
                       isLoading: _isLoadingAkdMetalTypes,
+                      labelBuilder: _displayMetalType,
                     ),
                   ],
                 ),
@@ -1007,7 +1012,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     return Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        item.replaceAll('AKD-', ''),
+                        _displayMetalType(item),
                         style: const TextStyle(
                           color: Color(0xFF2F2F2F),
                           fontSize: 15,
@@ -1021,7 +1026,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     .map(
                       (item) => DropdownMenuItem(
                         value: item,
-                        child: Text(item.replaceAll('AKD-', ''), overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          _displayMetalType(item),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     )
                     .toList(),
@@ -1039,6 +1047,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     required String selectedValue,
     required ValueChanged<String?> onChanged,
     bool isLoading = false,
+    String Function(String value)? labelBuilder,
   }) {
     if (isLoading) {
       return const SizedBox(
@@ -1057,7 +1066,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       spacing: 6.0,
       runSpacing: 6.0,
       children: displayOptions.map((option) => _buildBubbleChip(
-        option,
+        labelBuilder?.call(option) ?? option,
         selectedValue == option,
         () => onChanged(option),
       )).toList(),

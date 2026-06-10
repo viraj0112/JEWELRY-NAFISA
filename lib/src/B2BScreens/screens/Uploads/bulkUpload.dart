@@ -212,6 +212,12 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
       final input = utf8.decode(_csvFiles!.first.bytes!);
       final fields = const CsvToListConverter().convert(input);
       final headers = fields[0].map((e) => e.toString().trim()).toList();
+
+      String? normalizeMetalType(dynamic value) {
+        final text = value?.toString().trim();
+        if (text == null || text.isEmpty) return null;
+        return text.replaceFirst(RegExp(r'^AKD-'), '');
+      }
       
       // debugPrint("=== CSV DATA ===");
       // debugPrint("Headers: $headers");
@@ -294,6 +300,8 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
 
           if (arrayHeaders.contains(header)) {
             productData[header] = parseArrayValue(value);
+          } else if (header == 'Metal Type') {
+            productData[header] = normalizeMetalType(value);
           } else {
             productData[header] = getStringValue(value);
           }

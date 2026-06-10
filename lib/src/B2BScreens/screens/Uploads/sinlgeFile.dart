@@ -952,6 +952,12 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
         return text.isEmpty ? null : text;
       }
 
+      String? normalizeMetalType(String? value) {
+        final text = value?.trim();
+        if (text == null || text.isEmpty) return null;
+        return text.replaceFirst(RegExp(r'^AKD-'), '');
+      }
+
       List<String>? textToList(TextEditingController controller) {
         final text = controller.text.trim();
         return text.isEmpty ? null : [text];
@@ -963,7 +969,7 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
         'Product Title': productTitleCtrl.text.trim(),
         'Description': getTextValue(descCtrl),
         'Image': uploadedImageUrls.isEmpty ? null : uploadedImageUrls,
-        'Metal Type': metalType,
+        'Metal Type': normalizeMetalType(metalType),
         'Metal Purity': metalPurity,
         'Product Type': productType,
         'Gold Weight': getTextValue(metalWeightCtrl),
