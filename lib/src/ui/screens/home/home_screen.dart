@@ -229,14 +229,32 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> _loadAdvancedFilters() async {
     setState(() => _isLoadingAdvancedOptions = true);
     try {
+      final filters = <String, String?>{};
+      final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
+      if (effectiveMetal != null) {
+        filters['Metal Type'] = effectiveMetal;
+      }
+      if (_selectedProductType != 'All') {
+        filters['Product Type'] = _selectedProductType;
+      }
+      if (_selectedCategory != 'All') {
+        filters['Category'] = _selectedCategory;
+      }
+      if (_selectedSubCategory != 'All') {
+        filters['Sub Category'] = _selectedSubCategory;
+      }
+      if (_selectedJewelleryType != null) {
+        filters['Jewellery Type'] = _selectedJewelleryType;
+      }
+
       final futures = await Future.wait([
-        _filterService.getDistinctValues('Metal Color'),
-        _filterService.getDistinctValues('Metal Purity'),
-        _filterService.getDistinctArrayValues('Stone Cut'),
-        _filterService.getDistinctArrayValues('Stone Type'),
-        _filterService.getDistinctArrayValues('Stone Purity'),
-        _filterService.getDistinctArrayValues('Stone Setting'),
-        _filterService.getDistinctArrayValues('Product Tags'),
+        _filterService.getDependentDistinctValues('Metal Color', filters),
+        _filterService.getDependentDistinctValues('Metal Purity', filters),
+        _filterService.getDependentDistinctArrayValues('Stone Cut', filters),
+        _filterService.getDependentDistinctArrayValues('Stone Type', filters),
+        _filterService.getDependentDistinctArrayValues('Stone Purity', filters),
+        _filterService.getDependentDistinctArrayValues('Stone Setting', filters),
+        _filterService.getDependentDistinctArrayValues('Product Tags', filters),
         _filterService
             .getWeightRange('Net Weight'), // Metal weight approximation
         _filterService.getWeightRange('Stone Weight', isArray: true),
@@ -264,6 +282,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   void _onJewelleryTypeChanged(String? val) {
     setState(() => _selectedJewelleryType = val);
+    _loadAdvancedFilters();
   }
 
   void _onMetalWeightChanged(List<double> val) {
@@ -582,11 +601,63 @@ class HomeScreenState extends State<HomeScreen> {
       }
       if (_selectedStudded != null) {
         productsQuery =
-            productsQuery.contains('Studded', ['$_selectedStudded']);
+            productsQuery.overlaps('Studded', ['$_selectedStudded']);
         designerQuery =
-            designerQuery.contains('Studded', ['$_selectedStudded']);
+            designerQuery.overlaps('Studded', ['$_selectedStudded']);
         manufacturerQuery =
-            manufacturerQuery.contains('Studded', ['$_selectedStudded']);
+            manufacturerQuery.overlaps('Studded', ['$_selectedStudded']);
+      }
+
+      // Advanced Filters
+      if (_selectedJewelleryType == 'Plain') {
+        productsQuery = productsQuery.not('Plain', 'is', 'null');
+        designerQuery = designerQuery.not('Plain', 'is', 'null');
+        manufacturerQuery = manufacturerQuery.not('Plain', 'is', 'null');
+      } else if (_selectedJewelleryType == 'Studded') {
+        productsQuery = productsQuery.not('Studded', 'is', 'null');
+        designerQuery = designerQuery.not('Studded', 'is', 'null');
+        manufacturerQuery = manufacturerQuery.not('Studded', 'is', 'null');
+      }
+
+      if (_selectedMetalColors.isNotEmpty) {
+        productsQuery = productsQuery.inFilter('"Metal Color"', _selectedMetalColors);
+        designerQuery = designerQuery.inFilter('"Metal Color"', _selectedMetalColors);
+        manufacturerQuery = manufacturerQuery.inFilter('"Metal Color"', _selectedMetalColors);
+      }
+      if (_selectedMetalPurities.isNotEmpty) {
+        productsQuery = productsQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
+        designerQuery = designerQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
+        manufacturerQuery = manufacturerQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
+      }
+      if (_isEnamelWorkChecked) {
+        productsQuery = productsQuery.not('"Enamel Work"', 'is', 'null');
+        designerQuery = designerQuery.not('"Enamel Work"', 'is', 'null');
+        manufacturerQuery = manufacturerQuery.not('"Enamel Work"', 'is', 'null');
+      }
+      if (_selectedStoneShapes.isNotEmpty) {
+        productsQuery = productsQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
+        designerQuery = designerQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
+        manufacturerQuery = manufacturerQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
+      }
+      if (_selectedStoneTypes.isNotEmpty) {
+        productsQuery = productsQuery.overlaps('"Stone Type"', _selectedStoneTypes);
+        designerQuery = designerQuery.overlaps('"Stone Type"', _selectedStoneTypes);
+        manufacturerQuery = manufacturerQuery.overlaps('"Stone Type"', _selectedStoneTypes);
+      }
+      if (_selectedStoneQualities.isNotEmpty) {
+        productsQuery = productsQuery.overlaps('"Stone Purity"', _selectedStoneQualities);
+        designerQuery = designerQuery.overlaps('"Stone Purity"', _selectedStoneQualities);
+        manufacturerQuery = manufacturerQuery.overlaps('"Stone Purity"', _selectedStoneQualities);
+      }
+      if (_selectedStoneSettings.isNotEmpty) {
+        productsQuery = productsQuery.overlaps('"Stone Setting"', _selectedStoneSettings);
+        designerQuery = designerQuery.overlaps('"Stone Setting"', _selectedStoneSettings);
+        manufacturerQuery = manufacturerQuery.overlaps('"Stone Setting"', _selectedStoneSettings);
+      }
+      if (_selectedFeaturedTags.isNotEmpty) {
+        productsQuery = productsQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
+        designerQuery = designerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
+        manufacturerQuery = manufacturerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
       }
 
       // OPTIMIZED: Use pagination instead of loading all products
@@ -730,23 +801,23 @@ class HomeScreenState extends State<HomeScreen> {
         }
         if (_selectedStoneShapes.isNotEmpty) {
           designerQuery =
-              designerQuery.contains('"Stone Cut"', _selectedStoneShapes);
+              designerQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
         }
         if (_selectedStoneTypes.isNotEmpty) {
           designerQuery =
-              designerQuery.contains('"Stone Type"', _selectedStoneTypes);
+              designerQuery.overlaps('"Stone Type"', _selectedStoneTypes);
         }
         if (_selectedStoneQualities.isNotEmpty) {
           designerQuery =
-              designerQuery.contains('"Stone Purity"', _selectedStoneQualities);
+              designerQuery.overlaps('"Stone Purity"', _selectedStoneQualities);
         }
         if (_selectedStoneSettings.isNotEmpty) {
           designerQuery =
-              designerQuery.contains('"Stone Setting"', _selectedStoneSettings);
+              designerQuery.overlaps('"Stone Setting"', _selectedStoneSettings);
         }
         if (_selectedFeaturedTags.isNotEmpty) {
           designerQuery =
-              designerQuery.contains('"Product Tags"', _selectedFeaturedTags);
+              designerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
         }
         // Sliders (approximate matching could be added later, for now we skip strict SQL weight filtering due to string parsing limits in postgrest)
 
@@ -817,22 +888,22 @@ class HomeScreenState extends State<HomeScreen> {
         }
         if (_selectedStoneShapes.isNotEmpty) {
           manufacturerQuery =
-              manufacturerQuery.contains('"Stone Cut"', _selectedStoneShapes);
+              manufacturerQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
         }
         if (_selectedStoneTypes.isNotEmpty) {
           manufacturerQuery =
-              manufacturerQuery.contains('"Stone Type"', _selectedStoneTypes);
+              manufacturerQuery.overlaps('"Stone Type"', _selectedStoneTypes);
         }
         if (_selectedStoneQualities.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.contains(
+          manufacturerQuery = manufacturerQuery.overlaps(
               '"Stone Purity"', _selectedStoneQualities);
         }
         if (_selectedStoneSettings.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.contains(
+          manufacturerQuery = manufacturerQuery.overlaps(
               '"Stone Setting"', _selectedStoneSettings);
         }
         if (_selectedFeaturedTags.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.contains(
+          manufacturerQuery = manufacturerQuery.overlaps(
               '"Product Tags"', _selectedFeaturedTags);
         }
         // Sliders (approximate matching could be added later, for now we skip strict SQL weight filtering due to string parsing limits in postgrest)
@@ -1130,6 +1201,7 @@ class HomeScreenState extends State<HomeScreen> {
         _isLoadingProductTypes = false;
       });
     }
+    _loadAdvancedFilters();
     if (applyImmediately) {
       // Refetch products
       _applyFilters();
@@ -1171,6 +1243,7 @@ class HomeScreenState extends State<HomeScreen> {
         _isLoadingCategories = false;
       });
     }
+    _loadAdvancedFilters();
     if (applyImmediately) {
       // Refetch products
       _applyFilters();
@@ -1211,6 +1284,7 @@ class HomeScreenState extends State<HomeScreen> {
         _isLoadingSubCategories = false;
       });
     }
+    _loadAdvancedFilters();
     if (applyImmediately) {
       // Refetch products
       _applyFilters();
@@ -1223,6 +1297,7 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedSubCategory = value;
     });
+    _loadAdvancedFilters();
     if (applyImmediately) {
       // Just refetch products, no new options to load
       _applyFilters();
@@ -1257,6 +1332,7 @@ class HomeScreenState extends State<HomeScreen> {
       _categoryOptions = ['All'];
       _subCategoryOptions = ['All'];
     });
+    _loadAdvancedFilters();
     _applyFilters();
   }
 

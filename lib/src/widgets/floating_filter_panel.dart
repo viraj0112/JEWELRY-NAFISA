@@ -326,7 +326,7 @@ class _FloatingFilterOverlayState extends State<FloatingFilterOverlay>
               borderRadius: BorderRadius.circular(30),
               boxShadow: [
                 BoxShadow(
-                  color: _green.withOpacity(0.45),
+                  color: _green.withValues(alpha: 0.45),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -782,71 +782,74 @@ class _FloatingFilterPanel extends StatelessWidget {
           ],
         ),
 
-        // 6. Stone Weight
-        _buildAccordion(
-          title: 'Stone Weight',
-          activeCount: config.currentStoneWeightRange != null ? 1 : 0,
-          children: [
-            _buildRangeSlider(
-              bounds: config.stoneWeightBounds,
-              current: config.currentStoneWeightRange,
-              onChanged: config.onStoneWeightChanged,
-              unit: 'ct',
-            ),
-          ],
-        ),
+        // Stone Filters (Hidden if Plain is selected)
+        if (config.selectedJewelleryType != 'Plain') ...[
+          // 6. Stone Weight
+          _buildAccordion(
+            title: 'Stone Weight',
+            activeCount: config.currentStoneWeightRange != null ? 1 : 0,
+            children: [
+              _buildRangeSlider(
+                bounds: config.stoneWeightBounds,
+                current: config.currentStoneWeightRange,
+                onChanged: config.onStoneWeightChanged,
+                unit: 'ct',
+              ),
+            ],
+          ),
 
-        // 7. Stone Shape
-        _buildAccordion(
-          title: 'Stone Shape',
-          activeCount: config.selectedStoneShapes.length,
-          children: [
-            _buildMultiSelectWrap(
-              options: config.availableStoneShapes,
-              selections: config.selectedStoneShapes,
-              onChanged: config.onStoneShapesChanged,
-            ),
-          ],
-        ),
+          // 7. Stone Shape
+          _buildAccordion(
+            title: 'Stone Shape',
+            activeCount: config.selectedStoneShapes.length,
+            children: [
+              _buildMultiSelectWrap(
+                options: config.availableStoneShapes,
+                selections: config.selectedStoneShapes,
+                onChanged: config.onStoneShapesChanged,
+              ),
+            ],
+          ),
 
-        // 8. Stone Type
-        _buildAccordion(
-          title: 'Stone Type',
-          activeCount: config.selectedStoneTypes.length,
-          children: [
-            _buildMultiSelectWrap(
-              options: config.availableStoneTypes,
-              selections: config.selectedStoneTypes,
-              onChanged: config.onStoneTypesChanged,
-            ),
-          ],
-        ),
+          // 8. Stone Type
+          _buildAccordion(
+            title: 'Stone Type',
+            activeCount: config.selectedStoneTypes.length,
+            children: [
+              _buildMultiSelectWrap(
+                options: config.availableStoneTypes,
+                selections: config.selectedStoneTypes,
+                onChanged: config.onStoneTypesChanged,
+              ),
+            ],
+          ),
 
-        // 9. Stone Quality
-        _buildAccordion(
-          title: 'Stone Quality',
-          activeCount: config.selectedStoneQualities.length,
-          children: [
-            _buildMultiSelectWrap(
-              options: config.availableStoneQualities,
-              selections: config.selectedStoneQualities,
-              onChanged: config.onStoneQualitiesChanged,
-            ),
-          ],
-        ),
+          // 9. Stone Quality
+          _buildAccordion(
+            title: 'Stone Quality',
+            activeCount: config.selectedStoneQualities.length,
+            children: [
+              _buildMultiSelectWrap(
+                options: config.availableStoneQualities,
+                selections: config.selectedStoneQualities,
+                onChanged: config.onStoneQualitiesChanged,
+              ),
+            ],
+          ),
 
-        // 10. Stone Setting
-        _buildAccordion(
-          title: 'Stone Setting',
-          activeCount: config.selectedStoneSettings.length,
-          children: [
-            _buildMultiSelectWrap(
-              options: config.availableStoneSettings,
-              selections: config.selectedStoneSettings,
-              onChanged: config.onStoneSettingsChanged,
-            ),
-          ],
-        ),
+          // 10. Stone Setting
+          _buildAccordion(
+            title: 'Stone Setting',
+            activeCount: config.selectedStoneSettings.length,
+            children: [
+              _buildMultiSelectWrap(
+                options: config.availableStoneSettings,
+                selections: config.selectedStoneSettings,
+                onChanged: config.onStoneSettingsChanged,
+              ),
+            ],
+          ),
+        ],
 
         // 11. Featured
         _buildAccordion(
@@ -916,9 +919,10 @@ class _FloatingFilterPanel extends StatelessWidget {
     required List<String> selections,
     required void Function(List<String>) onChanged,
   }) {
-    if (options.isEmpty)
+    if (options.isEmpty) {
       return const Text('No options',
           style: TextStyle(fontSize: 12, color: Colors.grey));
+    }
     return Wrap(
       spacing: 6,
       runSpacing: 8,

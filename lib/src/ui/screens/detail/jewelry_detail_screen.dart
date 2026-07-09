@@ -1180,8 +1180,6 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     final bool showTitle = _detailsRevealed;
     final bool showFullDetails = _detailsRevealed;
-    print('showTitle: $showTitle, showFullDetails: $showFullDetails');
-    print('Title: ${item.productTitle}');
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(

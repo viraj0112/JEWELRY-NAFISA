@@ -176,6 +176,17 @@ class FilterService {
       // 2. Apply dependent filters to both queries
       for (var filter in filters.entries) {
         if (filter.value != null && filter.value != 'All') {
+          if (filter.key == 'Jewellery Type') {
+            if (filter.value == 'Plain') {
+              productsQuery = productsQuery.not('Plain', 'is', 'null');
+              designerQuery = designerQuery.not('Plain', 'is', 'null');
+            } else if (filter.value == 'Studded') {
+              productsQuery = productsQuery.not('Studded', 'is', 'null');
+              designerQuery = designerQuery.not('Studded', 'is', 'null');
+            }
+            continue;
+          }
+
           // Use quotes for filter keys if they contain spaces
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
@@ -219,6 +230,75 @@ class FilterService {
     } catch (e) {
       debugPrint(
           'Error fetching dependent distinct values for column $columnName: $e');
+      return [];
+    }
+  }
+
+  Future<List<String>> getDependentDistinctArrayValues(
+      String columnName, Map<String, String?> filters) async {
+    // If no specific filters are applied, just get all distinct array values.
+    if (filters.values.every((v) => v == null || v == 'All')) {
+      return getDistinctArrayValues(columnName);
+    }
+
+    try {
+      final columnKey = columnName.contains(' ') ? '"$columnName"' : columnName;
+      var productsQuery = _supabase.from('products').select(columnKey);
+      var designerQuery = _supabase.from('designerproducts').select(columnKey);
+
+      for (var filter in filters.entries) {
+        if (filter.value != null && filter.value != 'All') {
+          if (filter.key == 'Jewellery Type') {
+            if (filter.value == 'Plain') {
+              productsQuery = productsQuery.not('Plain', 'is', 'null');
+              designerQuery = designerQuery.not('Plain', 'is', 'null');
+            } else if (filter.value == 'Studded') {
+              productsQuery = productsQuery.not('Studded', 'is', 'null');
+              designerQuery = designerQuery.not('Studded', 'is', 'null');
+            }
+            continue;
+          }
+
+          final filterKey =
+              filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
+          if (filter.key == 'Metal Type' && filter.value == 'AKD') {
+            productsQuery = productsQuery.ilike(filterKey, 'AKD%');
+            designerQuery = designerQuery.ilike(filterKey, 'AKD%');
+          } else {
+            productsQuery = productsQuery.eq(filterKey, filter.value!);
+            designerQuery = designerQuery.eq(filterKey, filter.value!);
+          }
+        }
+      }
+
+      final responses = await Future.wait([productsQuery, designerQuery]);
+      final Set<String> values = {};
+
+      void processResponse(dynamic response) {
+        if (response is List) {
+          for (var row in response) {
+            final val = row[columnName];
+            if (val is List) {
+              for (var item in val) {
+                if (item != null && item.toString().trim().isNotEmpty) {
+                  values.add(item.toString().trim());
+                }
+              }
+            } else if (val is String && val.trim().isNotEmpty) {
+               // Sometimes array columns might come as strings if they are formatted weirdly
+               values.add(val.trim());
+            }
+          }
+        }
+      }
+
+      processResponse(responses[0]);
+      processResponse(responses[1]);
+
+      return values.toList()..sort();
+    } catch (e) {
+      debugPrint(
+          'Error fetching dependent distinct array values for column $columnName: $e');
       return [];
     }
   }
