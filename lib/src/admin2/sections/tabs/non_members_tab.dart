@@ -9,12 +9,14 @@ class NonMembersTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<UsersProvider>();
-    if (prov.loading) return const AdminSkeletonView(variant: AdminSkeletonVariant.list);
-    
+    if (prov.loading)
+      return const AdminSkeletonView(variant: AdminSkeletonVariant.list);
+
     final users = prov.nonMembers;
-    
-    if (users.isEmpty) return const Center(child: Text('No non-members found.'));
-    
+
+    if (users.isEmpty)
+      return const Center(child: Text('No non-members found.'));
+
     return LayoutBuilder(builder: (context, constraints) {
       return ListView.builder(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -23,42 +25,56 @@ class NonMembersTab extends StatelessWidget {
           final u = users[i];
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 22, 
-                    child: Text(u.name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join())
-                  ),
+                      radius: 22,
+                      child: Text(u.name
+                          .split(' ')
+                          .map((e) => e.isNotEmpty ? e[0] : '')
+                          .take(2)
+                          .join())),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(u.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 2),
-                      InkWell(
-                        onTap: () {
-                           if (u.email.isNotEmpty) {
-                             Clipboard.setData(ClipboardData(text: u.email));
-                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email copied!')));
-                           }
-                        },
-                        child: Text(
-                          u.email, 
-                          style: TextStyle(color: Theme.of(context).colorScheme.primary, decoration: TextDecoration.underline)
-                        ),
-                      ),
-                    ]),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(u.name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 2),
+                          InkWell(
+                            onTap: () {
+                              if (u.email.isNotEmpty) {
+                                Clipboard.setData(ClipboardData(text: u.email));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Email copied!')));
+                              }
+                            },
+                            child: Text(u.email,
+                                style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    decoration: TextDecoration.underline)),
+                          ),
+                        ]),
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('Credits: ${u.credits}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                      Text('Credits: ${u.credits}',
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 6),
                       Text('Referrals: ${u.referrals}'),
                       const SizedBox(height: 6),
-                      Text('Registered: ${u.lastActive != null ? DateFormat.yMMMd().format(u.lastActive!) : '—'}', style: const TextStyle(fontSize: 12)),
+                      Text(
+                          'Registered: ${u.lastActive != null ? DateFormat.yMMMd().format(u.lastActive!) : '—'}',
+                          style: const TextStyle(fontSize: 12)),
                       const SizedBox(height: 8),
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -72,7 +88,9 @@ class NonMembersTab extends StatelessWidget {
                               icon: const Icon(Icons.phone, size: 20),
                               onPressed: () {
                                 Clipboard.setData(ClipboardData(text: u.phone));
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone copied!')));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Phone copied!')));
                               },
                             ),
                         ],
@@ -115,7 +133,8 @@ class _PotentialBadge extends StatelessWidget {
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
       child: Text(potential, style: TextStyle(color: text)),
     );
   }

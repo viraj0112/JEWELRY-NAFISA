@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'dart:convert';
-import 'package:file_picker/file_picker.dart'; 
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:csv/csv.dart';
@@ -42,9 +42,12 @@ class BulkUploadUploadCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    Text("Bulk Upload", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text("Bulk Upload",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14)),
                     SizedBox(height: 4),
-                    Text("Upload multiple products at once with a guided flow", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text("Upload multiple products at once with a guided flow",
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
                     SizedBox(height: 8),
                     _Bullet(text: "Upload multiple products simultaneously"),
                     _Bullet(text: "CSV template provided"),
@@ -59,7 +62,6 @@ class BulkUploadUploadCard extends StatelessWidget {
     );
   }
 }
-
 
 class _Bullet extends StatelessWidget {
   final String text;
@@ -92,13 +94,41 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
   void _downloadSampleCsv() {
     // Headers matching the designerproducts table schema
     final List<String> headers = [
-      'Product Title', 'Description', 'Price', 'Product Tags', 'Gold Weight',
-      'Metal Purity', 'Metal Finish', 'Stone Weight', 'Stone Type', 'Stone Used',
-      'Stone Setting', 'Stone Count', 'Stone Color', 'Stone Cut', 'Stone Purity',
-      'Collection Name', 'Product Type', 'Gender', 'Theme', 'Metal Type',
-      'Metal Color', 'Net Weight', 'Dimension', 'Design Type', 'Art Form',
-      'Plating', 'Enamel Work', 'Customizable', 'Category', 'Sub Category',
-      'Plain', 'Studded', 'Category1', 'Category2', 'Category3',
+      'Product Title',
+      'Description',
+      'Price',
+      'Product Tags',
+      'Gold Weight',
+      'Metal Purity',
+      'Metal Finish',
+      'Stone Weight',
+      'Stone Type',
+      'Stone Used',
+      'Stone Setting',
+      'Stone Count',
+      'Stone Color',
+      'Stone Cut',
+      'Stone Purity',
+      'Collection Name',
+      'Product Type',
+      'Gender',
+      'Theme',
+      'Metal Type',
+      'Metal Color',
+      'Net Weight',
+      'Dimension',
+      'Design Type',
+      'Art Form',
+      'Plating',
+      'Enamel Work',
+      'Customizable',
+      'Category',
+      'Sub Category',
+      'Plain',
+      'Studded',
+      'Category1',
+      'Category2',
+      'Category3',
     ];
 
     final String csvContent = const ListToCsvConverter().convert([headers]);
@@ -139,7 +169,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
         });
       }
     } catch (e) {
-       debugPrint('Error picking images: $e');
+      debugPrint('Error picking images: $e');
     }
   }
 
@@ -152,9 +182,18 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
     }
 
     const arrayHeaders = {
-      'Product Tags', 'Stone Weight', 'Stone Type', 'Stone Used',
-      'Stone Setting', 'Stone Count', 'Stone Color', 'Stone Cut',
-      'Stone Purity', 'Enamel Work', 'Customizable', 'Studded',
+      'Product Tags',
+      'Stone Weight',
+      'Stone Type',
+      'Stone Used',
+      'Stone Setting',
+      'Stone Count',
+      'Stone Color',
+      'Stone Cut',
+      'Stone Purity',
+      'Enamel Work',
+      'Customizable',
+      'Studded',
     };
 
     setState(() => _isLoading = true);
@@ -182,21 +221,22 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
           .select('user_id')
           .eq('user_id', user.id)
           .maybeSingle();
-      
+
       final designerProfileQuery = await supabase
           .from('designer_profiles')
           .select('user_id')
           .eq('user_id', user.id)
           .maybeSingle();
-      
+
       final isManufacturer = manufacturerProfileQuery != null;
       final isDesigner = designerProfileQuery != null;
-      
+
       if (!isManufacturer && !isDesigner) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("You must have a manufacturer or designer profile to upload products."),
+              content: Text(
+                  "You must have a manufacturer or designer profile to upload products."),
               backgroundColor: Colors.red,
             ),
           );
@@ -204,10 +244,12 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
         }
         return;
       }
-      
+
       // Prioritize manufacturer profile if both exist
-      final storageBucket = isManufacturer ? 'manufacturer-files' : 'designer-files';
-      final tableName = isManufacturer ? 'manufacturerproducts' : 'designerproducts';
+      final storageBucket =
+          isManufacturer ? 'manufacturer-files' : 'designer-files';
+      final tableName =
+          isManufacturer ? 'manufacturerproducts' : 'designerproducts';
 
       final input = utf8.decode(_csvFiles!.first.bytes!);
       final fields = const CsvToListConverter().convert(input);
@@ -218,7 +260,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
         if (text == null || text.isEmpty) return null;
         return text.replaceFirst(RegExp(r'^AKD-'), '');
       }
-      
+
       // debugPrint("=== CSV DATA ===");
       // debugPrint("Headers: $headers");
       // debugPrint("Total rows: ${fields.length - 1}");
@@ -238,7 +280,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
           failCount++;
           continue;
         }
-        
+
         final title = row[titleIndex].toString().trim();
         if (title.isEmpty) {
           debugPrint("Row $i: Empty Product Title");
@@ -248,10 +290,11 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
 
         // Find ALL matching image files
         final matchingImageFiles = _imageFiles!.where((file) {
-          final fileNameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.'));
-          return fileNameWithoutExt == title || 
-                 fileNameWithoutExt.startsWith('$title-Image') ||
-                 fileNameWithoutExt.startsWith('$title-image');
+          final fileNameWithoutExt =
+              file.name.substring(0, file.name.lastIndexOf('.'));
+          return fileNameWithoutExt == title ||
+              fileNameWithoutExt.startsWith('$title-Image') ||
+              fileNameWithoutExt.startsWith('$title-image');
         }).toList();
 
         matchingImageFiles.sort((a, b) => a.name.compareTo(b.name));
@@ -259,11 +302,13 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
         List<String> uploadedImageUrls = [];
         for (final imageFile in matchingImageFiles) {
           try {
-            final fileName = '${DateTime.now().millisecondsSinceEpoch}-${imageFile.name}';
+            final fileName =
+                '${DateTime.now().millisecondsSinceEpoch}-${imageFile.name}';
             await supabase.storage
                 .from(storageBucket)
                 .uploadBinary(fileName, imageFile.bytes!);
-            final imageUrl = supabase.storage.from(storageBucket).getPublicUrl(fileName);
+            final imageUrl =
+                supabase.storage.from(storageBucket).getPublicUrl(fileName);
             uploadedImageUrls.add(imageUrl);
           } catch (e) {
             debugPrint("Failed to upload image ${imageFile.name}: $e");
@@ -274,7 +319,11 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
           if (value == null) return null;
           if (value is String) {
             if (value.isEmpty) return null;
-            return value.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+            return value
+                .split(',')
+                .map((t) => t.trim())
+                .where((t) => t.isNotEmpty)
+                .toList();
           }
           return [value.toString()];
         }
@@ -308,11 +357,9 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
         }
 
         try {
-          final insertResult = await supabase
-              .from(tableName)
-              .insert(productData)
-              .select();
-          
+          final insertResult =
+              await supabase.from(tableName).insert(productData).select();
+
           if (insertResult.isNotEmpty) {
             successCount++;
           } else {
@@ -358,7 +405,8 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Bulk Upload", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: const Text("Bulk Upload",
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -374,11 +422,14 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Bulk Upload", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                const Text("Bulk Upload",
+                    style:
+                        TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                const Text("Upload multiple products at once using CSV and images", style: TextStyle(color: Colors.grey, fontSize: 15)),
+                const Text(
+                    "Upload multiple products at once using CSV and images",
+                    style: TextStyle(color: Colors.grey, fontSize: 15)),
                 const SizedBox(height: 32),
-
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -389,13 +440,20 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Upload Instructions", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1565C0))),
+                      const Text("Upload Instructions",
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1565C0))),
                       const SizedBox(height: 16),
-                      _instructionStep("1. Download and fill the CSV template with your product data"),
+                      _instructionStep(
+                          "1. Download and fill the CSV template with your product data"),
                       const SizedBox(height: 8),
-                      _instructionStep("2. Prepare a folder with product images (named exactly as in CSV)"),
+                      _instructionStep(
+                          "2. Prepare a folder with product images (named exactly as in CSV)"),
                       const SizedBox(height: 8),
-                      _instructionStep("3. Upload both CSV and images, then validate before submitting"),
+                      _instructionStep(
+                          "3. Upload both CSV and images, then validate before submitting"),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
                         onPressed: _downloadSampleCsv,
@@ -405,16 +463,16 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
                           backgroundColor: const Color(0xFF448AFF),
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                       )
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 32),
-
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -438,14 +496,14 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
                         subText: "Select multiple files",
                         onTap: _pickImages,
                         isUploaded: _imageFiles != null,
-                        fileName: _imageFiles != null ? "${_imageFiles!.length} images selected" : null,
+                        fileName: _imageFiles != null
+                            ? "${_imageFiles!.length} images selected"
+                            : null,
                       ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 32),
-
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -456,13 +514,16 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Required CSV Columns:", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      const Text("Required CSV Columns:",
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 13)),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: const [
-                          _ColumnChip("Product Title"), // Changed from Image Filename to match logic
+                          _ColumnChip(
+                              "Product Title"), // Changed from Image Filename to match logic
                           _ColumnChip("Gold Weight"),
                           _ColumnChip("Metal Type"),
                           _ColumnChip("Product Type"),
@@ -472,20 +533,19 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 32),
-
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          side: BorderSide(color: Colors.grey.shade300)
-                        ),
-                        child: const Text("Cancel", style: TextStyle(color: Colors.black)),
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            side: BorderSide(color: Colors.grey.shade300)),
+                        child: const Text("Cancel",
+                            style: TextStyle(color: Colors.black)),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -497,12 +557,17 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 20),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                           disabledBackgroundColor: Colors.grey.shade300,
                         ),
-                        child: _isLoading 
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text("Submit Bulk Upload"),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Text("Submit Bulk Upload"),
                       ),
                     ),
                   ],
@@ -516,7 +581,9 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
   }
 
   Widget _instructionStep(String text) {
-    return Text(text, style: const TextStyle(fontSize: 13, color: Color(0xFF1565C0), height: 1.5));
+    return Text(text,
+        style: const TextStyle(
+            fontSize: 13, color: Color(0xFF1565C0), height: 1.5));
   }
 }
 
@@ -544,7 +611,11 @@ class _UploadZone extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: TextStyle(color: Colors.grey.shade700, fontSize: 13, fontWeight: FontWeight.w500)),
+        Text(title,
+            style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: 13,
+                fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: onTap,
@@ -566,12 +637,19 @@ class _UploadZone extends StatelessWidget {
                       color: Colors.grey.shade50,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(isUploaded ? Icons.check : icon, color: isUploaded ? const Color(0xFF00BFA5) : Colors.grey.shade400, size: 32),
+                    child: Icon(isUploaded ? Icons.check : icon,
+                        color: isUploaded
+                            ? const Color(0xFF00BFA5)
+                            : Colors.grey.shade400,
+                        size: 32),
                   ),
                   const SizedBox(height: 16),
-                  Text(isUploaded ? "File Selected" : mainText, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                  Text(isUploaded ? "File Selected" : mainText,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 15)),
                   const SizedBox(height: 6),
-                  Text(isUploaded ? (fileName ?? "Click to change") : subText, 
+                  Text(
+                    isUploaded ? (fileName ?? "Click to change") : subText,
                     style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                     textAlign: TextAlign.center,
                   ),
@@ -598,7 +676,8 @@ class _ColumnChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+      child: Text(label,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
     );
   }
 }
@@ -631,9 +710,9 @@ class _DottedBorderPainter extends CustomPainter {
     for (final PathMetric pathMetric in pathMetrics) {
       double distance = 0.0;
       while (distance < pathMetric.length) {
-        final double len = (distance + 6 > pathMetric.length) 
-           ? pathMetric.length - distance 
-           : 6;
+        final double len = (distance + 6 > pathMetric.length)
+            ? pathMetric.length - distance
+            : 6;
         canvas.drawPath(
           pathMetric.extractPath(distance, distance + len),
           paint,

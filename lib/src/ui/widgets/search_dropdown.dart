@@ -49,9 +49,11 @@ class _SearchDropdownState extends State<SearchDropdown> {
 
   Future<void> _loadInitialData() async {
     try {
-      final jewelryService = Provider.of<JewelryService>(context, listen: false);
-      final searchHistoryService = Provider.of<SearchHistoryService>(context, listen: false);
-      
+      final jewelryService =
+          Provider.of<JewelryService>(context, listen: false);
+      final searchHistoryService =
+          Provider.of<SearchHistoryService>(context, listen: false);
+
       final ideas = await jewelryService.getInitialSearchIdeas();
       if (mounted) {
         setState(() {
@@ -84,7 +86,7 @@ class _SearchDropdownState extends State<SearchDropdown> {
       setState(() {
         _currentQuery = query;
       });
-      
+
       if (query.isEmpty) {
         _updateSuggestions();
       } else {
@@ -107,7 +109,8 @@ class _SearchDropdownState extends State<SearchDropdown> {
     });
 
     try {
-      final jewelryService = Provider.of<JewelryService>(context, listen: false);
+      final jewelryService =
+          Provider.of<JewelryService>(context, listen: false);
       final results = await jewelryService.searchProducts(query);
       if (mounted) {
         setState(() {
@@ -180,11 +183,14 @@ class _SearchDropdownState extends State<SearchDropdown> {
                                 return ListTile(
                                   leading: CircleAvatar(
                                     backgroundColor: Colors.grey[300],
-                                    backgroundImage: (item.image != null && item.image.isNotEmpty)
+                                    backgroundImage: (item.image != null &&
+                                            item.image.isNotEmpty)
                                         ? NetworkImage(item.image)
                                         : null,
-                                    child: (item.image == null || item.image.isEmpty)
-                                        ? const Icon(Icons.image, size: 18, color: Colors.white)
+                                    child: (item.image == null ||
+                                            item.image.isEmpty)
+                                        ? const Icon(Icons.image,
+                                            size: 18, color: Colors.white)
                                         : null,
                                   ),
                                   title: Text(
@@ -229,9 +235,9 @@ class _SearchDropdownState extends State<SearchDropdown> {
             child: Text(
               'Recent searches',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[700],
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                  ),
             ),
           ),
           ..._recentSearches.take(5).map((search) => ListTile(
@@ -246,12 +252,13 @@ class _SearchDropdownState extends State<SearchDropdown> {
           child: Text(
             'Popular searches',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         ),
         ..._ideasForYou.take(8).map((idea) => ListTile(
-              leading: const Icon(Icons.lightbulb_outline, color: Colors.orange),
+              leading:
+                  const Icon(Icons.lightbulb_outline, color: Colors.orange),
               title: Text(idea),
               onTap: () => _selectSearchTerm(idea),
             )),
@@ -262,7 +269,7 @@ class _SearchDropdownState extends State<SearchDropdown> {
   void _selectSuggestion(JewelryItem item) {
     _focusNode.unfocus();
     _removeOverlay();
-    
+
     // Navigate to product detail
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -275,7 +282,7 @@ class _SearchDropdownState extends State<SearchDropdown> {
     widget.searchController.text = term;
     _focusNode.unfocus();
     _removeOverlay();
-    
+
     // Execute search and show results
     _executeSearch(term);
   }
@@ -284,12 +291,14 @@ class _SearchDropdownState extends State<SearchDropdown> {
     if (query.isEmpty) return;
 
     try {
-      final jewelryService = Provider.of<JewelryService>(context, listen: false);
+      final jewelryService =
+          Provider.of<JewelryService>(context, listen: false);
       final results = await jewelryService.searchProducts(query);
-      
+
       // Add to search history
-      Provider.of<SearchHistoryService>(context, listen: false).addSearchTerm(query);
-      
+      Provider.of<SearchHistoryService>(context, listen: false)
+          .addSearchTerm(query);
+
       // Notify parent about search results
       widget.onSearchResults(results, query);
     } catch (e) {
@@ -313,7 +322,8 @@ class _SearchDropdownState extends State<SearchDropdown> {
           ),
           fillColor: Colors.white,
           filled: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
           suffixIcon: widget.searchController.text.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear, size: 20),

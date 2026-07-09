@@ -42,7 +42,8 @@ class _CreatorsSectionState extends State<CreatorsSection> {
                 children: [
                   AdminPageHeader(
                     title: 'B2B Creators',
-                    subtitle: 'Manage and verify platform creators and designers.',
+                    subtitle:
+                        'Manage and verify platform creators and designers.',
                     actions: [
                       ElevatedButton.icon(
                         onPressed: () => provider.exportCsv(),
@@ -51,7 +52,8 @@ class _CreatorsSectionState extends State<CreatorsSection> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: const Color(0xFF1A1A1A),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(color: Colors.grey.shade200),
@@ -65,7 +67,8 @@ class _CreatorsSectionState extends State<CreatorsSection> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1B7A59),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),

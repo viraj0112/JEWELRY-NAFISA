@@ -46,14 +46,13 @@ class ReportsService {
       }
 
       // Calculate total sales from quote_requests (simplified)
-      final quotesResponse = await _supabase.from('quote_requests').select('id');
+      final quotesResponse =
+          await _supabase.from('quote_requests').select('id');
       final totalQuotes = quotesResponse.length;
 
       // Calculate active users (users with credits > 0)
-      final activeUsersResponse = await _supabase
-          .from('users')
-          .select('id')
-          .gt('credits_remaining', 0);
+      final activeUsersResponse =
+          await _supabase.from('users').select('id').gt('credits_remaining', 0);
 
       final summary = PlatformReportSummary(
         totalSales: totalQuotes * 500.0, // Mock calculation
@@ -115,7 +114,8 @@ class ReportsService {
   }
 
   /// Fetch Platform Performance Metrics (6 months)
-  static Future<List<PlatformPerformanceMetric>> fetchPlatformPerformanceMetrics() async {
+  static Future<List<PlatformPerformanceMetric>>
+      fetchPlatformPerformanceMetrics() async {
     try {
       final cacheKey = 'platform_performance_metrics';
       if (_isCacheValid(cacheKey)) {
@@ -156,7 +156,9 @@ class ReportsService {
             .select('id')
             .lte('created_at', prevMonth.toIso8601String());
         final growthRate = prevUsersResponse.isNotEmpty
-            ? ((usersResponse.length - prevUsersResponse.length) / prevUsersResponse.length) * 100
+            ? ((usersResponse.length - prevUsersResponse.length) /
+                    prevUsersResponse.length) *
+                100
             : 0.0;
 
         metrics.add(PlatformPerformanceMetric(
@@ -213,7 +215,8 @@ class ReportsService {
             .length;
 
         // Churn rate (simplified calculation)
-        final prevMonthActive = i < 5 ? growthData.last.activeUsers : uniqueActiveUsers;
+        final prevMonthActive =
+            i < 5 ? growthData.last.activeUsers : uniqueActiveUsers;
         final churnRate = prevMonthActive > 0
             ? ((prevMonthActive - uniqueActiveUsers) / prevMonthActive) * 100
             : 0.0;
@@ -363,7 +366,8 @@ class ReportsService {
   }
 
   /// Helper method to calculate total views for a date range
-  static Future<int> _calculateTotalViews(DateTime startDate, DateTime endDate) async {
+  static Future<int> _calculateTotalViews(
+      DateTime startDate, DateTime endDate) async {
     try {
       final response = await _supabase
           .from('analytics_daily')
@@ -371,7 +375,8 @@ class ReportsService {
           .gte('date', startDate.toIso8601String().split('T')[0])
           .lte('date', endDate.toIso8601String().split('T')[0]);
 
-      return response.fold<int>(0, (sum, item) => sum + (item['views'] as int? ?? 0));
+      return response.fold<int>(
+          0, (sum, item) => sum + (item['views'] as int? ?? 0));
     } catch (e) {
       debugPrint('Error calculating total views: $e');
       return 0;
@@ -379,9 +384,11 @@ class ReportsService {
   }
 
   static bool _isCacheValid(String key) {
-    if (!_cache.containsKey(key) || !_cacheTimestamp.containsKey(key)) return false;
+    if (!_cache.containsKey(key) || !_cacheTimestamp.containsKey(key))
+      return false;
     final timestamp = _cacheTimestamp[key]!;
-    return DateTime.now().difference(timestamp).inMilliseconds < _cacheTimeout.inMilliseconds;
+    return DateTime.now().difference(timestamp).inMilliseconds <
+        _cacheTimeout.inMilliseconds;
   }
 
   static void _cacheResult(String key, dynamic value) {
@@ -390,7 +397,8 @@ class ReportsService {
   }
 
   /// Export Platform Growth Data
-  static Future<String> exportPlatformGrowthData(List<PlatformGrowthData> data, String format) async {
+  static Future<String> exportPlatformGrowthData(
+      List<PlatformGrowthData> data, String format) async {
     try {
       // In a real implementation, this would generate and return a file URL or path
       // For now, we'll simulate the export process
@@ -405,7 +413,8 @@ class ReportsService {
   }
 
   /// Export User Growth Data
-  static Future<String> exportUserGrowthData(List<UserGrowthData> data, String format) async {
+  static Future<String> exportUserGrowthData(
+      List<UserGrowthData> data, String format) async {
     try {
       await Future.delayed(const Duration(seconds: 1));
       return 'https://example.com/exports/user_growth_${DateTime.now().millisecondsSinceEpoch}.$format';
@@ -416,7 +425,8 @@ class ReportsService {
   }
 
   /// Export Platform Performance Metrics
-  static Future<String> exportPlatformPerformanceMetrics(List<PlatformPerformanceMetric> data, String format) async {
+  static Future<String> exportPlatformPerformanceMetrics(
+      List<PlatformPerformanceMetric> data, String format) async {
     try {
       await Future.delayed(const Duration(seconds: 1));
       return 'https://example.com/exports/platform_metrics_${DateTime.now().millisecondsSinceEpoch}.$format';
@@ -427,7 +437,8 @@ class ReportsService {
   }
 
   /// Export Available User Reports
-  static Future<String> exportAvailableUserReports(List<AvailableUserReport> data, String format) async {
+  static Future<String> exportAvailableUserReports(
+      List<AvailableUserReport> data, String format) async {
     try {
       await Future.delayed(const Duration(seconds: 1));
       return 'https://example.com/exports/user_reports_${DateTime.now().millisecondsSinceEpoch}.$format';
@@ -438,7 +449,8 @@ class ReportsService {
   }
 
   /// Export Content Reports
-  static Future<String> exportContentReports(List<ContentReport> data, String format) async {
+  static Future<String> exportContentReports(
+      List<ContentReport> data, String format) async {
     try {
       await Future.delayed(const Duration(seconds: 1));
       return 'https://example.com/exports/content_reports_${DateTime.now().millisecondsSinceEpoch}.$format';

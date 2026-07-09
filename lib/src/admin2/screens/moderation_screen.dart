@@ -186,7 +186,9 @@ class _ModerationScreenState extends State<ModerationScreen> {
               label,
               style: TextStyle(
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? const Color(0xFF034033) : const Color(0xFF60716A),
+                color: selected
+                    ? const Color(0xFF034033)
+                    : const Color(0xFF60716A),
               ),
             ),
             if (tab == _ModerationTab.pending) ...[
@@ -194,7 +196,9 @@ class _ModerationScreenState extends State<ModerationScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: selected ? const Color(0xFF034033) : const Color(0xFFE8ECEA),
+                  color: selected
+                      ? const Color(0xFF034033)
+                      : const Color(0xFFE8ECEA),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
@@ -298,17 +302,21 @@ class _ModerationScreenState extends State<ModerationScreen> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                        Text(item.title,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700)),
                         const SizedBox(height: 3),
                         Text(
                           '${item.ownerName} • ${item.category}',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7B75)),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF6B7B75)),
                         ),
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerRight,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: item.status == 'approved'
                                   ? const Color(0xFFDDF4E8)
@@ -391,10 +399,15 @@ class _ModerationScreenState extends State<ModerationScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(item.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                            Text(item.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700)),
                             Text(
-                              item.subtitle.isEmpty ? item.email : item.subtitle,
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF6C7C76)),
+                              item.subtitle.isEmpty
+                                  ? item.email
+                                  : item.subtitle,
+                              style: const TextStyle(
+                                  fontSize: 12, color: Color(0xFF6C7C76)),
                             ),
                           ],
                         ),
@@ -453,14 +466,13 @@ class _ModerationScreenState extends State<ModerationScreen> {
   Future<void> _moderate(ModerationItem item, {required bool approve}) async {
     setState(() => _actionBusy = true);
     try {
-      await widget.dataService.moderateAsset(assetId: item.id, approve: approve);
+      await widget.dataService
+          .moderateAsset(assetId: item.id, approve: approve);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            approve
-                ? '${item.title} approved'
-                : '${item.title} rejected',
+            approve ? '${item.title} approved' : '${item.title} rejected',
           ),
         ),
       );
@@ -490,9 +502,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            approve
-                ? '${item.name} verified'
-                : '${item.name} rejected',
+            approve ? '${item.name} verified' : '${item.name} rejected',
           ),
         ),
       );
@@ -522,7 +532,8 @@ class _ModerationScreenState extends State<ModerationScreen> {
   Future<void> _loadVerification() async {
     setState(() => _loadingVerifications = true);
     try {
-      final rows = await widget.dataService.fetchVerificationRequests(limit: 80);
+      final rows =
+          await widget.dataService.fetchVerificationRequests(limit: 80);
       if (!mounted) return;
       setState(() => _verification = rows);
     } finally {
@@ -531,11 +542,13 @@ class _ModerationScreenState extends State<ModerationScreen> {
   }
 
   String _initials(String text) {
-    final parts = text.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
+    final parts =
+        text.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
     if (parts.isEmpty) return 'U';
     if (parts.length == 1) return parts.first[0].toUpperCase();
     return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
   }
+
   Widget _buildSelectionBar(List<ModerationItem> items) {
     final allSelected = _selectedItems.length == items.length;
     return Container(
@@ -549,18 +562,22 @@ class _ModerationScreenState extends State<ModerationScreen> {
           Text(allSelected ? 'Deselect All' : 'Select All'),
           const SizedBox(width: 20),
           if (_selectedItems.isNotEmpty) ...[
-            Text('${_selectedItems.length} selected', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text('${_selectedItems.length} selected',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
             const Spacer(),
             OutlinedButton(
-              onPressed: _actionBusy ? null : () => _moderateBulk(approve: false),
+              onPressed:
+                  _actionBusy ? null : () => _moderateBulk(approve: false),
               child: const Text('Reject Selected'),
             ),
             const SizedBox(width: 8),
             FilledButton(
-              onPressed: _actionBusy ? null : () => _moderateBulk(approve: true),
+              onPressed:
+                  _actionBusy ? null : () => _moderateBulk(approve: true),
               child: const Text('Approve Selected'),
             ),
-          ] else const Spacer(),
+          ] else
+            const Spacer(),
         ],
       ),
     );
@@ -576,7 +593,9 @@ class _ModerationScreenState extends State<ModerationScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_selectedItems.length} items ${approve ? 'approved' : 'rejected'}')),
+        SnackBar(
+            content: Text(
+                '${_selectedItems.length} items ${approve ? 'approved' : 'rejected'}')),
       );
       setState(() => _selectedItems.clear());
       widget.onRefreshRequested();
@@ -616,36 +635,48 @@ class _ModerationScreenState extends State<ModerationScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(item.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                      Text(item.title,
+                          style: const TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       Text('Owner: ${item.ownerName} (${item.ownerEmail})'),
                       Text('Location: ${item.ownerLocation}'),
                       const SizedBox(height: 16),
-                      Text('Category: ${item.category} / Source: ${item.source}'),
+                      Text(
+                          'Category: ${item.category} / Source: ${item.source}'),
                       Text('Tags: ${item.tags.join(", ")}'),
                       const SizedBox(height: 16),
-                      const Text('Description:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text(item.description.isNotEmpty ? item.description : 'No description.'),
+                      const Text('Description:',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(item.description.isNotEmpty
+                          ? item.description
+                          : 'No description.'),
                       const SizedBox(height: 16),
-                      const Text('Attributes:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ...item.attributes.entries.map((e) => Text('${e.key}: ${e.value}')),
+                      const Text('Attributes:',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      ...item.attributes.entries
+                          .map((e) => Text('${e.key}: ${e.value}')),
                       const SizedBox(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           OutlinedButton(
-                            onPressed: _actionBusy ? null : () {
-                              Navigator.of(ctx).pop();
-                              _moderate(item, approve: false);
-                            },
+                            onPressed: _actionBusy
+                                ? null
+                                : () {
+                                    Navigator.of(ctx).pop();
+                                    _moderate(item, approve: false);
+                                  },
                             child: const Text('Reject'),
                           ),
                           const SizedBox(width: 12),
                           FilledButton(
-                            onPressed: _actionBusy ? null : () {
-                              Navigator.of(ctx).pop();
-                              _moderate(item, approve: true);
-                            },
+                            onPressed: _actionBusy
+                                ? null
+                                : () {
+                                    Navigator.of(ctx).pop();
+                                    _moderate(item, approve: true);
+                                  },
                             child: const Text('Approve'),
                           ),
                         ],
@@ -705,8 +736,8 @@ class _SubmissionCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Container(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: badgeColor,
                               borderRadius: BorderRadius.circular(4),
@@ -741,7 +772,8 @@ class _SubmissionCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Text(item.title,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 2),
             Text(
               'Ref: ${item.id.substring(0, item.id.length.clamp(0, 8))}',
@@ -762,7 +794,8 @@ class _SubmissionCard extends StatelessWidget {
                 ),
                 Text(
                   item.ownerLocation,
-                  style: const TextStyle(fontSize: 10, color: Color(0xFF6A7A74)),
+                  style:
+                      const TextStyle(fontSize: 10, color: Color(0xFF6A7A74)),
                 ),
               ],
             ),
@@ -775,8 +808,8 @@ class _SubmissionCard extends StatelessWidget {
                     .take(2)
                     .map(
                       (tag) => Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
                           color: const Color(0xFFE7F4ED),
                           borderRadius: BorderRadius.circular(5),

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:jewelry_nafisa/src/models/board.dart'; 
+import 'package:jewelry_nafisa/src/models/board.dart';
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
-import 'package:jewelry_nafisa/src/ui/widgets/board_card.dart'; 
+import 'package:jewelry_nafisa/src/ui/widgets/board_card.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
-
 
 enum SortMode { newest, nameAsc, nameDesc }
 
@@ -96,7 +95,7 @@ class _BoardsScreenState extends State<BoardsScreen> {
           .order('created_at', ascending: false);
 
       final rows = List<Map<String, dynamic>>.from(res as List<dynamic>);
-      
+
       final result = rows.map((r) {
         final pinsData = (r['pins'] as List<dynamic>?) ?? [];
         final imageUrls = pinsData
@@ -193,10 +192,10 @@ class _BoardsScreenState extends State<BoardsScreen> {
       canPop: true,
       child: Scaffold(
         body: Column(
-        children: [
-          _buildBoardToolbar(),
-          Expanded(child: _buildBoardsGrid()),
-        ],
+          children: [
+            _buildBoardToolbar(),
+            Expanded(child: _buildBoardsGrid()),
+          ],
         ),
       ),
     );

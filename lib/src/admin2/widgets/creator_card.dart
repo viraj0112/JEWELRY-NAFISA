@@ -56,7 +56,8 @@ class CreatorCard extends StatelessWidget {
                 backgroundColor: const Color(0xFFDAD7E7),
                 child: Text(
                   _initials(creator.fullName),
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, color: Colors.black87),
                 ),
               ),
               const SizedBox(width: 12),
@@ -67,33 +68,41 @@ class CreatorCard extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            creator.fullName, 
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)
-                          )
-                        ),
+                            child: Text(creator.fullName,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16))),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
                             color: _statusBg(creator.approvalStatus),
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: Text(
-                            _statusText(creator.approvalStatus), 
-                            style: TextStyle(color: _statusColor(creator.approvalStatus), fontWeight: FontWeight.w600)
-                          ),
+                          child: Text(_statusText(creator.approvalStatus),
+                              style: TextStyle(
+                                  color: _statusColor(creator.approvalStatus),
+                                  fontWeight: FontWeight.w600)),
                         )
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text('${creator.email ?? '-'} • ${creator.location ?? '-'}', style: const TextStyle(color: Colors.black54)),
+                    Text('${creator.email ?? '-'} • ${creator.location ?? '-'}',
+                        style: const TextStyle(color: Colors.black54)),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Text('Specialization: ', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black54)),
-                        Text(creator.businessType, style: const TextStyle(fontSize: 13)),
+                        Text('Specialization: ',
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black54)),
+                        Text(creator.businessType,
+                            style: const TextStyle(fontSize: 13)),
                         const SizedBox(width: 12),
-                        Text('Works: ${creator.worksCount}', style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                        Text('Works: ${creator.worksCount}',
+                            style: const TextStyle(
+                                fontSize: 13, color: Colors.black54)),
                       ],
                     ),
                   ],
@@ -103,19 +112,25 @@ class CreatorCard extends StatelessWidget {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (creator.approvalStatus.toLowerCase() == 'pending' && onApprove != null)
+                  if (creator.approvalStatus.toLowerCase() == 'pending' &&
+                      onApprove != null)
                     ElevatedButton.icon(
                       onPressed: () => onApprove!(creator.id),
                       icon: const Icon(Icons.check, size: 16),
                       label: const Text('Approve'),
-                      style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                      style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8))),
                     ),
-                  if (creator.approvalStatus.toLowerCase() == 'pending' && onReject != null)
+                  if (creator.approvalStatus.toLowerCase() == 'pending' &&
+                      onReject != null)
                     OutlinedButton.icon(
                       onPressed: () => onReject!(creator.id),
                       icon: const Icon(Icons.close, size: 16),
                       label: const Text('Reject'),
-                      style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                      style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8))),
                     ),
                   const SizedBox(height: 8),
                   OutlinedButton(

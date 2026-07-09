@@ -94,7 +94,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: Color(0xFF1B7A59), size: 18),
+                const Icon(Icons.check_circle,
+                    color: Color(0xFF1B7A59), size: 18),
                 const SizedBox(width: 10),
                 Text(
                   '${_selectedItemIds.length} items selected',
@@ -146,7 +147,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
             TextButton.icon(
               onPressed: _showHistoryDialog,
-              icon: const Icon(Icons.history, size: 16, color: Color(0xFF3C5A52)),
+              icon:
+                  const Icon(Icons.history, size: 16, color: Color(0xFF3C5A52)),
               label: const Text(
                 'History',
                 style: TextStyle(
@@ -179,9 +181,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   flex: 7,
                   child: Row(
                     children: [
-                      Expanded(child: featured.isNotEmpty ? _featuredCard(featured[0]) : _emptyFeatureCard()),
+                      Expanded(
+                          child: featured.isNotEmpty
+                              ? _featuredCard(featured[0])
+                              : _emptyFeatureCard()),
                       const SizedBox(width: 10),
-                      Expanded(child: featured.length > 1 ? _featuredCard(featured[1]) : _emptyFeatureCard()),
+                      Expanded(
+                          child: featured.length > 1
+                              ? _featuredCard(featured[1])
+                              : _emptyFeatureCard()),
                     ],
                   ),
                 ),
@@ -205,7 +213,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
           future: _activityLogFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const AdminSkeletonView(variant: AdminSkeletonVariant.table);
+              return const AdminSkeletonView(
+                  variant: AdminSkeletonVariant.table);
             }
             if (snapshot.hasError) {
               return Text('Failed to load activity log: ${snapshot.error}');
@@ -314,7 +323,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
           const SizedBox(height: 14),
           const Text(
             'Bulk Upload (CSV)',
-            style: TextStyle(fontSize: 34, fontWeight: FontWeight.w500, color: Colors.white),
+            style: TextStyle(
+                fontSize: 34, fontWeight: FontWeight.w500, color: Colors.white),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -328,7 +338,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFF1E6B58), style: BorderStyle.solid),
+                border: Border.all(
+                    color: const Color(0xFF1E6B58), style: BorderStyle.solid),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(
@@ -336,8 +347,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   const Icon(Icons.file_upload, color: Color(0xFFEAD08F)),
                   const SizedBox(height: 6),
                   Text(
-                    _busyBulk ? 'Processing CSV...' : 'Drop CSV or click to process',
-                    style: const TextStyle(color: Color(0xFFC5DBD1), fontSize: 12),
+                    _busyBulk
+                        ? 'Processing CSV...'
+                        : 'Drop CSV or click to process',
+                    style:
+                        const TextStyle(color: Color(0xFFC5DBD1), fontSize: 12),
                   ),
                 ],
               ),
@@ -361,7 +375,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Widget _featuredCard(InventoryItem item) {
-    final image = item.thumbUrl?.isNotEmpty == true ? item.thumbUrl! : (item.mediaUrl ?? '');
+    final image = item.thumbUrl?.isNotEmpty == true
+        ? item.thumbUrl!
+        : (item.mediaUrl ?? '');
     return Container(
       height: 400,
       decoration: BoxDecoration(
@@ -376,7 +392,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
             Image.network(
               image,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFFDDE4E0)),
+              errorBuilder: (_, __, ___) =>
+                  const ColoredBox(color: Color(0xFFDDE4E0)),
             ),
           DecoratedBox(
             decoration: BoxDecoration(
@@ -418,7 +435,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       ),
                       Text(
                         '${item.status} • ${item.ownerName}',
-                        style: const TextStyle(color: Color(0xFFB6CEC4), fontSize: 12),
+                        style: const TextStyle(
+                            color: Color(0xFFB6CEC4), fontSize: 12),
                       ),
                     ],
                   ),
@@ -468,11 +486,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
             children: [
               Icon(Icons.quiz, color: Color(0xFF0A4F3F)),
               Spacer(),
-              Text('CONTENT MODULE', style: TextStyle(fontSize: 10, color: Color(0xFF6D7E77))),
+              Text('CONTENT MODULE',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF6D7E77))),
             ],
           ),
           const SizedBox(height: 8),
-          const Text('Global FAQ Manager', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500)),
+          const Text('Global FAQ Manager',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500)),
           const SizedBox(height: 6),
           const Text(
             'Manage shipping policies, appraisal standards, and authentication protocols.',
@@ -504,7 +524,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))),
+          Expanded(
+              child: Text(label,
+                  style: const TextStyle(fontWeight: FontWeight.w600))),
           const Icon(Icons.chevron_right, size: 18),
         ],
       ),
@@ -522,11 +544,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('INVENTORY HEALTH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+          const Text('INVENTORY HEALTH',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Text(
             '${health.toStringAsFixed(1)}%',
-            style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w600, color: Color(0xFF2A2A2A)),
+            style: const TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2A2A2A)),
           ),
           const Text('Catalog integrity', style: TextStyle(fontSize: 11)),
           const SizedBox(height: 8),
@@ -659,7 +685,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       },
                     ),
                   ),
-                  DataCell(Text('${item.title} (#${item.id.substring(0, item.id.length.clamp(0, 8))})')),
+                  DataCell(Text(
+                      '${item.title} (#${item.id.substring(0, item.id.length.clamp(0, 8))})')),
                   DataCell(Text(item.productType ?? '-')),
                   DataCell(Text('${item.likesCount}')),
                   DataCell(Text('${item.viewsCount}')),
@@ -670,7 +697,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   DataCell(Text(item.ownerName)),
                   DataCell(
                     Text(
-                      item.createdAt == null ? '-' : widget.dateFormat.format(item.createdAt!),
+                      item.createdAt == null
+                          ? '-'
+                          : widget.dateFormat.format(item.createdAt!),
                     ),
                   ),
                   DataCell(
@@ -725,7 +754,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 ),
                 Text(
                   '#${item.id.substring(0, item.id.length.clamp(0, 8))}',
-                  style: const TextStyle(color: Color(0xFF61706A), fontSize: 11),
+                  style:
+                      const TextStyle(color: Color(0xFF61706A), fontSize: 11),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -758,16 +788,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(Icons.person_outline, size: 14, color: Color(0xFF5E6F68)),
+                    const Icon(Icons.person_outline,
+                        size: 14, color: Color(0xFF5E6F68)),
                     const SizedBox(width: 4),
                     Text(
                       item.ownerName,
-                      style: const TextStyle(color: Color(0xFF5E6F68), fontSize: 12),
+                      style: const TextStyle(
+                          color: Color(0xFF5E6F68), fontSize: 12),
                     ),
                     const Spacer(),
                     Text(
-                      item.createdAt == null ? '-' : widget.dateFormat.format(item.createdAt!),
-                      style: const TextStyle(color: Color(0xFF5E6F68), fontSize: 12),
+                      item.createdAt == null
+                          ? '-'
+                          : widget.dateFormat.format(item.createdAt!),
+                      style: const TextStyle(
+                          color: Color(0xFF5E6F68), fontSize: 12),
                     ),
                   ],
                 ),
@@ -795,8 +830,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(status, style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w700)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      child: Text(status,
+          style:
+              TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w700)),
     );
   }
 
@@ -836,7 +874,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 TextFormField(
                   controller: titleCtrl,
                   decoration: const InputDecoration(labelText: 'Title'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
                 TextFormField(
                   controller: categoryCtrl,
@@ -850,11 +889,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 TextFormField(
                   controller: mediaCtrl,
                   decoration: const InputDecoration(labelText: 'Media URL'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
                 TextFormField(
                   controller: thumbCtrl,
-                  decoration: const InputDecoration(labelText: 'Thumb URL (optional)'),
+                  decoration:
+                      const InputDecoration(labelText: 'Thumb URL (optional)'),
                 ),
               ],
             ),
@@ -882,7 +923,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
     try {
       await widget.dataService.createInventoryAsset(
         title: titleCtrl.text.trim(),
-        category: categoryCtrl.text.trim().isEmpty ? 'General' : categoryCtrl.text.trim(),
+        category: categoryCtrl.text.trim().isEmpty
+            ? 'General'
+            : categoryCtrl.text.trim(),
         description: descCtrl.text.trim(),
         mediaUrl: mediaCtrl.text.trim(),
         thumbUrl: thumbCtrl.text.trim(),
@@ -940,7 +983,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         setState(() => _csvFiles = picked.files);
                       }
                     },
-                    subtitle: hasCsv ? _csvFiles!.first.name : 'Required: .csv file',
+                    subtitle:
+                        hasCsv ? _csvFiles!.first.name : 'Required: .csv file',
                   ),
                   const SizedBox(height: 12),
                   _wizardStepItem(
@@ -958,8 +1002,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         setState(() => _imageFiles = picked.files);
                       }
                     },
-                    subtitle: hasImages 
-                        ? '${_imageFiles!.length} images selected' 
+                    subtitle: hasImages
+                        ? '${_imageFiles!.length} images selected'
                         : 'Optional: Select all product photos',
                   ),
                   const SizedBox(height: 24),
@@ -969,8 +1013,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         children: [
                           CircularProgressIndicator(),
                           SizedBox(height: 12),
-                          Text('Processing batch and uploading images...', 
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          Text('Processing batch and uploading images...',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
@@ -979,26 +1024,30 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: _busyBulk ? null : () {
-                  setState(() {
-                    _csvFiles = null;
-                    _imageFiles = null;
-                  });
-                  Navigator.of(context).pop();
-                },
+                onPressed: _busyBulk
+                    ? null
+                    : () {
+                        setState(() {
+                          _csvFiles = null;
+                          _imageFiles = null;
+                        });
+                        Navigator.of(context).pop();
+                      },
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                onPressed: (_busyBulk || !hasCsv) ? null : () async {
-                  setDialogState(() => _busyBulk = true);
-                  setState(() => _busyBulk = true);
-                  
-                  await _processBulkUploadWithImages();
-                  
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                  }
-                },
+                onPressed: (_busyBulk || !hasCsv)
+                    ? null
+                    : () async {
+                        setDialogState(() => _busyBulk = true);
+                        setState(() => _busyBulk = true);
+
+                        await _processBulkUploadWithImages();
+
+                        if (mounted) {
+                          Navigator.of(context).pop();
+                        }
+                      },
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFFE9C96E),
                   foregroundColor: const Color(0xFF133226),
@@ -1025,7 +1074,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: Border.all(color: isDone ? const Color(0xFF1B7A59) : const Color(0xFFD9E3DE)),
+          border: Border.all(
+              color:
+                  isDone ? const Color(0xFF1B7A59) : const Color(0xFFD9E3DE)),
           borderRadius: BorderRadius.circular(12),
           color: isDone ? const Color(0xFFF0F7F4) : Colors.transparent,
         ),
@@ -1033,18 +1084,24 @@ class _InventoryScreenState extends State<InventoryScreen> {
           children: [
             CircleAvatar(
               radius: 14,
-              backgroundColor: isDone ? const Color(0xFF1B7A59) : const Color(0xFFD9E3DE),
-              child: isDone 
-                ? const Icon(Icons.check, size: 16, color: Colors.white)
-                : Text('$index', style: const TextStyle(fontSize: 12, color: Color(0xFF5D6D67))),
+              backgroundColor:
+                  isDone ? const Color(0xFF1B7A59) : const Color(0xFFD9E3DE),
+              child: isDone
+                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  : Text('$index',
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF5D6D67))),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                  Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 14)),
+                  Text(subtitle,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
                 ],
               ),
             ),
@@ -1064,7 +1121,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       final table = const CsvToListConverter().convert(csvString);
       if (table.length < 2) throw Exception('CSV has no data rows');
 
-      final headers = table.first.map((e) => e.toString().trim().toLowerCase()).toList();
+      final headers =
+          table.first.map((e) => e.toString().trim().toLowerCase()).toList();
       String cell(List<dynamic> row, String key) {
         final idx = headers.indexOf(key.toLowerCase());
         if (idx < 0 || idx >= row.length) return '';
@@ -1073,45 +1131,48 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
       final supabase = Supabase.instance.client;
       final rows = <Map<String, dynamic>>[];
-      
+
       for (final r in table.sublist(1)) {
         // Support both 'title' and 'Product Title' (from old logic)
         String title = cell(r, 'title');
         if (title.isEmpty) title = cell(r, 'Product Title');
-        
+
         if (title.isEmpty) continue;
 
         String? finalMediaUrl = cell(r, 'media_url');
-        if (finalMediaUrl.isEmpty) finalMediaUrl = cell(r, 'Image'); // Old logic field
+        if (finalMediaUrl.isEmpty)
+          finalMediaUrl = cell(r, 'Image'); // Old logic field
 
         // --- IMAGE MATCHING LOGIC (Old Logic Integration) ---
         if (_imageFiles != null && _imageFiles!.isNotEmpty) {
           final matchingFiles = _imageFiles!.where((file) {
             final name = file.name.toLowerCase();
             final titleLower = title.toLowerCase();
-            final fileNameWithoutExt = name.contains('.') 
-                ? name.substring(0, name.lastIndexOf('.')) 
+            final fileNameWithoutExt = name.contains('.')
+                ? name.substring(0, name.lastIndexOf('.'))
                 : name;
-            
+
             // Match exact title OR title followed by -Image
-            return fileNameWithoutExt == titleLower || 
-                   fileNameWithoutExt.startsWith('$titleLower-image') ||
-                   fileNameWithoutExt.startsWith('$titleLower-img');
+            return fileNameWithoutExt == titleLower ||
+                fileNameWithoutExt.startsWith('$titleLower-image') ||
+                fileNameWithoutExt.startsWith('$titleLower-img');
           }).toList();
 
           if (matchingFiles.isNotEmpty) {
             // Sort to pick 'Image1' or just the first one
             matchingFiles.sort((a, b) => a.name.compareTo(b.name));
             final fileToUpload = matchingFiles.first;
-            
+
             try {
-              final storagePath = 'bulk_admin/${DateTime.now().millisecondsSinceEpoch}_${fileToUpload.name}';
+              final storagePath =
+                  'bulk_admin/${DateTime.now().millisecondsSinceEpoch}_${fileToUpload.name}';
               await supabase.storage.from('assets').uploadBinary(
-                storagePath, 
-                fileToUpload.bytes!,
-                fileOptions: FileOptions(contentType: 'image/jpeg'),
-              );
-              finalMediaUrl = supabase.storage.from('assets').getPublicUrl(storagePath);
+                    storagePath,
+                    fileToUpload.bytes!,
+                    fileOptions: FileOptions(contentType: 'image/jpeg'),
+                  );
+              finalMediaUrl =
+                  supabase.storage.from('assets').getPublicUrl(storagePath);
             } catch (e) {
               debugPrint('Failed to upload matched image for $title: $e');
             }
@@ -1119,12 +1180,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
         }
 
         // If we still have no media URL, skip or use a placeholder
-        if (finalMediaUrl != null && finalMediaUrl.isEmpty) finalMediaUrl = null;
+        if (finalMediaUrl != null && finalMediaUrl.isEmpty)
+          finalMediaUrl = null;
 
         rows.add({
           'title': title,
-          'category': cell(r, 'category').isEmpty ? (cell(r, 'Product Type').isEmpty ? 'General' : cell(r, 'Product Type')) : cell(r, 'category'),
-          'description': cell(r, 'description').isEmpty ? cell(r, 'Description') : cell(r, 'description'),
+          'category': cell(r, 'category').isEmpty
+              ? (cell(r, 'Product Type').isEmpty
+                  ? 'General'
+                  : cell(r, 'Product Type'))
+              : cell(r, 'category'),
+          'description': cell(r, 'description').isEmpty
+              ? cell(r, 'Description')
+              : cell(r, 'description'),
           'media_url': finalMediaUrl,
           'thumb_url': finalMediaUrl,
           'status': 'pending',
@@ -1139,13 +1207,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
       }
 
       if (rows.isEmpty) throw Exception('No valid products found in CSV.');
-      
+
       final inserted = await widget.dataService.bulkCreateInventoryAssets(rows);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Successfully synced $inserted products to moderation queue.'),
+            content: Text(
+                'Successfully synced $inserted products to moderation queue.'),
             backgroundColor: const Color(0xFF1B7A59),
           ),
         );
@@ -1161,7 +1230,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       debugPrint('Bulk sync error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sync failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Sync failed: $e'), backgroundColor: Colors.red),
         );
         setState(() => _busyBulk = false);
       }
@@ -1169,7 +1239,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _showDraftsDialog() {
-    final drafts = widget.items.where((e) => e.status.toLowerCase() == 'draft').toList();
+    final drafts =
+        widget.items.where((e) => e.status.toLowerCase() == 'draft').toList();
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1235,9 +1306,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final rows = <List<dynamic>>[
       ['Inventory Management Report'],
       ['Generated At', exportDate],
-      ['Search Query', widget.searchQuery.trim().isEmpty ? '-' : widget.searchQuery.trim()],
+      [
+        'Search Query',
+        widget.searchQuery.trim().isEmpty ? '-' : widget.searchQuery.trim()
+      ],
       ['Total Items', rowsToExport.length],
-      ['Selection Status', _selectedItemIds.isEmpty ? 'All Filtered' : 'Manually Selected'],
+      [
+        'Selection Status',
+        _selectedItemIds.isEmpty ? 'All Filtered' : 'Manually Selected'
+      ],
       [],
       [
         'Item ID',
@@ -1266,7 +1343,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     ];
 
     final csv = const ListToCsvConverter().convert(rows);
-    final fileName = 'inventory_export_${now.toIso8601String().replaceAll(':', '-')}.csv';
+    final fileName =
+        'inventory_export_${now.toIso8601String().replaceAll(':', '-')}.csv';
 
     if (kIsWeb) {
       final uri = Uri.dataFromString(
@@ -1309,8 +1387,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _showHistoryDialog() {
-    final historyItems = [...widget.items]
-      ..sort((a, b) {
+    final historyItems = [...widget.items]..sort((a, b) {
         final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         return bDate.compareTo(aDate);
@@ -1345,7 +1422,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 Text(
                                   item.createdAt == null
                                       ? '-'
-                                      : widget.dateFormat.format(item.createdAt!),
+                                      : widget.dateFormat
+                                          .format(item.createdAt!),
                                 ),
                               ),
                             ],
@@ -1368,7 +1446,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Future<void> _showAllActivityDialog() async {
     var selectedTable = 'all';
     var draftFilterText = '';
-    
+
     // Advanced Filters State
     bool showAdvancedFilters = false;
     int minLikes = 0;
@@ -1376,7 +1454,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     int minShares = 0;
     int minCreditsUsed = 0;
     String productType = '';
-    
+
     final minLikesCtrl = TextEditingController();
     final minViewsCtrl = TextEditingController();
     final minSharesCtrl = TextEditingController();
@@ -1384,7 +1462,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final productTypeCtrl = TextEditingController();
     final startDateCtrl = TextEditingController();
     final endDateCtrl = TextEditingController();
-    
+
     var loading = false;
     String? loadError;
     var rows = <InventoryItem>[];
@@ -1406,7 +1484,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         productType = productTypeCtrl.text.trim();
         final startDate = DateTime.tryParse(startDateCtrl.text.trim());
         final endDate = DateTime.tryParse(endDateCtrl.text.trim());
-        
+
         final data = await widget.dataService.fetchContentActivityLog(
           table: selectedTable,
           searchTerm: draftFilterText,
@@ -1421,7 +1499,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
         );
         setDialogState(() {
           rows = data;
-          rowsPerPage = rows.isNotEmpty ? math.min(rowsPerPage, rows.length) : 1;
+          rowsPerPage =
+              rows.isNotEmpty ? math.min(rowsPerPage, rows.length) : 1;
           currentPage = 0;
           loading = false;
         });
@@ -1440,7 +1519,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
           final mediaSize = MediaQuery.sizeOf(context);
           final dialogWidth = math.min(1180.0, mediaSize.width - 32);
           final dialogHeight = math.min(900.0, mediaSize.height - 32);
-          final pageOptions = <int>{1, rowsPerPage, 5, 10, 20, 50}.where((value) => value > 0).toList()..sort();
+          final pageOptions = <int>{1, rowsPerPage, 5, 10, 20, 50}
+              .where((value) => value > 0)
+              .toList()
+            ..sort();
 
           if (!firstLoadDone) {
             firstLoadDone = true;
@@ -1449,7 +1531,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
           return Dialog(
             insetPadding: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             clipBehavior: Clip.antiAlias,
             child: SizedBox(
               width: dialogWidth,
@@ -1464,13 +1547,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         const Expanded(
                           child: Text(
                             'All Content Activity',
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                                fontSize: 24, fontWeight: FontWeight.w600),
                           ),
                         ),
                         if (_selectedItemIds.isNotEmpty) ...[
                           Text(
                             '${_selectedItemIds.length} selected',
-                            style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1B7A59)),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1B7A59)),
                           ),
                           const SizedBox(width: 12),
                           FilledButton.icon(
@@ -1496,19 +1582,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       spacing: 10,
                       runSpacing: 10,
                       children: [
-                        _buildTabButton('All Tables', 'all', selectedTable, (val) {
+                        _buildTabButton('All Tables', 'all', selectedTable,
+                            (val) {
                           setDialogState(() => selectedTable = val);
                           loadRows(setDialogState);
                         }),
-                        _buildTabButton('Products', 'products', selectedTable, (val) {
+                        _buildTabButton('Products', 'products', selectedTable,
+                            (val) {
                           setDialogState(() => selectedTable = val);
                           loadRows(setDialogState);
                         }),
-                        _buildTabButton('Designer Products', 'designerproducts', selectedTable, (val) {
+                        _buildTabButton('Designer Products', 'designerproducts',
+                            selectedTable, (val) {
                           setDialogState(() => selectedTable = val);
                           loadRows(setDialogState);
                         }),
-                        _buildTabButton('Manufacturer Products', 'manufacturerproducts', selectedTable, (val) {
+                        _buildTabButton('Manufacturer Products',
+                            'manufacturerproducts', selectedTable, (val) {
                           setDialogState(() => selectedTable = val);
                           loadRows(setDialogState);
                         }),
@@ -1536,9 +1626,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             controller: filterCtrl,
                             textInputAction: TextInputAction.search,
                             decoration: InputDecoration(
-                              hintText: 'Filter by title, category, or uploader',
-                              hintStyle: const TextStyle(color: Color(0xFF7E8F89)),
-                              prefixIcon: const Icon(Icons.search, color: Color(0xFF0A4F3F)),
+                              hintText:
+                                  'Filter by title, category, or uploader',
+                              hintStyle:
+                                  const TextStyle(color: Color(0xFF7E8F89)),
+                              prefixIcon: const Icon(Icons.search,
+                                  color: Color(0xFF0A4F3F)),
                               suffixIcon: draftFilterText.isNotEmpty
                                   ? IconButton(
                                       icon: const Icon(Icons.clear, size: 18),
@@ -1551,7 +1644,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     )
                                   : null,
                               border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 18, vertical: 16),
                             ),
                             onSubmitted: (value) {
                               draftFilterText = value.trim();
@@ -1565,22 +1659,27 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           isDense: true,
                           decoration: InputDecoration(
                             labelText: 'Rows / page',
-                            labelStyle: const TextStyle(color: Color(0xFF61726C)),
+                            labelStyle:
+                                const TextStyle(color: Color(0xFF61726C)),
                             filled: true,
                             fillColor: const Color(0xFFF7FAF8),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide: const BorderSide(color: Color(0xFFD9E3DE)),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFD9E3DE)),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide: const BorderSide(color: Color(0xFFD9E3DE)),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFD9E3DE)),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide: const BorderSide(color: Color(0xFF0A4F3F)),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFF0A4F3F)),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 14),
                           ),
                           items: pageOptions
                               .map(
@@ -1617,13 +1716,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Icon(Icons.check_circle_outline, size: 18),
-                          label: Text(loading ? 'Applying...' : 'Apply Filters'),
+                              : const Icon(Icons.check_circle_outline,
+                                  size: 18),
+                          label:
+                              Text(loading ? 'Applying...' : 'Apply Filters'),
                           style: FilledButton.styleFrom(
                             backgroundColor: const Color(0xFF0A4F3F),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 16),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
                             elevation: 2,
                           ),
                         );
@@ -1649,14 +1752,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           label: const Text('Reset'),
                           style: TextButton.styleFrom(
                             foregroundColor: const Color(0xFF61726C),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 16),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
                           ),
                         );
 
                         final toggleFiltersCmd = IconButton(
                           icon: Icon(
-                            showAdvancedFilters ? Icons.expand_less : Icons.expand_more,
+                            showAdvancedFilters
+                                ? Icons.expand_less
+                                : Icons.expand_more,
                             color: const Color(0xFF0A4F3F),
                           ),
                           tooltip: 'Toggle Advanced Filters',
@@ -1667,29 +1774,36 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           },
                         );
 
-                        Widget _buildMetricField(String label, IconData icon, TextEditingController controller) {
+                        Widget _buildMetricField(String label, IconData icon,
+                            TextEditingController controller) {
                           return Container(
                             decoration: BoxDecoration(
                               color: const Color(0xFFF7FAF8),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFD9E3DE)),
+                              border:
+                                  Border.all(color: const Color(0xFFD9E3DE)),
                             ),
                             child: TextField(
                               controller: controller,
                               keyboardType: TextInputType.number,
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w600),
                               decoration: InputDecoration(
                                 labelText: label,
-                                prefixIcon: Icon(icon, size: 20, color: const Color(0xFF0A4F3F)),
-                                labelStyle: const TextStyle(color: Color(0xFF61726C), fontSize: 13),
+                                prefixIcon: Icon(icon,
+                                    size: 20, color: const Color(0xFF0A4F3F)),
+                                labelStyle: const TextStyle(
+                                    color: Color(0xFF61726C), fontSize: 13),
                                 border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
                               ),
                             ),
                           );
                         }
 
-                        Future<void> pickDate(TextEditingController ctrl, String title) async {
+                        Future<void> pickDate(
+                            TextEditingController ctrl, String title) async {
                           final picked = await showDatePicker(
                             context: context,
                             initialDate: DateTime.now(),
@@ -1718,12 +1832,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
                         final advancedFiltersView = showAdvancedFilters
                             ? Container(
-                                margin: const EdgeInsets.only(top: 16, bottom: 8),
+                                margin:
+                                    const EdgeInsets.only(top: 16, bottom: 8),
                                 padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: const Color(0xFFD9E3DE), width: 1.5),
+                                  border: Border.all(
+                                      color: const Color(0xFFD9E3DE),
+                                      width: 1.5),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withOpacity(0.03),
@@ -1737,50 +1854,80 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                   children: [
                                     const Text(
                                       'Engagement Metrics',
-                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0A4F3F)),
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF0A4F3F)),
                                     ),
                                     const SizedBox(height: 12),
                                     GridView.count(
                                       crossAxisCount: stacked ? 2 : 4,
                                       shrinkWrap: true,
-                                      physics: const NeverScrollableScrollPhysics(),
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
                                       mainAxisSpacing: 12,
                                       crossAxisSpacing: 12,
                                       childAspectRatio: 2.2,
                                       children: [
-                                        _buildMetricField('Min Likes', Icons.favorite_outline, minLikesCtrl),
-                                        _buildMetricField('Min Views', Icons.visibility_outlined, minViewsCtrl),
-                                        _buildMetricField('Min Shares', Icons.share_outlined, minSharesCtrl),
-                                        _buildMetricField('Min Unlocks', Icons.lock_open_outlined, minCreditsCtrl),
+                                        _buildMetricField(
+                                            'Min Likes',
+                                            Icons.favorite_outline,
+                                            minLikesCtrl),
+                                        _buildMetricField(
+                                            'Min Views',
+                                            Icons.visibility_outlined,
+                                            minViewsCtrl),
+                                        _buildMetricField(
+                                            'Min Shares',
+                                            Icons.share_outlined,
+                                            minSharesCtrl),
+                                        _buildMetricField(
+                                            'Min Unlocks',
+                                            Icons.lock_open_outlined,
+                                            minCreditsCtrl),
                                       ],
                                     ),
                                     const SizedBox(height: 20),
                                     const Text(
                                       'Classification & Time Period',
-                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0A4F3F)),
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF0A4F3F)),
                                     ),
                                     const SizedBox(height: 12),
                                     Row(
                                       children: [
                                         Expanded(
                                           flex: 2,
-                                          child: _buildMetricField('Product Type', Icons.category_outlined, productTypeCtrl),
+                                          child: _buildMetricField(
+                                              'Product Type',
+                                              Icons.category_outlined,
+                                              productTypeCtrl),
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: InkWell(
-                                            onTap: () => pickDate(startDateCtrl, 'Start Date'),
+                                            onTap: () => pickDate(
+                                                startDateCtrl, 'Start Date'),
                                             child: IgnorePointer(
-                                              child: _buildMetricField('From', Icons.calendar_today_outlined, startDateCtrl),
+                                              child: _buildMetricField(
+                                                  'From',
+                                                  Icons.calendar_today_outlined,
+                                                  startDateCtrl),
                                             ),
                                           ),
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: InkWell(
-                                            onTap: () => pickDate(endDateCtrl, 'End Date'),
+                                            onTap: () => pickDate(
+                                                endDateCtrl, 'End Date'),
                                             child: IgnorePointer(
-                                              child: _buildMetricField('To', Icons.calendar_today_outlined, endDateCtrl),
+                                              child: _buildMetricField(
+                                                  'To',
+                                                  Icons.calendar_today_outlined,
+                                                  endDateCtrl),
                                             ),
                                           ),
                                         ),
@@ -1792,9 +1939,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             : const SizedBox.shrink();
 
                         final countBadge = Align(
-                          alignment: stacked ? Alignment.centerLeft : Alignment.centerRight,
+                          alignment: stacked
+                              ? Alignment.centerLeft
+                              : Alignment.centerRight,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF1F4F2),
                               borderRadius: BorderRadius.circular(999),
@@ -1815,7 +1965,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             children: [
                               filterField,
                               const SizedBox(height: 12),
-                                  Row(
+                              Row(
                                 children: [
                                   Expanded(child: rowsPerPageField),
                                   const SizedBox(width: 8),
@@ -1879,35 +2029,56 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                           padding: EdgeInsets.all(40),
                                           child: Text(
                                             'No items match this filter.',
-                                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                                            style: TextStyle(
+                                                fontSize: 16,
+                                                color: Colors.grey),
                                           ),
                                         ),
                                       )
                                     : Builder(
                                         builder: (context) {
-                                          final effectiveRowsPerPage = math.max(1, math.min(rowsPerPage, rows.length));
-                                          final totalPages = (rows.length / effectiveRowsPerPage).ceil();
-                                          final safeCurrentPage = math.min(currentPage, math.max(0, totalPages - 1)).toInt();
-                                          final start = safeCurrentPage * effectiveRowsPerPage;
-                                          final end = math.min(start + effectiveRowsPerPage, rows.length);
-                                          final pageRows = rows.sublist(start, end);
+                                          final effectiveRowsPerPage = math.max(
+                                              1,
+                                              math.min(
+                                                  rowsPerPage, rows.length));
+                                          final totalPages = (rows.length /
+                                                  effectiveRowsPerPage)
+                                              .ceil();
+                                          final safeCurrentPage = math
+                                              .min(currentPage,
+                                                  math.max(0, totalPages - 1))
+                                              .toInt();
+                                          final start = safeCurrentPage *
+                                              effectiveRowsPerPage;
+                                          final end = math.min(
+                                              start + effectiveRowsPerPage,
+                                              rows.length);
+                                          final pageRows =
+                                              rows.sublist(start, end);
 
-                                          final headerStyle = const TextStyle(fontWeight: FontWeight.bold);
+                                          final headerStyle = const TextStyle(
+                                              fontWeight: FontWeight.bold);
 
                                           return Container(
                                             decoration: BoxDecoration(
                                               color: Colors.white,
-                                              borderRadius: BorderRadius.circular(18),
-                                              border: Border.all(color: const Color(0xFFE2E7E4)),
+                                              borderRadius:
+                                                  BorderRadius.circular(18),
+                                              border: Border.all(
+                                                  color:
+                                                      const Color(0xFFE2E7E4)),
                                             ),
                                             child: Column(
                                               children: [
                                                 Expanded(
                                                   child: SingleChildScrollView(
-                                                    child: SingleChildScrollView(
-                                                      scrollDirection: Axis.horizontal,
+                                                    child:
+                                                        SingleChildScrollView(
+                                                      scrollDirection:
+                                                          Axis.horizontal,
                                                       child: DataTable(
-                                                        showCheckboxColumn: false,
+                                                        showCheckboxColumn:
+                                                            false,
                                                         headingRowHeight: 56,
                                                         dataRowMinHeight: 54,
                                                         dataRowMaxHeight: 64,
@@ -1916,39 +2087,81 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                                         columns: [
                                                           DataColumn(
                                                             label: Checkbox(
-                                                              value: pageRows.isNotEmpty &&
-                                                                  pageRows.every((item) => _selectedItemIds.contains(item.id)),
+                                                              value: pageRows
+                                                                      .isNotEmpty &&
+                                                                  pageRows.every((item) =>
+                                                                      _selectedItemIds
+                                                                          .contains(
+                                                                              item.id)),
                                                               onChanged: (val) {
-                                                                setDialogState(() {
+                                                                setDialogState(
+                                                                    () {
                                                                   setState(() {
-                                                                    if (val == true) {
-                                                                      _selectedItemIds.addAll(pageRows.map((item) => item.id));
+                                                                    if (val ==
+                                                                        true) {
+                                                                      _selectedItemIds.addAll(pageRows.map(
+                                                                          (item) =>
+                                                                              item.id));
                                                                     } else {
-                                                                      _selectedItemIds.removeAll(pageRows.map((item) => item.id));
+                                                                      _selectedItemIds.removeAll(pageRows.map(
+                                                                          (item) =>
+                                                                              item.id));
                                                                     }
                                                                   });
                                                                 });
                                                               },
                                                             ),
                                                           ),
-                                                          DataColumn(label: Text('Asset Name', style: headerStyle)),
-                                                          DataColumn(label: Text('Table', style: headerStyle)),
-                                                          DataColumn(label: Text('Status', style: headerStyle)),
-                                                          DataColumn(label: Text('Modified By', style: headerStyle)),
-                                                          DataColumn(label: Text('Created', style: headerStyle)),
-                                                          DataColumn(label: Text('Actions', style: headerStyle)),
+                                                          DataColumn(
+                                                              label: Text(
+                                                                  'Asset Name',
+                                                                  style:
+                                                                      headerStyle)),
+                                                          DataColumn(
+                                                              label: Text(
+                                                                  'Table',
+                                                                  style:
+                                                                      headerStyle)),
+                                                          DataColumn(
+                                                              label: Text(
+                                                                  'Status',
+                                                                  style:
+                                                                      headerStyle)),
+                                                          DataColumn(
+                                                              label: Text(
+                                                                  'Modified By',
+                                                                  style:
+                                                                      headerStyle)),
+                                                          DataColumn(
+                                                              label: Text(
+                                                                  'Created',
+                                                                  style:
+                                                                      headerStyle)),
+                                                          DataColumn(
+                                                              label: Text(
+                                                                  'Actions',
+                                                                  style:
+                                                                      headerStyle)),
                                                         ],
                                                         rows: pageRows
                                                             .map(
                                                               (item) => DataRow(
-                                                                selected: _selectedItemIds.contains(item.id),
-                                                                onSelectChanged: (val) {
-                                                                  setDialogState(() {
-                                                                    setState(() {
-                                                                      if (val == true) {
-                                                                        _selectedItemIds.add(item.id);
+                                                                selected: _selectedItemIds
+                                                                    .contains(
+                                                                        item.id),
+                                                                onSelectChanged:
+                                                                    (val) {
+                                                                  setDialogState(
+                                                                      () {
+                                                                    setState(
+                                                                        () {
+                                                                      if (val ==
+                                                                          true) {
+                                                                        _selectedItemIds
+                                                                            .add(item.id);
                                                                       } else {
-                                                                        _selectedItemIds.remove(item.id);
+                                                                        _selectedItemIds
+                                                                            .remove(item.id);
                                                                       }
                                                                     });
                                                                   });
@@ -1956,11 +2169,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                                                 cells: [
                                                                   DataCell(
                                                                     Checkbox(
-                                                                      value: _selectedItemIds.contains(item.id),
-                                                                      onChanged: (val) {
-                                                                        setDialogState(() {
-                                                                          setState(() {
-                                                                            if (val == true) {
+                                                                      value: _selectedItemIds
+                                                                          .contains(
+                                                                              item.id),
+                                                                      onChanged:
+                                                                          (val) {
+                                                                        setDialogState(
+                                                                            () {
+                                                                          setState(
+                                                                              () {
+                                                                            if (val ==
+                                                                                true) {
                                                                               _selectedItemIds.add(item.id);
                                                                             } else {
                                                                               _selectedItemIds.remove(item.id);
@@ -1970,19 +2189,33 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                                                       },
                                                                     ),
                                                                   ),
-                                                                  DataCell(Text('${item.title} (#${item.id.substring(0, item.id.length.clamp(0, 8))})')),
-                                                                  DataCell(Text(item.source)),
-                                                                  DataCell(_statusChip(item.status)),
-                                                                  DataCell(Text(item.ownerName)),
+                                                                  DataCell(Text(
+                                                                      '${item.title} (#${item.id.substring(0, item.id.length.clamp(0, 8))})')),
+                                                                  DataCell(Text(
+                                                                      item.source)),
+                                                                  DataCell(
+                                                                      _statusChip(
+                                                                          item.status)),
+                                                                  DataCell(Text(
+                                                                      item.ownerName)),
                                                                   DataCell(
                                                                     Text(
-                                                                      item.createdAt == null ? '-' : widget.dateFormat.format(item.createdAt!),
+                                                                      item.createdAt ==
+                                                                              null
+                                                                          ? '-'
+                                                                          : widget
+                                                                              .dateFormat
+                                                                              .format(item.createdAt!),
                                                                     ),
                                                                   ),
                                                                   DataCell(
                                                                     IconButton(
-                                                                      onPressed: () => _showItemActions(item),
-                                                                      icon: const Icon(Icons.more_horiz),
+                                                                      onPressed:
+                                                                          () =>
+                                                                              _showItemActions(item),
+                                                                      icon: const Icon(
+                                                                          Icons
+                                                                              .more_horiz),
                                                                     ),
                                                                   ),
                                                                 ],
@@ -1995,39 +2228,63 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                                 ),
                                                 const Divider(height: 1),
                                                 Padding(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 12),
                                                   child: Row(
                                                     children: [
                                                       Text(
                                                         'Showing ${rows.isEmpty ? 0 : start + 1}-${end} of ${rows.length}',
-                                                        style: const TextStyle(color: Color(0xFF5D6D67), fontWeight: FontWeight.w600),
+                                                        style: const TextStyle(
+                                                            color: Color(
+                                                                0xFF5D6D67),
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600),
                                                       ),
                                                       const Spacer(),
                                                       IconButton(
-                                                        tooltip: 'Previous page',
-                                                        onPressed: safeCurrentPage == 0
-                                                            ? null
-                                                            : () {
-                                                                setDialogState(() {
-                                                                  currentPage = safeCurrentPage - 1;
-                                                                });
-                                                              },
-                                                        icon: const Icon(Icons.chevron_left),
+                                                        tooltip:
+                                                            'Previous page',
+                                                        onPressed:
+                                                            safeCurrentPage == 0
+                                                                ? null
+                                                                : () {
+                                                                    setDialogState(
+                                                                        () {
+                                                                      currentPage =
+                                                                          safeCurrentPage -
+                                                                              1;
+                                                                    });
+                                                                  },
+                                                        icon: const Icon(
+                                                            Icons.chevron_left),
                                                       ),
                                                       Text(
                                                         'Page ${safeCurrentPage + 1} of ${math.max(1, totalPages)}',
-                                                        style: const TextStyle(fontWeight: FontWeight.w600),
+                                                        style: const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600),
                                                       ),
                                                       IconButton(
                                                         tooltip: 'Next page',
-                                                        onPressed: safeCurrentPage >= totalPages - 1
-                                                            ? null
-                                                            : () {
-                                                                setDialogState(() {
-                                                                  currentPage = safeCurrentPage + 1;
-                                                                });
-                                                              },
-                                                        icon: const Icon(Icons.chevron_right),
+                                                        onPressed:
+                                                            safeCurrentPage >=
+                                                                    totalPages -
+                                                                        1
+                                                                ? null
+                                                                : () {
+                                                                    setDialogState(
+                                                                        () {
+                                                                      currentPage =
+                                                                          safeCurrentPage +
+                                                                              1;
+                                                                    });
+                                                                  },
+                                                        icon: const Icon(Icons
+                                                            .chevron_right),
                                                       ),
                                                     ],
                                                   ),
@@ -2050,7 +2307,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     filterCtrl.dispose();
   }
 
-  Widget _buildTabButton(String title, String value, String selectedValue, Function(String) onSelect) {
+  Widget _buildTabButton(String title, String value, String selectedValue,
+      Function(String) onSelect) {
     final isSelected = value == selectedValue;
     return InkWell(
       onTap: () => onSelect(value),
@@ -2061,7 +2319,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
           color: isSelected ? const Color(0xFF034033) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? const Color(0xFF034033) : const Color(0xFFDDE4E0),
+            color:
+                isSelected ? const Color(0xFF034033) : const Color(0xFFDDE4E0),
           ),
         ),
         child: Text(
@@ -2078,7 +2337,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   double _inventoryHealth(List<InventoryItem> items) {
     if (items.isEmpty) return 0;
     final valid = items.where((item) {
-      final hasImage = (item.thumbUrl?.isNotEmpty ?? false) || (item.mediaUrl?.isNotEmpty ?? false);
+      final hasImage = (item.thumbUrl?.isNotEmpty ?? false) ||
+          (item.mediaUrl?.isNotEmpty ?? false);
       final hasTitle = item.title.trim().isNotEmpty;
       final hasCategory = item.category.trim().isNotEmpty;
       return hasImage && hasTitle && hasCategory;
@@ -2106,7 +2366,8 @@ class _InventoryDataSource extends DataTableSource {
     final item = items[index];
     return DataRow(
       cells: [
-        DataCell(Text('${item.title} (#${item.id.substring(0, item.id.length.clamp(0, 8))})')),
+        DataCell(Text(
+            '${item.title} (#${item.id.substring(0, item.id.length.clamp(0, 8))})')),
         DataCell(Text(item.productType ?? '-')),
         DataCell(Text('${item.likesCount}')),
         DataCell(Text('${item.viewsCount}')),

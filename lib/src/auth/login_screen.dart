@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
@@ -79,7 +78,8 @@ class _LoginScreenState extends State<LoginScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message, style: GoogleFonts.inter()),
-        backgroundColor: isError ? Colors.redAccent.shade700 : _Brand.forestGreen,
+        backgroundColor:
+            isError ? Colors.redAccent.shade700 : _Brand.forestGreen,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -157,7 +157,8 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Please enter your email';
+              if (value == null || value.isEmpty)
+                return 'Please enter your email';
               if (!value.contains('@')) return 'Please enter a valid email';
               return null;
             },
@@ -181,7 +182,8 @@ class _LoginScreenState extends State<LoginScreen>
                   );
                 } catch (e) {
                   if (mounted) {
-                    _showSnackbar('Failed to send reset link. Please try again.');
+                    _showSnackbar(
+                        'Failed to send reset link. Please try again.');
                   }
                 }
               }
@@ -192,7 +194,8 @@ class _LoginScreenState extends State<LoginScreen>
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Send Link', style: TextStyle(color: Colors.white)),
+            child:
+                const Text('Send Link', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -314,9 +317,7 @@ class _LoginScreenState extends State<LoginScreen>
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF1A1A1A),
                   ),
-                )
-                    .animate()
-                    .fadeIn(duration: 400.ms, delay: 400.ms),
+                ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
 
                 const SizedBox(height: 4),
                 Text(
@@ -409,21 +410,22 @@ class _LoginScreenState extends State<LoginScreen>
             controller: _emailOrUsernameController,
             keyboardType: TextInputType.emailAddress,
             autofillHints: const [AutofillHints.email, AutofillHints.username],
-            style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF1A1A1A)),
+            style:
+                GoogleFonts.inter(fontSize: 14, color: const Color(0xFF1A1A1A)),
             decoration: _inputDeco(
               label: 'Email or Username',
               icon: Icons.person_outline_rounded,
             ),
-            validator: (val) => (val == null || val.isEmpty)
-                ? 'This field is required'
-                : null,
+            validator: (val) =>
+                (val == null || val.isEmpty) ? 'This field is required' : null,
           ),
           const SizedBox(height: 14),
           TextFormField(
             controller: _passwordController,
             obscureText: !_isPasswordVisible,
             autofillHints: const [AutofillHints.password],
-            style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF1A1A1A)),
+            style:
+                GoogleFonts.inter(fontSize: 14, color: const Color(0xFF1A1A1A)),
             decoration: _inputDeco(
               label: 'Password',
               icon: Icons.lock_outline_rounded,
@@ -440,10 +442,9 @@ class _LoginScreenState extends State<LoginScreen>
                     setState(() => _isPasswordVisible = !_isPasswordVisible),
               ),
             ),
-            validator: (val) =>
-                (val == null || val.length < 6)
-                    ? 'Password must be at least 6 characters'
-                    : null,
+            validator: (val) => (val == null || val.length < 6)
+                ? 'Password must be at least 6 characters'
+                : null,
             onEditingComplete: _signIn,
           ),
           Align(

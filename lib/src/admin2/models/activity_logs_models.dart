@@ -37,7 +37,8 @@ class ActivityLog {
 
   factory ActivityLog.fromJson(Map<String, dynamic> json) => ActivityLog(
         id: json['id'] ?? '',
-        timestamp: DateTime.parse(json['timestamp'] ?? DateTime.now().toIso8601String()),
+        timestamp: DateTime.parse(
+            json['timestamp'] ?? DateTime.now().toIso8601String()),
         userId: json['user_id'],
         adminId: json['admin_id'],
         actionType: json['action_type'],
@@ -93,7 +94,8 @@ class ActivitySummary {
     required this.exportsToday,
   });
 
-  factory ActivitySummary.fromJson(Map<String, dynamic> json) => ActivitySummary(
+  factory ActivitySummary.fromJson(Map<String, dynamic> json) =>
+      ActivitySummary(
         adminActions: json['admin_actions']?.toInt() ?? 0,
         userActivities: json['user_activities']?.toInt() ?? 0,
         exportsGenerated: json['exports_generated']?.toInt() ?? 0,

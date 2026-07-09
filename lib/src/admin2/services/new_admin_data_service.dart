@@ -236,8 +236,8 @@ class NewAdminDataService {
   }
 
   Future<void> moderateAssetsBulk(
-      List<String> assetIds, {
-      required bool approve,
+    List<String> assetIds, {
+    required bool approve,
   }) async {
     for (final id in assetIds) {
       await moderateAsset(assetId: id, approve: approve);
@@ -271,7 +271,7 @@ class NewAdminDataService {
         .from('assets')
         .select('id, owner_id')
         .inFilter('owner_id', userIds);
-    
+
     final Map<String, String> assetToOwner = {};
     final Set<String> relevantAssetIds = {};
     for (final a in assetsRes) {
@@ -298,9 +298,12 @@ class NewAdminDataService {
         final aid = '${stat['asset_id']}';
         final ownerId = assetToOwner[aid];
         if (ownerId != null && userMetrics.containsKey(ownerId)) {
-          userMetrics[ownerId]!['v'] = (userMetrics[ownerId]!['v'] ?? 0) + (stat['views'] as int? ?? 0);
-          userMetrics[ownerId]!['l'] = (userMetrics[ownerId]!['l'] ?? 0) + (stat['likes'] as int? ?? 0);
-          userMetrics[ownerId]!['s'] = (userMetrics[ownerId]!['s'] ?? 0) + (stat['shares'] as int? ?? 0);
+          userMetrics[ownerId]!['v'] =
+              (userMetrics[ownerId]!['v'] ?? 0) + (stat['views'] as int? ?? 0);
+          userMetrics[ownerId]!['l'] =
+              (userMetrics[ownerId]!['l'] ?? 0) + (stat['likes'] as int? ?? 0);
+          userMetrics[ownerId]!['s'] =
+              (userMetrics[ownerId]!['s'] ?? 0) + (stat['shares'] as int? ?? 0);
         }
       }
     }
@@ -394,7 +397,9 @@ class NewAdminDataService {
         stoneSetting: _toStringList(row['stone_setting']),
         additionalNotes: (row['additional_notes'] as String?) ?? '',
         productUrl: (row['product_url'] as String?) ?? '',
-        phoneNumber: (row['user_phone'] as String?) ?? (row['phone_number'] as String?) ?? '',
+        phoneNumber: (row['user_phone'] as String?) ??
+            (row['phone_number'] as String?) ??
+            '',
         metalWeight: (row['metal_weight'] as String?) ?? '',
         netWeight: (row['net_weight'] as String?) ?? '',
         dimension: (row['dimension'] as String?) ?? '',
@@ -487,7 +492,6 @@ class NewAdminDataService {
   }
 
   Future<List<InventoryItem>> fetchInventory({int limit = 100}) async {
-
     final rows = await _client
         .from('assets')
         .select(

@@ -1,16 +1,24 @@
-// [This is the corrected code for: lib/src/ui/screens/detail/product_page_loader.dart]
+// lib/src/ui/screens/detail/product_page_loader.dart
 
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
-import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
-import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProductPageLoader extends StatefulWidget {
+  /// Either a UUID (when [lookupByUid] is true) or a legacy title slug.
   final String productSlug;
 
-  const ProductPageLoader({super.key, required this.productSlug});
+  /// When true, [productSlug] is treated as the `uid` UUID column value and
+  /// an exact match is performed. When false (default) a fuzzy title search
+  /// is used for backward-compatibility with old slug-style URLs.
+  final bool lookupByUid;
+
+  const ProductPageLoader({
+    super.key,
+    required this.productSlug,
+    this.lookupByUid = false,
+  });
 
   @override
   State<ProductPageLoader> createState() => _ProductPageLoaderState();
@@ -18,52 +26,111 @@ class ProductPageLoader extends StatefulWidget {
 
 class _ProductPageLoaderState extends State<ProductPageLoader> {
   late Future<JewelryItem?> _productFuture;
-  late final JewelryService _jewelryService;
 
   @override
   void initState() {
     super.initState();
-    _jewelryService = JewelryService(Supabase.instance.client);
-    _productFuture = _fetchProductBySlug(widget.productSlug);
+    _productFuture = widget.lookupByUid
+        ? _fetchProductByUid(widget.productSlug)
+        : _fetchProductBySlug(widget.productSlug);
   }
 
-  Future<JewelryItem?> _fetchProductBySlug(String slug) async {
-    // <-- FIX: Re-create a fuzzy search term from the slug
-    // "hearty-bliss-gemstone-pendant" -> "hearty%bliss%gemstone%pendant"
-    final String productSearchTerm = slug.replaceAll('-', '%');
-
+  // ── NEW: Fetch by UUID ──────────────────────────────────────────────────────
+  // Queries all three product tables in parallel and returns the first hit.
+  // Because uuid is globally unique across tables, we never get a collision.
+  Future<JewelryItem?> _fetchProductByUid(String uid) async {
+    final client = Supabase.instance.client;
     try {
-      // 2. Search Supabase for a product with this
-      final response = await Supabase.instance.client
-          .from('products')
-          .select()
-          .ilike('Product Title', productSearchTerm) // <-- FIX: Use fuzzy search term
-          .maybeSingle();
-      
-      if (response != null) {
-        return JewelryItem.fromJson(response);
+      final results = await Future.wait([
+        client.from('products').select().eq('uid', uid).maybeSingle(),
+        client.from('designerproducts').select().eq('uid', uid).maybeSingle(),
+        client
+            .from('manufacturerproducts')
+            .select()
+            .eq('uid', uid)
+            .maybeSingle(),
+      ]);
+
+      if (results[0] != null) {
+        return JewelryItem.fromJson(results[0] as Map<String, dynamic>);
       }
-      
-      // 3. If not found, check 'designerproducts' table
-      final designerResponse = await Supabase.instance.client
-          .from('designerproducts') // Check 'designerproducts' table
-          .select()
-          .ilike('Product Title', productSearchTerm) // <-- FIX: Use fuzzy search term
-          .maybeSingle();
-          
-      if (designerResponse != null) {
-        designerResponse['is_designer_product'] = true;
-        return JewelryItem.fromJson(designerResponse);
+      if (results[1] != null) {
+        final map = results[1] as Map<String, dynamic>;
+        map['is_designer_product'] = true;
+        return JewelryItem.fromJson(map);
+      }
+      if (results[2] != null) {
+        final map = results[2] as Map<String, dynamic>;
+        map['is_manufacturer_product'] = true;
+        return JewelryItem.fromJson(map);
       }
 
-      // 4. If still not found, return null
-      debugPrint("Product not found in 'products' or 'designerproducts' for slug: $slug (Search term: $productSearchTerm)");
+      debugPrint('Product not found for uid: $uid');
       return null;
-
     } catch (e) {
-      debugPrint("Error fetching product by slug '$slug': $e");
+      debugPrint("Error fetching product by uid '$uid': $e");
       return null;
     }
+  }
+
+  // ── LEGACY: Fetch by fuzzy title slug ──────────────────────────────────────
+  Future<JewelryItem?> _fetchProductBySlug(String slug) async {
+    final client = Supabase.instance.client;
+
+    // Split slug into tokens so we can try shorter prefixes when the full slug
+    // doesn't match (e.g. slug has SKU appended: "studded-bracelet-18kd-lk-0060brct7")
+    final tokens = slug.split('-').where((t) => t.isNotEmpty).toList();
+
+    // Try from full slug down to the first 3 tokens
+    for (int take = tokens.length; take >= 3; take--) {
+      final searchTerm = tokens.sublist(0, take).join('%');
+      debugPrint("Slug lookup attempt: ILIKE '%$searchTerm%'");
+
+      try {
+        final response = await client
+            .from('products')
+            .select()
+            .ilike('Product Title', '%$searchTerm%')
+            .limit(1)
+            .maybeSingle();
+
+        if (response != null) {
+          debugPrint('Found in products after $take tokens');
+          return JewelryItem.fromJson(response);
+        }
+
+        final designerResponse = await client
+            .from('designerproducts')
+            .select()
+            .ilike('Product Title', '%$searchTerm%')
+            .limit(1)
+            .maybeSingle();
+
+        if (designerResponse != null) {
+          debugPrint('Found in designerproducts after $take tokens');
+          designerResponse['is_designer_product'] = true;
+          return JewelryItem.fromJson(designerResponse);
+        }
+
+        final mfrResponse = await client
+            .from('manufacturerproducts')
+            .select()
+            .ilike('Product Title', '%$searchTerm%')
+            .limit(1)
+            .maybeSingle();
+
+        if (mfrResponse != null) {
+          debugPrint('Found in manufacturerproducts after $take tokens');
+          mfrResponse['is_manufacturer_product'] = true;
+          return JewelryItem.fromJson(mfrResponse);
+        }
+      } catch (e) {
+        debugPrint("Error fetching product by slug '$slug' (take=$take): $e");
+      }
+    }
+
+    debugPrint("Product not found for slug: $slug");
+    return null;
   }
 
   @override
@@ -93,11 +160,7 @@ class _ProductPageLoaderState extends State<ProductPageLoader> {
           );
         }
 
-        // Product was found! Show the detail screen.
-        final product = snapshot.data!;
-        
-        // Use replace to show the detail screen without stacking on the loader
-        return JewelryDetailScreen(jewelryItem: product);
+        return JewelryDetailScreen(jewelryItem: snapshot.data!);
       },
     );
   }

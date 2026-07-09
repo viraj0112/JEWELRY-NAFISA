@@ -40,7 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         body: LayoutBuilder(
           builder: (context, constraints) {
             bool isWide = constraints.maxWidth > 800;
-            
+
             if (isWide) {
               // Desktop layout with close button
               return Column(
@@ -77,7 +77,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildNestedScrollView(UserProfileProvider userProfile) {
     final isWide = MediaQuery.of(context).size.width > 800;
-    
+
     return NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) {
         return [
@@ -342,7 +342,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   child: const Text(
                     'Become a Lifetime Golden Member',
                     style: TextStyle(

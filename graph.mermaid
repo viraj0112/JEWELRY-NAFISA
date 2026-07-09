@@ -1,0 +1,27 @@
+graph TB
+    subgraph "Flutter App"
+        A[User uploads images] --> B[Call AI Backend]
+        B --> C{Empty columns?}
+        C -->|Yes| D[AI fills details]
+        C -->|No| E[Push directly to DB]
+        D --> F[Review Queue]
+        F --> G{Approved?}
+        G -->|Yes| E
+        G -->|No| H[Notify - auto-filled later]
+    end
+
+    subgraph "Python Script"
+        I[Query empty rows from Supabase] --> J[Fetch images from storage]
+        J --> K[Gemini Vision API]
+        K --> L[Update database]
+    end
+
+    subgraph "FastAPI Backend"
+        B -.-> M[FastAPI on HF Spaces]
+        K -.-> M
+    end
+
+    subgraph "Supabase"
+        E --> N[(products/designerproducts/manufacturerproducts)]
+        L --> N
+    end

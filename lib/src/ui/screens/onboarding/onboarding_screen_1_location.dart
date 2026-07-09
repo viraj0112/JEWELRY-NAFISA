@@ -18,12 +18,11 @@ class OnboardingScreen1Location extends StatefulWidget {
 
 class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     with SingleTickerProviderStateMixin {
-  
   final TextEditingController _countryController = TextEditingController();
   final TextEditingController _zipController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  String? _selectedCountryCode;   // e.g. "IN"
-  String? _selectedDialCode;      // e.g. "+91"
+  String? _selectedCountryCode; // e.g. "IN"
+  String? _selectedDialCode; // e.g. "+91"
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -41,7 +40,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
       curve: Curves.easeInOut,
     );
     _animationController.forward();
-    
+
     // Initialize the default dial code and country (India)
     _selectedDialCode = '+91';
     _selectedCountryCode = 'IN';
@@ -82,14 +81,15 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     final zipCode = _zipController.text.trim();
     final phoneInput = _phoneController.text.trim();
     final fullPhoneNumber = '${_selectedDialCode ?? "+91"}$phoneInput';
-    
+
     if (_selectedCountryCode == null || _selectedCountryCode!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('❌ Please select a Country.'),
           backgroundColor: Theme.of(context).colorScheme.primary,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
@@ -101,27 +101,29 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
           content: const Text('❌ Please enter your ZIP / Postal Code.'),
           backgroundColor: Theme.of(context).colorScheme.primary,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
     }
 
     // Attempt to find the Postcode.CountryCode enum from the selected country code
-    final Postcode.CountryCode? countryEnum = Postcode.CountryCode.values
-        .cast<Postcode.CountryCode?>()
-        .firstWhere(
-          (e) => e?.code == _selectedCountryCode,
-          orElse: () => null,
-        );
-    
+    final Postcode.CountryCode? countryEnum =
+        Postcode.CountryCode.values.cast<Postcode.CountryCode?>().firstWhere(
+              (e) => e?.code == _selectedCountryCode,
+              orElse: () => null,
+            );
+
     if (countryEnum == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('⚠️ Selected country is not supported for postal code validation.'),
+          content: const Text(
+              '⚠️ Selected country is not supported for postal code validation.'),
           backgroundColor: const Color(0xFFFF5252),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
@@ -134,17 +136,18 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
     );
 
     final isZipValid = validationResult.isValid;
-    
+
     if (!isZipValid) {
-      final errorMessage = validationResult.errorMessage ?? 
+      final errorMessage = validationResult.errorMessage ??
           '❌ The ZIP / Postal Code "$zipCode" is not valid for ${countryEnum.code}.';
-          
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
           backgroundColor: const Color(0xFFFF5252),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
@@ -210,7 +213,8 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
             child: Center(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 60),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 40, horizontal: 60),
                 child: _buildFormContent(),
               ),
             ),
@@ -335,7 +339,7 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
           child: Row(
             children: [
               CountryCodePicker(
-                onChanged: _onDialCodeChanged,   // ← auto-syncs country
+                onChanged: _onDialCodeChanged, // ← auto-syncs country
                 initialSelection: 'IN',
                 favorite: const ['+91', 'IN', '+1', 'US', '+44', 'GB'],
                 showCountryOnly: false,
@@ -492,7 +496,8 @@ class _OnboardingScreen1LocationState extends State<OnboardingScreen1Location>
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFF006435), width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }

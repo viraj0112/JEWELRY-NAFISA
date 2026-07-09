@@ -45,8 +45,14 @@ class Validators {
     }
     // Check for common weak passwords
     final commonPasswords = [
-      'password', 'password1', '12345678', 'qwerty123',
-      'admin123', 'letmein', 'welcome1', 'monkey123',
+      'password',
+      'password1',
+      '12345678',
+      'qwerty123',
+      'admin123',
+      'letmein',
+      'welcome1',
+      'monkey123',
     ];
     if (commonPasswords.contains(password.toLowerCase())) {
       return 'This password is too common. Please choose a stronger one';
@@ -55,7 +61,8 @@ class Validators {
   }
 
   /// Validates password confirmation matches
-  static String? validatePasswordConfirmation(String? password, String? confirmation) {
+  static String? validatePasswordConfirmation(
+      String? password, String? confirmation) {
     if (confirmation == null || confirmation.isEmpty) {
       return 'Please confirm your password';
     }
@@ -111,9 +118,11 @@ class Validators {
     try {
       final date = DateTime.parse(birthdate);
       final now = DateTime.now();
-      final minAge = now.subtract(const Duration(days: 365 * 13)); // 13 years old minimum
-      final maxAge = now.subtract(const Duration(days: 365 * 120)); // 120 years old maximum
-      
+      final minAge =
+          now.subtract(const Duration(days: 365 * 13)); // 13 years old minimum
+      final maxAge = now
+          .subtract(const Duration(days: 365 * 120)); // 120 years old maximum
+
       if (date.isAfter(minAge)) {
         return 'You must be at least 13 years old';
       }
@@ -135,7 +144,8 @@ class Validators {
       return null; // GST is optional
     }
     // Indian GST format: 2 digits state code + 10 character PAN + 1 entity code + Z + 1 checksum
-    if (!RegExp(r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$').hasMatch(gst.toUpperCase())) {
+    if (!RegExp(r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$')
+        .hasMatch(gst.toUpperCase())) {
       return 'Please enter a valid GST number';
     }
     return null;
@@ -194,9 +204,23 @@ class Validators {
   /// Check for common SQL keywords (basic protection)
   static bool _containsSqlKeywords(String input) {
     final sqlKeywords = [
-      'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'UNION',
-      'ALTER', 'CREATE', 'TRUNCATE', '--', ';', '/*', '*/',
-      'OR 1=1', 'OR 1 = 1', "' OR '", '" OR "',
+      'SELECT',
+      'INSERT',
+      'UPDATE',
+      'DELETE',
+      'DROP',
+      'UNION',
+      'ALTER',
+      'CREATE',
+      'TRUNCATE',
+      '--',
+      ';',
+      '/*',
+      '*/',
+      'OR 1=1',
+      'OR 1 = 1',
+      "' OR '",
+      '" OR "',
     ];
     final upperInput = input.toUpperCase();
     return sqlKeywords.any((keyword) => upperInput.contains(keyword));
@@ -205,8 +229,16 @@ class Validators {
   /// Check for script tags (XSS prevention)
   static bool _containsScriptTags(String input) {
     final patterns = [
-      '<script', '</script', 'javascript:', 'onerror=', 'onload=',
-      'onclick=', 'onmouseover=', '<iframe', '<object', '<embed',
+      '<script',
+      '</script',
+      'javascript:',
+      'onerror=',
+      'onload=',
+      'onclick=',
+      'onmouseover=',
+      '<iframe',
+      '<object',
+      '<embed',
     ];
     final lowerInput = input.toLowerCase();
     return patterns.any((pattern) => lowerInput.contains(pattern));
@@ -218,7 +250,9 @@ class ValidationResult {
   final bool isValid;
   final String? errorMessage;
 
-  const ValidationResult.valid() : isValid = true, errorMessage = null;
+  const ValidationResult.valid()
+      : isValid = true,
+        errorMessage = null;
   const ValidationResult.invalid(this.errorMessage) : isValid = false;
 
   factory ValidationResult.from(String? error) {
@@ -228,4 +262,3 @@ class ValidationResult {
     return ValidationResult.invalid(error);
   }
 }
-

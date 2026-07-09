@@ -4,7 +4,6 @@ import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_analytics/firebase_analytics.dart'; // <--- ADD THIS
 
-
 class SaveToBoardDialog extends StatefulWidget {
   final JewelryItem item;
 
@@ -64,14 +63,13 @@ class _SaveToBoardDialogState extends State<SaveToBoardDialog> {
                         return ListTile(
                           title: Text(board.name),
                           onTap: () async {
-                          
                             await FirebaseAnalytics.instance.logAddToWishlist(
                               items: [
                                 AnalyticsEventItem(
                                   itemId: widget.item.id,
                                   itemName: widget.item.productTitle,
                                   itemCategory: widget.item.category,
-                                  price: 0, 
+                                  price: 0,
                                 ),
                               ],
                             );

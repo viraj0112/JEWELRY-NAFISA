@@ -29,8 +29,8 @@ class _OnboardingScreen2GenderState extends State<OnboardingScreen2Gender>
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _fadeAnimation = CurvedAnimation(
-        parent: _animationController, curve: Curves.easeInOut);
+    _fadeAnimation =
+        CurvedAnimation(parent: _animationController, curve: Curves.easeInOut);
     _animationController.forward();
   }
 
@@ -288,12 +288,10 @@ class _OnboardingScreen2GenderState extends State<OnboardingScreen2Gender>
       child: OutlinedButton(
         onPressed: () => setState(() => _selectedGender = gender),
         style: OutlinedButton.styleFrom(
-          backgroundColor:
-              isSelected ? const Color(0xFF006435) : Colors.white,
+          backgroundColor: isSelected ? const Color(0xFF006435) : Colors.white,
           side: BorderSide(
-            color: isSelected
-                ? const Color(0xFF006435)
-                : const Color(0xFFE0E0E0),
+            color:
+                isSelected ? const Color(0xFF006435) : const Color(0xFFE0E0E0),
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30),

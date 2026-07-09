@@ -41,14 +41,15 @@ class _OnboardingScreen3AgeState extends State<OnboardingScreen3Age>
 
   void _nextStage() async {
     final ageText = _ageController.text.trim();
-    
+
     if (ageText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('❌ Please enter your age.'),
           backgroundColor: Theme.of(context).colorScheme.primary,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
@@ -61,14 +62,15 @@ class _OnboardingScreen3AgeState extends State<OnboardingScreen3Age>
           content: const Text('❌ Please enter a valid age (13-120).'),
           backgroundColor: const Color(0xFFFF5252),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
     }
 
     final provider = Provider.of<UserProfileProvider>(context, listen: false);
-    
+
     // ✅ Save age data
     await provider.saveOnboardingData(
       age: age,
@@ -122,7 +124,8 @@ class _OnboardingScreen3AgeState extends State<OnboardingScreen3Age>
             child: Center(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 60),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 40, horizontal: 60),
                 child: _buildFormContent(),
               ),
             ),
@@ -171,7 +174,7 @@ class _OnboardingScreen3AgeState extends State<OnboardingScreen3Age>
           ),
         ),
         const SizedBox(height: 32),
-        
+
         // Age Input Field
         Container(
           decoration: BoxDecoration(
@@ -219,9 +222,9 @@ class _OnboardingScreen3AgeState extends State<OnboardingScreen3Age>
             ],
           ),
         ),
-        
+
         const SizedBox(height: 40),
-        
+
         // Next Button
         SizedBox(
           height: 50,

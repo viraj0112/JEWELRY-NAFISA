@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class StatusBadge extends StatelessWidget {
-  final String status;     // e.g. approved / pending / rejected / published / under_review
+  final String
+      status; // e.g. approved / pending / rejected / published / under_review
   final double? fontSize;
   final EdgeInsets? padding;
 
@@ -20,7 +21,8 @@ class StatusBadge extends StatelessWidget {
     final Color textColor = _textFor(normalized);
 
     return Container(
-      padding: padding ?? const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding:
+          padding ?? const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(8),

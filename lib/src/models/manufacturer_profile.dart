@@ -7,7 +7,7 @@ class ManufacturerProfile {
   final String? gstNumber;
   final String? workFileUrl;
   final String? businessCardUrl;
-  
+
   ManufacturerProfile({
     required this.userId,
     required this.businessName,

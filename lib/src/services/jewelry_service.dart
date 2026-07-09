@@ -127,15 +127,13 @@ class JewelryService {
               Studded,
               "Price"
             ''')
-            .or(
-              'Product Title.ilike.%$query%,'
-              'Description.ilike.%$query%,'
-              'Product Type.ilike.%$query%,'
-              'Category.ilike.%$query%,'
-              'Category1.ilike.%$query%,'
-              'Category2.ilike.%$query%,'
-              'Category3.ilike.%$query%'
-            )
+            .or('Product Title.ilike.%$query%,'
+                'Description.ilike.%$query%,'
+                'Product Type.ilike.%$query%,'
+                'Category.ilike.%$query%,'
+                'Category1.ilike.%$query%,'
+                'Category2.ilike.%$query%,'
+                'Category3.ilike.%$query%')
             .limit(50);
 
         if (manufacturerResponse is List) {
@@ -197,10 +195,27 @@ class JewelryService {
         // The RPC returns JSON, so we parse it directly
         return response.map((json) {
           final map = json as Map<String, dynamic>;
-          map['is_designer_product'] = true;
+          // Correctly set source flags based on the 'source' field returned by the RPC.
+          // IMPORTANT: Never blindly default to is_designer_product=true — that causes
+          // products from the 'products' table to be fetched from 'designerproducts',
+          // which returns the wrong product (different item with same numeric ID).
+          if (map['is_designer_product'] == null &&
+              map['is_manufacturer_product'] == null) {
+            final source = map['source']?.toString();
+            if (source == 'designerproducts') {
+              map['is_designer_product'] = true;
+              map['is_manufacturer_product'] = false;
+            } else if (source == 'manufacturerproducts') {
+              map['is_designer_product'] = false;
+              map['is_manufacturer_product'] = true;
+            } else {
+              // Source is 'products' or unknown — treat as a regular product
+              map['is_designer_product'] = false;
+              map['is_manufacturer_product'] = false;
+            }
+          }
           return JewelryItem.fromJson(map);
-        }) // Assuming trending are designer
-            .toList();
+        }).toList();
       }
       return [];
     } catch (e) {
@@ -299,9 +314,7 @@ class JewelryService {
       // We intentionally avoid over-constraining with sub-category/category1/2/3 exact ANDs.
       if (isInstantProduct) {
         Future<List<dynamic>> fetchInstantFrom(String table) async {
-          dynamic query = _supabaseClient
-              .from(table)
-              .select('''
+          dynamic query = _supabaseClient.from(table).select('''
                 id,
                 "Product Title",
                 "Image",
@@ -317,8 +330,7 @@ class JewelryService {
                 Plain,
                 Studded,
                 "Price"
-              ''')
-              .ilike('"Metal Type"', 'AKD%');
+              ''').ilike('"Metal Type"', 'AKD%');
 
           if (productType != null && productType.isNotEmpty) {
             query = query.eq('"Product Type"', productType);
@@ -395,13 +407,15 @@ class JewelryService {
         }
 
         if (productType != null && productType.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.eq('"Product Type"', productType);
+          manufacturerQuery =
+              manufacturerQuery.eq('"Product Type"', productType);
         }
         if (category != null && category.isNotEmpty) {
           manufacturerQuery = manufacturerQuery.eq('Category', category);
         }
         if (subCategory != null && subCategory.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.eq('"Sub Category"', subCategory);
+          manufacturerQuery =
+              manufacturerQuery.eq('"Sub Category"', subCategory);
         }
         if (category1 != null && category1.isNotEmpty) {
           manufacturerQuery = manufacturerQuery.eq('Category1', category1);
@@ -655,7 +669,8 @@ class JewelryService {
         return JewelryItem.fromJson(enriched);
       }).toList();
 
-      final pendingItems = await _fetchPendingAssets(user.id, 'designerproducts');
+      final pendingItems =
+          await _fetchPendingAssets(user.id, 'designerproducts');
       return [...pendingItems, ...approvedItems];
     } catch (e) {
       debugPrint("Error fetching user designer products: $e");
@@ -680,7 +695,8 @@ class JewelryService {
         ''').eq('user_id', user.id).order('created_at', ascending: false);
 
       final items = response as List<Map<String, dynamic>>;
-      final pendingItems = await _fetchPendingAssets(user.id, 'manufacturerproducts');
+      final pendingItems =
+          await _fetchPendingAssets(user.id, 'manufacturerproducts');
 
       if (items.isEmpty) return pendingItems;
 
@@ -1329,11 +1345,13 @@ class JewelryService {
   }
 
   // --- HELPER METHOD TO FETCH PENDING ASSETS ---
-  Future<List<JewelryItem>> _fetchPendingAssets(String userId, String source) async {
+  Future<List<JewelryItem>> _fetchPendingAssets(
+      String userId, String source) async {
     try {
       final response = await _supabaseClient
           .from('assets')
-          .select('id, title, media_url, description, category, status, attributes')
+          .select(
+              'id, title, media_url, description, category, status, attributes')
           .eq('owner_id', userId)
           .eq('source', source)
           .neq('status', 'approved')
@@ -1342,13 +1360,16 @@ class JewelryService {
       final assets = response as List<Map<String, dynamic>>;
       return assets.map((asset) {
         final attrs = asset['attributes'] as Map<String, dynamic>? ?? {};
-        
+
         final enriched = {
           'id': asset['id'],
           'Product Title': asset['title'] ?? attrs['Product Title'],
           'Image': asset['media_url'] ?? attrs['Image'],
-          'description': asset['description'] ?? attrs['Description'] ?? attrs['description'],
-          'Category': asset['category'] ?? attrs['Category'] ?? attrs['category'],
+          'description': asset['description'] ??
+              attrs['Description'] ??
+              attrs['description'],
+          'Category':
+              asset['category'] ?? attrs['Category'] ?? attrs['category'],
           'status': asset['status'],
           'is_designer_product': source == 'designerproducts',
           'is_manufacturer_product': source == 'manufacturerproducts',
@@ -1357,7 +1378,7 @@ class JewelryService {
 
         return JewelryItem.fromJson(enriched);
       }).toList();
-    } catch(e) {
+    } catch (e) {
       debugPrint("Error fetching pending assets: $e");
       return [];
     }

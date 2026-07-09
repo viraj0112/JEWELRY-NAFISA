@@ -5,7 +5,7 @@ class SearchHistoryService with ChangeNotifier {
   late SharedPreferences _prefs;
   List<String> _recentSearches = [];
   static const _key = 'recent_searches';
-  static const _maxHistoryLength = 10; 
+  static const _maxHistoryLength = 10;
 
   List<String> get recentSearches => _recentSearches;
 

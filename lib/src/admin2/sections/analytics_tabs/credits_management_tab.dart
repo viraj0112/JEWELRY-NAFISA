@@ -73,11 +73,12 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
 
   @override
   Widget build(BuildContext context) {
-    final filteredUsers = users.where((user) => 
-      user.currentCredits >= creditRange.start && 
-      user.currentCredits <= creditRange.end &&
-      (selectedSource == null || user.source.name == selectedSource)
-    ).toList();
+    final filteredUsers = users
+        .where((user) =>
+            user.currentCredits >= creditRange.start &&
+            user.currentCredits <= creditRange.end &&
+            (selectedSource == null || user.source.name == selectedSource))
+        .toList();
 
     return Column(
       children: [
@@ -95,35 +96,36 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
           ],
         ),
-        
+
         const SizedBox(height: 32),
-        
+
         // Credit Range Filter with Dual Slider
         _buildCreditRangeFilter(),
-        
+
         const SizedBox(height: 32),
-        
+
         // Credit Distribution Chart
         _buildCreditDistributionChart(),
-        
+
         const SizedBox(height: 32),
-        
+
         // Filtered Users Table
         _buildFilteredUsersTable(filteredUsers),
-        
+
         const SizedBox(height: 32),
-        
+
         // Footer Summary Cards
         _buildFooterSummaryCards(),
-        
+
         // Custom Message Dialog
         if (showMessageDialog) _buildMessageDialog(filteredUsers.length),
-        
+
         // Add Credits Dialog
         if (showAddCreditsDialog) _buildAddCreditsDialog(),
       ],
@@ -157,9 +159,9 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                 child: Text(
                   'Credit Range Filter',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
                 ),
               ),
               IconButton(
@@ -174,19 +176,19 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Dual Range Slider
           Text(
             'Credit Range',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+                  fontWeight: FontWeight.w600,
+                ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           RangeSlider(
             values: creditRange,
             min: 0,
@@ -203,10 +205,10 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
               });
             },
           ),
-          
+
           // Input Fields
           const SizedBox(height: 16),
-          
+
           Row(
             children: [
               Expanded(
@@ -219,7 +221,8 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.orange, width: 2),
+                      borderSide:
+                          const BorderSide(color: Colors.orange, width: 2),
                     ),
                   ),
                   keyboardType: TextInputType.number,
@@ -232,11 +235,10 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                   },
                 ),
               ),
-              
               const SizedBox(width: 16),
-              
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(8),
@@ -244,13 +246,11 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                 child: Text(
                   '-',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ),
-              
               const SizedBox(width: 16),
-              
               Expanded(
                 child: TextFormField(
                   decoration: InputDecoration(
@@ -261,7 +261,8 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.orange, width: 2),
+                      borderSide:
+                          const BorderSide(color: Colors.orange, width: 2),
                     ),
                   ),
                   keyboardType: TextInputType.number,
@@ -276,19 +277,19 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
               ),
             ],
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Source Filter Dropdown
           Text(
             'Credit Source',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+                  fontWeight: FontWeight.w600,
+                ),
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           Container(
             width: double.infinity,
             child: DropdownButtonFormField<String?>(
@@ -328,19 +329,19 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
               },
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Quick Filter Buttons
           Text(
             'Quick Filters',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+                  fontWeight: FontWeight.w600,
+                ),
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -351,9 +352,9 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
               _buildQuickFilterButton('500-1000', 500, 1000),
             ],
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Control Buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -368,7 +369,8 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
               ),
               ElevatedButton.icon(
@@ -381,7 +383,8 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
               ),
             ],
@@ -393,7 +396,7 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
 
   Widget _buildQuickFilterButton(String label, double min, double max) {
     final isActive = creditRange.start == min && creditRange.end == max;
-    
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -449,24 +452,22 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                     Text(
                       'Credit Distribution',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'User distribution across credit ranges',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey.shade600,
-                      ),
+                            color: Colors.grey.shade600,
+                          ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          
           const SizedBox(height: 24),
-          
           SizedBox(
             height: 300,
             child: BarChart(
@@ -495,7 +496,8 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        if (value.toInt() >= distribution.length) return const Text('');
+                        if (value.toInt() >= distribution.length)
+                          return const Text('');
                         return Text(
                           distribution[value.toInt()].range,
                           style: const TextStyle(
@@ -521,8 +523,10 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                       },
                     ),
                   ),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles:
+                      AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles:
+                      AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(
                   show: true,
@@ -540,7 +544,7 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                 barGroups: distribution.asMap().entries.map((entry) {
                   final index = entry.key;
                   final data = entry.value;
-                  
+
                   return BarChartGroupData(
                     x: index,
                     barRods: [
@@ -581,14 +585,14 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                 child: Text(
                   'Filtered Users (${filteredUsers.length})',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ),
-              
               if (selectedUsers.isNotEmpty) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade100,
                     borderRadius: BorderRadius.circular(20),
@@ -612,9 +616,7 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                     ],
                   ),
                 ),
-                
                 const SizedBox(width: 16),
-                
                 ElevatedButton.icon(
                   onPressed: _showCustomMessageDialog,
                   icon: const Icon(FontAwesomeIcons.paperPlane, size: 16),
@@ -630,9 +632,9 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
               ],
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Data Table
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -647,11 +649,13 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                 columns: [
                   DataColumn(
                     label: Checkbox(
-                      value: selectedUsers.isNotEmpty && selectedUsers.length == filteredUsers.length,
+                      value: selectedUsers.isNotEmpty &&
+                          selectedUsers.length == filteredUsers.length,
                       onChanged: (value) {
                         if (value == true) {
                           setState(() {
-                            selectedUsers = filteredUsers.map((user) => user.id).toSet();
+                            selectedUsers =
+                                filteredUsers.map((user) => user.id).toSet();
                           });
                         } else {
                           setState(() {
@@ -664,43 +668,49 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                   const DataColumn(
                     label: Text(
                       'Username',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                     ),
                   ),
                   const DataColumn(
                     label: Text(
                       'Email',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                     ),
                   ),
                   const DataColumn(
                     label: Text(
                       'Current Credits',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                     ),
                   ),
                   const DataColumn(
                     label: Text(
                       'Last Earned',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                     ),
                   ),
                   const DataColumn(
                     label: Text(
                       'Source',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                     ),
                   ),
                   const DataColumn(
                     label: Text(
                       'Actions',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                     ),
                   ),
                 ],
                 rows: filteredUsers.map((user) {
                   final isSelected = selectedUsers.contains(user.id);
-                  
+
                   return DataRow(
                     selected: isSelected,
                     onSelectChanged: (value) => _toggleUserSelection(user.id),
@@ -731,7 +741,8 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
                       ),
                       DataCell(
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: Colors.orange.shade100,
                             borderRadius: BorderRadius.circular(12),
@@ -814,7 +825,7 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
     Color textColor;
     Color bgColor;
     String label;
-    
+
     switch (source) {
       case CreditSource.admin:
         borderColor = Colors.purple.shade300;
@@ -835,7 +846,7 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
         label = 'Bonus';
         break;
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -857,8 +868,12 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
   Widget _buildFooterSummaryCards() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        int columns = constraints.maxWidth > 1200 ? 4 : constraints.maxWidth > 768 ? 2 : 1;
-        
+        int columns = constraints.maxWidth > 1200
+            ? 4
+            : constraints.maxWidth > 768
+                ? 2
+                : 1;
+
         return GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -967,8 +982,8 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
               Text(
                 'Send Custom Message',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
             ],
           ),
@@ -976,8 +991,8 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
           Text(
             'Send a personalized message to $userCount selected user(s)',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+                  color: Colors.grey.shade600,
+                ),
           ),
         ],
       ),
@@ -1067,8 +1082,8 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
               Text(
                 'Add Credits',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
             ],
           ),
@@ -1171,28 +1186,32 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
   // Helper Methods
   void _applyCreditFilter() async {
     setState(() => isLoading = true);
-    
+
     // Get filtered data
     final filteredUsers = await AnalyticsService.fetchCreditUsers(
       minCredits: creditRange.start.round(),
       maxCredits: creditRange.end.round(),
     );
-    
+
     // Apply source filter locally since fetchCreditUsers doesn't support it
     final sourceFilteredUsers = selectedSource != null
-        ? filteredUsers.where((user) => user.source.name == selectedSource).toList()
+        ? filteredUsers
+            .where((user) => user.source.name == selectedSource)
+            .toList()
         : filteredUsers;
-    
-    final distribution = AnalyticsService.getCreditDistribution(sourceFilteredUsers);
-    final summaryCards = AnalyticsService.getCreditSummaryCards(sourceFilteredUsers);
-    
+
+    final distribution =
+        AnalyticsService.getCreditDistribution(sourceFilteredUsers);
+    final summaryCards =
+        AnalyticsService.getCreditSummaryCards(sourceFilteredUsers);
+
     setState(() {
       users = sourceFilteredUsers;
       this.distribution = distribution;
       summary = summaryCards;
       isLoading = false;
     });
-    
+
     _showSuccessSnackBar('Credit filter applied successfully');
   }
 
@@ -1230,9 +1249,10 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
   void _addCredits() async {
     final amount = int.parse(addCreditsAmount);
     final source = CreditSource.fromString(addCreditsSource);
-    
-    final success = await AnalyticsService.addCredits(addCreditsUserId, amount, source);
-    
+
+    final success =
+        await AnalyticsService.addCredits(addCreditsUserId, amount, source);
+
     if (success) {
       _showSuccessSnackBar('Credits added successfully');
       setState(() {
@@ -1252,10 +1272,12 @@ class _CreditsManagementTabState extends State<CreditsManagementTab>
   }
 
   void _sendCustomMessage() async {
-    final success = await AnalyticsService.sendBulkMessage(selectedUsers.toList(), customMessage);
-    
+    final success = await AnalyticsService.sendBulkMessage(
+        selectedUsers.toList(), customMessage);
+
     if (success) {
-      _showSuccessSnackBar('Message sent to ${selectedUsers.length} user(s) successfully');
+      _showSuccessSnackBar(
+          'Message sent to ${selectedUsers.length} user(s) successfully');
       setState(() {
         customMessage = '';
         selectedUsers.clear();

@@ -70,99 +70,101 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
       canPop: true,
       child: Scaffold(
         appBar: AppBar(
-        title: const Text('My Quote History'),
-      ),
-      // Update FutureBuilder type
-      body: FutureBuilder<List<QuoteWithProduct>>(
-        future: _historyFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          final history = snapshot.data ?? [];
-          if (history.isEmpty) {
-            return const Center(
-              child: Text('You have no quote history.'),
-            );
-          }
+          title: const Text('My Quote History'),
+        ),
+        // Update FutureBuilder type
+        body: FutureBuilder<List<QuoteWithProduct>>(
+          future: _historyFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+            final history = snapshot.data ?? [];
+            if (history.isEmpty) {
+              return const Center(
+                child: Text('You have no quote history.'),
+              );
+            }
 
-          return ListView.builder(
-            itemCount: history.length,
-            itemBuilder: (context, index) {
-              final combinedItem = history[index];
-              final quote = combinedItem.quote;
-              final product = combinedItem.product;
+            return ListView.builder(
+              itemCount: history.length,
+              itemBuilder: (context, index) {
+                final combinedItem = history[index];
+                final quote = combinedItem.quote;
+                final product = combinedItem.product;
 
-              final status = quote['status'] as String;
-              final expiresAt = DateTime.parse(quote['expires_at'] as String);
+                final status = quote['status'] as String;
+                final expiresAt = DateTime.parse(quote['expires_at'] as String);
 
-              Color statusColor;
-              switch (status) {
-                case 'valid':
-                  statusColor = Colors.green;
-                  break;
-                case 'expired':
-                  statusColor = Colors.red;
-                  break;
-                case 'used':
-                  statusColor = Colors.blue;
-                  break;
-                default:
-                  statusColor = Colors.grey;
-              }
+                Color statusColor;
+                switch (status) {
+                  case 'valid':
+                    statusColor = Colors.green;
+                    break;
+                  case 'expired':
+                    statusColor = Colors.red;
+                    break;
+                  case 'used':
+                    statusColor = Colors.blue;
+                    break;
+                  default:
+                    statusColor = Colors.grey;
+                }
 
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  leading: product != null && product.image.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(4.0),
-                          child: CachedNetworkImage(
-                            imageUrl: product.image,
+                return Card(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ListTile(
+                    leading: product != null && product.image.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(4.0),
+                            child: CachedNetworkImage(
+                              imageUrl: product.image,
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) =>
+                                  createBlurUpPlaceholder(),
+                              errorWidget: (context, url, error) =>
+                                  const Icon(Icons.broken_image, size: 50),
+                            ),
+                          )
+                        : Container(
                             width: 50,
                             height: 50,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => createBlurUpPlaceholder(),
-                            errorWidget: (context, url, error) =>
-                                const Icon(Icons.broken_image, size: 50),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(4.0),
+                            ),
+                            child:
+                                const Icon(Icons.image_not_supported, size: 30),
                           ),
-                        )
-                      : Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(4.0),
-                          ),
-                          child:
-                              const Icon(Icons.image_not_supported, size: 30),
-                        ),
-                  title: Text(
-                    product?.productTitle ??
-                        'Product ID: ${quote['product_id']}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                      'Expires: ${DateFormat.yMMMd().add_jm().format(expiresAt)}'),
-                  trailing: Text(
-                    status.toUpperCase(),
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
+                    title: Text(
+                      product?.productTitle ??
+                          'Product ID: ${quote['product_id']}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    subtitle: Text(
+                        'Expires: ${DateFormat.yMMMd().add_jm().format(expiresAt)}'),
+                    trailing: Text(
+                      status.toUpperCase(),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onTap: () {
+                      _showQuoteDetailsPopup(context, quote, product);
+                    },
                   ),
-                  onTap: () {
-                    _showQuoteDetailsPopup(context, quote, product);
-                  },
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            );
+          },
         ),
       ),
     );
@@ -209,7 +211,8 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: 200,
-                        placeholder: (context, url) => createBlurUpPlaceholder(),
+                        placeholder: (context, url) =>
+                            createBlurUpPlaceholder(),
                         errorWidget: (context, url, error) =>
                             const Icon(Icons.broken_image, size: 100),
                       ),

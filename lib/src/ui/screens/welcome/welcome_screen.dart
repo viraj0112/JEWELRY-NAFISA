@@ -3,12 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
+import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+import 'package:jewelry_nafisa/src/utils/share_utils.dart';
 import 'package:jewelry_nafisa/src/utils/image_url_resolver.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/widgets/login_required_dialog.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jewelry_nafisa/src/ui/screens/info_dialog.dart';
+import 'package:jewelry_nafisa/src/widgets/floating_filter_panel.dart';
+import 'package:jewelry_nafisa/src/widgets/glowing_logo.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+
+import 'package:jewelry_nafisa/src/services/filter_service.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -36,10 +45,124 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   List<String> _akdMetalTypeOptions = ['All'];
   bool _isLoadingAkdMetalTypes = false;
+  bool _isLoadingProductTypes = false;
+  bool _isLoadingCategories = false;
+
+  final Set<String> _itemsBeingLiked = {};
+  RealtimeChannel? _likesChannel;
 
   String _displayMetalType(String value) {
     return value.replaceFirst(RegExp(r'^AKD-', caseSensitive: false), '');
   }
+
+  // --- Advanced Filter Options ---
+  List<String> _availableMetalColors = [];
+  List<String> _availableMetalPurities = [];
+  List<String> _availableStoneShapes = [];
+  List<String> _availableStoneTypes = [];
+  List<String> _availableStoneQualities = [];
+  List<String> _availableStoneSettings = [];
+  List<String> _availableFeaturedTags = [];
+
+  List<double> _metalWeightBounds = [0.0, 100.0];
+  List<double> _stoneWeightBounds = [0.0, 100.0];
+
+  bool _isLoadingAdvancedOptions = false;
+
+  // --- Advanced Filter State Selections ---
+  String? _selectedJewelleryType;
+  List<String> _selectedMetalColors = [];
+  List<String> _selectedMetalPurities = [];
+  bool _isEnamelWorkChecked = false;
+  List<String> _selectedStoneShapes = [];
+  List<String> _selectedStoneTypes = [];
+  List<String> _selectedStoneQualities = [];
+  List<String> _selectedStoneSettings = [];
+  List<String> _selectedFeaturedTags = [];
+  List<double>? _currentMetalWeightRange;
+  List<double>? _currentStoneWeightRange;
+
+  // --- Advanced Filter Callbacks ---
+  void _onJewelleryTypeChanged(String? val) {
+    setState(() => _selectedJewelleryType = val);
+  }
+
+  void _onMetalWeightChanged(List<double> val) {
+    setState(() => _currentMetalWeightRange = val);
+  }
+
+  void _onMetalColorsChanged(List<String> val) {
+    setState(() => _selectedMetalColors = val);
+  }
+
+  void _onMetalPuritiesChanged(List<String> val) {
+    setState(() => _selectedMetalPurities = val);
+  }
+
+  void _onEnamelWorkChanged(bool val) {
+    setState(() => _isEnamelWorkChecked = val);
+  }
+
+  void _onStoneWeightChanged(List<double> val) {
+    setState(() => _currentStoneWeightRange = val);
+  }
+
+  void _onStoneShapesChanged(List<String> val) {
+    setState(() => _selectedStoneShapes = val);
+  }
+
+  void _onStoneTypesChanged(List<String> val) {
+    setState(() => _selectedStoneTypes = val);
+  }
+
+  void _onStoneQualitiesChanged(List<String> val) {
+    setState(() => _selectedStoneQualities = val);
+  }
+
+  void _onStoneSettingsChanged(List<String> val) {
+    setState(() => _selectedStoneSettings = val);
+  }
+
+  void _onFeaturedTagsChanged(List<String> val) {
+    setState(() => _selectedFeaturedTags = val);
+  }
+
+  Future<void> _loadAdvancedFilters() async {
+    setState(() => _isLoadingAdvancedOptions = true);
+    try {
+      final futures = await Future.wait([
+        _filterService.getDistinctValues('Metal Color'),
+        _filterService.getDistinctValues('Metal Purity'),
+        _filterService.getDistinctArrayValues('Stone Cut'),
+        _filterService.getDistinctArrayValues('Stone Type'),
+        _filterService.getDistinctArrayValues('Stone Purity'),
+        _filterService.getDistinctArrayValues('Stone Setting'),
+        _filterService.getDistinctArrayValues('Product Tags'),
+        _filterService.getWeightRange('Net Weight'),
+        _filterService.getWeightRange('Stone Weight', isArray: true),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _availableMetalColors = futures[0] as List<String>;
+          _availableMetalPurities = futures[1] as List<String>;
+          _availableStoneShapes = futures[2] as List<String>;
+          _availableStoneTypes = futures[3] as List<String>;
+          _availableStoneQualities = futures[4] as List<String>;
+          _availableStoneSettings = futures[5] as List<String>;
+          _availableFeaturedTags = futures[6] as List<String>;
+          _metalWeightBounds = futures[7] as List<double>;
+          _stoneWeightBounds = futures[8] as List<double>;
+          _isLoadingAdvancedOptions = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading advanced filters: $e');
+      if (mounted) setState(() => _isLoadingAdvancedOptions = false);
+    }
+  }
+
+  final FilterService _filterService = FilterService();
 
   @override
   void initState() {
@@ -48,6 +171,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     _scrollController.addListener(_onScroll);
     _loadProducts();
     _fetchProductTypes(_selectedMetalType);
+    _loadAdvancedFilters();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showDialog(
         context: context,
@@ -55,10 +179,52 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         builder: (context) => const InfoDialog(),
       );
     });
+    _setupLikesListener();
+  }
+
+  void _setupLikesListener() {
+    _likesChannel = _supabase.channel('public:likes_channel_welcome')
+      ..onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'products',
+          callback: _handleProductUpdate)
+      ..onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'designerproducts',
+          callback: _handleProductUpdate)
+      ..onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'manufacturerproducts',
+          callback: _handleProductUpdate)
+      ..subscribe();
+  }
+
+  void _handleProductUpdate(PostgresChangePayload payload) {
+    if (!mounted) return;
+    final newRecord = payload.newRecord;
+    final id = newRecord['id'].toString();
+    final newLikes = newRecord['likes'];
+
+    if (newLikes != null && newLikes is int) {
+      final index = _products.indexWhere((p) => p.id == id);
+      if (index != -1 && _products[index].likes != newLikes) {
+        setState(() {
+          _products[index].likes = newLikes;
+        });
+      }
+      final allIndex = _allProducts.indexWhere((p) => p.id == id);
+      if (allIndex != -1 && _allProducts[allIndex].likes != newLikes) {
+        _allProducts[allIndex].likes = newLikes;
+      }
+    }
   }
 
   @override
   void dispose() {
+    _likesChannel?.unsubscribe();
     _scrollController.dispose();
     super.dispose();
   }
@@ -79,7 +245,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     await Future.delayed(const Duration(milliseconds: 200));
 
     setState(() {
-      _displayedCount = (_displayedCount + _itemsPerPage).clamp(0, _allProducts.length);
+      _displayedCount =
+          (_displayedCount + _itemsPerPage).clamp(0, _allProducts.length);
       _products
         ..clear()
         ..addAll(_allProducts.take(_displayedCount));
@@ -89,7 +256,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   Future<List<JewelryItem>> _fetchFilteredProducts() async {
     try {
-      const selectColumns = 'id, "Product Title", "Image", "Description", "Product Type", '
+      const selectColumns =
+          'id, "Product Title", "Image", "Description", "Product Type", '
           'Category, Category1, Category2, Category3, "Sub Category", '
           '"Metal Type", "Metal Purity", Plain, Studded, "Price"';
 
@@ -152,14 +320,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
       try {
         designerProductsData = await designerQuery;
-        debugPrint('✓ Designer products table: ${designerProductsData.length} items fetched');
+        debugPrint(
+            '✓ Designer products table: ${designerProductsData.length} items fetched');
       } catch (e) {
         debugPrint('✗ Designer products table error: $e');
       }
 
       try {
         manufacturerProductsData = await manufacturerQuery;
-        debugPrint('✓ Manufacturer products table: ${manufacturerProductsData.length} items fetched');
+        debugPrint(
+            '✓ Manufacturer products table: ${manufacturerProductsData.length} items fetched');
       } catch (e) {
         debugPrint('✗ Manufacturer products table error: $e');
       }
@@ -168,8 +338,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
       if (productsData is List) {
         allItems.addAll(
-          productsData.map((item) =>
-              JewelryItem.fromJson(item as Map<String, dynamic>)),
+          productsData.map(
+              (item) => JewelryItem.fromJson(item as Map<String, dynamic>)),
         );
       }
 
@@ -232,7 +402,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   Future<List<JewelryItem>> _fetchInHouseProducts() async {
     try {
-      const selectColumns = 'id, "Product Title", "Image", "Description", "Product Type", '
+      const selectColumns =
+          'id, "Product Title", "Image", "Description", "Product Type", '
           'Category, Category1, Category2, Category3, "Sub Category", '
           '"Metal Type", "Metal Purity", Plain, Studded, "Price", created_at';
 
@@ -240,18 +411,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       List<dynamic> manufacturerData = [];
 
       try {
-        var designerQuery = _supabase
-            .from('designerproducts')
-            .select(selectColumns);
+        var designerQuery =
+            _supabase.from('designerproducts').select(selectColumns);
 
         if (_selectedAkdMetalType != 'All') {
-          designerQuery = designerQuery.eq('"Metal Type"', _selectedAkdMetalType);
+          designerQuery =
+              designerQuery.eq('"Metal Type"', _selectedAkdMetalType);
         } else {
           designerQuery = designerQuery.ilike('"Metal Type"', 'AKD%');
         }
 
         if (_selectedProductType != 'All') {
-          designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
+          designerQuery =
+              designerQuery.eq('"Product Type"', _selectedProductType);
         }
         if (_selectedCategory != 'All') {
           final c = _selectedCategory.trim();
@@ -268,18 +440,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       }
 
       try {
-        var manufacturerQuery = _supabase
-            .from('manufacturerproducts')
-            .select(selectColumns);
+        var manufacturerQuery =
+            _supabase.from('manufacturerproducts').select(selectColumns);
 
         if (_selectedAkdMetalType != 'All') {
-          manufacturerQuery = manufacturerQuery.eq('"Metal Type"', _selectedAkdMetalType);
+          manufacturerQuery =
+              manufacturerQuery.eq('"Metal Type"', _selectedAkdMetalType);
         } else {
           manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', 'AKD%');
         }
 
         if (_selectedProductType != 'All') {
-          manufacturerQuery = manufacturerQuery.eq('"Product Type"', _selectedProductType);
+          manufacturerQuery =
+              manufacturerQuery.eq('"Product Type"', _selectedProductType);
         }
         if (_selectedCategory != 'All') {
           final c = _selectedCategory.trim();
@@ -362,7 +535,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     });
     try {
       final Set<String> akdTypes = {};
-      
+
       final designerRes = await _supabase
           .from('designerproducts')
           .select('"Metal Type"')
@@ -390,7 +563,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       }
 
       final List<String> fetched = akdTypes.toList()..sort();
-      
+
       if (mounted) {
         setState(() {
           _akdMetalTypeOptions = ['All', ...fetched];
@@ -405,7 +578,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }
   }
 
-  Future<void> _onAkdMetalTypeChanged(String? value) async {
+  Future<void> _onAkdMetalTypeChanged(String? value,
+      {bool applyImmediately = true}) async {
     if (value == null) return;
     setState(() {
       _selectedAkdMetalType = value;
@@ -419,10 +593,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     if (effectiveMetal != null) {
       await _fetchProductTypes(effectiveMetal);
     }
-    await _loadProducts();
+    if (applyImmediately) await _loadProducts();
   }
 
-  Future<void> _onMetalTypeChanged(String value) async {
+  Future<void> _onMetalTypeChanged(String value,
+      {bool applyImmediately = true}) async {
     setState(() {
       _selectedMetalType = value;
       _selectedAkdMetalType = 'All';
@@ -432,7 +607,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       _availableCategories = ['All'];
     });
     _displayedCount = _initialItems;
-    
+
     if (value == 'Instant') {
       await _loadAkdMetalTypes();
     }
@@ -453,9 +628,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
       debugPrint('Fetching Product Types for $effectiveMetal...');
 
-      final productsQuery = _supabase
-          .from('products')
-          .select('"Product Type"');
+      final productsQuery = _supabase.from('products').select('"Product Type"');
       final productsTypes = await (effectiveMetal == 'AKD'
               ? productsQuery.ilike('"Metal Type"', 'AKD%')
               : productsQuery.eq('"Metal Type"', effectiveMetal))
@@ -464,10 +637,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               .whereType<String>()
               .where((t) => t.isNotEmpty)
               .toSet());
-      
-      final designerQuery = _supabase
-          .from('designerproducts')
-          .select('"Product Type"');
+
+      final designerQuery =
+          _supabase.from('designerproducts').select('"Product Type"');
       final designerTypes = await (effectiveMetal == 'AKD'
               ? designerQuery.ilike('"Metal Type"', 'AKD%')
               : designerQuery.eq('"Metal Type"', effectiveMetal))
@@ -477,9 +649,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               .where((t) => t.isNotEmpty)
               .toSet());
 
-      final manufacturerQuery = _supabase
-          .from('manufacturerproducts')
-          .select('"Product Type"');
+      final manufacturerQuery =
+          _supabase.from('manufacturerproducts').select('"Product Type"');
       final manufacturerTypes = await (effectiveMetal == 'AKD'
               ? manufacturerQuery.ilike('"Metal Type"', 'AKD%')
               : manufacturerQuery.eq('"Metal Type"', effectiveMetal))
@@ -489,8 +660,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               .where((t) => t.isNotEmpty)
               .toSet());
 
-      final allTypes = <String>{'All', ...productsTypes, ...designerTypes, ...manufacturerTypes}
-          .toList();
+      final allTypes = <String>{
+        'All',
+        ...productsTypes,
+        ...designerTypes,
+        ...manufacturerTypes
+      }.toList();
       allTypes.sort();
 
       debugPrint('Available Product Types: $allTypes');
@@ -517,9 +692,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       const selectColumns = '"Category", "Category1", "Category2", "Category3"';
 
       Future<Set<String>> fetchFrom(String table) async {
-        final query = _supabase
-            .from(table)
-            .select(selectColumns);
+        final query = _supabase.from(table).select(selectColumns);
         final data = await (effectiveMetal == 'AKD'
                 ? query.ilike('"Metal Type"', 'AKD%')
                 : query.eq('"Metal Type"', effectiveMetal))
@@ -551,7 +724,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }
   }
 
-
   void _navigateToLogin() {
     context.push('/login');
   }
@@ -560,13 +732,123 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     context.push('/signup');
   }
 
+  Future<void> _likeItem(JewelryItem item) async {
+    if (_itemsBeingLiked.contains(item.id)) return;
+
+    setState(() {
+      _itemsBeingLiked.add(item.id);
+    });
+
+    try {
+      final uid = _supabase.auth.currentUser?.id;
+      final prefs = await SharedPreferences.getInstance();
+      String? sessionId = prefs.getString('anonymous_session_id');
+      if (sessionId == null) {
+        sessionId = const Uuid().v4();
+        await prefs.setString('anonymous_session_id', sessionId);
+      }
+
+      final isNowLiked = !item.isFavorite; // It's a toggle
+
+      // Determine table
+      String itemTable = 'products';
+      if (item.isDesignerProduct) {
+        itemTable = 'designerproducts';
+      } else if (item.isManufacturerProduct) {
+        itemTable = 'manufacturerproducts';
+      }
+
+      // Call the RPC
+      final newLikesCount = await _supabase.rpc('toggle_product_like', params: {
+        'p_item_id': item.id,
+        'p_item_table': itemTable,
+        'p_user_id': uid,
+        'p_session_id': sessionId,
+      });
+
+      if (mounted) {
+        final productIndex = _products.indexWhere((i) => i.id == item.id);
+        if (productIndex != -1) {
+          setState(() {
+            _products[productIndex].isFavorite = isNowLiked;
+            if (newLikesCount is int) {
+              _products[productIndex].likes = newLikesCount;
+            }
+          });
+        }
+        final allIndex = _allProducts.indexWhere((i) => i.id == item.id);
+        if (allIndex != -1) {
+          _allProducts[allIndex].isFavorite = isNowLiked;
+          if (newLikesCount is int) {
+            _allProducts[allIndex].likes = newLikesCount;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error toggling like on welcome screen: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not update like status.")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _itemsBeingLiked.remove(item.id));
+      }
+    }
+  }
+
+  void _shareItem(JewelryItem item) {
+    if (_supabase.auth.currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to share items.")),
+      );
+      return;
+    }
+    
+    // Use ShareUtils to download the image and share the link + image properly
+    ShareUtils.shareJewelryItem(context, item, _supabase);
+  }
+
+  // ── Proper product-type / category callbacks for the floating panel ────────
+
+  Future<void> _onProductTypeChanged(String? value,
+      {bool applyImmediately = true}) async {
+    if (value == null) return;
+    setState(() {
+      _selectedProductType = value;
+      _selectedCategory = 'All';
+      _availableCategories = ['All'];
+      _isLoadingCategories = true;
+    });
+    _displayedCount = _initialItems;
+    await _fetchCategories(
+      metalType: _selectedMetalType,
+      productType: value,
+    );
+    if (mounted) setState(() => _isLoadingCategories = false);
+    if (applyImmediately) await _loadProducts();
+  }
+
+  Future<void> _onCategoryChanged(String? value,
+      {bool applyImmediately = true}) async {
+    if (value == null) return;
+    setState(() => _selectedCategory = value);
+    _displayedCount = _initialItems;
+    if (applyImmediately) await _loadProducts();
+  }
+
+  void _onSubCategoryChanged(String? value, {bool applyImmediately = true}) {
+    // Welcome screen does not have sub-category; no-op.
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: true,
       child: Scaffold(
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(child: GlowingLogo(size: 80))
             : LayoutBuilder(
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth > 700;
@@ -578,23 +860,25 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   Widget _buildWideLayout() {
+    final filterConfig = _buildFilterConfig();
     return Scaffold(
       body: SafeArea(
         bottom: false,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // _buildNavigationRail(),
-            // const VerticalDivider(thickness: 1, width: 16),
             Expanded(
               child: Column(
                 children: [
                   _buildAppBar(),
                   _buildFilterBar(),
                   Expanded(
-                    child: _products.isEmpty
-                        ? const Center(child: Text('Coming Soon'))
-                        : _buildImageGrid(),
+                    child: FloatingFilterOverlay(
+                      config: filterConfig,
+                      child: _products.isEmpty
+                          ? const Center(child: Text('Coming Soon'))
+                          : _buildImageGrid(),
+                    ),
                   ),
                 ],
               ),
@@ -606,19 +890,79 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   Widget _buildNarrowLayout() {
+    final filterConfig = _buildFilterConfig();
     return Scaffold(
       appBar: _buildAppBar(),
       body: Column(
         children: [
           _buildFilterBar(),
           Expanded(
-            child: _products.isEmpty
-                ? const Center(child: Text('Coming Soon'))
-                : _buildImageGrid(),
-          )
+            child: FloatingFilterOverlay(
+              config: filterConfig,
+              child: _products.isEmpty
+                  ? const Center(child: Text('Coming Soon'))
+                  : _buildImageGrid(),
+            ),
+          ),
         ],
       ),
-      // bottomNavigationBar: _buildFixedNavBar(),
+    );
+  }
+
+  FloatingFilterConfig _buildFilterConfig() {
+    return FloatingFilterConfig(
+      selectedMetalType: _selectedMetalType,
+      selectedAkdMetalType: _selectedAkdMetalType,
+      selectedProductType: _selectedProductType,
+      selectedCategory: _selectedCategory,
+      selectedSubCategory: 'All',
+      akdMetalTypeOptions: _akdMetalTypeOptions,
+      productTypeOptions: _availableProductTypes,
+      categoryOptions: _availableCategories,
+      subCategoryOptions: const ['All'],
+      isLoadingAkdMetalTypes: _isLoadingAkdMetalTypes,
+      isLoadingProductTypes: _isLoadingProductTypes,
+      isLoadingCategories: _isLoadingCategories,
+      isLoadingSubCategories: false,
+      onMetalTypeChanged: _onMetalTypeChanged,
+      onAkdMetalTypeChanged: _onAkdMetalTypeChanged,
+      onProductTypeChanged: _onProductTypeChanged,
+      onCategoryChanged: _onCategoryChanged,
+      onSubCategoryChanged: _onSubCategoryChanged,
+      onApplySelection: _loadProducts,
+      availableMetalColors: _availableMetalColors,
+      availableMetalPurities: _availableMetalPurities,
+      availableStoneShapes: _availableStoneShapes,
+      availableStoneTypes: _availableStoneTypes,
+      availableStoneQualities: _availableStoneQualities,
+      availableStoneSettings: _availableStoneSettings,
+      availableFeaturedTags: _availableFeaturedTags,
+      metalWeightBounds: _metalWeightBounds,
+      stoneWeightBounds: _stoneWeightBounds,
+      selectedJewelleryType: _selectedJewelleryType,
+      selectedMetalColors: _selectedMetalColors,
+      selectedMetalPurities: _selectedMetalPurities,
+      isEnamelWorkChecked: _isEnamelWorkChecked,
+      selectedStoneShapes: _selectedStoneShapes,
+      selectedStoneTypes: _selectedStoneTypes,
+      selectedStoneQualities: _selectedStoneQualities,
+      selectedStoneSettings: _selectedStoneSettings,
+      selectedFeaturedTags: _selectedFeaturedTags,
+      currentMetalWeightRange: _currentMetalWeightRange,
+      currentStoneWeightRange: _currentStoneWeightRange,
+      isLoadingAdvancedOptions: _isLoadingAdvancedOptions,
+      onJewelleryTypeChanged: _onJewelleryTypeChanged,
+      onMetalWeightChanged: _onMetalWeightChanged,
+      onMetalColorsChanged: _onMetalColorsChanged,
+      onMetalPuritiesChanged: _onMetalPuritiesChanged,
+      onEnamelWorkChanged: _onEnamelWorkChanged,
+      onStoneWeightChanged: _onStoneWeightChanged,
+      onStoneShapesChanged: _onStoneShapesChanged,
+      onStoneTypesChanged: _onStoneTypesChanged,
+      onStoneQualitiesChanged: _onStoneQualitiesChanged,
+      onStoneSettingsChanged: _onStoneSettingsChanged,
+      onFeaturedTagsChanged: _onFeaturedTagsChanged,
+      onResetFilters: _resetFilters,
     );
   }
 
@@ -823,10 +1167,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 if (_selectedMetalType != 'Instant') ...[
                   _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
                   const SizedBox(width: 6.0),
-                  _buildMetalTypeButton('Silver', _selectedMetalType == 'Silver'),
+                  _buildMetalTypeButton(
+                      'Silver', _selectedMetalType == 'Silver'),
                   const SizedBox(width: 6.0),
                 ],
-                _buildMetalTypeButton('Instant', _selectedMetalType == 'Instant'),
+                _buildMetalTypeButton(
+                    'Instant', _selectedMetalType == 'Instant'),
               ],
             ),
           ),
@@ -865,36 +1211,39 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               final offsetAnimation = Tween<Offset>(
                 begin: const Offset(0, -0.08),
                 end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+              ).animate(CurvedAnimation(
+                  parent: animation, curve: Curves.easeOutCubic));
               return FadeTransition(
                 opacity: animation,
                 child: SlideTransition(position: offsetAnimation, child: child),
               );
             },
-            child: _selectedMetalType != 'All' && _availableProductTypes.length > 1
-                ? Padding(
-                    key: const ValueKey('productTypeBubbles'),
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: _buildBubbleFilter(
-                      options: _availableProductTypes,
-                      selectedValue: _selectedProductType,
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedProductType = value;
-                            _selectedCategory = 'All';
-                            _availableCategories = ['All'];
-                          });
-                          _fetchCategories(
-                            metalType: _selectedMetalType,
-                            productType: value,
-                          );
-                          _loadProducts();
-                        }
-                      },
-                    ),
-                  )
-                : const SizedBox.shrink(key: ValueKey('productTypeBubblesEmpty')),
+            child:
+                _selectedMetalType != 'All' && _availableProductTypes.length > 1
+                    ? Padding(
+                        key: const ValueKey('productTypeBubbles'),
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: _buildBubbleFilter(
+                          options: _availableProductTypes,
+                          selectedValue: _selectedProductType,
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _selectedProductType = value;
+                                _selectedCategory = 'All';
+                                _availableCategories = ['All'];
+                              });
+                              _fetchCategories(
+                                metalType: _selectedMetalType,
+                                productType: value,
+                              );
+                              _loadProducts();
+                            }
+                          },
+                        ),
+                      )
+                    : const SizedBox.shrink(
+                        key: ValueKey('productTypeBubblesEmpty')),
           ),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 260),
@@ -902,13 +1251,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               final offsetAnimation = Tween<Offset>(
                 begin: const Offset(0, -0.08),
                 end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+              ).animate(CurvedAnimation(
+                  parent: animation, curve: Curves.easeOutCubic));
               return FadeTransition(
                 opacity: animation,
                 child: SlideTransition(position: offsetAnimation, child: child),
               );
             },
-            child: _selectedMetalType != 'All' && _selectedProductType != 'All' && _availableCategories.length > 1
+            child: _selectedMetalType != 'All' &&
+                    _selectedProductType != 'All' &&
+                    _availableCategories.length > 1
                 ? Padding(
                     key: const ValueKey('categoryBubbles'),
                     padding: const EdgeInsets.only(top: 8.0),
@@ -1065,11 +1417,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       alignment: WrapAlignment.center,
       spacing: 6.0,
       runSpacing: 6.0,
-      children: displayOptions.map((option) => _buildBubbleChip(
-        labelBuilder?.call(option) ?? option,
-        selectedValue == option,
-        () => onChanged(option),
-      )).toList(),
+      children: displayOptions
+          .map((option) => _buildBubbleChip(
+                labelBuilder?.call(option) ?? option,
+                selectedValue == option,
+                () => onChanged(option),
+              ))
+          .toList(),
     );
   }
 
@@ -1279,18 +1633,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).colorScheme.primary,
-                  ),
-                ),
+                child: GlowingLogo(size: 40),
               ),
             ),
           ),
       ],
     );
   }
-
 
   Widget _buildImageCard(BuildContext context, JewelryItem item) {
     final imageUrl = resolveImageUrl(item.image);
@@ -1311,43 +1660,176 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       );
     }
 
+    // shareItem moved to _shareItem class method
+
+    String formatCount(int? count) {
+      final c = count ?? 0;
+      if (c == 0) return '0';
+      if (c >= 1000000) return '${(c / 1000000).toStringAsFixed(1)}M';
+      if (c >= 1000) return '${(c / 1000).toStringAsFixed(1)}K';
+      return c.toString();
+    }
+
     return GestureDetector(
       onTap: () {
         final isDesigner = item.isDesignerProduct;
         final isManufacturer = item.isManufacturerProduct;
-        context.push('/product/${item.id}?isDesigner=$isDesigner&isManufacturer=${isManufacturer}');
+        context.push(
+            '/product/${item.uid ?? item.id}?isDesigner=$isDesigner&isManufacturer=${isManufacturer}');
       },
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: AspectRatio(
-          aspectRatio: item.aspectRatio,
-          child: CachedNetworkImage(
-            imageUrl: imageUrl,
-            fit: BoxFit.cover,
-            placeholder: (context, url) => createBlurUpPlaceholder(),
-            errorWidget: (context, url, error) => Container(
-              color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFEEEEEE), width: 0.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 16,
+              spreadRadius: 0,
+              offset: const Offset(0, 6),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 4,
+              spreadRadius: 0,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(18)),
+              child: AspectRatio(
+                aspectRatio: item.aspectRatio,
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => createBlurUpPlaceholder(),
+                  errorWidget: (context, url, error) => Container(
+                    color:
+                        Theme.of(context).colorScheme.surface.withOpacity(0.1),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.image_not_supported,
+                            color: Colors.grey[400]),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Failed to load',
+                          style:
+                              TextStyle(color: Colors.grey[400], fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  fadeInDuration: const Duration(milliseconds: 300),
+                  fadeOutDuration: const Duration(milliseconds: 300),
+                  memCacheHeight: 400,
+                  memCacheWidth: 400,
+                  maxHeightDiskCache: 400,
+                  maxWidthDiskCache: 400,
+                  cacheKey: imageUrl,
+                ),
+              ),
+            ),
+            // Action bar
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10.0, vertical: 9.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Icon(Icons.image_not_supported, color: Colors.grey[400]),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Failed to load',
-                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                    textAlign: TextAlign.center,
+                  _ActionButton(
+                    icon: Icon(
+                      item.isFavorite
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      color: item.isFavorite
+                          ? const Color(0xFFE53935)
+                          : const Color(0xFF555555),
+                      size: 16,
+                    ),
+                    label: formatCount(item.likes),
+                    active: item.isFavorite,
+                    onTap: () => _likeItem(item),
+                  ),
+                  const Spacer(),
+                  _ActionButton(
+                    icon: const Icon(Icons.ios_share_rounded,
+                        color: Color(0xFF555555), size: 16),
+                    onTap: () => _shareItem(item),
+                  ),
+                  const SizedBox(width: 6),
+                  _ActionButton(
+                    icon: const Icon(Icons.bookmark_border_rounded,
+                        color: Color(0xFF555555), size: 16),
+                    onTap: _navigateToLogin,
                   ),
                 ],
               ),
             ),
-            fadeInDuration: const Duration(milliseconds: 300),
-            fadeOutDuration: const Duration(milliseconds: 300),
-            memCacheHeight: 400,
-            memCacheWidth: 400,
-            maxHeightDiskCache: 400,
-            maxWidthDiskCache: 400,
-            cacheKey: imageUrl,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact, pill-shaped action button for product cards
+class _ActionButton extends StatelessWidget {
+  final Widget icon;
+  final String? label;
+  final VoidCallback? onTap;
+  final bool active;
+
+  const _ActionButton({
+    required this.icon,
+    required this.onTap,
+    this.label,
+    this.active = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 9.0, vertical: 5.0),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFFFF0F0) : const Color(0xFFF7F7F7),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? const Color(0xFFFFCDD2) : const Color(0xFFE8E8E8),
+            width: 0.8,
           ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            icon,
+            if (label != null) ...[
+              const SizedBox(width: 4),
+              Text(
+                label!,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: active
+                      ? const Color(0xFFE53935)
+                      : const Color(0xFF555555),
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -1505,4 +1987,3 @@ class _StarsPainter extends CustomPainter {
   @override
   bool shouldRepaint(_StarsPainter oldDelegate) => true;
 }
-

@@ -131,7 +131,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     ),
                   )
                 else
-                  ..._notifications.map((n) => _buildNotificationCard(n)).toList(),
+                  ..._notifications
+                      .map((n) => _buildNotificationCard(n))
+                      .toList(),
 
                 if (_notifications.isNotEmpty) ...[
                   const SizedBox(height: 24),
@@ -215,7 +217,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isRead ? Colors.grey.shade200 : const Color(0xFF00C853).withOpacity(0.3),
+          color: isRead
+              ? Colors.grey.shade200
+              : const Color(0xFF00C853).withOpacity(0.3),
           width: 1,
         ),
         boxShadow: [

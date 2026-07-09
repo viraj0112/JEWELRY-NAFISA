@@ -1,13 +1,21 @@
 import 'package:flutter/foundation.dart';
 
 class JewelryItem {
+  /// Integer primary key – kept for internal DB joins only. Never expose in URLs.
   final String id;
+
+  /// UUID column added to every product table. Use this for all public-facing
+  /// URLs, links, and polymorphic table (likes / saves / views / shares) references.
+  final String? uid;
+
+  /// SKU / product code for B2B display.
+  final String? sku;
   final bool isDesignerProduct;
   final bool isManufacturerProduct;
   final String productTitle;
   final String image;
-  final List<String>? images; 
-  
+  final List<String>? images;
+
   final String description;
   final double? price;
   final List<String>? tags;
@@ -45,7 +53,7 @@ class JewelryItem {
 
   // --- NEW FIELDS FOR UI ---
   final Map<String, dynamic>? users;
-  final int? likes;
+  int? likes;
   final int? saves;
   final int? credits;
   final int? share;
@@ -55,12 +63,14 @@ class JewelryItem {
   final String? category1;
   final String? category2;
   final String? category3;
-  
+
   // --- MODERATION STATUS ---
   final String? status;
 
   JewelryItem({
     required this.id,
+    this.uid,
+    this.sku,
     required this.productTitle,
     required this.image,
     this.images,
@@ -111,80 +121,104 @@ class JewelryItem {
     this.status,
   });
 
-factory JewelryItem.fromJson(Map<String, dynamic> json) {
+  factory JewelryItem.fromJson(Map<String, dynamic> json) {
     return JewelryItem(
-    id: json['id']?.toString() ?? '',
-    productTitle: json['Product Title'] ?? json['product_title'] ?? json['title'] ?? '',
-    image: json['Image'] is List
-      ? (json['Image'] as List).firstOrNull ?? ''
-      : json['Image'] ?? json['image'] ?? json['image_url'] ?? '',
-    images: (json['images'] is List)
-      ? (json['images'] as List).map((e) => e.toString()).toList()
-      : (json['Image'] is List)
-        ? (json['Image'] as List).map((e) => e.toString()).toList()
-        : null,
-    description: json['description'] ?? '',
-    price: _parseDouble(json['Price'] ?? json['price']),
-    isDesignerProduct: json['is_designer_product'] ?? (json['source'] == 'designerproducts') ?? false,
-    isManufacturerProduct: json['is_manufacturer_product'] ?? (json['source'] == 'manufacturerproducts') ?? false,
-    tags: _parseList(json['Product Tags'] ?? json['tags']),
-    goldWeight: _parseString(json['Gold Weight'] ?? json['gold_weight']),
-    metalPurity: _parseString(json['Metal Purity'] ?? json['metal_purity'] ?? json['gold_carat']),
-    metalFinish: _parseString(json['Metal Finish'] ?? json['metal_finish'] ?? json['gold_finish']),
-    metalWeight: _parseString(json['Metal Weight'] ?? json['metal_weight']),
-    stoneWeight: _parseList(json['Stone Weight'] ?? json['stone_weight']),
-    stoneType: _parseList(json['Stone Type'] ?? json['stone_type']),
-    stoneUsed: _parseList(json['Stone Used'] ?? json['stone_used']),
-    stoneSetting: _parseList(json['Stone Setting'] ?? json['stone_setting']),
-    stoneCount: _parseList(json['Stone Count'] ?? json['stone_count']),
-    stonePurity: _parseList(json['Stone Purity'] ?? json['stone_purity']),
-    scrapedUrl: _parseString(json['Scraped URL'] ?? json['scraped_url']),
-    category: _parseString(json['Category'] ?? json['category']),
-    subCategory: _parseString(json['Sub Category'] ?? json['sub_category'] ?? json['SubCategory']),
-    productType: _parseString(json['Product Type'] ?? json['product_type']),
-    gender: _parseString(json['Gender'] ?? json['gender']),
-    theme: _parseString(json['Theme'] ?? json['occasions']),
-    metalType: _parseString(json['Metal Type'] ?? json['metal_type']),
-    metalColor: _parseString(json['Metal Color'] ?? json['metal_color']),
-    netWeight: _parseDouble(json['NET WEIGHT'] ?? json['net_weight']),
-    stoneColor: _parseList(json['Stone Color'] ?? json['stone_color']),
-    stoneCut: _parseList(json['Stone Cut'] ?? json['stone_cut']),
-    dimension: _parseString(json['Dimension'] ?? json['size']),
-    designType: _parseString(json['Design Type'] ?? json['style']),
-    artForm: _parseString(json['Art Form'] ?? json['art_form']),
-    plating: _parseString(json['Plating'] ?? json['plating']),
-    enamelWork: _parseString(json['Enamel Work'] ?? json['enamel_work']),
-    customizable: (json['Customizable'] is bool)
-      ? json['Customizable']
-      : (json['Customizable'] == 'Yes' || json['customizable'] == true),
-    aspectRatio: (json['aspect_ratio'] as num?)?.toDouble() ?? 1.0,
-    // --- NEW FIELDS ---
-    users: json['users'] is Map<String, dynamic> ? json['users'] as Map<String, dynamic> : (json['users'] != null ? Map<String, dynamic>.from(json['users']) : null),
-    likes: json['likes'] is int ? json['likes'] : int.tryParse(json['likes']?.toString() ?? ''),
-    saves: json['saves'] is int ? json['saves'] : int.tryParse(json['saves']?.toString() ?? ''),
-    credits: json['credits'] is int ? json['credits']: int.tryParse(json['credits']?.toString() ?? ''),
-    share: json['share'] is int ? json['share']: int.tryParse(json['share']?.toString() ?? ''),
-    isTrending: json['isTrending'] is bool ? json['isTrending'] : (json['isTrending']?.toString().toLowerCase() == 'true'),
-    geoAnalytics: (json['geoAnalytics'] is List)
-    ? (json['geoAnalytics'] as List)
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList()
-    : null,
-    // --- CATEGORY SUB-FILTERS ---
-    category1: _parseString(json['Category1']),
-    category2: _parseString(json['Category2']),
-    category3: _parseString(json['Category3']),
-    status: _parseString(json['status']) ?? 'published',
+      id: json['id']?.toString() ?? '',
+      uid: _parseString(json['uid']),
+      sku: _parseString(json['SKU'] ?? json['sku']),
+      productTitle:
+          json['Product Title'] ?? json['product_title'] ?? json['title'] ?? '',
+      image: json['Image'] is List
+          ? (json['Image'] as List).firstOrNull ?? ''
+          : json['Image'] ?? json['image'] ?? json['image_url'] ?? '',
+      images: (json['images'] is List)
+          ? (json['images'] as List).map((e) => e.toString()).toList()
+          : (json['Image'] is List)
+              ? (json['Image'] as List).map((e) => e.toString()).toList()
+              : null,
+      description: json['description'] ?? '',
+      price: _parseDouble(json['Price'] ?? json['price']),
+      isDesignerProduct: json['is_designer_product'] ??
+          (json['source'] == 'designerproducts') ??
+          false,
+      isManufacturerProduct: json['is_manufacturer_product'] ??
+          (json['source'] == 'manufacturerproducts') ??
+          false,
+      tags: _parseList(json['Product Tags'] ?? json['tags']),
+      goldWeight: _parseString(json['Gold Weight'] ?? json['gold_weight']),
+      metalPurity: _parseString(
+          json['Metal Purity'] ?? json['metal_purity'] ?? json['gold_carat']),
+      metalFinish: _parseString(
+          json['Metal Finish'] ?? json['metal_finish'] ?? json['gold_finish']),
+      metalWeight: _parseString(json['Metal Weight'] ?? json['metal_weight']),
+      stoneWeight: _parseList(json['Stone Weight'] ?? json['stone_weight']),
+      stoneType: _parseList(json['Stone Type'] ?? json['stone_type']),
+      stoneUsed: _parseList(json['Stone Used'] ?? json['stone_used']),
+      stoneSetting: _parseList(json['Stone Setting'] ?? json['stone_setting']),
+      stoneCount: _parseList(json['Stone Count'] ?? json['stone_count']),
+      stonePurity: _parseList(json['Stone Purity'] ?? json['stone_purity']),
+      scrapedUrl: _parseString(json['Scraped URL'] ?? json['scraped_url']),
+      category: _parseString(json['Category'] ?? json['category']),
+      subCategory: _parseString(
+          json['Sub Category'] ?? json['sub_category'] ?? json['SubCategory']),
+      productType: _parseString(json['Product Type'] ?? json['product_type']),
+      gender: _parseString(json['Gender'] ?? json['gender']),
+      theme: _parseString(json['Theme'] ?? json['occasions']),
+      metalType: _parseString(json['Metal Type'] ?? json['metal_type']),
+      metalColor: _parseString(json['Metal Color'] ?? json['metal_color']),
+      netWeight: _parseDouble(json['NET WEIGHT'] ?? json['net_weight']),
+      stoneColor: _parseList(json['Stone Color'] ?? json['stone_color']),
+      stoneCut: _parseList(json['Stone Cut'] ?? json['stone_cut']),
+      dimension: _parseString(json['Dimension'] ?? json['size']),
+      designType: _parseString(json['Design Type'] ?? json['style']),
+      artForm: _parseString(json['Art Form'] ?? json['art_form']),
+      plating: _parseString(json['Plating'] ?? json['plating']),
+      enamelWork: _parseString(json['Enamel Work'] ?? json['enamel_work']),
+      customizable: (json['Customizable'] is bool)
+          ? json['Customizable']
+          : (json['Customizable'] == 'Yes' || json['customizable'] == true),
+      aspectRatio: (json['aspect_ratio'] as num?)?.toDouble() ?? 1.0,
+      // --- NEW FIELDS ---
+      users: json['users'] is Map<String, dynamic>
+          ? json['users'] as Map<String, dynamic>
+          : (json['users'] != null
+              ? Map<String, dynamic>.from(json['users'])
+              : null),
+      likes: json['likes'] is int
+          ? json['likes']
+          : int.tryParse(json['likes']?.toString() ?? ''),
+      saves: json['saves'] is int
+          ? json['saves']
+          : int.tryParse(json['saves']?.toString() ?? ''),
+      credits: json['credits'] is int
+          ? json['credits']
+          : int.tryParse(json['credits']?.toString() ?? ''),
+      share: json['share'] is int
+          ? json['share']
+          : int.tryParse(json['share']?.toString() ?? ''),
+      isTrending: json['isTrending'] is bool
+          ? json['isTrending']
+          : (json['isTrending']?.toString().toLowerCase() == 'true'),
+      geoAnalytics: (json['geoAnalytics'] is List)
+          ? (json['geoAnalytics'] as List)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList()
+          : null,
+      // --- CATEGORY SUB-FILTERS ---
+      category1: _parseString(json['Category1'] ?? json['category1']),
+      category2: _parseString(json['Category2'] ?? json['category2']),
+      category3: _parseString(json['Category3'] ?? json['category3']),
+      status: _parseString(json['status']) ?? 'published',
     );
-}
+  }
 
   static String? _parseString(dynamic value) {
     if (value == null) return null;
     final str = value.toString().trim();
     // Return null if the string is empty, "null", "None", or "N/A"
-    if (str.isEmpty || 
-        str.toLowerCase() == 'null' || 
-        str.toLowerCase() == 'none' || 
+    if (str.isEmpty ||
+        str.toLowerCase() == 'null' ||
+        str.toLowerCase() == 'none' ||
         str.toLowerCase() == 'n/a' ||
         str.toLowerCase() == 'na') {
       return null;
@@ -204,9 +238,9 @@ factory JewelryItem.fromJson(Map<String, dynamic> json) {
     if (value is List) {
       final list = value
           .map((e) => e.toString().trim())
-          .where((e) => 
-              e.isNotEmpty && 
-              e.toLowerCase() != 'null' && 
+          .where((e) =>
+              e.isNotEmpty &&
+              e.toLowerCase() != 'null' &&
               e.toLowerCase() != 'none' &&
               e.toLowerCase() != 'n/a' &&
               e.toLowerCase() != 'na')
@@ -215,8 +249,8 @@ factory JewelryItem.fromJson(Map<String, dynamic> json) {
     }
     if (value is String) {
       final str = value.trim();
-      if (str.isEmpty || 
-          str.toLowerCase() == 'null' || 
+      if (str.isEmpty ||
+          str.toLowerCase() == 'null' ||
           str.toLowerCase() == 'none' ||
           str.toLowerCase() == 'n/a' ||
           str.toLowerCase() == 'na') {

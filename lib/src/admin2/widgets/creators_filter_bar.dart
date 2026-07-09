@@ -40,7 +40,9 @@ class CreatorsFilterBar extends StatelessWidget {
                   decoration: InputDecoration(
                     hintText: 'Search creators...',
                     prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none),
                     filled: true,
                     fillColor: const Color(0xFFF3F4F6),
                     isDense: true,
@@ -55,9 +57,11 @@ class CreatorsFilterBar extends StatelessWidget {
                   value: provider.statusFilter,
                   items: const [
                     DropdownMenuItem(value: null, child: Text('All Status')),
-                    DropdownMenuItem(value: 'approved', child: Text('Approved')),
+                    DropdownMenuItem(
+                        value: 'approved', child: Text('Approved')),
                     DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                    DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                    DropdownMenuItem(
+                        value: 'rejected', child: Text('Rejected')),
                   ],
                   onChanged: (v) {
                     provider.setStatusFilter(v);
@@ -67,7 +71,9 @@ class CreatorsFilterBar extends StatelessWidget {
                     isDense: true,
                     filled: true,
                     fillColor: const Color(0xFFF3F4F6),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none),
                   ),
                 ),
               ),
@@ -89,7 +95,9 @@ class CreatorsFilterBar extends StatelessWidget {
                     isDense: true,
                     filled: true,
                     fillColor: const Color(0xFFF3F4F6),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none),
                   ),
                 ),
               ),
@@ -99,7 +107,8 @@ class CreatorsFilterBar extends StatelessWidget {
                 icon: const Icon(Icons.refresh),
                 label: const Text('Reset'),
                 style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ],

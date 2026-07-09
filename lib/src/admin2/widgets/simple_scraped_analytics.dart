@@ -222,15 +222,19 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
     // Define theme-aware colors
     final headerTextColor = isDarkMode ? Colors.white : Colors.black87;
     final defaultTextColor = isDarkMode ? Colors.white70 : Colors.black87;
-    final subtleTextColor = isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600;
-    final tableHeaderColor = isDarkMode ? Colors.grey.shade800 : Colors.grey.shade50;
-    final barBackgroundColor = isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100;
+    final subtleTextColor =
+        isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600;
+    final tableHeaderColor =
+        isDarkMode ? Colors.grey.shade800 : Colors.grey.shade50;
+    final barBackgroundColor =
+        isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100;
     // --- END FIX ---
 
     if (_isLoading) {
       return const Center(
-          child:
-              Padding(padding: EdgeInsets.all(48.0), child: CircularProgressIndicator()));
+          child: Padding(
+              padding: EdgeInsets.all(48.0),
+              child: CircularProgressIndicator()));
     }
 
     // --- NEW: Conditional view ---
@@ -257,13 +261,13 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                       children: [
                         Text('Scraped Jewellery Trends',
                             style: TextStyle(
-                                fontSize: 18, 
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: headerTextColor // --- THEME FIX ---
                                 )),
                         Text('Category-wise performance',
                             style: TextStyle(
-                                fontSize: 12, 
+                                fontSize: 12,
                                 color: subtleTextColor // --- THEME FIX ---
                                 )),
                       ],
@@ -297,8 +301,11 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                   count: totalImages,
                   icon: Icons.image,
                   // --- THEME FIX: Adjust background and icon colors ---
-                  color: isDarkMode ? Colors.purple.shade900 : Colors.purple.shade50,
-                  iconColor: isDarkMode ? Colors.purple.shade200 : Colors.purple,
+                  color: isDarkMode
+                      ? Colors.purple.shade900
+                      : Colors.purple.shade50,
+                  iconColor:
+                      isDarkMode ? Colors.purple.shade200 : Colors.purple,
                   onTap: _showProductTypeData,
                 )),
                 const SizedBox(width: 12),
@@ -307,9 +314,10 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                   title: 'Total Posts',
                   count: totalPosts,
                   icon: Icons.article,
-                  color: isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50,
+                  color:
+                      isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50,
                   iconColor: isDarkMode ? Colors.blue.shade200 : Colors.blue,
-                  onTap: _showUnimplementedMessage, 
+                  onTap: _showUnimplementedMessage,
                 )),
                 const SizedBox(width: 12),
                 Expanded(
@@ -317,7 +325,8 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                   title: 'Categories',
                   count: totalCategories,
                   icon: Icons.grid_view,
-                  color: isDarkMode ? Colors.green.shade900 : Colors.green.shade50,
+                  color:
+                      isDarkMode ? Colors.green.shade900 : Colors.green.shade50,
                   iconColor: isDarkMode ? Colors.green.shade200 : Colors.green,
                   onTap: _showCategoryData,
                 )),
@@ -327,8 +336,11 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                   title: 'Avg per Category',
                   count: avgPerCategory,
                   icon: Icons.trending_up,
-                  color: isDarkMode ? Colors.orange.shade900 : Colors.orange.shade50,
-                  iconColor: isDarkMode ? Colors.orange.shade200 : Colors.orange,
+                  color: isDarkMode
+                      ? Colors.orange.shade900
+                      : Colors.orange.shade50,
+                  iconColor:
+                      isDarkMode ? Colors.orange.shade200 : Colors.orange,
                   onTap: _showUnimplementedMessage,
                 )),
               ],
@@ -351,10 +363,9 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                             color: headerTextColor // --- THEME FIX ---
                             )),
                     const SizedBox(height: 4),
-                    Text(
-                        'Detailed breakdown of scraped content by category',
+                    Text('Detailed breakdown of scraped content by category',
                         style: TextStyle(
-                            fontSize: 12, 
+                            fontSize: 12,
                             color: subtleTextColor // --- THEME FIX ---
                             )),
                     const SizedBox(height: 20),
@@ -383,7 +394,8 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
-                                        color: headerTextColor // --- THEME FIX ---
+                                        color:
+                                            headerTextColor // --- THEME FIX ---
                                         ))),
                             Padding(
                                 padding: EdgeInsets.all(12),
@@ -391,7 +403,8 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
-                                        color: headerTextColor // --- THEME FIX ---
+                                        color:
+                                            headerTextColor // --- THEME FIX ---
                                         ))),
                             Padding(
                                 padding: EdgeInsets.all(12),
@@ -399,7 +412,8 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
-                                        color: headerTextColor // --- THEME FIX ---
+                                        color:
+                                            headerTextColor // --- THEME FIX ---
                                         ))),
                             Padding(
                                 padding: EdgeInsets.all(12),
@@ -407,7 +421,8 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
-                                        color: headerTextColor // --- THEME FIX ---
+                                        color:
+                                            headerTextColor // --- THEME FIX ---
                                         ))),
                             Padding(
                                 padding: EdgeInsets.all(12),
@@ -415,7 +430,8 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
-                                        color: headerTextColor // --- THEME FIX ---
+                                        color:
+                                            headerTextColor // --- THEME FIX ---
                                         ))),
                             Padding(
                                 padding: EdgeInsets.all(12),
@@ -423,7 +439,8 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
-                                        color: headerTextColor // --- THEME FIX ---
+                                        color:
+                                            headerTextColor // --- THEME FIX ---
                                         ))),
                           ],
                         ),
@@ -447,7 +464,8 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                           child: Text(cat.category,
                                               style: TextStyle(
                                                   fontSize: 13,
-                                                  color: defaultTextColor // --- THEME FIX ---
+                                                  color:
+                                                      defaultTextColor // --- THEME FIX ---
                                                   ))),
                                     ],
                                   ),
@@ -463,7 +481,8 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                       Text(cat.totalImages.toString(),
                                           style: TextStyle(
                                               fontSize: 13,
-                                              color: defaultTextColor // --- THEME FIX ---
+                                              color:
+                                                  defaultTextColor // --- THEME FIX ---
                                               )),
                                     ],
                                   ),
@@ -479,7 +498,8 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                       Text(cat.totalPosts.toString(),
                                           style: TextStyle(
                                               fontSize: 13,
-                                              color: defaultTextColor // --- THEME FIX ---
+                                              color:
+                                                  defaultTextColor // --- THEME FIX ---
                                               )),
                                     ],
                                   ),
@@ -501,13 +521,16 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                                       vertical: 4),
                                               decoration: BoxDecoration(
                                                   // --- THEME FIX: Use theme-aware color ---
-                                                  color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+                                                  color: isDarkMode
+                                                      ? Colors.grey.shade700
+                                                      : Colors.grey.shade200,
                                                   borderRadius:
                                                       BorderRadius.circular(4)),
                                               child: Text(tag,
                                                   style: TextStyle(
                                                       fontSize: 11,
-                                                      color: defaultTextColor // --- THEME FIX ---
+                                                      color:
+                                                          defaultTextColor // --- THEME FIX ---
                                                       )),
                                             ))
                                         .toList(),
@@ -530,13 +553,16 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                                       vertical: 4),
                                               decoration: BoxDecoration(
                                                   // --- THEME FIX: Use theme-aware color ---
-                                                  color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+                                                  color: isDarkMode
+                                                      ? Colors.grey.shade700
+                                                      : Colors.grey.shade200,
                                                   borderRadius:
                                                       BorderRadius.circular(4)),
                                               child: Text(color,
                                                   style: TextStyle(
                                                       fontSize: 11,
-                                                      color: defaultTextColor // --- THEME FIX ---
+                                                      color:
+                                                          defaultTextColor // --- THEME FIX ---
                                                       )),
                                             ))
                                         .toList(),
@@ -557,8 +583,10 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                               style: TextStyle(
                                                   fontSize: 11,
                                                   // --- THEME FIX: Use lighter green in dark mode ---
-                                                  color: isDarkMode ? Colors.green.shade300 : Colors.green.shade600
-                                                  ))),
+                                                  color: isDarkMode
+                                                      ? Colors.green.shade300
+                                                      : Colors
+                                                          .green.shade600))),
                                     ],
                                   ),
                                 ),
@@ -583,7 +611,7 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                     children: [
                       Text('What\'s Trending by Category',
                           style: TextStyle(
-                              fontSize: 16, 
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: headerTextColor // --- THEME FIX ---
                               )),
@@ -591,7 +619,7 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                       Text(
                           'Popularity score based on engagement and upload frequency',
                           style: TextStyle(
-                              fontSize: 12, 
+                              fontSize: 12,
                               color: subtleTextColor // --- THEME FIX ---
                               )),
                       const SizedBox(height: 24),
@@ -611,15 +639,16 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                   width: 100,
                                   child: Text(cat.category,
                                       style: TextStyle(
-                                          fontSize: 13, 
-                                          color: defaultTextColor // --- THEME FIX ---
+                                          fontSize: 13,
+                                          color:
+                                              defaultTextColor // --- THEME FIX ---
                                           ))),
                               Expanded(
                                 child: Container(
                                   height: 28,
                                   decoration: BoxDecoration(
                                       // --- THEME FIX: Use theme-aware color ---
-                                      color: barBackgroundColor, 
+                                      color: barBackgroundColor,
                                       borderRadius: BorderRadius.circular(14)),
                                   child: FractionallySizedBox(
                                     alignment: Alignment.centerLeft,
@@ -641,7 +670,8 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
                                       style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
-                                          color: headerTextColor // --- THEME FIX ---
+                                          color:
+                                              headerTextColor // --- THEME FIX ---
                                           ),
                                       textAlign: TextAlign.right)),
                             ],
@@ -666,7 +696,7 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
     final headerTextColor = isDarkMode ? Colors.white : Colors.black87;
     final defaultTextColor = isDarkMode ? Colors.white70 : Colors.black87;
     // --- END FIX ---
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -681,13 +711,10 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
               const SizedBox(width: 8),
               Text(
                 _detailTitle,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: headerTextColor // --- THEME FIX ---
-                      ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: headerTextColor // --- THEME FIX ---
+                    ),
               ),
             ],
           ),
@@ -697,21 +724,29 @@ class _SimpleScrapedAnalyticsState extends State<SimpleScrapedAnalytics> {
               columns: [
                 DataColumn(
                     label: Text('Item Name',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: headerTextColor) // --- THEME FIX ---
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: headerTextColor) // --- THEME FIX ---
                         )),
                 DataColumn(
                     label: Text('Post Count',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: headerTextColor) // --- THEME FIX ---
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: headerTextColor) // --- THEME FIX ---
                         ),
                     numeric: true),
               ],
               rows: _detailData.map((data) {
                 return DataRow(
                   cells: [
-                    DataCell(Text(data['name'].toString(), style: TextStyle(color: defaultTextColor) // --- THEME FIX ---
-                    )),
-                    DataCell(Text(data['count'].toString(), style: TextStyle(color: defaultTextColor) // --- THEME FIX ---
-                    )),
+                    DataCell(Text(data['name'].toString(),
+                        style: TextStyle(
+                            color: defaultTextColor) // --- THEME FIX ---
+                        )),
+                    DataCell(Text(data['count'].toString(),
+                        style: TextStyle(
+                            color: defaultTextColor) // --- THEME FIX ---
+                        )),
                   ],
                 );
               }).toList(),
@@ -757,14 +792,18 @@ class _CounterCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // --- THEME FIX: Check brightness here to set text color ---
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     // Determine text/icon colors based on the *passed* background color's brightness
     // This is more robust than checking the theme
-    final bool isDarkBackground = ThemeData.estimateBrightnessForColor(color) == Brightness.dark;
+    final bool isDarkBackground =
+        ThemeData.estimateBrightnessForColor(color) == Brightness.dark;
 
-    final Color textColor = isDarkBackground ? Colors.white : Colors.grey.shade800;
-    final Color subTextColor = isDarkBackground ? Colors.white70 : Colors.grey.shade600;
-    final Color iconBgColor = isDarkBackground ? Colors.black.withOpacity(0.2) : Colors.white;
+    final Color textColor =
+        isDarkBackground ? Colors.white : Colors.grey.shade800;
+    final Color subTextColor =
+        isDarkBackground ? Colors.white70 : Colors.grey.shade600;
+    final Color iconBgColor =
+        isDarkBackground ? Colors.black.withOpacity(0.2) : Colors.white;
     // --- END FIX ---
 
     return MouseRegion(
@@ -773,7 +812,8 @@ class _CounterCard extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Card(
-          color: color, // This is passed in (e.g., purple.shade50 or purple.shade900)
+          color:
+              color, // This is passed in (e.g., purple.shade50 or purple.shade900)
           elevation: 0,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -788,7 +828,8 @@ class _CounterCard extends StatelessWidget {
                   decoration: BoxDecoration(
                       color: iconBgColor, // Use dynamic iconBgColor
                       borderRadius: BorderRadius.circular(8)),
-                  child: Icon(icon, color: iconColor, size: 20), // iconColor is passed in
+                  child: Icon(icon,
+                      color: iconColor, size: 20), // iconColor is passed in
                 ),
                 const Spacer(),
                 Text(count.toString(),
@@ -799,11 +840,10 @@ class _CounterCard extends StatelessWidget {
                         )),
                 const SizedBox(height: 4),
                 Text(title,
-                    style:
-                        TextStyle(
-                          fontSize: 12, 
-                          color: subTextColor // Use dynamic subTextColor
-                          )),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: subTextColor // Use dynamic subTextColor
+                        )),
               ],
             ),
           ),

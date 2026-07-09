@@ -72,16 +72,20 @@ class FilterService {
 
       if (productsResponse is List) {
         for (var item in productsResponse) {
-          if (item['Category'] != null && item['Category'].toString().isNotEmpty) {
+          if (item['Category'] != null &&
+              item['Category'].toString().isNotEmpty) {
             values.add(item['Category'].toString());
           }
-          if (item['Category1'] != null && item['Category1'].toString().isNotEmpty) {
+          if (item['Category1'] != null &&
+              item['Category1'].toString().isNotEmpty) {
             values.add(item['Category1'].toString());
           }
-          if (item['Category2'] != null && item['Category2'].toString().isNotEmpty) {
+          if (item['Category2'] != null &&
+              item['Category2'].toString().isNotEmpty) {
             values.add(item['Category2'].toString());
           }
-          if (item['Category3'] != null && item['Category3'].toString().isNotEmpty) {
+          if (item['Category3'] != null &&
+              item['Category3'].toString().isNotEmpty) {
             values.add(item['Category3'].toString());
           }
         }
@@ -94,16 +98,20 @@ class FilterService {
 
       if (designerResponse is List) {
         for (var item in designerResponse) {
-          if (item['Category'] != null && item['Category'].toString().isNotEmpty) {
+          if (item['Category'] != null &&
+              item['Category'].toString().isNotEmpty) {
             values.add(item['Category'].toString());
           }
-          if (item['Category1'] != null && item['Category1'].toString().isNotEmpty) {
+          if (item['Category1'] != null &&
+              item['Category1'].toString().isNotEmpty) {
             values.add(item['Category1'].toString());
           }
-          if (item['Category2'] != null && item['Category2'].toString().isNotEmpty) {
+          if (item['Category2'] != null &&
+              item['Category2'].toString().isNotEmpty) {
             values.add(item['Category2'].toString());
           }
-          if (item['Category3'] != null && item['Category3'].toString().isNotEmpty) {
+          if (item['Category3'] != null &&
+              item['Category3'].toString().isNotEmpty) {
             values.add(item['Category3'].toString());
           }
         }
@@ -116,16 +124,20 @@ class FilterService {
 
       if (manufacturerResponse is List) {
         for (var item in manufacturerResponse) {
-          if (item['Category'] != null && item['Category'].toString().isNotEmpty) {
+          if (item['Category'] != null &&
+              item['Category'].toString().isNotEmpty) {
             values.add(item['Category'].toString());
           }
-          if (item['Category1'] != null && item['Category1'].toString().isNotEmpty) {
+          if (item['Category1'] != null &&
+              item['Category1'].toString().isNotEmpty) {
             values.add(item['Category1'].toString());
           }
-          if (item['Category2'] != null && item['Category2'].toString().isNotEmpty) {
+          if (item['Category2'] != null &&
+              item['Category2'].toString().isNotEmpty) {
             values.add(item['Category2'].toString());
           }
-          if (item['Category3'] != null && item['Category3'].toString().isNotEmpty) {
+          if (item['Category3'] != null &&
+              item['Category3'].toString().isNotEmpty) {
             values.add(item['Category3'].toString());
           }
         }
@@ -229,7 +241,9 @@ class FilterService {
 
       // 2. Apply dependent filters to all three queries (excluding Category filter itself)
       for (var filter in filters.entries) {
-        if (filter.value != null && filter.value != 'All' && filter.key != 'Category') {
+        if (filter.value != null &&
+            filter.value != 'All' &&
+            filter.key != 'Category') {
           // Use quotes for filter keys if they contain spaces
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
@@ -246,23 +260,28 @@ class FilterService {
       }
 
       // 3. Execute all three queries in parallel
-      final responses = await Future.wait([productsQuery, designerQuery, manufacturerQuery]);
+      final responses =
+          await Future.wait([productsQuery, designerQuery, manufacturerQuery]);
 
       final Set<String> values = {};
 
       // 4. Process products results - extract all category columns
       if (responses[0] is List) {
         for (var item in responses[0] as List) {
-          if (item['Category'] != null && item['Category'].toString().isNotEmpty) {
+          if (item['Category'] != null &&
+              item['Category'].toString().isNotEmpty) {
             values.add(item['Category'].toString());
           }
-          if (item['Category1'] != null && item['Category1'].toString().isNotEmpty) {
+          if (item['Category1'] != null &&
+              item['Category1'].toString().isNotEmpty) {
             values.add(item['Category1'].toString());
           }
-          if (item['Category2'] != null && item['Category2'].toString().isNotEmpty) {
+          if (item['Category2'] != null &&
+              item['Category2'].toString().isNotEmpty) {
             values.add(item['Category2'].toString());
           }
-          if (item['Category3'] != null && item['Category3'].toString().isNotEmpty) {
+          if (item['Category3'] != null &&
+              item['Category3'].toString().isNotEmpty) {
             values.add(item['Category3'].toString());
           }
         }
@@ -271,16 +290,20 @@ class FilterService {
       // 5. Process designerproducts results - extract all category columns
       if (responses[1] is List) {
         for (var item in responses[1] as List) {
-          if (item['Category'] != null && item['Category'].toString().isNotEmpty) {
+          if (item['Category'] != null &&
+              item['Category'].toString().isNotEmpty) {
             values.add(item['Category'].toString());
           }
-          if (item['Category1'] != null && item['Category1'].toString().isNotEmpty) {
+          if (item['Category1'] != null &&
+              item['Category1'].toString().isNotEmpty) {
             values.add(item['Category1'].toString());
           }
-          if (item['Category2'] != null && item['Category2'].toString().isNotEmpty) {
+          if (item['Category2'] != null &&
+              item['Category2'].toString().isNotEmpty) {
             values.add(item['Category2'].toString());
           }
-          if (item['Category3'] != null && item['Category3'].toString().isNotEmpty) {
+          if (item['Category3'] != null &&
+              item['Category3'].toString().isNotEmpty) {
             values.add(item['Category3'].toString());
           }
         }
@@ -289,16 +312,20 @@ class FilterService {
       // 6. Process manufacturerproducts results - extract all category columns
       if (responses[2] is List) {
         for (var item in responses[2] as List) {
-          if (item['Category'] != null && item['Category'].toString().isNotEmpty) {
+          if (item['Category'] != null &&
+              item['Category'].toString().isNotEmpty) {
             values.add(item['Category'].toString());
           }
-          if (item['Category1'] != null && item['Category1'].toString().isNotEmpty) {
+          if (item['Category1'] != null &&
+              item['Category1'].toString().isNotEmpty) {
             values.add(item['Category1'].toString());
           }
-          if (item['Category2'] != null && item['Category2'].toString().isNotEmpty) {
+          if (item['Category2'] != null &&
+              item['Category2'].toString().isNotEmpty) {
             values.add(item['Category2'].toString());
           }
-          if (item['Category3'] != null && item['Category3'].toString().isNotEmpty) {
+          if (item['Category3'] != null &&
+              item['Category3'].toString().isNotEmpty) {
             values.add(item['Category3'].toString());
           }
         }
@@ -306,8 +333,7 @@ class FilterService {
 
       return values.toList()..sort();
     } catch (e) {
-      debugPrint(
-          'Error fetching dependent distinct category values: $e');
+      debugPrint('Error fetching dependent distinct category values: $e');
       return [];
     }
   }
@@ -315,7 +341,10 @@ class FilterService {
   /// **MODIFIED:** Renamed and changed to only fetch *independent* filters.
   Future<Map<String, List<String>>> getInitialFilterOptions() async {
     // Separate columns by their type (text vs. array)
-    final textColumns = ['Product Type', 'Metal Purity', ]; //'Plain'
+    final textColumns = [
+      'Product Type',
+      'Metal Purity',
+    ]; //'Plain'
     // final arrayColumns = ['Studded']; // 'Studded' is an ARRAY column
 
     // Fetch text values using the old function
@@ -326,8 +355,6 @@ class FilterService {
     // final List<Future<List<String>>> arrayFutures = arrayColumns
     //     .map((columnName) =>
     //         getDistinctArrayValues(columnName)) // <-- Use the new function
-    //     .toList();
-
     // Wait for all futures to complete
     final textResults = await Future.wait(textFutures);
     // final arrayResults = await Future.wait(arrayFutures);
@@ -339,5 +366,44 @@ class FilterService {
       // 'Plain': textResults[2],
       // 'Studded': arrayResults[0], // <-- Get result from array futures
     };
+  }
+
+  /// Helper to get min and max values for weight sliders by parsing strings
+  Future<List<double>> getWeightRange(String columnName,
+      {bool isArray = false}) async {
+    try {
+      List<String> rawValues = isArray
+          ? await getDistinctArrayValues(columnName)
+          : await getDistinctValues(columnName);
+
+      double minWeight = double.infinity;
+      double maxWeight = double.negativeInfinity;
+
+      for (var val in rawValues) {
+        // Extract the first sequence of numbers (including decimals) from the string
+        final match = RegExp(r'(\d+(\.\d+)?)').firstMatch(val);
+        if (match != null) {
+          final numberStr = match.group(0);
+          if (numberStr != null) {
+            final number = double.tryParse(numberStr);
+            if (number != null) {
+              if (number < minWeight) minWeight = number;
+              if (number > maxWeight) maxWeight = number;
+            }
+          }
+        }
+      }
+
+      if (minWeight == double.infinity ||
+          maxWeight == double.negativeInfinity) {
+        return [0.0, 100.0]; // fallback
+      }
+
+      // Add a small buffer so the slider isn't exactly at the edges for max items
+      return [minWeight, maxWeight + (maxWeight * 0.1)];
+    } catch (e) {
+      debugPrint('Error getting weight range for $columnName: $e');
+      return [0.0, 100.0]; // fallback
+    }
   }
 }

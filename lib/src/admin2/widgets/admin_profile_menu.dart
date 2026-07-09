@@ -6,9 +6,10 @@ class AdminProfileMenu extends StatelessWidget {
 
   Future<void> _signOut(BuildContext context) async {
     try {
-      await Supabase.instance.client.auth.signOut(); 
+      await Supabase.instance.client.auth.signOut();
       if (context.mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/login', (route) => false);
       }
     } catch (e) {
       if (context.mounted) {
@@ -40,9 +41,11 @@ class AdminProfileMenu extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             leading: CircleAvatar(
               backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-              child: Text(initial, style: TextStyle(color: Theme.of(context).primaryColor)),
+              child: Text(initial,
+                  style: TextStyle(color: Theme.of(context).primaryColor)),
             ),
-            title: const Text('Admin', style: TextStyle(fontWeight: FontWeight.bold)),
+            title: const Text('Admin',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(
               email,
               style: Theme.of(context).textTheme.bodySmall,
@@ -65,7 +68,9 @@ class AdminProfileMenu extends StatelessWidget {
         child: CircleAvatar(
           radius: 18,
           backgroundColor: Colors.grey.shade200,
-          child: Text(initial, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+          child: Text(initial,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Colors.black87)),
         ),
       ),
     );

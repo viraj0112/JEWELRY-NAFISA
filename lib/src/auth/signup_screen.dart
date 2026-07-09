@@ -1,4 +1,3 @@
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -154,9 +153,7 @@ class _SignUpScreenState extends State<SignUpScreen>
   Widget _buildBottomCard(BuildContext context, bool isWide) {
     return Container(
       width: isWide ? 520 : double.infinity,
-      margin: isWide
-          ? const EdgeInsets.only(bottom: 40)
-          : EdgeInsets.zero,
+      margin: isWide ? const EdgeInsets.only(bottom: 40) : EdgeInsets.zero,
       decoration: BoxDecoration(
         color: _Brand.creamWhite,
         borderRadius: isWide
@@ -200,9 +197,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                     color: const Color(0xFF1A1A1A),
                     height: 1.2,
                   ),
-                )
-                    .animate()
-                    .fadeIn(duration: 500.ms, delay: 400.ms),
+                ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
 
                 const SizedBox(height: 28),
 
@@ -217,7 +212,9 @@ class _SignUpScreenState extends State<SignUpScreen>
                           builder: (_) => const EmailSignUpScreen()),
                     );
                   },
-                ).animate().fadeIn(duration: 400.ms, delay: 500.ms)
+                )
+                    .animate()
+                    .fadeIn(duration: 400.ms, delay: 500.ms)
                     .slideY(begin: 0.2, end: 0, curve: Curves.easeOut),
 
                 const SizedBox(height: 12),
@@ -233,7 +230,9 @@ class _SignUpScreenState extends State<SignUpScreen>
                           builder: (_) => const PhoneAuthScreen()),
                     );
                   },
-                ).animate().fadeIn(duration: 400.ms, delay: 600.ms)
+                )
+                    .animate()
+                    .fadeIn(duration: 400.ms, delay: 600.ms)
                     .slideY(begin: 0.2, end: 0, curve: Curves.easeOut),
 
                 const SizedBox(height: 20),
@@ -257,8 +256,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                 GestureDetector(
                   onTap: () {
                     Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                          builder: (_) => const LoginScreen()),
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
                       (route) => false,
                     );
                   },
@@ -372,8 +370,8 @@ class _SignUpScreenState extends State<SignUpScreen>
               decoration: TextDecoration.underline,
             ),
             recognizer: TapGestureRecognizer()
-              ..onTap = () =>
-                  _launchLegalUrl('https://www.dagina.design/terms.html'),
+              ..onTap =
+                  () => _launchLegalUrl('https://www.dagina.design/terms.html'),
           ),
           const TextSpan(text: ' and acknowledge you\'ve read our '),
           TextSpan(
@@ -435,7 +433,8 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF2D5A27).withOpacity(_isHovered ? 0.4 : 0.2),
+                color:
+                    const Color(0xFF2D5A27).withOpacity(_isHovered ? 0.4 : 0.2),
                 blurRadius: _isHovered ? 16 : 8,
                 offset: const Offset(0, 4),
               ),

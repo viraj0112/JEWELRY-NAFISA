@@ -293,7 +293,7 @@ class _ProductUploadSectionState extends State<ProductUploadSection>
           }
         }
 
-       if (productTitle != null && productTitle.isNotEmpty) {
+        if (productTitle != null && productTitle.isNotEmpty) {
           // Find ALL matching image URLs based on the product title prefix
           final matchingImageUrls = _imageNameToUrl.entries
               .where((entry) => entry.key.startsWith(productTitle!))
@@ -304,7 +304,7 @@ class _ProductUploadSectionState extends State<ProductUploadSection>
           if (matchingImageUrls.isNotEmpty) {
             // 1. Send the List of URLs to the new 'images' column (Array)
             product['images'] = matchingImageUrls;
-            
+
             // 2. Send the FIRST URL to the old 'Image' column (Text/Thumbnail)
             // This ensures backward compatibility with the rest of the app
             product['Image'] = matchingImageUrls.first;
@@ -312,7 +312,6 @@ class _ProductUploadSectionState extends State<ProductUploadSection>
             product['images'] = null;
             product['Image'] = null;
           }
-
         } else {
           // If no title, ensure Image field is null
           product['Image'] = null;
@@ -320,7 +319,7 @@ class _ProductUploadSectionState extends State<ProductUploadSection>
 
         productList.add(product);
       }
-      
+
       await Supabase.instance.client.from('products').upsert(productList);
 
       _showSuccessSnackBar(

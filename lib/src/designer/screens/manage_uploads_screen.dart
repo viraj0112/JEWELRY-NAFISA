@@ -82,57 +82,57 @@ class _ManageUploadsScreenState extends State<ManageUploadsScreen> {
       canPop: true,
       child: Scaffold(
         body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _uploadsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
-          }
-          final uploads = snapshot.data!;
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: uploads.length,
-            itemBuilder: (context, index) {
-              final item = uploads[index];
-              final statusColor = item['status'] == 'Approved'
-                  ? Colors.green
-                  : item['status'] == 'Pending'
-                      ? Colors.orange
-                      : Colors.red;
+          future: _uploadsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text("Error: ${snapshot.error}"));
+            }
+            final uploads = snapshot.data!;
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: uploads.length,
+              itemBuilder: (context, index) {
+                final item = uploads[index];
+                final statusColor = item['status'] == 'Approved'
+                    ? Colors.green
+                    : item['status'] == 'Pending'
+                        ? Colors.orange
+                        : Colors.red;
 
-              return Card(
-                child: ListTile(
-                  leading: Image.network(item['media_url'],
-                      width: 50, height: 50, fit: BoxFit.cover),
-                  title: Text(item['title']),
-                  subtitle: Text(
-                    "Status: ${item['status']}",
-                    style: TextStyle(color: statusColor),
+                return Card(
+                  child: ListTile(
+                    leading: Image.network(item['media_url'],
+                        width: 50, height: 50, fit: BoxFit.cover),
+                    title: Text(item['title']),
+                    subtitle: Text(
+                      "Status: ${item['status']}",
+                      style: TextStyle(color: statusColor),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined),
+                          onPressed: () {
+                            // TODO: Implement edit functionality
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () {
+                            _deleteUpload(item);
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed: () {
-                          // TODO: Implement edit functionality
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () {
-                          _deleteUpload(item);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            );
+          },
         ),
       ),
     );

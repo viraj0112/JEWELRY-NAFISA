@@ -47,7 +47,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
   final ImagePicker _picker = ImagePicker();
 
-
   // final _searchController = TextEditingController();
   // final _debouncer = Debouncer(milliseconds: 500);
   // late final JewelryService _jewelryService;
@@ -207,7 +206,7 @@ class _SearchScreenState extends State<SearchScreen> {
       setState(() {
         _isLoadingSearch = true;
         // Prevent the listener from triggering a text search
-        _currentSearchQuery = "Analyzing image..."; 
+        _currentSearchQuery = "Analyzing image...";
         _searchController.text = "Analyzing image...";
         _searchResults.clear();
       });
@@ -244,12 +243,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
       if (mounted) {
         setState(() {
-          _searchResults = rawResults
-              .map((json) => JewelryItem.fromJson(json))
-              .toList();
+          _searchResults =
+              rawResults.map((json) => JewelryItem.fromJson(json)).toList();
         });
       }
-
     } catch (e) {
       // Error handling...
       debugPrint("Error: $e");
@@ -461,7 +458,8 @@ class _SearchScreenState extends State<SearchScreen> {
       onTap: () {
         final isDesigner = item.isDesignerProduct;
         final isManufacturer = item.isManufacturerProduct;
-        context.push('/product/${item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
+        context.push(
+            '/product/${item.uid ?? item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
       },
       child: Card(
         clipBehavior: Clip.antiAlias,

@@ -80,8 +80,14 @@ class GeoAnalyticsService {
           final id = (row['item_id'] as String?)?.trim() ?? '';
           final table = (row['item_table'] as String?)?.trim() ?? '';
           if (id.isNotEmpty) {
-            byProduct.putIfAbsent(id,
-                () => <String, int>{'views': 0, 'likes': 0, 'shares': 0, 'saves': 0});
+            byProduct.putIfAbsent(
+                id,
+                () => <String, int>{
+                      'views': 0,
+                      'likes': 0,
+                      'shares': 0,
+                      'saves': 0
+                    });
             byProduct[id]![metricKey] = (byProduct[id]![metricKey] ?? 0) + 1;
             if (table.isNotEmpty) itemTables[id] = table;
           }
@@ -92,20 +98,37 @@ class GeoAnalyticsService {
           final pincode = (row['pincode'] as String?)?.trim() ?? '';
 
           if (country.isNotEmpty) {
-            byCountry.putIfAbsent(country,
-                () => <String, int>{'views': 0, 'likes': 0, 'shares': 0, 'saves': 0});
+            byCountry.putIfAbsent(
+                country,
+                () => <String, int>{
+                      'views': 0,
+                      'likes': 0,
+                      'shares': 0,
+                      'saves': 0
+                    });
             byCountry[country]![metricKey] =
                 (byCountry[country]![metricKey] ?? 0) + 1;
           }
           if (state.isNotEmpty) {
-            byState.putIfAbsent(state,
-                () => <String, int>{'views': 0, 'likes': 0, 'shares': 0, 'saves': 0});
-            byState[state]![metricKey] =
-                (byState[state]![metricKey] ?? 0) + 1;
+            byState.putIfAbsent(
+                state,
+                () => <String, int>{
+                      'views': 0,
+                      'likes': 0,
+                      'shares': 0,
+                      'saves': 0
+                    });
+            byState[state]![metricKey] = (byState[state]![metricKey] ?? 0) + 1;
           }
           if (pincode.isNotEmpty) {
-            byPincode.putIfAbsent(pincode,
-                () => <String, int>{'views': 0, 'likes': 0, 'shares': 0, 'saves': 0});
+            byPincode.putIfAbsent(
+                pincode,
+                () => <String, int>{
+                      'views': 0,
+                      'likes': 0,
+                      'shares': 0,
+                      'saves': 0
+                    });
             byPincode[pincode]![metricKey] =
                 (byPincode[pincode]![metricKey] ?? 0) + 1;
           }
@@ -143,10 +166,8 @@ class GeoAnalyticsService {
           .eq('user_id', userId);
 
       if ((products as List).isEmpty) {
-        products = await _supabase
-            .from('products')
-            .select('id')
-            .eq('user_id', userId);
+        products =
+            await _supabase.from('products').select('id').eq('user_id', userId);
       }
 
       return (products as List).map((e) => e['id'].toString()).toList();
@@ -172,10 +193,8 @@ class GeoAnalyticsService {
       }
 
       if ((products as List).isEmpty) {
-        products = await _supabase
-            .from('products')
-            .select('id')
-            .eq('user_id', userId);
+        products =
+            await _supabase.from('products').select('id').eq('user_id', userId);
       }
 
       return (products as List).map((e) => e['id'].toString()).toList();

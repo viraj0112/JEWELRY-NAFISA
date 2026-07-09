@@ -258,9 +258,8 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message, style: GoogleFonts.inter()),
-        backgroundColor: isError
-            ? Colors.redAccent.shade700
-            : const Color(0xFF2D5A27),
+        backgroundColor:
+            isError ? Colors.redAccent.shade700 : const Color(0xFF2D5A27),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -298,7 +297,8 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
           SafeArea(
             child: Center(
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: isWide ? 480 : double.infinity),
+                constraints:
+                    BoxConstraints(maxWidth: isWide ? 480 : double.infinity),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 0),
                   child: Column(
@@ -387,9 +387,8 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
           width: isActive ? 28 : 10,
           height: 10,
           decoration: BoxDecoration(
-            color: isActive
-                ? _Brand.forestGreen
-                : Colors.white.withOpacity(0.35),
+            color:
+                isActive ? _Brand.forestGreen : Colors.white.withOpacity(0.35),
             borderRadius: BorderRadius.circular(5),
           ),
         );
@@ -480,8 +479,8 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                          color: _Brand.forestGreen, width: 2),
+                      borderSide:
+                          const BorderSide(color: _Brand.forestGreen, width: 2),
                     ),
                     counterText: '',
                     contentPadding: const EdgeInsets.symmetric(
@@ -508,7 +507,9 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
                 ),
               ],
             ),
-          ).animate().fadeIn(duration: 500.ms, delay: 200.ms)
+          )
+              .animate()
+              .fadeIn(duration: 500.ms, delay: 200.ms)
               .slideY(begin: 0.15, end: 0, curve: Curves.easeOut),
 
           const SizedBox(height: 40),
@@ -545,9 +546,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
               .animate(key: ValueKey('title_step1'))
               .fadeIn(duration: 500.ms)
               .slideX(begin: 0.1, end: 0),
-
           const SizedBox(height: 12),
-
           RichText(
             text: TextSpan(
               style: GoogleFonts.inter(
@@ -567,9 +566,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
               ],
             ),
           ).animate().fadeIn(duration: 500.ms, delay: 100.ms),
-
           const SizedBox(height: 40),
-
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -609,10 +606,15 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
                     activeFillColor: const Color(0xFFF8F8F8),
                     inactiveFillColor: const Color(0xFFF8F8F8),
                     selectedFillColor: Colors.white,
-                    activeColor: _otpHasError ? Colors.redAccent : _Brand.forestGreen,
-                    inactiveColor: _otpHasError ? Colors.redAccent : const Color(0xFFDDDDDD),
-                    selectedColor: _otpHasError ? Colors.redAccent : _Brand.forestGreen,
-                    fieldOuterPadding: const EdgeInsets.symmetric(horizontal: 4),
+                    activeColor:
+                        _otpHasError ? Colors.redAccent : _Brand.forestGreen,
+                    inactiveColor: _otpHasError
+                        ? Colors.redAccent
+                        : const Color(0xFFDDDDDD),
+                    selectedColor:
+                        _otpHasError ? Colors.redAccent : _Brand.forestGreen,
+                    fieldOuterPadding:
+                        const EdgeInsets.symmetric(horizontal: 4),
                   ),
                   enableActiveFill: true,
                   errorAnimationController: null,
@@ -661,11 +663,11 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
                 ),
               ],
             ),
-          ).animate().fadeIn(duration: 500.ms, delay: 200.ms)
+          )
+              .animate()
+              .fadeIn(duration: 500.ms, delay: 200.ms)
               .slideY(begin: 0.15, end: 0, curve: Curves.easeOut),
-
           const SizedBox(height: 40),
-
           _buildPrimaryButton(
             label: widget.isLoginMode ? 'Login' : 'Verify',
             onPressed: _isLoading ? null : _verifyOtp,
@@ -699,9 +701,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
                 .animate(key: const ValueKey('title_step2'))
                 .fadeIn(duration: 500.ms)
                 .slideX(begin: 0.1, end: 0),
-
             const SizedBox(height: 12),
-
             Text(
               'Choose a unique username and a strong password\nto secure your Dagina account.',
               style: GoogleFonts.inter(
@@ -710,9 +710,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
                 height: 1.5,
               ),
             ).animate().fadeIn(duration: 500.ms, delay: 100.ms),
-
             const SizedBox(height: 36),
-
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -739,12 +737,11 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
                       hint: 'username or email',
                       icon: Icons.person_outline_rounded,
                     ),
-                    validator: (val) =>
-                        (val == null || val.isEmpty) ? 'Username required' : null,
+                    validator: (val) => (val == null || val.isEmpty)
+                        ? 'Username required'
+                        : null,
                   ),
-
                   const SizedBox(height: 20),
-
                   _stepFormLabel('Password'),
                   const SizedBox(height: 8),
                   TextFormField(
@@ -769,18 +766,19 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
                       ),
                     ),
                     validator: (val) {
-                      if (val == null || val.isEmpty) return 'Password required';
+                      if (val == null || val.isEmpty)
+                        return 'Password required';
                       if (val.length < 8) return 'Minimum 8 characters';
                       return null;
                     },
                   ),
                 ],
               ),
-            ).animate().fadeIn(duration: 500.ms, delay: 200.ms)
+            )
+                .animate()
+                .fadeIn(duration: 500.ms, delay: 200.ms)
                 .slideY(begin: 0.15, end: 0, curve: Curves.easeOut),
-
             const SizedBox(height: 36),
-
             _buildPrimaryButton(
               label: 'Create Account',
               onPressed: _isLoading ? null : _createAccount,
@@ -804,7 +802,8 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
     );
   }
 
-  InputDecoration _stepInputDeco({required String hint, required IconData icon}) {
+  InputDecoration _stepInputDeco(
+      {required String hint, required IconData icon}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 14),

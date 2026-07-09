@@ -1845,6 +1845,7 @@ class _RealtimeSparklineCard extends StatelessWidget {
       ),
     );
   }
+
   Widget _buildMetalAnalyticsCard(DashboardData dashboard) {
     final insights = selectedMetalView == 'Type'
         ? dashboard.metalTypeInsights
@@ -1906,8 +1907,9 @@ class _RealtimeSparklineCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color:
-                                  isSelected ? Colors.white : Colors.transparent,
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                               boxShadow: isSelected
                                   ? [
@@ -2002,12 +2004,14 @@ class _RealtimeSparklineCard extends StatelessWidget {
                                 Text(
                                   item.label,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.w500, fontSize: 14),
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14),
                                 ),
                                 Text(
                                   '${item.count} items (${(percentage * 100).toStringAsFixed(1)}%)',
                                   style: TextStyle(
-                                      color: Colors.grey.shade600, fontSize: 13),
+                                      color: Colors.grey.shade600,
+                                      fontSize: 13),
                                 ),
                               ],
                             ),

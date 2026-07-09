@@ -130,83 +130,86 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
       canPop: true,
       child: Scaffold(
         appBar: AppBar(
-        title: Text(widget.boardName),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _pins.isEmpty
-              ? const Center(
-                  child: Text("No pins in this board yet. Start saving!"))
-              : MasonryGridView.count(
-                  crossAxisCount: (MediaQuery.of(context).size.width / 180)
-                      .floor()
-                      .clamp(2, 5),
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  padding: const EdgeInsets.all(8),
-                  itemCount: _pins.length,
-                  itemBuilder: (context, index) {
-                    final pin = _pins[index];
-                    return GestureDetector(
-                      onTap: () {
-                        // --- This is the navigation logic you wanted ---
-                        // It was already correct.
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => JewelryDetailScreen(
-                                jewelryItem: pin), // Pass the entire item
-                          ),
-                        );
-                      },
-                      child: Card(
-                        clipBehavior: Clip.antiAlias,
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AspectRatio(
-                              // --- This now works due to the fix in jewelry_item.dart ---
-                              aspectRatio: pin.aspectRatio,
-                              child: CachedNetworkImage(
-                                imageUrl: pin.image,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => createBlurUpPlaceholder(),
-                                errorWidget: (context, url, error) => const Center(
-                                  child: Icon(Icons.broken_image),
+          title: Text(widget.boardName),
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _pins.isEmpty
+                ? const Center(
+                    child: Text("No pins in this board yet. Start saving!"))
+                : MasonryGridView.count(
+                    crossAxisCount: (MediaQuery.of(context).size.width / 180)
+                        .floor()
+                        .clamp(2, 5),
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    padding: const EdgeInsets.all(8),
+                    itemCount: _pins.length,
+                    itemBuilder: (context, index) {
+                      final pin = _pins[index];
+                      return GestureDetector(
+                        onTap: () {
+                          // --- This is the navigation logic you wanted ---
+                          // It was already correct.
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => JewelryDetailScreen(
+                                  jewelryItem: pin), // Pass the entire item
+                            ),
+                          );
+                        },
+                        child: Card(
+                          clipBehavior: Clip.antiAlias,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AspectRatio(
+                                // --- This now works due to the fix in jewelry_item.dart ---
+                                aspectRatio: pin.aspectRatio,
+                                child: CachedNetworkImage(
+                                  imageUrl: pin.image,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) =>
+                                      createBlurUpPlaceholder(),
+                                  errorWidget: (context, url, error) =>
+                                      const Center(
+                                    child: Icon(Icons.broken_image),
+                                  ),
                                 ),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text(
-                                pin.productTitle,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 14),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  pin.productTitle,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                            // --- Add a button to remove the pin ---
-                            Align(
-                              alignment: Alignment.bottomRight,
-                              child: IconButton(
-                                icon: const Icon(Icons.delete_forever,
-                                    color: Colors.grey),
-                                // --- FIX: Parse the String ID to an int ---
-                                onPressed: () =>
-                                    _removePinFromBoard(int.parse(pin.id)),
-                                tooltip: 'Remove from board',
-                              ),
-                            )
-                          ],
+                              // --- Add a button to remove the pin ---
+                              Align(
+                                alignment: Alignment.bottomRight,
+                                child: IconButton(
+                                  icon: const Icon(Icons.delete_forever,
+                                      color: Colors.grey),
+                                  // --- FIX: Parse the String ID to an int ---
+                                  onPressed: () =>
+                                      _removePinFromBoard(int.parse(pin.id)),
+                                  tooltip: 'Remove from board',
+                                ),
+                              )
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-     ),
-   );
- }
+                      );
+                    },
+                  ),
+      ),
+    );
+  }
 }

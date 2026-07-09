@@ -21,7 +21,8 @@ class AdminSkeletonView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final surface = Theme.of(context).colorScheme.surface;
-    final shadow = Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.45);
+    final shadow =
+        Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.45);
 
     return Padding(
       padding: padding,
@@ -58,32 +59,66 @@ class _DashboardSkeleton extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SkeletonLine(width: 280, height: 24, radius: 12, color: surface, shadow: shadow),
+          _SkeletonLine(
+              width: 280,
+              height: 24,
+              radius: 12,
+              color: surface,
+              shadow: shadow),
           const SizedBox(height: 16),
-          _SkeletonLine(width: 360, height: 16, radius: 12, color: surface, shadow: shadow),
+          _SkeletonLine(
+              width: 360,
+              height: 16,
+              radius: 12,
+              color: surface,
+              shadow: shadow),
           const SizedBox(height: 28),
           Wrap(
             spacing: 16,
             runSpacing: 16,
             children: List.generate(
               6,
-              (_) => _SkeletonCard(width: wide ? 180 : 150, height: 110, color: surface, shadow: shadow),
+              (_) => _SkeletonCard(
+                  width: wide ? 180 : 150,
+                  height: 110,
+                  color: surface,
+                  shadow: shadow),
             ),
           ),
           const SizedBox(height: 28),
           Row(
             children: [
-              Expanded(child: _SkeletonCard(width: double.infinity, height: 240, color: surface, shadow: shadow)),
+              Expanded(
+                  child: _SkeletonCard(
+                      width: double.infinity,
+                      height: 240,
+                      color: surface,
+                      shadow: shadow)),
               const SizedBox(width: 16),
-              Expanded(child: _SkeletonCard(width: double.infinity, height: 240, color: surface, shadow: shadow)),
+              Expanded(
+                  child: _SkeletonCard(
+                      width: double.infinity,
+                      height: 240,
+                      color: surface,
+                      shadow: shadow)),
             ],
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _SkeletonCard(width: double.infinity, height: 280, color: surface, shadow: shadow)),
+              Expanded(
+                  child: _SkeletonCard(
+                      width: double.infinity,
+                      height: 280,
+                      color: surface,
+                      shadow: shadow)),
               const SizedBox(width: 16),
-              Expanded(child: _SkeletonCard(width: double.infinity, height: 280, color: surface, shadow: shadow)),
+              Expanded(
+                  child: _SkeletonCard(
+                      width: double.infinity,
+                      height: 280,
+                      color: surface,
+                      shadow: shadow)),
             ],
           ),
         ],
@@ -103,7 +138,8 @@ class _TableSkeleton extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SkeletonLine(width: 240, height: 22, radius: 12, color: surface, shadow: shadow),
+        _SkeletonLine(
+            width: 240, height: 22, radius: 12, color: surface, shadow: shadow),
         const SizedBox(height: 16),
         _SkeletonCard(
           width: double.infinity,
@@ -118,7 +154,12 @@ class _TableSkeleton extends StatelessWidget {
                   (_) => Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: _SkeletonLine(width: double.infinity, height: 16, radius: 10, color: surface, shadow: shadow),
+                      child: _SkeletonLine(
+                          width: double.infinity,
+                          height: 16,
+                          radius: 10,
+                          color: surface,
+                          shadow: shadow),
                     ),
                   ),
                 ),
@@ -132,13 +173,38 @@ class _TableSkeleton extends StatelessWidget {
                   itemBuilder: (context, index) {
                     return Row(
                       children: [
-                        Expanded(flex: 4, child: _SkeletonLine(width: double.infinity, height: 16, radius: 10, color: surface, shadow: shadow)),
+                        Expanded(
+                            flex: 4,
+                            child: _SkeletonLine(
+                                width: double.infinity,
+                                height: 16,
+                                radius: 10,
+                                color: surface,
+                                shadow: shadow)),
                         const SizedBox(width: 16),
-                        Expanded(child: _SkeletonLine(width: double.infinity, height: 16, radius: 10, color: surface, shadow: shadow)),
+                        Expanded(
+                            child: _SkeletonLine(
+                                width: double.infinity,
+                                height: 16,
+                                radius: 10,
+                                color: surface,
+                                shadow: shadow)),
                         const SizedBox(width: 16),
-                        Expanded(child: _SkeletonLine(width: double.infinity, height: 16, radius: 10, color: surface, shadow: shadow)),
+                        Expanded(
+                            child: _SkeletonLine(
+                                width: double.infinity,
+                                height: 16,
+                                radius: 10,
+                                color: surface,
+                                shadow: shadow)),
                         const SizedBox(width: 16),
-                        Expanded(child: _SkeletonLine(width: double.infinity, height: 16, radius: 10, color: surface, shadow: shadow)),
+                        Expanded(
+                            child: _SkeletonLine(
+                                width: double.infinity,
+                                height: 16,
+                                radius: 10,
+                                color: surface,
+                                shadow: shadow)),
                       ],
                     );
                   },
@@ -147,9 +213,19 @@ class _TableSkeleton extends StatelessWidget {
               const SizedBox(height: 18),
               Row(
                 children: [
-                  _SkeletonLine(width: 160, height: 14, radius: 10, color: surface, shadow: shadow),
+                  _SkeletonLine(
+                      width: 160,
+                      height: 14,
+                      radius: 10,
+                      color: surface,
+                      shadow: shadow),
                   const Spacer(),
-                  _SkeletonLine(width: 180, height: 14, radius: 10, color: surface, shadow: shadow),
+                  _SkeletonLine(
+                      width: 180,
+                      height: 14,
+                      radius: 10,
+                      color: surface,
+                      shadow: shadow),
                 ],
               ),
             ],
@@ -192,17 +268,44 @@ class _CardsSkeleton extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _SkeletonLine(width: 80, height: 18, radius: 10, color: surface, shadow: shadow),
+                  _SkeletonLine(
+                      width: 80,
+                      height: 18,
+                      radius: 10,
+                      color: surface,
+                      shadow: shadow),
                   const SizedBox(height: 12),
-                  _SkeletonLine(width: double.infinity, height: 20, radius: 10, color: surface, shadow: shadow),
+                  _SkeletonLine(
+                      width: double.infinity,
+                      height: 20,
+                      radius: 10,
+                      color: surface,
+                      shadow: shadow),
                   const SizedBox(height: 10),
-                  _SkeletonLine(width: 140, height: 14, radius: 10, color: surface, shadow: shadow),
+                  _SkeletonLine(
+                      width: 140,
+                      height: 14,
+                      radius: 10,
+                      color: surface,
+                      shadow: shadow),
                   const Spacer(),
                   Row(
                     children: [
-                      Expanded(child: _SkeletonLine(width: double.infinity, height: 12, radius: 10, color: surface, shadow: shadow)),
+                      Expanded(
+                          child: _SkeletonLine(
+                              width: double.infinity,
+                              height: 12,
+                              radius: 10,
+                              color: surface,
+                              shadow: shadow)),
                       const SizedBox(width: 12),
-                      Expanded(child: _SkeletonLine(width: double.infinity, height: 12, radius: 10, color: surface, shadow: shadow)),
+                      Expanded(
+                          child: _SkeletonLine(
+                              width: double.infinity,
+                              height: 12,
+                              radius: 10,
+                              color: surface,
+                              shadow: shadow)),
                     ],
                   ),
                 ],
@@ -243,14 +346,29 @@ class _ListSkeleton extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _SkeletonLine(width: 220, height: 16, radius: 10, color: surface, shadow: shadow),
+                      _SkeletonLine(
+                          width: 220,
+                          height: 16,
+                          radius: 10,
+                          color: surface,
+                          shadow: shadow),
                       const SizedBox(height: 10),
-                      _SkeletonLine(width: 140, height: 12, radius: 10, color: surface, shadow: shadow),
+                      _SkeletonLine(
+                          width: 140,
+                          height: 12,
+                          radius: 10,
+                          color: surface,
+                          shadow: shadow),
                     ],
                   ),
                 ),
                 const SizedBox(width: 12),
-                _SkeletonLine(width: 120, height: 12, radius: 10, color: surface, shadow: shadow),
+                _SkeletonLine(
+                    width: 120,
+                    height: 12,
+                    radius: 10,
+                    color: surface,
+                    shadow: shadow),
               ],
             ),
           ),
@@ -272,7 +390,8 @@ class _DetailSkeleton extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _SkeletonLine(width: 220, height: 20, radius: 10, color: surface, shadow: shadow),
+        _SkeletonLine(
+            width: 220, height: 20, radius: 10, color: surface, shadow: shadow),
         const SizedBox(height: 18),
         _SkeletonCard(
           width: double.infinity,

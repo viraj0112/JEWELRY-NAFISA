@@ -436,7 +436,8 @@ class _SystemControlsScreenState extends State<SystemControlsScreen> {
     try {
       await Supabase.instance.client.auth.signOut();
       if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/login', (route) => false);
       }
     } catch (e) {
       if (mounted) {

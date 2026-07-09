@@ -76,7 +76,8 @@ class _CreditUsageDashboardState extends State<CreditUsageDashboard> {
           _percentChangeFromYesterday = breakdownData['percent_change'] ?? 0;
 
           // Low credit users
-          _lowCreditUsers = List<Map<String, dynamic>>.from(lowCreditData ?? []);
+          _lowCreditUsers =
+              List<Map<String, dynamic>>.from(lowCreditData ?? []);
 
           _isLoading = false;
         });
@@ -95,15 +96,14 @@ class _CreditUsageDashboardState extends State<CreditUsageDashboard> {
     try {
       final now = DateTime.now();
       final oneDayAgo = now.subtract(const Duration(days: 1)).toIso8601String();
-      final twoDaysAgo = now.subtract(const Duration(days: 2)).toIso8601String();
+      final twoDaysAgo =
+          now.subtract(const Duration(days: 2)).toIso8601String();
 
       // --- PERFORMANCE FIX: Run all queries in parallel ---
 
       // 1. Define all futures
-      final viewsTodayFuture = supabase
-          .from('views')
-          .select('id')
-          .gte('created_at', oneDayAgo);
+      final viewsTodayFuture =
+          supabase.from('views').select('id').gte('created_at', oneDayAgo);
 
       final viewsYesterdayFuture = supabase
           .from('views')
@@ -389,8 +389,8 @@ class _CreditUsageDashboardState extends State<CreditUsageDashboard> {
             Text(
               'Users running low on credits',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
-              ),
+                    color: Colors.grey[600],
+                  ),
             ),
             const SizedBox(height: 20),
             if (_lowCreditUsers.isEmpty)
@@ -464,8 +464,8 @@ class _StatCard extends StatelessWidget {
             Text(
               title,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
-              ),
+                    color: Colors.grey[600],
+                  ),
             ),
           ],
         ),

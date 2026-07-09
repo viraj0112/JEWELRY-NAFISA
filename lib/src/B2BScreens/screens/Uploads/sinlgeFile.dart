@@ -998,7 +998,7 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
       // 6. Insert to appropriate table
       final sourceTable =
           isManufacturer ? 'manufacturerproducts' : 'designerproducts';
-      
+
       final Map<String, dynamic> assetData = {
         'title': productTitleCtrl.text.trim(),
         'owner_id': user.id,
@@ -1021,8 +1021,7 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
 
       assetData['attributes'] = attributes;
 
-      final result =
-          await _supabase.from('assets').insert(assetData).select();
+      final result = await _supabase.from('assets').insert(assetData).select();
 
       if (mounted) {
         if (result.isNotEmpty) {

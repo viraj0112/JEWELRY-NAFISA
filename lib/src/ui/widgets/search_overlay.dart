@@ -215,9 +215,8 @@ class _SearchOverlayState extends State<SearchOverlay> {
           Divider(height: 1, color: theme.dividerColor),
         ],
         _buildSectionTitle(context, 'Ideas for you'),
-        ..._ideasForYou.map((idea) =>
-            _buildSuggestionTile(idea,
-                leading: const Icon(Icons.lightbulb_outline))),
+        ..._ideasForYou.map((idea) => _buildSuggestionTile(idea,
+            leading: const Icon(Icons.lightbulb_outline))),
       ],
     );
   }

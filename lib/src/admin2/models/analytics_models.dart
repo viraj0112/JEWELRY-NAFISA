@@ -118,8 +118,8 @@ class PurchaseProbability {
         email: json['email'] ?? '',
         activityScore: json['activity_score']?.toInt() ?? 0,
         probability: json['probability']?.toInt() ?? 0,
-        recentActions: json['recent_actions'] is List 
-            ? List<String>.from(json['recent_actions']) 
+        recentActions: json['recent_actions'] is List
+            ? List<String>.from(json['recent_actions'])
             : [],
         creditsRemaining: json['credits_remaining']?.toInt() ?? 0,
         quotesRequested: json['quotes_requested']?.toInt() ?? 0,
@@ -174,7 +174,9 @@ class TopMember {
         id: json['id'] ?? '',
         username: json['username'] ?? '',
         avatarUrl: json['avatar_url'],
-        avatar: json['avatar'] ?? json['username']?.substring(0, 1).toUpperCase() ?? 'U',
+        avatar: json['avatar'] ??
+            json['username']?.substring(0, 1).toUpperCase() ??
+            'U',
         name: json['name'] ?? json['username'] ?? '',
         posts: json['posts']?.toInt() ?? json['assets_count']?.toInt() ?? 0,
         saves: json['saves']?.toInt() ?? 0,
@@ -211,7 +213,8 @@ class CategoryPreference {
         category: json['category'] ?? 'Unknown',
         assetCount: json['asset_count']?.toInt() ?? 0,
         members: json['members']?.toInt() ?? 0,
-        value: json['value']?.toDouble() ?? json['percentage']?.toDouble() ?? 0.0,
+        value:
+            json['value']?.toDouble() ?? json['percentage']?.toDouble() ?? 0.0,
         percentage: json['percentage']?.toDouble() ?? 0.0,
         color: _getColorByIndex(index),
       );
@@ -258,7 +261,9 @@ class CreditUser {
         username: json['username'] ?? '',
         email: json['email'] ?? '',
         creditsRemaining: json['credits_remaining']?.toInt() ?? 0,
-        currentCredits: json['current_credits']?.toInt() ?? json['credits_remaining']?.toInt() ?? 0,
+        currentCredits: json['current_credits']?.toInt() ??
+            json['credits_remaining']?.toInt() ??
+            0,
         lastCreditRefresh: json['last_credit_refresh'] != null
             ? DateTime.parse(json['last_credit_refresh'])
             : null,

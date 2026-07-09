@@ -17,7 +17,8 @@ enum ContentTab { posts, boards, credits, analytics }
 
 // --- PERFORMANCE FIX: Top-level function for Excel generation ---
 // This will be run in a background isolate using compute()
-Future<List<int>?> _generateExcelInBackground(Map<String, dynamic> params) async {
+Future<List<int>?> _generateExcelInBackground(
+    Map<String, dynamic> params) async {
   final List<Map<String, dynamic>> products = params['products'];
   final List<Map<String, List<Map<String, dynamic>>>> allEngagementData =
       params['engagementData'];
@@ -327,7 +328,8 @@ class _ContentSectionState extends State<ContentSection> {
       // Fetch likes with user details
       final likesDataFuture = supabase
           .from('likes')
-          .select('id, created_at, user_id, users(username, email, phone, full_name)')
+          .select(
+              'id, created_at, user_id, users(username, email, phone, full_name)')
           .eq('item_id', itemId)
           .eq('item_table', itemTable);
 
@@ -472,7 +474,8 @@ class _ContentSectionState extends State<ContentSection> {
 
       processed++;
       if (processed % 10 == 0) {
-        _showMessage('Generated files for $processed/${products.length} products');
+        _showMessage(
+            'Generated files for $processed/${products.length} products');
       }
     }
 
@@ -563,15 +566,14 @@ class _ContentSectionState extends State<ContentSection> {
     List<int>? fileBytes = excel.save();
 
     if (fileBytes != null) {
-      _downloadFile(
-          fileBytes,
-          '${_selectedTab.name}_export.xlsx',
+      _downloadFile(fileBytes, '${_selectedTab.name}_export.xlsx',
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       _showMessage('Excel exported successfully');
     }
   }
 
-  Future<void> _exportMultiSheetExcel(List<Map<String, dynamic>> products) async {
+  Future<void> _exportMultiSheetExcel(
+      List<Map<String, dynamic>> products) async {
     // --- PERFORMANCE FIX 1: Fetch all data in parallel ---
     _showMessage('Fetching engagement data for ${products.length} products...');
     List<Future<Map<String, List<Map<String, dynamic>>>>> futures = [];
@@ -585,17 +587,14 @@ class _ContentSectionState extends State<ContentSection> {
     // --- END PERFORMANCE FIX 1 ---
 
     // --- PERFORMANCE FIX 2: Generate Excel file in a background isolate ---
-    final List<int>? fileBytes =
-        await compute(_generateExcelInBackground, {
+    final List<int>? fileBytes = await compute(_generateExcelInBackground, {
       'products': products,
       'engagementData': allEngagementData,
     });
     // --- END PERFORMANCE FIX 2 ---
 
     if (fileBytes != null) {
-      _downloadFile(
-          fileBytes,
-          '${_selectedTab.name}_detailed_export.xlsx',
+      _downloadFile(fileBytes, '${_selectedTab.name}_detailed_export.xlsx',
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       _showMessage(
           'Multi-sheet Excel exported with ${products.length} products');
@@ -766,8 +765,7 @@ class _ContentSectionState extends State<ContentSection> {
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -775,8 +773,7 @@ class _ContentSectionState extends State<ContentSection> {
                           .colorScheme
                           .primary
                           .withOpacity(0.6),
-                      foregroundColor:
-                          Theme.of(context).colorScheme.onPrimary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     ),
                   )
                 else
@@ -830,197 +827,197 @@ class _ContentSectionState extends State<ContentSection> {
               ],
             ),
             const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                _tabChip(context, 'Scraped Jewelry Posts', ContentTab.posts),
-                _tabChip(context, 'Popular Boards', ContentTab.boards),
-                _tabChip(context, 'Credit Usage', ContentTab.credits),
-                _tabChip(context, 'Scraped Analytics', ContentTab.analytics),
-              ],
-            ),
-          ),
-
-          // Main filter bar - Only show for Posts tab
-          if (_selectedTab == ContentTab.posts)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // Row 1: Search + Dropdowns + Buttons
-                    Row(
-                      children: [
-                        // Search field
-                        Expanded(
-                          flex: 3,
-                          child: TextField(
-                            onChanged: (s) => setState(() => searchQuery = s),
-                            decoration: InputDecoration(
-                              hintText: 'Search jewelry posts...',
-                              prefixIcon: const Icon(Icons.search),
-                              filled: true,
-                              fillColor: theme.colorScheme.surfaceVariant,
-                              contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 12),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide.none,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  _tabChip(context, 'Scraped Jewelry Posts', ContentTab.posts),
+                  _tabChip(context, 'Popular Boards', ContentTab.boards),
+                  _tabChip(context, 'Credit Usage', ContentTab.credits),
+                  _tabChip(context, 'Scraped Analytics', ContentTab.analytics),
+                ],
+              ),
+            ),
+
+            // Main filter bar - Only show for Posts tab
+            if (_selectedTab == ContentTab.posts)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // Row 1: Search + Dropdowns + Buttons
+                      Row(
+                        children: [
+                          // Search field
+                          Expanded(
+                            flex: 3,
+                            child: TextField(
+                              onChanged: (s) => setState(() => searchQuery = s),
+                              decoration: InputDecoration(
+                                hintText: 'Search jewelry posts...',
+                                prefixIcon: const Icon(Icons.search),
+                                filled: true,
+                                fillColor: theme.colorScheme.surfaceVariant,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 12, horizontal: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide.none,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
+                          const SizedBox(width: 12),
 
-                        // Category dropdown (loading / error states handled)
-                        Expanded(
-                          flex: 2,
-                          child: loadingFilters
-                              ? _loadingBox()
-                              : filtersError != null
-                                  ? _errorBox(filtersError!)
-                                  : _dropdown(
-                                      label: 'Category',
-                                      value: selectedCategory,
-                                      items: categories,
-                                      onChanged: (v) =>
-                                          setState(() => selectedCategory = v),
-                                    ),
-                        ),
-
-                        const SizedBox(width: 12),
-
-                        // Material dropdown
-                        Expanded(
-                          flex: 2,
-                          child: loadingFilters
-                              ? _loadingBox()
-                              : filtersError != null
-                                  ? const SizedBox.shrink()
-                                  : _dropdown(
-                                      label: 'Material',
-                                      value: selectedMaterial,
-                                      items: materials,
-                                      onChanged: (v) =>
-                                          setState(() => selectedMaterial = v),
-                                    ),
-                        ),
-
-                        const SizedBox(width: 12),
-
-                        // More Filters
-                        OutlinedButton.icon(
-                          onPressed: _openMoreFilters,
-                          icon: const Icon(Icons.filter_list),
-                          label: const Text('More Filters'),
-                        ),
-
-                        const SizedBox(width: 12),
-
-                        // Show Analytics Toggle button
-                        ElevatedButton.icon(
-                          onPressed: () =>
-                              setState(() => showAnalytics = !showAnalytics),
-                          icon: const Icon(Icons.show_chart_outlined),
-                          label: Text(showAnalytics
-                              ? 'Hide Analytics'
-                              : 'Show Analytics'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: showAnalytics
-                                ? theme.colorScheme.primary
-                                : null,
+                          // Category dropdown (loading / error states handled)
+                          Expanded(
+                            flex: 2,
+                            child: loadingFilters
+                                ? _loadingBox()
+                                : filtersError != null
+                                    ? _errorBox(filtersError!)
+                                    : _dropdown(
+                                        label: 'Category',
+                                        value: selectedCategory,
+                                        items: categories,
+                                        onChanged: (v) => setState(
+                                            () => selectedCategory = v),
+                                      ),
                           ),
-                        ),
 
-                        const SizedBox(width: 8),
+                          const SizedBox(width: 12),
 
-                        // View toggles (icons only)
-                        _viewToggle(true, Icons.grid_view),
-                        const SizedBox(width: 6),
-                        _viewToggle(false, Icons.list),
-                      ],
-                    ),
+                          // Material dropdown
+                          Expanded(
+                            flex: 2,
+                            child: loadingFilters
+                                ? _loadingBox()
+                                : filtersError != null
+                                    ? const SizedBox.shrink()
+                                    : _dropdown(
+                                        label: 'Material',
+                                        value: selectedMaterial,
+                                        items: materials,
+                                        onChanged: (v) => setState(
+                                            () => selectedMaterial = v),
+                                      ),
+                          ),
 
-                    const SizedBox(height: 12),
+                          const SizedBox(width: 12),
 
-                    // Row 2: Apply / Reset buttons
-                    Row(
-                      children: [
-                        ElevatedButton(
-                          onPressed: _applyFilters,
-                          child: const Text('Apply Filters'),
-                        ),
-                        const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              selectedCategory = null;
-                              selectedMaterial = null;
-                              searchQuery = '';
-                            });
-                          },
-                          child: const Text('Reset'),
-                        ),
-                        const Spacer(),
-                        // Quick info about selected filters
-                        Text(
-                          _activeFiltersText(),
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ],
+                          // More Filters
+                          OutlinedButton.icon(
+                            onPressed: _openMoreFilters,
+                            icon: const Icon(Icons.filter_list),
+                            label: const Text('More Filters'),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          // Show Analytics Toggle button
+                          ElevatedButton.icon(
+                            onPressed: () =>
+                                setState(() => showAnalytics = !showAnalytics),
+                            icon: const Icon(Icons.show_chart_outlined),
+                            label: Text(showAnalytics
+                                ? 'Hide Analytics'
+                                : 'Show Analytics'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: showAnalytics
+                                  ? theme.colorScheme.primary
+                                  : null,
+                            ),
+                          ),
+
+                          const SizedBox(width: 8),
+
+                          // View toggles (icons only)
+                          _viewToggle(true, Icons.grid_view),
+                          const SizedBox(width: 6),
+                          _viewToggle(false, Icons.list),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Row 2: Apply / Reset buttons
+                      Row(
+                        children: [
+                          ElevatedButton(
+                            onPressed: _applyFilters,
+                            child: const Text('Apply Filters'),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                selectedCategory = null;
+                                selectedMaterial = null;
+                                searchQuery = '';
+                              });
+                            },
+                            child: const Text('Reset'),
+                          ),
+                          const Spacer(),
+                          // Quick info about selected filters
+                          Text(
+                            _activeFiltersText(),
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-          // Animated Unified Engagement Analytics section
-          if (_selectedTab == ContentTab.posts)
-            AnimatedCrossFade(
-              duration: const Duration(milliseconds: 300),
-              firstChild: const SizedBox.shrink(),
-              secondChild: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: UnifiedEngagementAnalytics(postData: _postData),
+            // Animated Unified Engagement Analytics section
+            if (_selectedTab == ContentTab.posts)
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 300),
+                firstChild: const SizedBox.shrink(),
+                secondChild: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: UnifiedEngagementAnalytics(postData: _postData),
+                ),
+                crossFadeState: showAnalytics
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
               ),
-              crossFadeState: showAnalytics
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-            ),
 
-          const SizedBox(height: 16),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(
-                        child: Text(
-                          'Error loading data: $_error',
-                          style: TextStyle(color: theme.colorScheme.error),
-                        ),
-                      )
-                    : _buildDataList(),
-          ),
-        ],
+            const SizedBox(height: 16),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Center(
+                          child: Text(
+                            'Error loading data: $_error',
+                            style: TextStyle(color: theme.colorScheme.error),
+                          ),
+                        )
+                      : _buildDataList(),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
   }
 
   String _activeFiltersText() {

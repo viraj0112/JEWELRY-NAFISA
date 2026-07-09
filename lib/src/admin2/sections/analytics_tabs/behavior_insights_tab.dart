@@ -68,14 +68,14 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
       children: [
         // AI-Powered Purchase Probability Section
         _buildPurchaseProbabilitySection(),
-        
+
         const SizedBox(height: 32),
-        
+
         // Conversion Funnel & Top Members Section
         _buildConversionFunnelSection(),
-        
+
         const SizedBox(height: 32),
-        
+
         // Category Preferences Section
         _buildCategoryPreferencesSection(),
       ],
@@ -111,10 +111,11 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
                   children: [
                     Text(
                       'Purchase Probability Analytics',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade800,
-                      ),
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade800,
+                              ),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -165,9 +166,9 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Data Table with Enhanced Styling
           Card(
             elevation: 4,
@@ -299,7 +300,8 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
                             child: Wrap(
                               spacing: 6,
                               runSpacing: 4,
-                              children: user.recentActions.take(2).map((action) {
+                              children:
+                                  user.recentActions.take(2).map((action) {
                                 return Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -340,7 +342,7 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
     return LayoutBuilder(
       builder: (context, constraints) {
         bool isMobile = constraints.maxWidth < 768;
-        
+
         return isMobile
             ? Column(
                 children: [
@@ -385,9 +387,9 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
               Text(
                 'Conversion Funnel',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
-                ),
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade800,
+                    ),
               ),
             ],
           ),
@@ -395,17 +397,15 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
           Text(
             'User journey from visitor to member',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+                  color: Colors.grey.shade600,
+                ),
           ),
-          
           const SizedBox(height: 24),
-          
           ...funnel.asMap().entries.map((entry) {
             final index = entry.key;
             final stage = entry.value;
             final isFirst = index == 0;
-            
+
             return Container(
               margin: const EdgeInsets.only(bottom: 20),
               child: Column(
@@ -456,9 +456,7 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
                       ),
                     ],
                   ),
-                  
                   const SizedBox(height: 12),
-                  
                   Stack(
                     children: [
                       Container(
@@ -535,9 +533,9 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
               Text(
                 'Top Members',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
-                ),
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade800,
+                    ),
               ),
             ],
           ),
@@ -545,12 +543,12 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
           Text(
             'Highest engagement this week',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+                  color: Colors.grey.shade600,
+                ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Time Period Tabs
           Container(
             padding: const EdgeInsets.all(4),
@@ -563,7 +561,7 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
                 final index = entry.key;
                 final period = entry.value;
                 final isActive = index == selectedPeriodTab;
-                
+
                 return Expanded(
                   child: GestureDetector(
                     onTap: () {
@@ -591,7 +589,8 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
                         period,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight:
+                              isActive ? FontWeight.w600 : FontWeight.normal,
                           color: isActive
                               ? Theme.of(context).primaryColor
                               : Colors.grey.shade600,
@@ -604,14 +603,14 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
               }).toList(),
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Members List
           ...members.asMap().entries.map((entry) {
             final index = entry.key;
             final member = entry.value;
-            
+
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.all(16),
@@ -661,9 +660,9 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(width: 16),
-                  
+
                   // Avatar
                   Container(
                     width: 48,
@@ -692,9 +691,9 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(width: 16),
-                  
+
                   // User Info
                   Expanded(
                     child: Column(
@@ -718,7 +717,7 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
                       ],
                     ),
                   ),
-                  
+
                   // Engagement Meter
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -784,9 +783,9 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
               child: Text(
                 'Category Preferences',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade800,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade800,
+                    ),
               ),
             ),
             IconButton(
@@ -801,13 +800,11 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
             ),
           ],
         ),
-        
         const SizedBox(height: 24),
-        
         LayoutBuilder(
           builder: (context, constraints) {
             bool isMobile = constraints.maxWidth < 768;
-            
+
             return isMobile
                 ? Column(
                     children: [
@@ -847,14 +844,14 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
               Text(
                 'Category Distribution',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ],
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           SizedBox(
             height: 300,
             child: PieChart(
@@ -862,7 +859,7 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
                 sections: categories.asMap().entries.map((entry) {
                   final index = entry.key;
                   final category = entry.value;
-                  
+
                   return PieChartSectionData(
                     value: category.value,
                     color: category.color,
@@ -881,9 +878,9 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
               ),
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Legend
           ...categories.map((category) {
             return Padding(
@@ -934,14 +931,12 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
               Text(
                 'Category Engagement',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ],
           ),
-          
           const SizedBox(height: 20),
-          
           ...categories.map((category) {
             return Container(
               margin: const EdgeInsets.only(bottom: 20),
@@ -980,9 +975,7 @@ class _BehaviorInsightsTabState extends State<BehaviorInsightsTab>
                       ),
                     ],
                   ),
-                  
                   const SizedBox(height: 12),
-                  
                   LinearProgressIndicator(
                     value: category.value / 100 * 2, // Scale for visibility
                     backgroundColor: Colors.grey.shade200,

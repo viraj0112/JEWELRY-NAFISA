@@ -12,27 +12,32 @@ final reportOverviewProvider = FutureProvider<ReportOverview>((ref) async {
 });
 
 // Platform Report Summary Provider
-final platformReportSummaryProvider = FutureProvider<PlatformReportSummary>((ref) async {
+final platformReportSummaryProvider =
+    FutureProvider<PlatformReportSummary>((ref) async {
   return ReportsService.fetchPlatformReportSummary();
 });
 
 // Platform Growth Data Provider
-final platformGrowthDataProvider = FutureProvider<List<PlatformGrowthData>>((ref) async {
+final platformGrowthDataProvider =
+    FutureProvider<List<PlatformGrowthData>>((ref) async {
   return ReportsService.fetchPlatformGrowthData();
 });
 
 // Platform Performance Metrics Provider
-final platformPerformanceMetricsProvider = FutureProvider<List<PlatformPerformanceMetric>>((ref) async {
+final platformPerformanceMetricsProvider =
+    FutureProvider<List<PlatformPerformanceMetric>>((ref) async {
   return ReportsService.fetchPlatformPerformanceMetrics();
 });
 
 // User Growth Data Provider
-final userGrowthDataProvider = FutureProvider<List<UserGrowthData>>((ref) async {
+final userGrowthDataProvider =
+    FutureProvider<List<UserGrowthData>>((ref) async {
   return ReportsService.fetchUserGrowthData();
 });
 
 // Available User Reports Provider
-final availableUserReportsProvider = FutureProvider<List<AvailableUserReport>>((ref) async {
+final availableUserReportsProvider =
+    FutureProvider<List<AvailableUserReport>>((ref) async {
   return ReportsService.fetchAvailableUserReports();
 });
 
@@ -55,7 +60,8 @@ final reportsDataProvider = FutureProvider<
   final overview = await ref.watch(reportOverviewProvider.future);
   final platformSummary = await ref.watch(platformReportSummaryProvider.future);
   final platformGrowth = await ref.watch(platformGrowthDataProvider.future);
-  final platformMetrics = await ref.watch(platformPerformanceMetricsProvider.future);
+  final platformMetrics =
+      await ref.watch(platformPerformanceMetricsProvider.future);
   final userGrowth = await ref.watch(userGrowthDataProvider.future);
   final userReports = await ref.watch(availableUserReportsProvider.future);
   final contentReports = await ref.watch(contentReportsProvider.future);
@@ -72,7 +78,8 @@ final reportsDataProvider = FutureProvider<
 });
 
 // Custom Report Generation Provider
-final generateCustomReportProvider = FutureProvider.family<bool, CustomReportConfig>((ref, config) async {
+final generateCustomReportProvider =
+    FutureProvider.family<bool, CustomReportConfig>((ref, config) async {
   return ReportsService.generateCustomReport(config);
 });
 

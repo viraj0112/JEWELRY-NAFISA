@@ -244,10 +244,8 @@ class DashboardService {
       final column = (level == 'state') ? 'state' : 'country';
 
       // Build query — if drilling into a specific country, filter by it.
-      var query = _supabase
-          .from('views')
-          .select('$column')
-          .not(column, 'is', null);
+      var query =
+          _supabase.from('views').select('$column').not(column, 'is', null);
 
       if (level == 'state' && parentCode.isNotEmpty) {
         query = query.eq('country', parentCode) as dynamic;
@@ -300,9 +298,9 @@ class DashboardService {
 
     try {
       // Pull all three tables' country/state columns
-      final viewsRes  = await _supabase.from('views').select('country, state');
-      final likesRes  = await _supabase.from('likes').select('country, state');
-      final savesRes  = await _supabase.from('saves').select('country, state');
+      final viewsRes = await _supabase.from('views').select('country, state');
+      final likesRes = await _supabase.from('likes').select('country, state');
+      final savesRes = await _supabase.from('saves').select('country, state');
 
       // Aggregate per (country, state) key
       final Map<String, Map<String, dynamic>> agg = {};
@@ -311,15 +309,17 @@ class DashboardService {
         for (final row in rows) {
           final country = (row['country'] as String?)?.trim() ?? '';
           if (country.isEmpty) continue;
-          final state   = (row['state']   as String?)?.trim() ?? '';
-          final key     = '$country|$state';
-          agg.putIfAbsent(key, () => <String, dynamic>{
-            'country': country,
-            'state': state,
-            'views': 0,
-            'likes': 0,
-            'saves': 0,
-          });
+          final state = (row['state'] as String?)?.trim() ?? '';
+          final key = '$country|$state';
+          agg.putIfAbsent(
+              key,
+              () => <String, dynamic>{
+                    'country': country,
+                    'state': state,
+                    'views': 0,
+                    'likes': 0,
+                    'saves': 0,
+                  });
           agg[key]![field] = (agg[key]![field] as int) + 1;
         }
       }
@@ -591,7 +591,8 @@ class DashboardService {
   }
 
   static Future<List<MetalInsight>> fetchMetalMetrics(String column) async {
-    final cacheKey = 'metal_metrics_${column.replaceAll(' ', '_').toLowerCase()}';
+    final cacheKey =
+        'metal_metrics_${column.replaceAll(' ', '_').toLowerCase()}';
     if (_isCacheValid(cacheKey)) {
       return _cache[cacheKey] as List<MetalInsight>;
     }
@@ -610,9 +611,7 @@ class DashboardService {
           // Column names with spaces (e.g. "Metal Type") must be double-quoted
           // in the PostgREST select/order parameters.
           final quotedColumn = '"$column"';
-          final response = await _supabase
-              .from(table)
-              .select(quotedColumn);
+          final response = await _supabase.from(table).select(quotedColumn);
 
           if (response.isEmpty) continue;
 
@@ -633,14 +632,16 @@ class DashboardService {
             ));
           });
         } catch (e) {
-          debugPrint('Metal metrics: skipping table $table for column "$column": $e');
+          debugPrint(
+              'Metal metrics: skipping table $table for column "$column": $e');
         }
       }
 
       // Add "All" aggregation
       Map<String, int> globalCounts = {};
       for (final insight in allInsights) {
-        globalCounts[insight.label] = (globalCounts[insight.label] ?? 0) + insight.count;
+        globalCounts[insight.label] =
+            (globalCounts[insight.label] ?? 0) + insight.count;
       }
 
       globalCounts.forEach((label, count) {

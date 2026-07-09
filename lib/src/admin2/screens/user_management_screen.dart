@@ -671,11 +671,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    _EngagementStat(icon: Icons.visibility_outlined, value: row.totalViews),
+                    _EngagementStat(
+                        icon: Icons.visibility_outlined, value: row.totalViews),
                     const SizedBox(width: 12),
-                    _EngagementStat(icon: Icons.thumb_up_outlined, value: row.totalLikes),
+                    _EngagementStat(
+                        icon: Icons.thumb_up_outlined, value: row.totalLikes),
                     const SizedBox(width: 12),
-                    _EngagementStat(icon: Icons.share_outlined, value: row.totalShares),
+                    _EngagementStat(
+                        icon: Icons.share_outlined, value: row.totalShares),
                   ],
                 ),
                 const SizedBox(height: 10),

@@ -174,14 +174,10 @@ class CustomReportConfig {
 }
 
 enum ReportType { platform, users, content, custom }
+
 enum ReportFormat { pdf, excel, csv }
-enum MetricType {
-  userGrowth,
-  engagement,
-  contentStats,
-  b2bMetrics,
-  referrals
-}
+
+enum MetricType { userGrowth, engagement, contentStats, b2bMetrics, referrals }
 
 // Extension for formatted numbers
 extension ReportExtensions on int {

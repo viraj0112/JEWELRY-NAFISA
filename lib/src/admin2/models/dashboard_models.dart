@@ -27,7 +27,8 @@ class DashboardData {
 class MetalInsight {
   final String label;
   final int count;
-  final String sourceTable; // 'all', 'designerproducts', 'manufacturerproducts', 'products'
+  final String
+      sourceTable; // 'all', 'designerproducts', 'manufacturerproducts', 'products'
 
   MetalInsight({
     required this.label,
@@ -187,4 +188,5 @@ class FunnelStage {
 }
 
 enum TimeRange { today, week7, month30, custom }
+
 enum ExportFormat { csv, pdf, png }

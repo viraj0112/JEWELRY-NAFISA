@@ -60,12 +60,15 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
         }).select();
 
         if (insertResult.isEmpty) {
-          throw Exception('Insert was rejected. Please ensure your account is properly set up.');
+          throw Exception(
+              'Insert was rejected. Please ensure your account is properly set up.');
         }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Asset uploaded successfully!"), backgroundColor: Colors.green),
+            const SnackBar(
+                content: Text("Asset uploaded successfully!"),
+                backgroundColor: Colors.green),
           );
         }
         _formKey.currentState!.reset();
@@ -101,70 +104,73 @@ class _AssetUploadScreenState extends State<AssetUploadScreen> {
       canPop: true,
       child: Scaffold(
         body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text("Upload New Asset",
-                      style: theme.textTheme.headlineMedium),
-                  const SizedBox(height: 24),
-                  _imageFile == null
-                      ? OutlinedButton.icon(
-                          icon: const Icon(Icons.add_photo_alternate_outlined),
-                          label: const Text("Select Image/Reel"),
-                          onPressed: _pickImage,
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 24),
-                          ),
-                        )
-                      : kIsWeb
-                          ? Image.network(_imageFile!.path)
-                          : Image.file(File(_imageFile!.path)),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(labelText: "Title"),
-                    validator: (v) => v!.isEmpty ? "Title is required" : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _descriptionController,
-                    decoration: const InputDecoration(labelText: "Description"),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _categoryController,
-                    decoration: const InputDecoration(labelText: "Category"),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _tagsController,
-                    decoration: const InputDecoration(
-                        labelText: "Tags (comma-separated)"),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _skuController,
-                    decoration: const InputDecoration(labelText: "SKU / Code"),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _submitAsset,
-                    child: _isLoading
-                        ? const CircularProgressIndicator()
-                        : const Text("Submit for Review"),
-                  ),
-                ],
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text("Upload New Asset",
+                        style: theme.textTheme.headlineMedium),
+                    const SizedBox(height: 24),
+                    _imageFile == null
+                        ? OutlinedButton.icon(
+                            icon:
+                                const Icon(Icons.add_photo_alternate_outlined),
+                            label: const Text("Select Image/Reel"),
+                            onPressed: _pickImage,
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                            ),
+                          )
+                        : kIsWeb
+                            ? Image.network(_imageFile!.path)
+                            : Image.file(File(_imageFile!.path)),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _titleController,
+                      decoration: const InputDecoration(labelText: "Title"),
+                      validator: (v) => v!.isEmpty ? "Title is required" : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _descriptionController,
+                      decoration:
+                          const InputDecoration(labelText: "Description"),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _categoryController,
+                      decoration: const InputDecoration(labelText: "Category"),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _tagsController,
+                      decoration: const InputDecoration(
+                          labelText: "Tags (comma-separated)"),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _skuController,
+                      decoration:
+                          const InputDecoration(labelText: "SKU / Code"),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _submitAsset,
+                      child: _isLoading
+                          ? const CircularProgressIndicator()
+                          : const Text("Submit for Review"),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
         ),
       ),
     );

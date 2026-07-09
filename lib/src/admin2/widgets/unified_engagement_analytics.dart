@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
-import 'package:flutter/foundation.dart'; 
+import 'package:flutter/foundation.dart';
 
-double _calculateScore(
-    Map<String, dynamic> post, Map<String, double> weights) {
+double _calculateScore(Map<String, dynamic> post, Map<String, double> weights) {
   return (post['like_count'] ?? 0) * weights['likes']! +
       (post['view_count'] ?? 0) * weights['views']! +
       (post['share_count'] ?? 0) * weights['shares']!;
@@ -26,12 +25,12 @@ Map<String, dynamic> _computeMetrics(Map<String, dynamic> params) {
     };
   }
 
-  int totalLikes = postData.fold(
-      0, (sum, post) => sum + (post['like_count'] as int? ?? 0));
-  int totalViews = postData.fold(
-      0, (sum, post) => sum + (post['view_count'] as int? ?? 0));
-  int totalShares = postData.fold(
-      0, (sum, post) => sum + (post['share_count'] as int? ?? 0));
+  int totalLikes =
+      postData.fold(0, (sum, post) => sum + (post['like_count'] as int? ?? 0));
+  int totalViews =
+      postData.fold(0, (sum, post) => sum + (post['view_count'] as int? ?? 0));
+  int totalShares =
+      postData.fold(0, (sum, post) => sum + (post['share_count'] as int? ?? 0));
 
   // Calculate best category
   final categoryScores = <String, double>{};
@@ -47,8 +46,7 @@ Map<String, dynamic> _computeMetrics(Map<String, dynamic> params) {
         categoryScores.entries.reduce((a, b) => a.value > b.value ? a : b).key;
   }
 
-  double avgEngagement =
-      postData.isNotEmpty ? totalLikes / postData.length : 0;
+  double avgEngagement = postData.isNotEmpty ? totalLikes / postData.length : 0;
 
   // Return a map with all the results
   return {
@@ -182,7 +180,8 @@ class _UnifiedEngagementAnalyticsState extends State<UnifiedEngagementAnalytics>
       aiInsight =
           'тнР "$bestCategory" is your top-performing category. Focus marketing efforts here.';
     } else {
-      aiInsight = 'ЁЯТб Engagement is steady. Monitor trends for optimization opportunities.';
+      aiInsight =
+          'ЁЯТб Engagement is steady. Monitor trends for optimization opportunities.';
     }
   }
 
@@ -627,7 +626,8 @@ class _UnifiedEngagementAnalyticsState extends State<UnifiedEngagementAnalytics>
                     children: [
                       SizedBox(
                         width: 120,
-                        child: Text(entry.key, style: theme.textTheme.bodySmall),
+                        child:
+                            Text(entry.key, style: theme.textTheme.bodySmall),
                       ),
                       Expanded(
                         child: Stack(

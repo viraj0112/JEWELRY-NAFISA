@@ -19,7 +19,7 @@ class InsightsPage extends StatefulWidget {
 class _InsightsPageState extends State<InsightsPage> {
   final SupabaseClient _supabase = Supabase.instance.client;
   bool _isLoading = true;
-  
+
   // Determine user type
   bool _isManufacturer = false;
 
@@ -48,11 +48,12 @@ class _InsightsPageState extends State<InsightsPage> {
   @override
   void initState() {
     super.initState();
-    
+
     // Get user profile to determine if manufacturer
-    final userProfile = Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+    final userProfile =
+        Provider.of<UserProfileProvider>(context, listen: false).userProfile;
     _isManufacturer = userProfile?.manufacturerProfile != null;
-    
+
     _fetchData();
   }
 
@@ -110,10 +111,22 @@ class _InsightsPageState extends State<InsightsPage> {
 
       // 3. Fetch metrics in parallel using correct Supabase SDK syntax
       final results = await Future.wait([
-        _supabase.from('views').select('item_id').inFilter('item_id', productIds),
-        _supabase.from('likes').select('item_id').inFilter('item_id', productIds),
-        _supabase.from('shares').select('item_id').inFilter('item_id', productIds),
-        _supabase.from('saves').select('item_id').inFilter('item_id', productIds),
+        _supabase
+            .from('views')
+            .select('item_id')
+            .inFilter('item_id', productIds),
+        _supabase
+            .from('likes')
+            .select('item_id')
+            .inFilter('item_id', productIds),
+        _supabase
+            .from('shares')
+            .select('item_id')
+            .inFilter('item_id', productIds),
+        _supabase
+            .from('saves')
+            .select('item_id')
+            .inFilter('item_id', productIds),
       ]);
 
       final viewsResponse = results[0] as List;
@@ -124,7 +137,8 @@ class _InsightsPageState extends State<InsightsPage> {
       // 4. Geo Analytics — use shared service
       GeoAnalyticsData geoData = GeoAnalyticsData.empty;
       if (_isManufacturer || _isPremiumDesigner) {
-        geoData = await GeoAnalyticsService.fetchGeoData(productIds: productIds);
+        geoData =
+            await GeoAnalyticsService.fetchGeoData(productIds: productIds);
       }
 
       // 5. Top Products by views
@@ -144,7 +158,9 @@ class _InsightsPageState extends State<InsightsPage> {
       final top4 = sortedProducts.take(4).map((p) {
         int count = productViewCounts[p['id'].toString()] ?? 0;
         String imgUrl = '';
-        if (p['Image'] != null && p['Image'] is List && (p['Image'] as List).isNotEmpty) {
+        if (p['Image'] != null &&
+            p['Image'] is List &&
+            (p['Image'] as List).isNotEmpty) {
           imgUrl = p['Image'][0];
         } else if (p['Images'] != null) {
           imgUrl = p['Images'];
@@ -193,7 +209,6 @@ class _InsightsPageState extends State<InsightsPage> {
     }
   }
 
-
   // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
@@ -239,43 +254,62 @@ class _InsightsPageState extends State<InsightsPage> {
                   const SizedBox(height: 8),
                   Text(
                     "Overview of your product performance",
-                    style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]),
+                    style: GoogleFonts.inter(
+                        fontSize: 14, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 32),
 
                   // Metrics Grid
-            // Metrics Grid — 2×2 on mobile, 4-in-a-row on wider screens
-LayoutBuilder(builder: (context, constraints) {
-  final isSmall = constraints.maxWidth < 600;
-  final crossCount = isSmall ? 2 : 4;
-  final spacing = isSmall ? 12.0 : 16.0;
-  final cardWidth = (constraints.maxWidth - (spacing * (crossCount - 1))) / crossCount;
+                  // Metrics Grid — 2×2 on mobile, 4-in-a-row on wider screens
+                  LayoutBuilder(builder: (context, constraints) {
+                    final isSmall = constraints.maxWidth < 600;
+                    final crossCount = isSmall ? 2 : 4;
+                    final spacing = isSmall ? 12.0 : 16.0;
+                    final cardWidth =
+                        (constraints.maxWidth - (spacing * (crossCount - 1))) /
+                            crossCount;
 
-  final cards = [
-    _buildMetricCard("Total Views", _formatNumber(_totalViews),
-        "+$_viewsGrowth% vs last month",
-        Icons.remove_red_eye_outlined, Colors.blue,
-        width: cardWidth, compact: isSmall),
-    _buildMetricCard("Total Likes", _formatNumber(_totalLikes),
-        "+$_likesGrowth% vs last month",
-        Icons.favorite_border, Colors.red,
-        width: cardWidth, compact: isSmall),
-    _buildMetricCard("Total Saves", _formatNumber(_totalSaves),
-        "+$_savesGrowth% vs last month",
-        Icons.bookmark_border, Colors.purple,
-        width: cardWidth, compact: isSmall),
-    _buildMetricCard("Total Shares", _formatNumber(_totalShares),
-        "+$_sharesGrowth% vs last month",
-        Icons.share_outlined, Colors.green,
-        width: cardWidth, compact: isSmall),
-  ];
+                    final cards = [
+                      _buildMetricCard(
+                          "Total Views",
+                          _formatNumber(_totalViews),
+                          "+$_viewsGrowth% vs last month",
+                          Icons.remove_red_eye_outlined,
+                          Colors.blue,
+                          width: cardWidth,
+                          compact: isSmall),
+                      _buildMetricCard(
+                          "Total Likes",
+                          _formatNumber(_totalLikes),
+                          "+$_likesGrowth% vs last month",
+                          Icons.favorite_border,
+                          Colors.red,
+                          width: cardWidth,
+                          compact: isSmall),
+                      _buildMetricCard(
+                          "Total Saves",
+                          _formatNumber(_totalSaves),
+                          "+$_savesGrowth% vs last month",
+                          Icons.bookmark_border,
+                          Colors.purple,
+                          width: cardWidth,
+                          compact: isSmall),
+                      _buildMetricCard(
+                          "Total Shares",
+                          _formatNumber(_totalShares),
+                          "+$_sharesGrowth% vs last month",
+                          Icons.share_outlined,
+                          Colors.green,
+                          width: cardWidth,
+                          compact: isSmall),
+                    ];
 
-  return Wrap(
-    spacing: spacing,
-    runSpacing: spacing,
-    children: cards,
-  );
-}),
+                    return Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: cards,
+                    );
+                  }),
 
                   const SizedBox(height: 32),
 
@@ -313,72 +347,73 @@ LayoutBuilder(builder: (context, constraints) {
   // UI Widgets
   // -------------------------------------------------------------------------
 
- Widget _buildMetricCard(
-  String title,
-  String value,
-  String subtitle,
-  IconData icon,
-  Color color, {
-  double? width,
-  bool compact = false,
-}) {
-  return Container(
-    width: width ?? 250,
-    padding: EdgeInsets.all(compact ? 14 : 20),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.grey.shade200),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.02),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
-        )
-      ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: EdgeInsets.all(compact ? 8 : 10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
+  Widget _buildMetricCard(
+    String title,
+    String value,
+    String subtitle,
+    IconData icon,
+    Color color, {
+    double? width,
+    bool compact = false,
+  }) {
+    return Container(
+      width: width ?? 250,
+      padding: EdgeInsets.all(compact ? 14 : 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(compact ? 8 : 10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: compact ? 16 : 20),
           ),
-          child: Icon(icon, color: color, size: compact ? 16 : 20),
-        ),
-        SizedBox(height: compact ? 10 : 16),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            fontSize: compact ? 22 : 28,
-            fontWeight: FontWeight.bold,
+          SizedBox(height: compact ? 10 : 16),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: compact ? 22 : 28,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          title,
-          style: GoogleFonts.inter(
-            fontSize: compact ? 11 : 12,
-            color: Colors.grey,
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: compact ? 11 : 12,
+              color: Colors.grey,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          subtitle,
-          style: GoogleFonts.inter(
-            fontSize: compact ? 10 : 11,
-            color: Colors.green,
-            fontWeight: FontWeight.w600,
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: GoogleFonts.inter(
+              fontSize: compact ? 10 : 11,
+              color: Colors.green,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
+
   Widget _buildTopProductsCard() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -428,9 +463,7 @@ LayoutBuilder(builder: (context, constraints) {
                       String url = product['image'] ?? '';
                       if (url.isEmpty) {
                         return Container(
-                            width: 40,
-                            height: 40,
-                            color: Colors.grey[200]);
+                            width: 40, height: 40, color: Colors.grey[200]);
                       }
                       return CachedNetworkImage(
                         imageUrl: url,
@@ -442,9 +475,7 @@ LayoutBuilder(builder: (context, constraints) {
                             height: 40,
                             child: createBlurUpPlaceholder()),
                         errorWidget: (c, e, s) => Container(
-                            width: 40,
-                            height: 40,
-                            color: Colors.grey[200]),
+                            width: 40, height: 40, color: Colors.grey[200]),
                       );
                     }),
                   ),
@@ -455,8 +486,7 @@ LayoutBuilder(builder: (context, constraints) {
                       children: [
                         Text(product['name'],
                             style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500),
+                                fontSize: 14, fontWeight: FontWeight.w500),
                             overflow: TextOverflow.ellipsis),
                         Text(product['credits'],
                             style: GoogleFonts.inter(
@@ -464,8 +494,7 @@ LayoutBuilder(builder: (context, constraints) {
                       ],
                     ),
                   ),
-                  const Icon(Icons.show_chart,
-                      color: Colors.green, size: 16),
+                  const Icon(Icons.show_chart, color: Colors.green, size: 16),
                 ],
               ),
             );
@@ -497,11 +526,11 @@ LayoutBuilder(builder: (context, constraints) {
                       fontSize: 18, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Text('Detailed country, state, and pincode breakdown',
-                  style: GoogleFonts.inter(
-                      fontSize: 13, color: Colors.grey[500])),
+                  style:
+                      GoogleFonts.inter(fontSize: 13, color: Colors.grey[500])),
               const SizedBox(height: 32),
               // Placeholder rows
-              for (int i = 0; i < 4; i++) ...[  
+              for (int i = 0; i < 4; i++) ...[
                 Container(
                   height: 36,
                   decoration: BoxDecoration(
@@ -544,16 +573,14 @@ LayoutBuilder(builder: (context, constraints) {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: const BoxDecoration(
-                              color: Color(0xFFD4AF37),
-                              shape: BoxShape.circle),
+                              color: Color(0xFFD4AF37), shape: BoxShape.circle),
                           child: const Icon(Icons.workspace_premium,
                               color: Colors.white, size: 24),
                         ),
                         const SizedBox(height: 12),
                         Text('Unlock Full Insights',
                             style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold)),
+                                fontSize: 16, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 6),
                         Text(
                           'Get access to detailed GEO analytics, demand trends, and actionable insights.',
@@ -570,15 +597,13 @@ LayoutBuilder(builder: (context, constraints) {
                               backgroundColor: const Color(0xFFD4AF37),
                               foregroundColor: Colors.white,
                               elevation: 0,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                             ),
                             child: Text('Upgrade to Premium',
                                 style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13)),
+                                    fontWeight: FontWeight.bold, fontSize: 13)),
                           ),
                         ),
                       ],
@@ -648,8 +673,7 @@ LayoutBuilder(builder: (context, constraints) {
                       children: [
                         Text(activity['title'],
                             style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500)),
+                                fontSize: 13, fontWeight: FontWeight.w500)),
                         const SizedBox(height: 4),
                         Text(timeStr,
                             style: GoogleFonts.inter(

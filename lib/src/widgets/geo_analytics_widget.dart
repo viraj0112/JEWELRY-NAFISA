@@ -210,8 +210,7 @@ class _GeoAnalyticsWidgetState extends State<GeoAnalyticsWidget>
         tabAlignment: TabAlignment.start,
         labelColor: widget.primaryColor,
         unselectedLabelColor: Colors.grey.shade500,
-        labelStyle:
-            const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         unselectedLabelStyle:
             const TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
         indicatorColor: widget.primaryColor,
@@ -276,8 +275,8 @@ class _GeoAnalyticsWidgetState extends State<GeoAnalyticsWidget>
         spacing: 12,
         runSpacing: 12,
         children: cards
-            .map((c) => SizedBox(
-                width: (constraints.maxWidth - 12) / 2, child: c))
+            .map((c) =>
+                SizedBox(width: (constraints.maxWidth - 12) / 2, child: c))
             .toList(),
       );
     });
@@ -354,9 +353,11 @@ class _GeoAnalyticsWidgetState extends State<GeoAnalyticsWidget>
                             color: Colors.grey.shade500,
                           ),
                         ),
-                        if (hasData) ...
-                          [const SizedBox(width: 4),
-                          Icon(Icons.open_in_new, size: 10, color: Colors.grey.shade400)],
+                        if (hasData) ...[
+                          const SizedBox(width: 4),
+                          Icon(Icons.open_in_new,
+                              size: 10, color: Colors.grey.shade400)
+                        ],
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -391,12 +392,11 @@ class _GeoAnalyticsWidgetState extends State<GeoAnalyticsWidget>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                    child: _buildTopCard(
-                        d.byCountry, 'Top Countries', 'Country')),
+                    child:
+                        _buildTopCard(d.byCountry, 'Top Countries', 'Country')),
                 const SizedBox(width: 16),
                 Expanded(
-                    child:
-                        _buildTopCard(d.byState, 'Top States', 'State')),
+                    child: _buildTopCard(d.byState, 'Top States', 'State')),
               ],
             ),
             const SizedBox(height: 16),
@@ -476,8 +476,7 @@ class _GeoAnalyticsWidgetState extends State<GeoAnalyticsWidget>
               child: Center(
                 child: Text(
                   'No data available yet',
-                  style: TextStyle(
-                      fontSize: 13, color: Colors.grey.shade400),
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
                 ),
               ),
             )
@@ -519,8 +518,7 @@ class _GeoAnalyticsWidgetState extends State<GeoAnalyticsWidget>
 
   // ── Full Geo Table (for individual tabs) ───────────────────────────────────
 
-  Widget _buildGeoTable(
-      Map<String, Map<String, int>> data, String colLabel) {
+  Widget _buildGeoTable(Map<String, Map<String, int>> data, String colLabel) {
     final sorted = _sortedEntries(data);
 
     return Container(
@@ -577,8 +575,8 @@ class _GeoAnalyticsWidgetState extends State<GeoAnalyticsWidget>
                     const SizedBox(height: 12),
                     Text(
                       'No ${colLabel.toLowerCase()} data available yet',
-                      style: TextStyle(
-                          fontSize: 14, color: Colors.grey.shade400),
+                      style:
+                          TextStyle(fontSize: 14, color: Colors.grey.shade400),
                     ),
                   ],
                 ),
@@ -767,8 +765,8 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
     try {
       // Sort by metric descending and take top 50
       final sorted = widget.byProduct.entries.toList()
-        ..sort((a, b) =>
-            (b.value[widget.metric] ?? 0).compareTo(a.value[widget.metric] ?? 0));
+        ..sort((a, b) => (b.value[widget.metric] ?? 0)
+            .compareTo(a.value[widget.metric] ?? 0));
       final top = sorted.take(50).map((e) => e.key).toList();
 
       // Group by table
@@ -808,7 +806,11 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
 
       // Fallback for any IDs that weren't found (e.g. incorrect table hint)
       if (missingIds.isNotEmpty) {
-        for (final table in const ['products', 'designerproducts', 'manufacturerproducts']) {
+        for (final table in const [
+          'products',
+          'designerproducts',
+          'manufacturerproducts'
+        ]) {
           if (missingIds.isEmpty) break;
           try {
             final rows = await _supabase
@@ -826,7 +828,8 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
                 imgUrl = img;
               }
               details[id] = {
-                'title': (row['Product Title'] as String?) ?? 'Untitled Product',
+                'title':
+                    (row['Product Title'] as String?) ?? 'Untitled Product',
                 'image': imgUrl,
                 'table': table,
               };
@@ -835,7 +838,11 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
         }
       }
 
-      if (mounted) setState(() { _details = details; _loading = false; });
+      if (mounted)
+        setState(() {
+          _details = details;
+          _loading = false;
+        });
     } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
@@ -843,28 +850,40 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
 
   String _metricLabel() {
     switch (widget.metric) {
-      case 'likes': return 'Likes';
-      case 'shares': return 'Shares';
-      case 'saves': return 'Saves';
-      default: return 'Views';
+      case 'likes':
+        return 'Likes';
+      case 'shares':
+        return 'Shares';
+      case 'saves':
+        return 'Saves';
+      default:
+        return 'Views';
     }
   }
 
   IconData _metricIcon() {
     switch (widget.metric) {
-      case 'likes': return Icons.favorite;
-      case 'shares': return Icons.share;
-      case 'saves': return Icons.bookmark;
-      default: return Icons.visibility;
+      case 'likes':
+        return Icons.favorite;
+      case 'shares':
+        return Icons.share;
+      case 'saves':
+        return Icons.bookmark;
+      default:
+        return Icons.visibility;
     }
   }
 
   Color _metricColor() {
     switch (widget.metric) {
-      case 'likes': return const Color(0xFFE84393);
-      case 'shares': return widget.accentColor;
-      case 'saves': return const Color(0xFFF39C12);
-      default: return widget.primaryColor;
+      case 'likes':
+        return const Color(0xFFE84393);
+      case 'shares':
+        return widget.accentColor;
+      case 'saves':
+        return const Color(0xFFF39C12);
+      default:
+        return widget.primaryColor;
     }
   }
 
@@ -893,7 +912,8 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
             const SizedBox(height: 12),
             Center(
               child: Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
                   color: Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(2),
@@ -929,7 +949,8 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
                         ),
                         Text(
                           'Top ${top.length} products ranked by ${_metricLabel().toLowerCase()}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade500),
                         ),
                       ],
                     ),
@@ -987,10 +1008,13 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
                         final info = _details[id];
                         final title = info?['title'] ?? id;
                         final imgUrl = info?['image'] ?? '';
-                        final tableKey = info?['table'] ?? widget.itemTables[id] ?? 'products';
+                        final tableKey = info?['table'] ??
+                            widget.itemTables[id] ??
+                            'products';
                         final tableLabel = _tableLabels[tableKey] ?? tableKey;
                         final isDesigner = tableKey == 'designerproducts';
-                        final isManufacturer = tableKey == 'manufacturerproducts';
+                        final isManufacturer =
+                            tableKey == 'manufacturerproducts';
 
                         return Material(
                           color: Colors.transparent,
@@ -1006,7 +1030,8 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
                               GoRouter.of(context).push(uri.toString());
                             },
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 10, horizontal: 16),
                               child: Row(
                                 children: [
                                   // Rank
@@ -1042,7 +1067,8 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
                                   // Title + badge
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           title,
@@ -1059,7 +1085,8 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
                                               horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
                                             color: Colors.grey.shade100,
-                                            borderRadius: BorderRadius.circular(4),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
                                           ),
                                           child: Text(
                                             tableLabel,
@@ -1086,7 +1113,9 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
                                           color: color,
                                         ),
                                       ),
-                                      Icon(_metricIcon(), size: 12, color: color.withValues(alpha: 0.5)),
+                                      Icon(_metricIcon(),
+                                          size: 12,
+                                          color: color.withValues(alpha: 0.5)),
                                     ],
                                   ),
                                 ],
@@ -1107,6 +1136,7 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
         width: 44,
         height: 44,
         color: Colors.grey.shade100,
-        child: Icon(Icons.image_outlined, size: 20, color: Colors.grey.shade300),
+        child:
+            Icon(Icons.image_outlined, size: 20, color: Colors.grey.shade300),
       );
 }

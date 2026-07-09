@@ -7,6 +7,7 @@ import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/services/filter_service.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
+import 'package:jewelry_nafisa/src/utils/share_utils.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
 import 'package:jewelry_nafisa/src/utils/image_url_resolver.dart';
@@ -17,6 +18,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:jewelry_nafisa/src/widgets/floating_filter_panel.dart';
+import 'package:jewelry_nafisa/src/widgets/glowing_logo.dart';
+import 'package:jewelry_nafisa/src/ui/widgets/welcome_offer_dialog.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -38,7 +44,7 @@ class HomeScreenState extends State<HomeScreen> {
   bool _isLoadingProductTypes = false;
   bool _isLoadingCategories = false;
   bool _isLoadingSubCategories = false;
-  
+
   // Pagination state
   static const int _pageSize = 50; // Load 50 products at a time
   int _currentOffset = 0;
@@ -70,7 +76,7 @@ class HomeScreenState extends State<HomeScreen> {
   String? _hoveredItemId;
   String? _tappedItemId;
   final Set<String> _itemsBeingLiked = {};
-  
+
   // Logo animation state
   double _scrollOffset = 0.0;
   static const double _logoAnimationThreshold = 100.0;
@@ -78,20 +84,88 @@ class HomeScreenState extends State<HomeScreen> {
   // Onboarding delay timer
   Timer? _onboardingTimer;
 
+  // Realtime channel for likes
+  RealtimeChannel? _likesChannel;
+
+  // --- Advanced Filter Options ---
+  List<String> _availableMetalColors = [];
+  List<String> _availableMetalPurities = [];
+  List<String> _availableStoneShapes = [];
+  List<String> _availableStoneTypes = [];
+  List<String> _availableStoneQualities = [];
+  List<String> _availableStoneSettings = [];
+  List<String> _availableFeaturedTags = [];
+
+  List<double> _metalWeightBounds = [0.0, 100.0];
+  List<double> _stoneWeightBounds = [0.0, 100.0];
+
+  bool _isLoadingAdvancedOptions = false;
+
+  // --- Advanced Filter State Selections ---
+  String? _selectedJewelleryType;
+  List<String> _selectedMetalColors = [];
+  List<String> _selectedMetalPurities = [];
+  bool _isEnamelWorkChecked = false;
+  List<String> _selectedStoneShapes = [];
+  List<String> _selectedStoneTypes = [];
+  List<String> _selectedStoneQualities = [];
+  List<String> _selectedStoneSettings = [];
+  List<String> _selectedFeaturedTags = [];
+  List<double>? _currentMetalWeightRange;
+  List<double>? _currentStoneWeightRange;
   @override
   void initState() {
     super.initState();
     _jewelryService = JewelryService(_supabase);
     _loadInitialData();
+    _loadAdvancedFilters();
     // Add scroll listener for infinite scroll and logo animation
     _scrollController.addListener(_onScroll);
     _scrollController.addListener(_onScrollForLogo);
     // Start 45-second onboarding delay for new users
     _startOnboardingDelayIfNeeded();
+    _setupLikesListener();
+  }
+
+  void _setupLikesListener() {
+    _likesChannel = _supabase.channel('public:likes_channel')
+      ..onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'products',
+          callback: _handleProductUpdate)
+      ..onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'designerproducts',
+          callback: _handleProductUpdate)
+      ..onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'manufacturerproducts',
+          callback: _handleProductUpdate)
+      ..subscribe();
+  }
+
+  void _handleProductUpdate(PostgresChangePayload payload) {
+    if (!mounted) return;
+    final newRecord = payload.newRecord;
+    final id = newRecord['id'].toString();
+    final newLikes = newRecord['likes'];
+
+    if (newLikes != null && newLikes is int) {
+      final index = _products.indexWhere((p) => p.id == id);
+      if (index != -1 && _products[index].likes != newLikes) {
+        setState(() {
+          _products[index].likes = newLikes;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
+    _likesChannel?.unsubscribe();
     _onboardingTimer?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.removeListener(_onScrollForLogo);
@@ -118,21 +192,31 @@ class HomeScreenState extends State<HomeScreen> {
       } else {
         route = '/onboarding/categories';
       }
-      debugPrint('⏰ 45s elapsed — redirecting to onboarding: $route (stage $stage)');
-      context.go(route);
+      debugPrint(
+          '⏰ 45s elapsed — showing welcome offer dialog for route: $route (stage $stage)');
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => WelcomeOfferDialog(
+          onClaim: () {
+            Navigator.of(context).pop();
+            context.go(route);
+          },
+        ),
+      );
     });
   }
 
   void _onScroll() {
     // Load more when user scrolls near the bottom (80% of the way)
-    if (_scrollController.position.pixels >= 
+    if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent * 0.8) {
       if (!_isLoadingMore && _hasMoreProducts && !_isLoadingProducts) {
         _loadMoreProducts();
       }
     }
   }
-  
+
   void _onScrollForLogo() {
     final newOffset = _scrollController.position.pixels;
     if (_scrollOffset != newOffset) {
@@ -140,6 +224,86 @@ class HomeScreenState extends State<HomeScreen> {
         _scrollOffset = newOffset;
       });
     }
+  }
+
+  Future<void> _loadAdvancedFilters() async {
+    setState(() => _isLoadingAdvancedOptions = true);
+    try {
+      final futures = await Future.wait([
+        _filterService.getDistinctValues('Metal Color'),
+        _filterService.getDistinctValues('Metal Purity'),
+        _filterService.getDistinctArrayValues('Stone Cut'),
+        _filterService.getDistinctArrayValues('Stone Type'),
+        _filterService.getDistinctArrayValues('Stone Purity'),
+        _filterService.getDistinctArrayValues('Stone Setting'),
+        _filterService.getDistinctArrayValues('Product Tags'),
+        _filterService
+            .getWeightRange('Net Weight'), // Metal weight approximation
+        _filterService.getWeightRange('Stone Weight', isArray: true),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _availableMetalColors = futures[0] as List<String>;
+          _availableMetalPurities = futures[1] as List<String>;
+          _availableStoneShapes = futures[2] as List<String>;
+          _availableStoneTypes = futures[3] as List<String>;
+          _availableStoneQualities = futures[4] as List<String>;
+          _availableStoneSettings = futures[5] as List<String>;
+          _availableFeaturedTags = futures[6] as List<String>;
+          _metalWeightBounds = futures[7] as List<double>;
+          _stoneWeightBounds = futures[8] as List<double>;
+          _isLoadingAdvancedOptions = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading advanced filters: $e');
+      if (mounted) setState(() => _isLoadingAdvancedOptions = false);
+    }
+  }
+
+  void _onJewelleryTypeChanged(String? val) {
+    setState(() => _selectedJewelleryType = val);
+  }
+
+  void _onMetalWeightChanged(List<double> val) {
+    setState(() => _currentMetalWeightRange = val);
+  }
+
+  void _onMetalColorsChanged(List<String> val) {
+    setState(() => _selectedMetalColors = val);
+  }
+
+  void _onMetalPuritiesChanged(List<String> val) {
+    setState(() => _selectedMetalPurities = val);
+  }
+
+  void _onEnamelWorkChanged(bool val) {
+    setState(() => _isEnamelWorkChecked = val);
+  }
+
+  void _onStoneWeightChanged(List<double> val) {
+    setState(() => _currentStoneWeightRange = val);
+  }
+
+  void _onStoneShapesChanged(List<String> val) {
+    setState(() => _selectedStoneShapes = val);
+  }
+
+  void _onStoneTypesChanged(List<String> val) {
+    setState(() => _selectedStoneTypes = val);
+  }
+
+  void _onStoneQualitiesChanged(List<String> val) {
+    setState(() => _selectedStoneQualities = val);
+  }
+
+  void _onStoneSettingsChanged(List<String> val) {
+    setState(() => _selectedStoneSettings = val);
+  }
+
+  void _onFeaturedTagsChanged(List<String> val) {
+    setState(() => _selectedFeaturedTags = val);
   }
 
   Future<void> _loadInitialData() async {
@@ -152,10 +316,12 @@ class HomeScreenState extends State<HomeScreen> {
       // 1. Load Initial Filter Options
       // Metal Type is hardcoded, so we don't need to fetch it
       // Load all Product Types initially (when Metal Type is 'All')
-      final allProductTypes = await _filterService.getDistinctValues('Product Type');
-      
+      final allProductTypes =
+          await _filterService.getDistinctValues('Product Type');
+
       // 2. Load Initial Products (with default filters) - First page only
-      final productList = await _fetchFilteredProducts(offset: 0, limit: _pageSize);
+      final productList =
+          await _fetchFilteredProducts(offset: 0, limit: _pageSize);
 
       if (mounted) {
         setState(() {
@@ -182,184 +348,192 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<List<JewelryItem>> _fetchSilverProductsWithPattern({
-  int offset = 0, 
-  int limit = _pageSize
-}) async {
-  if (mounted && offset == 0) {
-    setState(() => _isLoadingProducts = true);
-  }
-  
-  try {
-    const selectColumns = 'id, "Product Title", "Image", "Description", "Product Type", '
-        'Category, Category1, Category2, Category3, "Sub Category", '
-        '"Metal Type", "Metal Purity", Plain, Studded, "Price"';
-    
-    const designerSelectColumns = '$selectColumns, created_at';
-    
-    // Build queries for all three tables with LIKE pattern matching
-    // Using .ilike() for case-insensitive pattern matching
-    
-    // Query 1: products table - Metal Type contains "Silver"
-    dynamic productsQuery = _supabase
-        .from('products')
-        .select(selectColumns)
-        .ilike('"Metal Type"', '%Silver%');  // Pattern matching for Silver
-    
-    // Query 2: designerproducts table - Metal Type contains "Silver"
-    dynamic designerQuery = _supabase
-        .from('designerproducts')
-        .select(designerSelectColumns)
-        .ilike('"Metal Type"', '%Silver%');  // Pattern matching for Silver
-    
-    // Query 3: manufacturerproducts table - Metal Type contains "Silver"
-    dynamic manufacturerQuery = _supabase
-        .from('manufacturerproducts')
-        .select(designerSelectColumns)
-        .ilike('"Metal Type"', '%Silver%');  // Pattern matching for Silver
-    
-    // Apply additional filters if needed
-    if (_selectedProductType != 'All') {
-      productsQuery = productsQuery.eq('"Product Type"', _selectedProductType);
-      designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
-      manufacturerQuery = manufacturerQuery.eq('"Product Type"', _selectedProductType);
-    }
-    
-    if (_selectedCategory != 'All') {
-      final categoryFilter = 'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
-      productsQuery = productsQuery.or(categoryFilter);
-      designerQuery = designerQuery.or(categoryFilter);
-      manufacturerQuery = manufacturerQuery.or(categoryFilter);
-    }
-    
-    if (_selectedSubCategory != 'All') {
-      productsQuery = productsQuery.eq('"Sub Category"', _selectedSubCategory);
-      designerQuery = designerQuery.eq('"Sub Category"', _selectedSubCategory);
-      manufacturerQuery = manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
-    }
-    
-    if (_selectedMetalPurity != 'All') {
-      productsQuery = productsQuery.eq('"Metal Purity"', _selectedMetalPurity);
-      designerQuery = designerQuery.eq('"Metal Purity"', _selectedMetalPurity);
-      manufacturerQuery = manufacturerQuery.eq('"Metal Purity"', _selectedMetalPurity);
-    }
-    
-    if (_selectedPlain != null) {
-      productsQuery = productsQuery.eq('Plain', _selectedPlain!);
-      designerQuery = designerQuery.eq('Plain', _selectedPlain!);
-      manufacturerQuery = manufacturerQuery.eq('Plain', _selectedPlain!);
-    }
-    
-    if (_selectedStudded != null) {
-      productsQuery = productsQuery.contains('Studded', ['$_selectedStudded']);
-      designerQuery = designerQuery.contains('Studded', ['$_selectedStudded']);
-      manufacturerQuery = manufacturerQuery.contains('Studded', ['$_selectedStudded']);
-    }
-    
-    // Apply pagination
-    productsQuery = productsQuery
-        .order('id', ascending: false)
-        .range(offset, offset + limit - 1);
-    
-    designerQuery = designerQuery
-        .order('created_at', ascending: false)
-        .range(offset, offset + limit - 1);
-    
-    manufacturerQuery = manufacturerQuery
-        .order('created_at', ascending: false)
-        .range(offset, offset + limit - 1);
-    
-    // Fetch from all three tables in parallel
-    final responses = await Future.wait<dynamic>([
-      productsQuery as Future<dynamic>,
-      designerQuery as Future<dynamic>,
-      manufacturerQuery as Future<dynamic>,
-    ]);
-    
-    final List<JewelryItem> allItems = [];
-    
-    // Parse products table results
-    if (responses[0] is List) {
-      allItems.addAll(
-        (responses[0] as List).map((item) => 
-          JewelryItem.fromJson(item as Map<String, dynamic>)
-        ),
-      );
-    }
-    
-    // Parse designer products with flag
-    if (responses[1] is List) {
-      allItems.addAll(
-        (responses[1] as List).map((item) {
-          final map = item as Map<String, dynamic>;
-          map['is_designer_product'] = true;
-          return JewelryItem.fromJson(map);
-        }),
-      );
-    }
-    
-    // Parse manufacturer products with flag
-    if (responses[2] is List) {
-      allItems.addAll(
-        (responses[2] as List).map((item) {
-          final map = item as Map<String, dynamic>;
-          map['is_manufacturer_product'] = true;
-          return JewelryItem.fromJson(map);
-        }),
-      );
-    }
-    
-    // Shuffle only on first load
-    if (offset == 0) {
-      allItems.shuffle();
-    }
-    
-    return allItems;
-  } catch (e) {
-    debugPrint('Error fetching silver products with pattern: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading silver products: $e')),
-      );
-    }
-    return [];
-  } finally {
+  Future<List<JewelryItem>> _fetchSilverProductsWithPattern(
+      {int offset = 0, int limit = _pageSize}) async {
     if (mounted && offset == 0) {
-      setState(() => _isLoadingProducts = false);
+      setState(() => _isLoadingProducts = true);
+    }
+
+    try {
+      const selectColumns =
+          'id, "Product Title", "Image", "Description", "Product Type", '
+          'Category, Category1, Category2, Category3, "Sub Category", '
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price"';
+
+      const designerSelectColumns = '$selectColumns, created_at';
+
+      // Build queries for all three tables with LIKE pattern matching
+      // Using .ilike() for case-insensitive pattern matching
+
+      // Query 1: products table - Metal Type contains "Silver"
+      dynamic productsQuery = _supabase
+          .from('products')
+          .select(selectColumns)
+          .ilike('"Metal Type"', '%Silver%'); // Pattern matching for Silver
+
+      // Query 2: designerproducts table - Metal Type contains "Silver"
+      dynamic designerQuery = _supabase
+          .from('designerproducts')
+          .select(designerSelectColumns)
+          .ilike('"Metal Type"', '%Silver%'); // Pattern matching for Silver
+
+      // Query 3: manufacturerproducts table - Metal Type contains "Silver"
+      dynamic manufacturerQuery = _supabase
+          .from('manufacturerproducts')
+          .select(designerSelectColumns)
+          .ilike('"Metal Type"', '%Silver%'); // Pattern matching for Silver
+
+      // Apply additional filters if needed
+      if (_selectedProductType != 'All') {
+        productsQuery =
+            productsQuery.eq('"Product Type"', _selectedProductType);
+        designerQuery =
+            designerQuery.eq('"Product Type"', _selectedProductType);
+        manufacturerQuery =
+            manufacturerQuery.eq('"Product Type"', _selectedProductType);
+      }
+
+      if (_selectedCategory != 'All') {
+        final categoryFilter =
+            'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
+        productsQuery = productsQuery.or(categoryFilter);
+        designerQuery = designerQuery.or(categoryFilter);
+        manufacturerQuery = manufacturerQuery.or(categoryFilter);
+      }
+
+      if (_selectedSubCategory != 'All') {
+        productsQuery =
+            productsQuery.eq('"Sub Category"', _selectedSubCategory);
+        designerQuery =
+            designerQuery.eq('"Sub Category"', _selectedSubCategory);
+        manufacturerQuery =
+            manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
+      }
+
+      if (_selectedMetalPurity != 'All') {
+        productsQuery =
+            productsQuery.eq('"Metal Purity"', _selectedMetalPurity);
+        designerQuery =
+            designerQuery.eq('"Metal Purity"', _selectedMetalPurity);
+        manufacturerQuery =
+            manufacturerQuery.eq('"Metal Purity"', _selectedMetalPurity);
+      }
+
+      if (_selectedPlain != null) {
+        productsQuery = productsQuery.eq('Plain', _selectedPlain!);
+        designerQuery = designerQuery.eq('Plain', _selectedPlain!);
+        manufacturerQuery = manufacturerQuery.eq('Plain', _selectedPlain!);
+      }
+
+      if (_selectedStudded != null) {
+        productsQuery =
+            productsQuery.contains('Studded', ['$_selectedStudded']);
+        designerQuery =
+            designerQuery.contains('Studded', ['$_selectedStudded']);
+        manufacturerQuery =
+            manufacturerQuery.contains('Studded', ['$_selectedStudded']);
+      }
+
+      // Apply pagination
+      productsQuery = productsQuery
+          .order('id', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      designerQuery = designerQuery
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      manufacturerQuery = manufacturerQuery
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      // Fetch from all three tables in parallel
+      final responses = await Future.wait<dynamic>([
+        productsQuery as Future<dynamic>,
+        designerQuery as Future<dynamic>,
+        manufacturerQuery as Future<dynamic>,
+      ]);
+
+      final List<JewelryItem> allItems = [];
+
+      // Parse products table results
+      if (responses[0] is List) {
+        allItems.addAll(
+          (responses[0] as List).map(
+              (item) => JewelryItem.fromJson(item as Map<String, dynamic>)),
+        );
+      }
+
+      // Parse designer products with flag
+      if (responses[1] is List) {
+        allItems.addAll(
+          (responses[1] as List).map((item) {
+            final map = item as Map<String, dynamic>;
+            map['is_designer_product'] = true;
+            return JewelryItem.fromJson(map);
+          }),
+        );
+      }
+
+      // Parse manufacturer products with flag
+      if (responses[2] is List) {
+        allItems.addAll(
+          (responses[2] as List).map((item) {
+            final map = item as Map<String, dynamic>;
+            map['is_manufacturer_product'] = true;
+            return JewelryItem.fromJson(map);
+          }),
+        );
+      }
+
+      // Shuffle only on first load
+      if (offset == 0) {
+        allItems.shuffle();
+      }
+
+      return allItems;
+    } catch (e) {
+      debugPrint('Error fetching silver products with pattern: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading silver products: $e')),
+        );
+      }
+      return [];
+    } finally {
+      if (mounted && offset == 0) {
+        setState(() => _isLoadingProducts = false);
+      }
     }
   }
-}
 
-  Future<List<JewelryItem>> _fetchFilteredProducts({int offset = 0, int limit = _pageSize}) async {
+  Future<List<JewelryItem>> _fetchFilteredProducts(
+      {int offset = 0, int limit = _pageSize}) async {
     if (mounted && offset == 0) {
       setState(() => _isLoadingProducts = true);
     }
     try {
- 
-      const selectColumns = 'id, "Product Title", "Image", "Description", "Product Type", '
+      const selectColumns =
+          'id, "Product Title", "Image", "Description", "Product Type", '
           'Category, Category1, Category2, Category3, "Sub Category", '
           '"Metal Type", "Metal Purity", Plain, Studded, "Price"';
-      
+
       // For designerproducts, we can include created_at
       const designerSelectColumns = '$selectColumns, created_at';
-      
+
       // Handle "Instant" separately
       if (_selectedMetalType == 'Instant') {
         return await _fetchInHouseProducts(offset: offset, limit: limit);
       }
-      
+
       // Build query for 'products' table
-      dynamic productsQuery = _supabase
-          .from('products')
-          .select(selectColumns);
-      
+      dynamic productsQuery = _supabase.from('products').select(selectColumns);
+
       // Build query for 'designerproducts' table (includes created_at)
-      dynamic designerQuery = _supabase
-          .from('designerproducts')
-          .select(designerSelectColumns);
-      dynamic manufacturerQuery = _supabase
-          .from('manufacturerproducts')
-          .select(designerSelectColumns);
+      dynamic designerQuery =
+          _supabase.from('designerproducts').select(designerSelectColumns);
+      dynamic manufacturerQuery =
+          _supabase.from('manufacturerproducts').select(designerSelectColumns);
       // Apply filters to both queries
       // Metal Type filter (first in hierarchy)
       if (_selectedMetalType != 'All') {
@@ -370,42 +544,49 @@ class HomeScreenState extends State<HomeScreen> {
         manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', '%$metal%');
       }
       if (_selectedProductType != 'All') {
-        productsQuery = productsQuery.eq('"Product Type"', _selectedProductType);
-        designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
-        manufacturerQuery = manufacturerQuery.eq('"Product Type"', _selectedProductType);
-
+        productsQuery =
+            productsQuery.eq('"Product Type"', _selectedProductType);
+        designerQuery =
+            designerQuery.eq('"Product Type"', _selectedProductType);
+        manufacturerQuery =
+            manufacturerQuery.eq('"Product Type"', _selectedProductType);
       }
       if (_selectedCategory != 'All') {
         // Filter by Category OR Category1 OR Category2 OR Category3 for both tables
-        final categoryFilter = 'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
+        final categoryFilter =
+            'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
         productsQuery = productsQuery.or(categoryFilter);
         designerQuery = designerQuery.or(categoryFilter);
         manufacturerQuery = manufacturerQuery.or(categoryFilter);
-
       }
       if (_selectedSubCategory != 'All') {
-        productsQuery = productsQuery.eq('"Sub Category"', _selectedSubCategory);
-        designerQuery = designerQuery.eq('"Sub Category"', _selectedSubCategory);
-        manufacturerQuery = manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
-
+        productsQuery =
+            productsQuery.eq('"Sub Category"', _selectedSubCategory);
+        designerQuery =
+            designerQuery.eq('"Sub Category"', _selectedSubCategory);
+        manufacturerQuery =
+            manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
       }
       if (_selectedMetalPurity != 'All') {
-        productsQuery = productsQuery.eq('"Metal Purity"', _selectedMetalPurity);
-        designerQuery = designerQuery.eq('"Metal Purity"', _selectedMetalPurity);
-        manufacturerQuery = manufacturerQuery.eq('"Metal Purity"', _selectedMetalPurity);
-
+        productsQuery =
+            productsQuery.eq('"Metal Purity"', _selectedMetalPurity);
+        designerQuery =
+            designerQuery.eq('"Metal Purity"', _selectedMetalPurity);
+        manufacturerQuery =
+            manufacturerQuery.eq('"Metal Purity"', _selectedMetalPurity);
       }
       if (_selectedPlain != null) {
         productsQuery = productsQuery.eq('Plain', _selectedPlain!);
         designerQuery = designerQuery.eq('Plain', _selectedPlain!);
         manufacturerQuery = manufacturerQuery.eq('Plain', _selectedPlain!);
-
       }
       if (_selectedStudded != null) {
-        productsQuery = productsQuery.contains('Studded', ['$_selectedStudded']);
-        designerQuery = designerQuery.contains('Studded', ['$_selectedStudded']);
-        manufacturerQuery = manufacturerQuery.contains('Studded', ['$_selectedStudded']);
-
+        productsQuery =
+            productsQuery.contains('Studded', ['$_selectedStudded']);
+        designerQuery =
+            designerQuery.contains('Studded', ['$_selectedStudded']);
+        manufacturerQuery =
+            manufacturerQuery.contains('Studded', ['$_selectedStudded']);
       }
 
       // OPTIMIZED: Use pagination instead of loading all products
@@ -420,13 +601,12 @@ class HomeScreenState extends State<HomeScreen> {
       manufacturerQuery = manufacturerQuery
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
-      
+
       // Fetch from both tables in parallel
       final responses = await Future.wait<dynamic>([
         productsQuery as Future<dynamic>,
         designerQuery as Future<dynamic>,
         manufacturerQuery as Future<dynamic>,
-
       ]);
 
       final List<JewelryItem> allItems = [];
@@ -434,9 +614,8 @@ class HomeScreenState extends State<HomeScreen> {
       // Parse products
       if (responses[0] is List) {
         allItems.addAll(
-          (responses[0] as List).map((item) => 
-            JewelryItem.fromJson(item as Map<String, dynamic>)
-          ),
+          (responses[0] as List).map(
+              (item) => JewelryItem.fromJson(item as Map<String, dynamic>)),
         );
       }
 
@@ -483,9 +662,11 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<List<JewelryItem>> _fetchInHouseProducts({int offset = 0, int limit = _pageSize}) async {
+  Future<List<JewelryItem>> _fetchInHouseProducts(
+      {int offset = 0, int limit = _pageSize}) async {
     try {
-      const selectColumns = 'id, "Product Title", "Image", "Description", "Product Type", '
+      const selectColumns =
+          'id, "Product Title", "Image", "Description", "Product Type", '
           'Category, Category1, Category2, Category3, "Sub Category", '
           '"Metal Type", "Metal Purity", Plain, Studded, "Price", created_at';
 
@@ -493,35 +674,81 @@ class HomeScreenState extends State<HomeScreen> {
       List<dynamic> manufacturerData = [];
 
       try {
-        var designerQuery = _supabase
-            .from('designerproducts')
-            .select(selectColumns);
+        var designerQuery =
+            _supabase.from('designerproducts').select(selectColumns);
 
         if (_selectedAkdMetalType != 'All') {
-          designerQuery = designerQuery.eq('"Metal Type"', _selectedAkdMetalType);
+          designerQuery =
+              designerQuery.eq('"Metal Type"', _selectedAkdMetalType);
         } else {
           designerQuery = designerQuery.ilike('"Metal Type"', 'AKD%');
         }
 
         if (_selectedProductType != 'All') {
-          designerQuery = designerQuery.eq('"Product Type"', _selectedProductType);
+          designerQuery =
+              designerQuery.eq('"Product Type"', _selectedProductType);
         }
         if (_selectedCategory != 'All') {
-          final categoryFilter = 'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
+          final categoryFilter =
+              'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
           designerQuery = designerQuery.or(categoryFilter);
         }
         if (_selectedSubCategory != 'All') {
-          designerQuery = designerQuery.eq('"Sub Category"', _selectedSubCategory);
+          designerQuery =
+              designerQuery.eq('"Sub Category"', _selectedSubCategory);
         }
         if (_selectedMetalPurity != 'All') {
-          designerQuery = designerQuery.eq('"Metal Purity"', _selectedMetalPurity);
+          designerQuery =
+              designerQuery.eq('"Metal Purity"', _selectedMetalPurity);
         }
         if (_selectedPlain != null) {
           designerQuery = designerQuery.eq('Plain', _selectedPlain!);
         }
         if (_selectedStudded != null) {
-          designerQuery = designerQuery.contains('Studded', ['$_selectedStudded']);
+          designerQuery =
+              designerQuery.contains('Studded', ['$_selectedStudded']);
         }
+        var q = designerQuery;
+
+        // Advanced Filters
+        if (_selectedJewelleryType == 'Plain') {
+          designerQuery = designerQuery.not('Plain', 'is', 'null');
+        } else if (_selectedJewelleryType == 'Studded') {
+          designerQuery = designerQuery.not('Studded', 'is', 'null');
+        }
+
+        if (_selectedMetalColors.isNotEmpty) {
+          designerQuery =
+              designerQuery.inFilter('"Metal Color"', _selectedMetalColors);
+        }
+        if (_selectedMetalPurities.isNotEmpty) {
+          designerQuery =
+              designerQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
+        }
+        if (_isEnamelWorkChecked) {
+          designerQuery = designerQuery.not('"Enamel Work"', 'is', 'null');
+        }
+        if (_selectedStoneShapes.isNotEmpty) {
+          designerQuery =
+              designerQuery.contains('"Stone Cut"', _selectedStoneShapes);
+        }
+        if (_selectedStoneTypes.isNotEmpty) {
+          designerQuery =
+              designerQuery.contains('"Stone Type"', _selectedStoneTypes);
+        }
+        if (_selectedStoneQualities.isNotEmpty) {
+          designerQuery =
+              designerQuery.contains('"Stone Purity"', _selectedStoneQualities);
+        }
+        if (_selectedStoneSettings.isNotEmpty) {
+          designerQuery =
+              designerQuery.contains('"Stone Setting"', _selectedStoneSettings);
+        }
+        if (_selectedFeaturedTags.isNotEmpty) {
+          designerQuery =
+              designerQuery.contains('"Product Tags"', _selectedFeaturedTags);
+        }
+        // Sliders (approximate matching could be added later, for now we skip strict SQL weight filtering due to string parsing limits in postgrest)
 
         final designerQueryPaged = designerQuery
             .order('created_at', ascending: false)
@@ -533,35 +760,82 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       try {
-        var manufacturerQuery = _supabase
-            .from('manufacturerproducts')
-            .select(selectColumns);
+        var manufacturerQuery =
+            _supabase.from('manufacturerproducts').select(selectColumns);
 
         if (_selectedAkdMetalType != 'All') {
-          manufacturerQuery = manufacturerQuery.eq('"Metal Type"', _selectedAkdMetalType);
+          manufacturerQuery =
+              manufacturerQuery.eq('"Metal Type"', _selectedAkdMetalType);
         } else {
           manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', 'AKD%');
         }
 
         if (_selectedProductType != 'All') {
-          manufacturerQuery = manufacturerQuery.eq('"Product Type"', _selectedProductType);
+          manufacturerQuery =
+              manufacturerQuery.eq('"Product Type"', _selectedProductType);
         }
         if (_selectedCategory != 'All') {
-          final categoryFilter = 'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
+          final categoryFilter =
+              'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
           manufacturerQuery = manufacturerQuery.or(categoryFilter);
         }
         if (_selectedSubCategory != 'All') {
-          manufacturerQuery = manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
+          manufacturerQuery =
+              manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
         }
         if (_selectedMetalPurity != 'All') {
-          manufacturerQuery = manufacturerQuery.eq('"Metal Purity"', _selectedMetalPurity);
+          manufacturerQuery =
+              manufacturerQuery.eq('"Metal Purity"', _selectedMetalPurity);
         }
         if (_selectedPlain != null) {
           manufacturerQuery = manufacturerQuery.eq('Plain', _selectedPlain!);
         }
         if (_selectedStudded != null) {
-          manufacturerQuery = manufacturerQuery.contains('Studded', ['$_selectedStudded']);
+          manufacturerQuery =
+              manufacturerQuery.contains('Studded', ['$_selectedStudded']);
         }
+        var mq = manufacturerQuery;
+
+        // Advanced Filters
+        if (_selectedJewelleryType == 'Plain') {
+          manufacturerQuery = manufacturerQuery.not('Plain', 'is', 'null');
+        } else if (_selectedJewelleryType == 'Studded') {
+          manufacturerQuery = manufacturerQuery.not('Studded', 'is', 'null');
+        }
+
+        if (_selectedMetalColors.isNotEmpty) {
+          manufacturerQuery =
+              manufacturerQuery.inFilter('"Metal Color"', _selectedMetalColors);
+        }
+        if (_selectedMetalPurities.isNotEmpty) {
+          manufacturerQuery = manufacturerQuery.inFilter(
+              '"Metal Purity"', _selectedMetalPurities);
+        }
+        if (_isEnamelWorkChecked) {
+          manufacturerQuery =
+              manufacturerQuery.not('"Enamel Work"', 'is', 'null');
+        }
+        if (_selectedStoneShapes.isNotEmpty) {
+          manufacturerQuery =
+              manufacturerQuery.contains('"Stone Cut"', _selectedStoneShapes);
+        }
+        if (_selectedStoneTypes.isNotEmpty) {
+          manufacturerQuery =
+              manufacturerQuery.contains('"Stone Type"', _selectedStoneTypes);
+        }
+        if (_selectedStoneQualities.isNotEmpty) {
+          manufacturerQuery = manufacturerQuery.contains(
+              '"Stone Purity"', _selectedStoneQualities);
+        }
+        if (_selectedStoneSettings.isNotEmpty) {
+          manufacturerQuery = manufacturerQuery.contains(
+              '"Stone Setting"', _selectedStoneSettings);
+        }
+        if (_selectedFeaturedTags.isNotEmpty) {
+          manufacturerQuery = manufacturerQuery.contains(
+              '"Product Tags"', _selectedFeaturedTags);
+        }
+        // Sliders (approximate matching could be added later, for now we skip strict SQL weight filtering due to string parsing limits in postgrest)
 
         final manufacturerQueryPaged = manufacturerQuery
             .order('created_at', ascending: false)
@@ -645,8 +919,9 @@ class HomeScreenState extends State<HomeScreen> {
     // Reset pagination when filters change
     _currentOffset = 0;
     _hasMoreProducts = true;
-    
-    final productList = await _fetchFilteredProducts(offset: 0, limit: _pageSize);
+
+    final productList =
+        await _fetchFilteredProducts(offset: 0, limit: _pageSize);
     if (mounted) {
       setState(() {
         _products = productList;
@@ -676,9 +951,7 @@ class HomeScreenState extends State<HomeScreen> {
       final Set<String> allTypes = {};
 
       try {
-        final query = _supabase
-            .from('products')
-            .select('"Product Type"');
+        final query = _supabase.from('products').select('"Product Type"');
         final productsTypes = (metalType == 'AKD'
             ? await query.ilike('"Metal Type"', 'AKD%')
             : await query.eq('"Metal Type"', metalType)) as List;
@@ -694,9 +967,8 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       try {
-        final query = _supabase
-            .from('designerproducts')
-            .select('"Product Type"');
+        final query =
+            _supabase.from('designerproducts').select('"Product Type"');
         final designerTypes = (metalType == 'AKD'
             ? await query.ilike('"Metal Type"', 'AKD%')
             : await query.eq('"Metal Type"', metalType)) as List;
@@ -712,9 +984,8 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       try {
-        final query = _supabase
-            .from('manufacturerproducts')
-            .select('"Product Type"');
+        final query =
+            _supabase.from('manufacturerproducts').select('"Product Type"');
         final manufacturerTypes = (metalType == 'AKD'
             ? await query.ilike('"Metal Type"', 'AKD%')
             : await query.eq('"Metal Type"', metalType)) as List;
@@ -738,7 +1009,6 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-
   Future<void> _loadAkdMetalTypes() async {
     setState(() {
       _isLoadingAkdMetalTypes = true;
@@ -746,7 +1016,7 @@ class HomeScreenState extends State<HomeScreen> {
     });
     try {
       final Set<String> akdTypes = {};
-      
+
       // Query designerproducts table
       final designerRes = await _supabase
           .from('designerproducts')
@@ -777,7 +1047,7 @@ class HomeScreenState extends State<HomeScreen> {
 
       // Convert back and sort
       final List<String> fetched = akdTypes.toList()..sort();
-      
+
       if (mounted) {
         setState(() {
           _akdMetalTypeOptions = ['All', ...fetched];
@@ -792,7 +1062,8 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _onAkdMetalTypeChanged(String? value) async {
+  Future<void> _onAkdMetalTypeChanged(String? value,
+      {bool applyImmediately = true}) async {
     if (value == null) return;
     setState(() {
       _selectedAkdMetalType = value;
@@ -820,7 +1091,8 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   /// Called when "Metal Type" filter changes
-  Future<void> _onMetalTypeChanged(String value) async {
+  Future<void> _onMetalTypeChanged(String value,
+      {bool applyImmediately = true}) async {
     setState(() {
       _selectedMetalType = value;
       _selectedAkdMetalType = 'All';
@@ -858,12 +1130,15 @@ class HomeScreenState extends State<HomeScreen> {
         _isLoadingProductTypes = false;
       });
     }
-    // Refetch products
-    _applyFilters();
+    if (applyImmediately) {
+      // Refetch products
+      _applyFilters();
+    }
   }
 
   /// Called when "Product Type" dropdown changes
-  Future<void> _onProductTypeChanged(String? value) async {
+  Future<void> _onProductTypeChanged(String? value,
+      {bool applyImmediately = true}) async {
     if (value == null) return;
 
     setState(() {
@@ -886,7 +1161,7 @@ class HomeScreenState extends State<HomeScreen> {
       filters['Metal Type'] = effectiveMetal;
     }
     filters['Product Type'] = value;
-    
+
     final newCategories =
         await _filterService.getDependentDistinctValues('Category', filters);
 
@@ -896,12 +1171,15 @@ class HomeScreenState extends State<HomeScreen> {
         _isLoadingCategories = false;
       });
     }
-    // Refetch products
-    _applyFilters();
+    if (applyImmediately) {
+      // Refetch products
+      _applyFilters();
+    }
   }
 
   /// Called when "Category" dropdown changes
-  Future<void> _onCategoryChanged(String? value) async {
+  Future<void> _onCategoryChanged(String? value,
+      {bool applyImmediately = true}) async {
     if (value == null) return;
 
     setState(() {
@@ -923,7 +1201,7 @@ class HomeScreenState extends State<HomeScreen> {
       filters['Product Type'] = _selectedProductType;
     }
     filters['Category'] = value;
-    
+
     final newSubCategories = await _filterService.getDependentDistinctValues(
         'Sub Category', filters);
 
@@ -933,18 +1211,22 @@ class HomeScreenState extends State<HomeScreen> {
         _isLoadingSubCategories = false;
       });
     }
-    // Refetch products
-    _applyFilters();
+    if (applyImmediately) {
+      // Refetch products
+      _applyFilters();
+    }
   }
 
   /// Called when "Sub Category" dropdown changes
-  void _onSubCategoryChanged(String? value) {
+  void _onSubCategoryChanged(String? value, {bool applyImmediately = true}) {
     if (value == null) return;
     setState(() {
       _selectedSubCategory = value;
     });
-    // Just refetch products, no new options to load
-    _applyFilters();
+    if (applyImmediately) {
+      // Just refetch products, no new options to load
+      _applyFilters();
+    }
   }
 
   void _resetFilters() {
@@ -957,6 +1239,17 @@ class HomeScreenState extends State<HomeScreen> {
       _selectedMetalPurity = 'All';
       _selectedPlain = null;
       _selectedStudded = null;
+      _selectedJewelleryType = null;
+      _selectedMetalColors = [];
+      _selectedMetalPurities = [];
+      _isEnamelWorkChecked = false;
+      _selectedStoneShapes = [];
+      _selectedStoneTypes = [];
+      _selectedStoneQualities = [];
+      _selectedStoneSettings = [];
+      _selectedFeaturedTags = [];
+      _currentMetalWeightRange = null;
+      _currentStoneWeightRange = null;
 
       // Reset option lists to default
       _productTypeOptions = ['All'];
@@ -974,66 +1267,51 @@ class HomeScreenState extends State<HomeScreen> {
       _itemsBeingLiked.add(item.id);
     });
 
-    final uid = _supabase.auth.currentUser?.id;
-    if (uid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please log in to like items.")),
-      );
-      setState(() => _itemsBeingLiked.remove(item.id));
-      return;
-    }
-
     try {
-      final pinData = await _supabase
-          .from('pins')
-          .select('id')
-          .eq('image_url', item.image)
-          .maybeSingle();
-
-      String pinId;
-      if (pinData != null) {
-        pinId = pinData['id'];
-      } else {
-        final newPin = await _supabase
-            .from('pins')
-            .insert({
-              'owner_id': uid,
-              'title': item.productTitle,
-              'image_url': item.image,
-              'description': item.description,
-            })
-            .select('id')
-            .single();
-        pinId = newPin['id'];
+      final uid = _supabase.auth.currentUser?.id;
+      final prefs = await SharedPreferences.getInstance();
+      String? sessionId = prefs.getString('anonymous_session_id');
+      if (sessionId == null) {
+        sessionId = const Uuid().v4();
+        await prefs.setString('anonymous_session_id', sessionId);
       }
 
-      if (item.isFavorite) {
-        await _supabase
-            .from('user_likes')
-            .delete()
-            .match({'user_id': uid, 'pin_id': pinId});
-        await _supabase.rpc('increment_like_count',
-            params: {'pin_id_to_update': pinId, 'delta': -1});
-      } else {
-        await _supabase
-            .from('user_likes')
-            .insert({'user_id': uid, 'pin_id': pinId});
-        await _supabase.rpc('increment_like_count',
-            params: {'pin_id_to_update': pinId, 'delta': 1});
+      final isNowLiked = !item.isFavorite; // It's a toggle
+
+      // Determine table
+      String itemTable = 'products';
+      if (item.isDesignerProduct) {
+        itemTable = 'designerproducts';
+      } else if (item.isManufacturerProduct) {
+        itemTable = 'manufacturerproducts';
       }
+
+      // Call the RPC
+      final newLikesCount = await _supabase.rpc('toggle_product_like', params: {
+        'p_item_id': item.id,
+        'p_item_table': itemTable,
+        'p_user_id': uid,
+        'p_session_id': sessionId,
+      });
 
       if (mounted) {
         final productIndex = _products.indexWhere((i) => i.id == item.id);
         if (productIndex != -1) {
-          setState(() => _products[productIndex].isFavorite =
-              !_products[productIndex].isFavorite);
+          setState(() {
+            _products[productIndex].isFavorite = isNowLiked;
+            if (newLikesCount is int) {
+              _products[productIndex].likes = newLikesCount;
+            }
+          });
         }
       }
     } catch (e) {
       debugPrint("Error toggling like on home screen: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Could not update like status.")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not update like status.")),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _itemsBeingLiked.remove(item.id));
@@ -1042,16 +1320,31 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _shareItem(JewelryItem item) {
-    Share.share(
-        'Check out this beautiful ${item.productTitle} from jewelry_nafisa!');
+    if (_supabase.auth.currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to share items.")),
+      );
+      return;
+    }
+    
+    // Use ShareUtils to download the image and share the link + image properly
+    ShareUtils.shareJewelryItem(context, item, _supabase);
   }
 
   void _saveToBoard(JewelryItem item) {
-    Provider.of<BoardsProvider>(context, listen: false).fetchBoards().then((_) {
-      showDialog(
-        context: context,
-        builder: (context) => SaveToBoardDialog(item: item),
+    if (_supabase.auth.currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to save items.")),
       );
+      return;
+    }
+    Provider.of<BoardsProvider>(context, listen: false).fetchBoards().then((_) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => SaveToBoardDialog(item: item),
+        );
+      }
     });
   }
 
@@ -1059,55 +1352,103 @@ class HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: RefreshIndicator(
-        onRefresh: () async {
-          // Reset pagination on refresh
-          _currentOffset = 0;
-          _hasMoreProducts = true;
-          await _loadInitialData();
-        },
-        child: CustomScrollView(
-          controller: _scrollController,
-          slivers: [
-            // Animated logo as a sliver
-            SliverToBoxAdapter(
-              child: _buildAnimatedLogo(),
-            ),
-            // Filter bar as a sliver
-            SliverToBoxAdapter(
-              child: _buildFilterBar(),
-            ),
-            // Products grid
-            if (_isLoadingProducts)
-              const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_products.isEmpty)
-              const SliverFillRemaining(
-                child: Center(child: Text('Coming Soon')),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.all(8.0),
-                sliver: SliverMasonryGrid.count(
-                  crossAxisCount:
-                      (MediaQuery.of(context).size.width / 200).floor().clamp(2, 6),
-                  mainAxisSpacing: 8.0,
-                  crossAxisSpacing: 8.0,
-                  childCount: _products.length + (_isLoadingMore ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    // Show loading indicator at the bottom when loading more
-                    if (index == _products.length) {
-                      return const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-                    return _buildImageCard(context, _products[index]);
-                  },
+      body: FloatingFilterOverlay(
+        config: FloatingFilterConfig(
+          selectedMetalType: _selectedMetalType,
+          selectedAkdMetalType: _selectedAkdMetalType,
+          selectedProductType: _selectedProductType,
+          selectedCategory: _selectedCategory,
+          selectedSubCategory: _selectedSubCategory,
+          akdMetalTypeOptions: _akdMetalTypeOptions,
+          productTypeOptions: _productTypeOptions,
+          categoryOptions: _categoryOptions,
+          subCategoryOptions: _subCategoryOptions,
+          isLoadingAkdMetalTypes: _isLoadingAkdMetalTypes,
+          isLoadingProductTypes: _isLoadingProductTypes,
+          isLoadingCategories: _isLoadingCategories,
+          isLoadingSubCategories: _isLoadingSubCategories,
+          onMetalTypeChanged: _onMetalTypeChanged,
+          onAkdMetalTypeChanged: _onAkdMetalTypeChanged,
+          onProductTypeChanged: _onProductTypeChanged,
+          onCategoryChanged: _onCategoryChanged,
+          onSubCategoryChanged: _onSubCategoryChanged,
+          onApplySelection: _applyFilters,
+          availableMetalColors: _availableMetalColors,
+          availableMetalPurities: _availableMetalPurities,
+          availableStoneShapes: _availableStoneShapes,
+          availableStoneTypes: _availableStoneTypes,
+          availableStoneQualities: _availableStoneQualities,
+          availableStoneSettings: _availableStoneSettings,
+          availableFeaturedTags: _availableFeaturedTags,
+          metalWeightBounds: _metalWeightBounds,
+          stoneWeightBounds: _stoneWeightBounds,
+          selectedJewelleryType: _selectedJewelleryType,
+          selectedMetalColors: _selectedMetalColors,
+          selectedMetalPurities: _selectedMetalPurities,
+          isEnamelWorkChecked: _isEnamelWorkChecked,
+          selectedStoneShapes: _selectedStoneShapes,
+          selectedStoneTypes: _selectedStoneTypes,
+          selectedStoneQualities: _selectedStoneQualities,
+          selectedStoneSettings: _selectedStoneSettings,
+          selectedFeaturedTags: _selectedFeaturedTags,
+          currentMetalWeightRange: _currentMetalWeightRange,
+          currentStoneWeightRange: _currentStoneWeightRange,
+          isLoadingAdvancedOptions: _isLoadingAdvancedOptions,
+          onJewelleryTypeChanged: _onJewelleryTypeChanged,
+          onMetalWeightChanged: _onMetalWeightChanged,
+          onMetalColorsChanged: _onMetalColorsChanged,
+          onMetalPuritiesChanged: _onMetalPuritiesChanged,
+          onEnamelWorkChanged: _onEnamelWorkChanged,
+          onStoneWeightChanged: _onStoneWeightChanged,
+          onStoneShapesChanged: _onStoneShapesChanged,
+          onStoneTypesChanged: _onStoneTypesChanged,
+          onStoneQualitiesChanged: _onStoneQualitiesChanged,
+          onStoneSettingsChanged: _onStoneSettingsChanged,
+          onFeaturedTagsChanged: _onFeaturedTagsChanged,
+          onResetFilters: _resetFilters,
+        ),
+        child: RefreshIndicator(
+          onRefresh: () async {
+            _currentOffset = 0;
+            _hasMoreProducts = true;
+            await _loadInitialData();
+          },
+          child: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              SliverToBoxAdapter(child: _buildAnimatedLogo()),
+              SliverToBoxAdapter(child: _buildFilterBar()),
+              if (_isLoadingProducts)
+                SliverFillRemaining(
+                  child: Center(child: GlowingLogo(size: 80)),
+                )
+              else if (_products.isEmpty)
+                const SliverFillRemaining(
+                  child: Center(child: Text('Coming Soon')),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.all(8.0),
+                  sliver: SliverMasonryGrid.count(
+                    crossAxisCount: (MediaQuery.of(context).size.width / 200)
+                        .floor()
+                        .clamp(2, 6),
+                    mainAxisSpacing: 8.0,
+                    crossAxisSpacing: 8.0,
+                    childCount: _products.length + (_isLoadingMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == _products.length) {
+                        return Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Center(child: GlowingLogo(size: 40)),
+                        );
+                      }
+                      return _buildImageCard(context, _products[index]);
+                    },
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1116,22 +1457,23 @@ class HomeScreenState extends State<HomeScreen> {
   Widget _buildAnimatedLogo() {
     // Calculate animation values based on scroll offset
     // Logo starts shrinking and fading after scrolling 100px
-    final animationProgress = (_scrollOffset / _logoAnimationThreshold).clamp(0.0, 1.0);
-    
+    final animationProgress =
+        (_scrollOffset / _logoAnimationThreshold).clamp(0.0, 1.0);
+
     // Scale: starts at 1.0, goes to 0.0 (completely shrinks)
     final scale = 1.0 - animationProgress;
-    
+
     // Opacity: starts at 1.0, goes to 0.0 (completely fades)
     final opacity = 1.0 - animationProgress;
-    
+
     // Height: starts at 120, goes to 0
     final height = 120.0 * (1.0 - animationProgress);
-    
+
     // Hide completely when scrolled past threshold
     if (height < 1.0) {
       return const SizedBox.shrink();
     }
-    
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 100),
       curve: Curves.easeOut,
@@ -1174,13 +1516,13 @@ class HomeScreenState extends State<HomeScreen> {
             child: Text(
               'Choose Your Style',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: const Color(0xFF006435),
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
+                    color: const Color(0xFF006435),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
             ),
           ),
-          
+
           // Metal Type Filter - Compact buttons
           Padding(
             padding: const EdgeInsets.only(bottom: 10.0),
@@ -1190,10 +1532,12 @@ class HomeScreenState extends State<HomeScreen> {
                 if (_selectedMetalType != 'Instant') ...[
                   _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
                   const SizedBox(width: 6.0),
-                  _buildMetalTypeButton('Silver', _selectedMetalType == 'Silver'),
+                  _buildMetalTypeButton(
+                      'Silver', _selectedMetalType == 'Silver'),
                   const SizedBox(width: 6.0),
                 ],
-                _buildMetalTypeButton('Instant', _selectedMetalType == 'Instant'),
+                _buildMetalTypeButton(
+                    'Instant', _selectedMetalType == 'Instant'),
               ],
             ),
           ),
@@ -1228,7 +1572,7 @@ class HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-          
+
           // Product Type Filter - Show for all metal types (Gold, Silver, In-house)
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 260),
@@ -1236,7 +1580,8 @@ class HomeScreenState extends State<HomeScreen> {
               final offsetAnimation = Tween<Offset>(
                 begin: const Offset(0, -0.08),
                 end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+              ).animate(CurvedAnimation(
+                  parent: animation, curve: Curves.easeOutCubic));
               return FadeTransition(
                 opacity: animation,
                 child: SlideTransition(position: offsetAnimation, child: child),
@@ -1279,9 +1624,10 @@ class HomeScreenState extends State<HomeScreen> {
                             ),
                     ),
                   )
-                : const SizedBox.shrink(key: ValueKey('homeProductTypeFilterEmpty')),
+                : const SizedBox.shrink(
+                    key: ValueKey('homeProductTypeFilterEmpty')),
           ),
-          
+
           // Category Filter - Bubble chips
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 260),
@@ -1289,7 +1635,8 @@ class HomeScreenState extends State<HomeScreen> {
               final offsetAnimation = Tween<Offset>(
                 begin: const Offset(0, -0.08),
                 end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+              ).animate(CurvedAnimation(
+                  parent: animation, curve: Curves.easeOutCubic));
               return FadeTransition(
                 opacity: animation,
                 child: SlideTransition(position: offsetAnimation, child: child),
@@ -1306,9 +1653,10 @@ class HomeScreenState extends State<HomeScreen> {
                       isLoading: _isLoadingCategories,
                     ),
                   )
-                : const SizedBox.shrink(key: ValueKey('homeCategoryFilterEmpty')),
+                : const SizedBox.shrink(
+                    key: ValueKey('homeCategoryFilterEmpty')),
           ),
-          
+
           // Sub Category Filter - Bubble chips
           if (_subCategoryOptions.length > 1)
             Padding(
@@ -1320,7 +1668,7 @@ class HomeScreenState extends State<HomeScreen> {
                 isLoading: _isLoadingSubCategories,
               ),
             ),
-          
+
           // Reset button - compact
           if (_selectedMetalType != 'All' ||
               _selectedProductType != 'All' ||
@@ -1341,7 +1689,7 @@ class HomeScreenState extends State<HomeScreen> {
   Widget _buildMetalTypeButton(String metalType, bool isSelected) {
     Color textColor;
     BoxDecoration decoration;
-    
+
     if (isSelected) {
       textColor = Colors.white;
       switch (metalType) {
@@ -1508,18 +1856,20 @@ class HomeScreenState extends State<HomeScreen> {
 
     // Filter out 'All' from display completely
     final displayOptions = options.where((opt) => opt != 'All').toList();
-    
+
     if (displayOptions.isEmpty) return const SizedBox.shrink();
 
     return Wrap(
       alignment: WrapAlignment.center,
       spacing: 6.0,
       runSpacing: 6.0,
-      children: displayOptions.map((option) => _buildBubbleChip(
-        option,
-        selectedValue == option,
-        () => onChanged(option),
-      )).toList(),
+      children: displayOptions
+          .map((option) => _buildBubbleChip(
+                option,
+                selectedValue == option,
+                () => onChanged(option),
+              ))
+          .toList(),
     );
   }
 
@@ -1535,14 +1885,14 @@ class HomeScreenState extends State<HomeScreen> {
             color: isSelected ? const Color(0xFF006435) : Colors.white,
             borderRadius: BorderRadius.circular(16.0),
             border: Border.all(
-              color: isSelected 
-                  ? const Color(0xFF006435) 
+              color: isSelected
+                  ? const Color(0xFF006435)
                   : const Color(0xFFE0E0E0),
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: isSelected 
+                color: isSelected
                     ? const Color(0xFF006435).withOpacity(0.25)
                     : Colors.grey.withOpacity(0.15),
                 blurRadius: 4,
@@ -1581,19 +1931,22 @@ class HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    if (options.length <= 1 && hint != 'Product Type') return const SizedBox.shrink();
+    if (options.length <= 1 && hint != 'Product Type')
+      return const SizedBox.shrink();
 
-    final displayOptions = (options.contains('All') ? options : ['All', ...options])
-        .toSet()
-        .toList();
+    final displayOptions =
+        (options.contains('All') ? options : ['All', ...options])
+            .toSet()
+            .toList();
 
-    final currentSelection = (selectedValue == null || !displayOptions.contains(selectedValue))
-        ? 'All'
-        : selectedValue;
+    final currentSelection =
+        (selectedValue == null || !displayOptions.contains(selectedValue))
+            ? 'All'
+            : selectedValue;
 
     // Check if desktop view
     final isDesktop = MediaQuery.of(context).size.width > 700;
-    
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.96, end: 1.0),
       duration: const Duration(milliseconds: 260),
@@ -1607,7 +1960,9 @@ class HomeScreenState extends State<HomeScreen> {
         width: isDesktop ? 320 : double.infinity,
         height: 50,
         padding: const EdgeInsets.symmetric(horizontal: 18.0),
-        margin: isDesktop ? const EdgeInsets.symmetric(horizontal: 0) : EdgeInsets.zero,
+        margin: isDesktop
+            ? const EdgeInsets.symmetric(horizontal: 0)
+            : EdgeInsets.zero,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(28.0),
@@ -1718,15 +2073,16 @@ class HomeScreenState extends State<HomeScreen> {
             backgroundColor: Colors.white,
             checkmarkColor: Colors.white,
             side: BorderSide(
-              color: isSelected 
-                  ? const Color(0xFF006435) 
+              color: isSelected
+                  ? const Color(0xFF006435)
                   : const Color(0xFFE0E0E0),
               width: 1.5,
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20.0),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
           );
         }).toList(),
       ],
@@ -1757,12 +2113,19 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildImageCard(BuildContext context, JewelryItem item) {
-    final bool isHovered = _hoveredItemId == item.id;
     final bool isTapped = _tappedItemId == item.id;
     final userProfile = context.watch<UserProfileProvider>();
     final isMember = userProfile.isMember;
     final isLiking = _itemsBeingLiked.contains(item.id);
     final imageUrl = resolveImageUrl(item.image);
+
+    String formatCount(int? count) {
+      final c = count ?? 0;
+      if (c == 0) return '0';
+      if (c >= 1000000) return '${(c / 1000000).toStringAsFixed(1)}M';
+      if (c >= 1000) return '${(c / 1000).toStringAsFixed(1)}K';
+      return c.toString();
+    }
 
     if (imageUrl.isEmpty) {
       return Card(
@@ -1787,33 +2150,56 @@ class HomeScreenState extends State<HomeScreen> {
         } else {
           final isDesigner = item.isDesignerProduct;
           final isManufacturer = item.isManufacturerProduct;
-          context.push('/product/${item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
+          context.push(
+              '/product/${item.uid ?? item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
         }
       },
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: MouseRegion(
-          onEnter: (_) => _scheduleHoverUpdate(item.id),
-          onExit: (_) => _scheduleHoverUpdate(null),
-          child: Stack(
-            alignment: Alignment.bottomCenter,
-            children: [
-              AspectRatio(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFEEEEEE), width: 0.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 16,
+              spreadRadius: 0,
+              offset: const Offset(0, 6),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 4,
+              spreadRadius: 0,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(18)),
+              child: AspectRatio(
                 aspectRatio: item.aspectRatio,
                 child: CachedNetworkImage(
                   imageUrl: imageUrl,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => createBlurUpPlaceholder(),
                   errorWidget: (context, url, error) => Container(
-                    color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
+                    color:
+                        Theme.of(context).colorScheme.surface.withOpacity(0.1),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.image_not_supported, color: Colors.grey[400]),
+                        Icon(Icons.image_not_supported,
+                            color: Colors.grey[400]),
                         const SizedBox(height: 8),
                         Text(
                           'Failed to load',
-                          style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                          style:
+                              TextStyle(color: Colors.grey[400], fontSize: 12),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -1826,89 +2212,73 @@ class HomeScreenState extends State<HomeScreen> {
                   maxHeightDiskCache: 1200,
                 ),
               ),
-              if (isHovered || isTapped)
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Colors.black.withAlpha((255 * 0.7).round()),
-                          Colors.transparent
-                        ],
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          if (isMember)
-                            Expanded(
-                              child: Text(
-                                item.productTitle,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(color: Colors.white),
-                                overflow: TextOverflow.ellipsis,
-                              ),
+            ),
+            // Action bar
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10.0, vertical: 9.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Like button + count
+                  _ActionButton(
+                    icon: isLiking
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: Color(0xFF555555),
                             ),
-                          if (!isMember)
-                            const Spacer(),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: isLiking
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : Icon(
-                                        item.isFavorite
-                                            ? Icons.favorite
-                                            : Icons.favorite_border,
-                                        color: item.isFavorite
-                                            ? Colors.red
-                                            : Colors.white,
-                                      ),
-                                onPressed: () => _likeItem(item),
-                                tooltip: 'Like',
-                                iconSize: 20,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.share, color: Colors.white),
-                                onPressed: () => _shareItem(item),
-                                tooltip: 'Share',
-                                iconSize: 20,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.bookmark_border, color: Colors.white),
-                                onPressed: () => _saveToBoard(item),
-                                tooltip: 'Save',
-                                iconSize: 20,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
-                            ],
+                          )
+                        : Icon(
+                            item.isFavorite
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            color: item.isFavorite
+                                ? const Color(0xFFE53935)
+                                : const Color(0xFF555555),
+                            size: 16,
                           ),
-                        ],
-                      ),
-                    ),
+                    label: formatCount(item.likes),
+                    onTap: () => _likeItem(item),
+                    active: item.isFavorite,
                   ),
+                  const Spacer(),
+                  // Share button
+                  _ActionButton(
+                    icon: const Icon(Icons.ios_share_rounded,
+                        color: Color(0xFF555555), size: 16),
+                    onTap: () => _shareItem(item),
+                  ),
+                  const SizedBox(width: 6),
+                  // Save button
+                  _ActionButton(
+                    icon: const Icon(Icons.bookmark_border_rounded,
+                        color: Color(0xFF555555), size: 16),
+                    onTap: () => _saveToBoard(item),
+                  ),
+                ],
+              ),
+            ),
+            if (isMember) ...[
+              Padding(
+                padding: const EdgeInsets.only(left: 10, right: 10, bottom: 10),
+                child: Text(
+                  item.productTitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF333333),
+                    letterSpacing: 0.1,
+                    height: 1.3,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -2079,4 +2449,59 @@ class _StarsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StarsPainter oldDelegate) => true;
+}
+
+/// Compact, pill-shaped action button for product cards
+class _ActionButton extends StatelessWidget {
+  final Widget icon;
+  final String? label;
+  final VoidCallback? onTap;
+  final bool active;
+
+  const _ActionButton({
+    required this.icon,
+    required this.onTap,
+    this.label,
+    this.active = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 9.0, vertical: 5.0),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFFFF0F0) : const Color(0xFFF7F7F7),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? const Color(0xFFFFCDD2) : const Color(0xFFE8E8E8),
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            icon,
+            if (label != null) ...[
+              const SizedBox(width: 4),
+              Text(
+                label!,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: active
+                      ? const Color(0xFFE53935)
+                      : const Color(0xFF555555),
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }

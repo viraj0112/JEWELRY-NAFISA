@@ -18,52 +18,52 @@ class AdminPanel extends StatelessWidget {
       canPop: true,
       child: Scaffold(
         appBar: AppBar(
-        title: const Text('Admin Panel'),
-      ),
-      body: ListView.builder(
-        itemCount: userSheetLinks.length + 1,
-        itemBuilder: (context, index) {
-          if (index == userSheetLinks.length) {
+          title: const Text('Admin Panel'),
+        ),
+        body: ListView.builder(
+          itemCount: userSheetLinks.length + 1,
+          itemBuilder: (context, index) {
+            if (index == userSheetLinks.length) {
+              return ListTile(
+                title: const Text('Provide Monthly Credits'),
+                subtitle: const Text(
+                    'Set monthly credits for members and non-members'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.settings),
+                  onPressed: () {
+                    // Navigate to a new screen or show a dialog to configure monthly credits
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MonthlyCreditsSettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
+              );
+            }
+
+            final link = userSheetLinks[index];
             return ListTile(
-              title: const Text('Provide Monthly Credits'),
-              subtitle:
-                  const Text('Set monthly credits for members and non-members'),
+              title: Text('User ${index + 1}'),
+              subtitle: Text(link),
               trailing: IconButton(
-                icon: const Icon(Icons.settings),
-                onPressed: () {
-                  // Navigate to a new screen or show a dialog to configure monthly credits
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MonthlyCreditsSettingsScreen(),
-                    ),
-                  );
+                icon: const Icon(Icons.open_in_new),
+                onPressed: () async {
+                  if (await canLaunch(link)) {
+                    await launch(link);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Could not open the link.'),
+                      ),
+                    );
+                  }
                 },
               ),
             );
-          }
-
-          final link = userSheetLinks[index];
-          return ListTile(
-            title: Text('User ${index + 1}'),
-            subtitle: Text(link),
-            trailing: IconButton(
-              icon: const Icon(Icons.open_in_new),
-              onPressed: () async {
-                if (await canLaunch(link)) {
-                  await launch(link);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Could not open the link.'),
-                    ),
-                  );
-                }
-              },
-            ),
-          );
-        },
-      ),
+          },
+        ),
       ),
     );
   }
@@ -78,10 +78,10 @@ class MonthlyCreditsSettingsScreen extends StatelessWidget {
       canPop: true,
       child: Scaffold(
         appBar: AppBar(
-        title: const Text('Monthly Credits Settings'),
-      ),
-      body: Center(
-        child: Text('Settings for monthly credits will be here.'),
+          title: const Text('Monthly Credits Settings'),
+        ),
+        body: Center(
+          child: Text('Settings for monthly credits will be here.'),
         ),
       ),
     );

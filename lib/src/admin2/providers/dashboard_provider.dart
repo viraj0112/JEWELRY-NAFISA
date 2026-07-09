@@ -26,7 +26,8 @@ class DashboardNotifier extends StateNotifier<DashboardData?> {
 
   Future<void> loadData({String timeRange = '7d'}) async {
     try {
-      final data = await DashboardService.fetchDashboardData(timeRange: timeRange);
+      final data =
+          await DashboardService.fetchDashboardData(timeRange: timeRange);
       state = data;
     } catch (e) {
       debugPrint('Error loading dashboard data: $e');
@@ -45,6 +46,7 @@ class DashboardNotifier extends StateNotifier<DashboardData?> {
   }
 }
 
-final dashboardNotifierProvider = StateNotifierProvider<DashboardNotifier, DashboardData?>((ref) {
+final dashboardNotifierProvider =
+    StateNotifierProvider<DashboardNotifier, DashboardData?>((ref) {
   return DashboardNotifier();
 });

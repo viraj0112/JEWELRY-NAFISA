@@ -244,7 +244,8 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           'Collection Name': getTextValue(entry.collectionNameController),
           'Gender': entry.gender,
           'Theme': getTextValue(entry.themeController),
-          'Metal Type': _normalizeMetalType(getTextValue(entry.metalTypeController)),
+          'Metal Type':
+              _normalizeMetalType(getTextValue(entry.metalTypeController)),
           'Metal Color': getTextValue(entry.metalColorController),
           'Net Weight': getTextValue(entry.netWeightController),
           'Stone Color': textToList(entry.stoneColorController),

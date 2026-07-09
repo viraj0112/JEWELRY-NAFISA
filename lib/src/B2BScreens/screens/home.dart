@@ -323,20 +323,30 @@ class _ProductCardState extends State<_ProductCard> {
                       ),
 
                       // Moderation Status Badge
-                      if (widget.item.status == 'pending' || widget.item.status == 'rejected')
+                      if (widget.item.status == 'pending' ||
+                          widget.item.status == 'rejected')
                         Positioned.fill(
                           child: Container(
-                            color: Colors.black.withOpacity(widget.item.status == 'rejected' ? 0.6 : 0.4),
+                            color: Colors.black.withOpacity(
+                                widget.item.status == 'rejected' ? 0.6 : 0.4),
                             child: Center(
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: widget.item.status == 'rejected' ? Colors.red : Colors.orange,
+                                  color: widget.item.status == 'rejected'
+                                      ? Colors.red
+                                      : Colors.orange,
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
-                                  widget.item.status == 'rejected' ? 'Rejected' : 'In Review',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                  widget.item.status == 'rejected'
+                                      ? 'Rejected'
+                                      : 'In Review',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16),
                                 ),
                               ),
                             ),
@@ -390,7 +400,9 @@ class _ProductCardState extends State<_ProductCard> {
                         ),
 
                       // Overlay with Action Buttons (Hover OR Tap)
-                      if (showOverlay && widget.item.status != 'pending' && widget.item.status != 'rejected')
+                      if (showOverlay &&
+                          widget.item.status != 'pending' &&
+                          widget.item.status != 'rejected')
                         Positioned.fill(
                           child: Container(
                             decoration: BoxDecoration(

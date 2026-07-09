@@ -1,4 +1,3 @@
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -235,10 +234,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF1A1A1A),
               ),
-            )
-                .animate()
-                .fadeIn(duration: 400.ms)
-                .slideX(begin: -0.1, end: 0),
+            ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.1, end: 0),
 
             const SizedBox(height: 4),
             Text(
@@ -512,7 +508,10 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
         }
         return null;
       },
-      decoration: _inputDecoration(hint: 'Create a strong password', prefixIcon: Icons.lock_outline_rounded).copyWith(
+      decoration: _inputDecoration(
+              hint: 'Create a strong password',
+              prefixIcon: Icons.lock_outline_rounded)
+          .copyWith(
         suffixIcon: IconButton(
           icon: Icon(
             _isPasswordVisible
@@ -547,8 +546,8 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
               decoration: TextDecoration.underline,
             ),
             recognizer: TapGestureRecognizer()
-              ..onTap = () =>
-                  _launchLegalUrl('https://www.dagina.design/terms.html'),
+              ..onTap =
+                  () => _launchLegalUrl('https://www.dagina.design/terms.html'),
           ),
           const TextSpan(text: ' and '),
           TextSpan(

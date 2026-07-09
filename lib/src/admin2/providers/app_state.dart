@@ -2,14 +2,15 @@ import "package:flutter/material.dart";
 
 class AppState extends ChangeNotifier {
   String _activeView = 'dashboard';
-  DateTime _selectedStartDate = DateTime.now().subtract(const Duration(days: 30));
+  DateTime _selectedStartDate =
+      DateTime.now().subtract(const Duration(days: 30));
   DateTime _selectedEndDate = DateTime.now();
   String _selectedTimeRange = 'Last 30 Days';
   List<String> _activeFilters = [];
-  
+
   // Theme mode
   ThemeMode _themeMode = ThemeMode.light;
-  
+
   // Advanced filter panel state
   bool _isFilterPanelOpen = false;
   String? _selectedMetalType;
@@ -18,7 +19,7 @@ class AppState extends ChangeNotifier {
   String? _selectedCategory;
   String? _selectedSubCategory;
   RangeValues _priceRange = const RangeValues(0, 100000);
-  
+
   // Live data mode
   bool _isLiveDataEnabled = false;
 
@@ -65,52 +66,53 @@ class AppState extends ChangeNotifier {
     _activeFilters.clear();
     notifyListeners();
   }
-  
+
   void setThemeMode(ThemeMode mode) {
     _themeMode = mode;
     notifyListeners();
   }
-  
+
   void toggleTheme() {
-    _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    _themeMode =
+        _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
   }
-  
+
   void toggleFilterPanel() {
     _isFilterPanelOpen = !_isFilterPanelOpen;
     notifyListeners();
   }
-  
+
   void setMetalType(String? value) {
     _selectedMetalType = value;
     notifyListeners();
   }
-  
+
   void setMetalColor(String? value) {
     _selectedMetalColor = value;
     notifyListeners();
   }
-  
+
   void setStoneType(String? value) {
     _selectedStoneType = value;
     notifyListeners();
   }
-  
+
   void setCategory(String? value) {
     _selectedCategory = value;
     notifyListeners();
   }
-  
+
   void setSubCategory(String? value) {
     _selectedSubCategory = value;
     notifyListeners();
   }
-  
+
   void setPriceRange(RangeValues range) {
     _priceRange = range;
     notifyListeners();
   }
-  
+
   void applyAdvancedFilters() {
     // Construct filter strings
     _activeFilters.clear();
@@ -130,11 +132,12 @@ class AppState extends ChangeNotifier {
       _activeFilters.add('SubCategory: $_selectedSubCategory');
     }
     if (_priceRange.start > 0 || _priceRange.end < 100000) {
-      _activeFilters.add('Price: \$${_priceRange.start.toInt()}-\$${_priceRange.end.toInt()}');
+      _activeFilters.add(
+          'Price: \$${_priceRange.start.toInt()}-\$${_priceRange.end.toInt()}');
     }
     notifyListeners();
   }
-  
+
   void resetAdvancedFilters() {
     _selectedMetalType = null;
     _selectedMetalColor = null;
@@ -145,7 +148,7 @@ class AppState extends ChangeNotifier {
     _activeFilters.clear();
     notifyListeners();
   }
-  
+
   void toggleLiveData() {
     _isLiveDataEnabled = !_isLiveDataEnabled;
     notifyListeners();

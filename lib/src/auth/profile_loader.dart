@@ -101,14 +101,18 @@ class _ProfileLoaderState extends State<ProfileLoader> {
   Widget _getDestinationWidget(UserProfile userProfile) {
     debugPrint('🎯 _getDestinationWidget called');
     debugPrint('🎯 userProfile.role: ${userProfile.role}');
-    debugPrint('🎯 userProfile.isSetupComplete: ${userProfile.isSetupComplete}');
-    debugPrint('🎯 userProfile.designerProfile: ${userProfile.designerProfile}');
-    debugPrint('🎯 userProfile.manufacturerProfile: ${userProfile.manufacturerProfile}');
+    debugPrint(
+        '🎯 userProfile.isSetupComplete: ${userProfile.isSetupComplete}');
+    debugPrint(
+        '🎯 userProfile.designerProfile: ${userProfile.designerProfile}');
+    debugPrint(
+        '🎯 userProfile.manufacturerProfile: ${userProfile.manufacturerProfile}');
 
     // 0. Skip onboarding for manufacturers & designers (Priority 0)
     if (userProfile.role == UserRole.manufacturer ||
         userProfile.role == UserRole.designer) {
-      debugPrint('🎯 Business account detected - skipping onboarding, checking approval');
+      debugPrint(
+          '🎯 Business account detected - skipping onboarding, checking approval');
       return userProfile.isApproved == true
           ? const B2BShell()
           : const PendingApprovalScreen();
@@ -118,7 +122,8 @@ class _ProfileLoaderState extends State<ProfileLoader> {
     // Always redirect to home first — the 45-second timer in HomeScreen
     // will navigate to the correct onboarding screen after the delay.
     if (userProfile.isSetupComplete == false) {
-      debugPrint('🎯 Onboarding not complete (stage ${userProfile.onboardingStage}) — redirecting to home, timer will handle onboarding');
+      debugPrint(
+          '🎯 Onboarding not complete (stage ${userProfile.onboardingStage}) — redirecting to home, timer will handle onboarding');
       return const RedirectToHome();
     }
 
@@ -171,7 +176,8 @@ class _ProfileLoaderState extends State<ProfileLoader> {
       builder: (context, profileProvider, child) {
         final userProfile = profileProvider.userProfile;
 
-        debugPrint('ProfileLoader - userProfile is null: ${userProfile == null}');
+        debugPrint(
+            'ProfileLoader - userProfile is null: ${userProfile == null}');
         debugPrint('ProfileLoader - userProfile: $userProfile');
 
         // Null profile state

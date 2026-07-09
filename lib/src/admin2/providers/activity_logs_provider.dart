@@ -8,7 +8,9 @@ final activitySummaryProvider = FutureProvider<ActivitySummary>((ref) async {
 });
 
 // Admin Logs Provider
-final adminLogsProvider = FutureProvider.family<List<ActivityLog>, Map<String, dynamic>>((ref, filters) async {
+final adminLogsProvider =
+    FutureProvider.family<List<ActivityLog>, Map<String, dynamic>>(
+        (ref, filters) async {
   return ActivityLogsService.fetchAdminLogs(
     searchTerm: filters['searchTerm'],
     category: filters['category'],
@@ -19,7 +21,9 @@ final adminLogsProvider = FutureProvider.family<List<ActivityLog>, Map<String, d
 });
 
 // User Activity Logs Provider
-final userActivityLogsProvider = FutureProvider.family<List<ActivityLog>, Map<String, dynamic>>((ref, filters) async {
+final userActivityLogsProvider =
+    FutureProvider.family<List<ActivityLog>, Map<String, dynamic>>(
+        (ref, filters) async {
   return ActivityLogsService.fetchUserActivityLogs(
     searchTerm: filters['searchTerm'],
     category: filters['category'],
@@ -30,7 +34,9 @@ final userActivityLogsProvider = FutureProvider.family<List<ActivityLog>, Map<St
 });
 
 // Export Logs Provider
-final exportLogsProvider = FutureProvider.family<List<ActivityLog>, Map<String, dynamic>>((ref, filters) async {
+final exportLogsProvider =
+    FutureProvider.family<List<ActivityLog>, Map<String, dynamic>>(
+        (ref, filters) async {
   return ActivityLogsService.fetchExportLogs(
     format: filters['format'],
     startDate: filters['startDate'],
@@ -42,11 +48,13 @@ final exportLogsProvider = FutureProvider.family<List<ActivityLog>, Map<String, 
 // State providers for filters
 final activityLogsSearchProvider = StateProvider<String?>((ref) => null);
 final activityLogsCategoryProvider = StateProvider<String?>((ref) => null);
-final activityLogsDateRangeProvider = StateProvider<Map<String, DateTime?>?>((ref) => null);
+final activityLogsDateRangeProvider =
+    StateProvider<Map<String, DateTime?>?>((ref) => null);
 final activityLogsFormatProvider = StateProvider<String?>((ref) => null);
 
 // Combined provider for current tab data
-final currentActivityLogsProvider = FutureProvider.family<List<ActivityLog>, String>((ref, tab) async {
+final currentActivityLogsProvider =
+    FutureProvider.family<List<ActivityLog>, String>((ref, tab) async {
   final search = ref.watch(activityLogsSearchProvider);
   final category = ref.watch(activityLogsCategoryProvider);
   final dateRange = ref.watch(activityLogsDateRangeProvider);

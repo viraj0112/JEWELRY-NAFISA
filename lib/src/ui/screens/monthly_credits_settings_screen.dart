@@ -46,40 +46,40 @@ class _MonthlyCreditsSettingsScreenState
       canPop: true,
       child: Scaffold(
         appBar: AppBar(
-        title: const Text('Monthly Credits Settings'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Set Monthly Credits',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _memberCreditsController,
-              decoration: const InputDecoration(
-                labelText: 'Credits for Members',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _nonMemberCreditsController,
-              decoration: const InputDecoration(
-                labelText: 'Credits for Non-Members',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _saveCredits,
-              child: const Text('Save'),
-            ),
-          ],
+          title: const Text('Monthly Credits Settings'),
         ),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Set Monthly Credits',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _memberCreditsController,
+                decoration: const InputDecoration(
+                  labelText: 'Credits for Members',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _nonMemberCreditsController,
+                decoration: const InputDecoration(
+                  labelText: 'Credits for Non-Members',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _saveCredits,
+                child: const Text('Save'),
+              ),
+            ],
+          ),
         ),
       ),
     );

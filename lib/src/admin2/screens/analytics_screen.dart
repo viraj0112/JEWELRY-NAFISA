@@ -146,7 +146,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   Future<int> _fetchProductCount() async {
     try {
       int count = 0;
-      for (final t in ['products', 'designerproducts', 'manufacturerproducts']) {
+      for (final t in [
+        'products',
+        'designerproducts',
+        'manufacturerproducts'
+      ]) {
         final rows = await Supabase.instance.client.from(t).select('id');
         count += (rows as List).length;
       }
@@ -177,8 +181,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
           return Container(
             decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
             padding: EdgeInsets.fromLTRB(
               24,
@@ -215,8 +218,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                     ),
                     IconButton(
                       onPressed: () => Navigator.of(ctx).pop(),
-                      icon: Icon(
-                          Icons.close_rounded,
+                      icon: Icon(Icons.close_rounded,
                           color: Colors.grey.shade500),
                     ),
                   ],
@@ -242,11 +244,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                       ('90', '90 Days'),
                     ])
                       GestureDetector(
-                        onTap: () =>
-                            setModal(() => tempTimeRange = r.$1),
+                        onTap: () => setModal(() => tempTimeRange = r.$1),
                         child: AnimatedContainer(
-                          duration:
-                              const Duration(milliseconds: 200),
+                          duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 10),
                           decoration: BoxDecoration(
@@ -286,17 +286,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                   children: [
                     for (final v in ['Type', 'Color'])
                       GestureDetector(
-                        onTap: () =>
-                            setModal(() => tempView = v),
+                        onTap: () => setModal(() => tempView = v),
                         child: AnimatedContainer(
-                          duration:
-                              const Duration(milliseconds: 200),
+                          duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 10),
                           decoration: BoxDecoration(
-                            color: tempView == v
-                                ? _green
-                                : Colors.grey.shade100,
+                            color:
+                                tempView == v ? _green : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -336,11 +333,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                       ('manufacturerproducts', 'Manufacturer'),
                     ])
                       GestureDetector(
-                        onTap: () =>
-                            setModal(() => tempSource = s.$1),
+                        onTap: () => setModal(() => tempSource = s.$1),
                         child: AnimatedContainer(
-                          duration:
-                              const Duration(milliseconds: 200),
+                          duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
@@ -374,13 +369,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                           tempView = 'Type';
                         }),
                         child: Container(
-                          padding:
-                              const EdgeInsets.symmetric(
-                                  vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           decoration: BoxDecoration(
                             color: Colors.grey.shade100,
-                            borderRadius:
-                                BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           alignment: Alignment.center,
                           child: Text(
@@ -408,13 +400,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                           Navigator.of(ctx).pop();
                         },
                         child: Container(
-                          padding:
-                              const EdgeInsets.symmetric(
-                                  vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           decoration: BoxDecoration(
                             color: _green,
-                            borderRadius:
-                                BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           alignment: Alignment.center,
                           child: const Text(
@@ -461,10 +450,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildContent(AnalyticsBundle bundle) {
-    final showJewels =
-        _activeTab == 'All Records' || _activeTab == 'Jewels';
-    final showGlobal =
-        _activeTab == 'All Records' || _activeTab == 'Global';
+    final showJewels = _activeTab == 'All Records' || _activeTab == 'Jewels';
+    final showGlobal = _activeTab == 'All Records' || _activeTab == 'Global';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -524,7 +511,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   // ═══════════════════════════════════════════════════════════════════════════
   // PAGE HEADER
   // ═══════════════════════════════════════════════════════════════════════════
-
 
   Widget _buildPageHeader(AnalyticsBundle bundle) {
     return Column(
@@ -675,8 +661,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
               onTap: () => setState(() => _activeTab = tab.label),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 18, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
                   color: active ? _green : _surface,
                   borderRadius: BorderRadius.circular(999),
@@ -714,8 +700,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
         GestureDetector(
           onTap: () => _showFiltersSheet(),
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: _surface,
               borderRadius: BorderRadius.circular(999),
@@ -723,8 +708,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             ),
             child: Row(
               children: [
-                Icon(Icons.tune_rounded,
-                    size: 14, color: Colors.grey.shade600),
+                Icon(Icons.tune_rounded, size: 14, color: Colors.grey.shade600),
                 const SizedBox(width: 6),
                 Text(
                   'Filters',
@@ -770,8 +754,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     final totalViews = pts.fold<int>(0, (s, p) => s + p.views);
     final totalLikes = pts.fold<int>(0, (s, p) => s + p.likes);
     final totalQuotes = pts.fold<int>(0, (s, p) => s + p.quotesRequested);
-    final convLift =
-        totalViews == 0 ? 0.0 : (totalQuotes / totalViews * 100);
+    final convLift = totalViews == 0 ? 0.0 : (totalQuotes / totalViews * 100);
     final avgSimilarity = totalViews > 0
         ? (88.0 + (totalLikes / totalViews) * 12).clamp(80.0, 99.9)
         : 94.2;
@@ -780,13 +763,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     String topHook = '"Art Deco Emeralds"';
     if (bundle.quotes.isNotEmpty) {
       final t = bundle.quotes.first.productTitle;
-      topHook =
-          '"${t.length > 22 ? t.substring(0, 22).trim() : t}"';
+      topHook = '"${t.length > 22 ? t.substring(0, 22).trim() : t}"';
     }
 
-    final avgVisualQueries = pts.isEmpty
-        ? 0
-        : totalViews ~/ pts.length;
+    final avgVisualQueries = pts.isEmpty ? 0 : totalViews ~/ pts.length;
     final opsLoad = totalViews > 5000
         ? 48
         : totalViews > 1000
@@ -829,8 +809,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                   _AnimatedLiveBadge(controller: _liveController),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(6),
@@ -866,8 +846,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
               child: _LineAreaChart(
                 points: pts.take(30).toList(),
                 goldColor: _gold,
-                tooltipText:
-                    '${_fmt(avgVisualQueries)} Visual Queries',
+                tooltipText: '${_fmt(avgVisualQueries)} Visual Queries',
               ),
             ),
           const SizedBox(height: 28),
@@ -877,9 +856,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
               Expanded(
                 flex: 3,
                 child: _MetricCell(
-                    label: 'TOP SEMANTIC HOOK',
-                    value: topHook,
-                    isLarge: true),
+                    label: 'TOP SEMANTIC HOOK', value: topHook, isLarge: true),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -931,9 +908,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             const MapEntry('"Brutalist Gold Choker"', 98),
             const MapEntry('"Black Diamond Tie Pin"', 45),
           ]
-        : sorted
-            .take(3)
-            .toList();
+        : sorted.take(3).toList();
 
     final maxHits = items.isEmpty ? 1 : items.first.value;
     final topItemLabel = items.isEmpty
@@ -984,8 +959,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
@@ -1047,8 +1021,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.lightbulb_outline,
-                    color: _gold, size: 16),
+                const Icon(Icons.lightbulb_outline, color: _gold, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
                   child: RichText(
@@ -1111,8 +1084,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             GestureDetector(
               onTap: () => ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content:
-                      const Text('Full gallery view — coming soon'),
+                  content: const Text('Full gallery view — coming soon'),
                   backgroundColor: _green,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
@@ -1132,8 +1104,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                     ),
                   ),
                   SizedBox(width: 4),
-                  Icon(Icons.arrow_forward_rounded,
-                      size: 14, color: _gold),
+                  Icon(Icons.arrow_forward_rounded, size: 14, color: _gold),
                 ],
               ),
             ),
@@ -1202,7 +1173,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   Widget _buildGlobalResonanceSection(AnalyticsBundle bundle) {
     // Process real geographic data into a format the UI expects
     final rawGeo = bundle.geoEngagement;
-    
+
     // Calculate intensity for each location
     final List<_CityData> dynamicLocations = [];
     if (rawGeo.isNotEmpty) {
@@ -1214,7 +1185,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
         final s = (loc['saves'] as int? ?? 0);
         return v + l * 2.0 + s * 3.0;
       }).toList();
-      
+
       if (scores.isNotEmpty) {
         maxScore = scores.reduce((a, b) => a > b ? a : b);
       }
@@ -1224,15 +1195,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
         final country = (loc['country'] as String? ?? 'Unknown').toUpperCase();
         final state = (loc['state'] as String? ?? '').toUpperCase();
         final name = state.isNotEmpty ? '$state, $country' : country;
-        
+
         final score = scores[i];
         final intensity = maxScore > 0 ? (score / maxScore) : 0.0;
-        
+
         String status = 'Stable';
-        if (intensity > 0.8) status = 'High Intensity';
+        if (intensity > 0.8)
+          status = 'High Intensity';
         else if (intensity > 0.5) status = 'Rising';
 
-        dynamicLocations.add(_CityData(name, status, intensity.clamp(0.1, 1.0)));
+        dynamicLocations
+            .add(_CityData(name, status, intensity.clamp(0.1, 1.0)));
       }
     }
 
@@ -1241,12 +1214,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     if (displayLocations.isEmpty) {
       displayLocations.add(_CityData('NO DATA YET', 'Stable', 0.1));
     }
-    
+
     // Pad to 5 exactly
     while (displayLocations.length < 5) {
       displayLocations.add(_CityData('AWAITING DATA', 'Stable', 0.05));
     }
-    
+
     if (displayLocations.length > 5) {
       displayLocations.removeRange(5, displayLocations.length);
     }
@@ -1330,8 +1303,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                                 height: 3,
                                 decoration: BoxDecoration(
                                   color: Colors.grey.shade200,
-                                  borderRadius:
-                                      BorderRadius.circular(2),
+                                  borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
                               FractionallySizedBox(
@@ -1343,8 +1315,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                                       _gold,
                                       _gold.withOpacity(0.5),
                                     ]),
-                                    borderRadius:
-                                        BorderRadius.circular(2),
+                                    borderRadius: BorderRadius.circular(2),
                                   ),
                                 ),
                               ),
@@ -1375,7 +1346,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             color: const Color(0xFF1A2E28),
             child: CustomPaint(
               painter: _WorldMapCustomPainter(
-                gold: _gold, 
+                gold: _gold,
                 green: _green,
                 locations: bundle.geoEngagement,
               ),
@@ -1447,8 +1418,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
               MetalInsight(label: e.key, count: e.value, sourceTable: 'all'))
           .toList();
     } else {
-      filtered =
-          insights.where((i) => i.sourceTable == _metalSource).toList();
+      filtered = insights.where((i) => i.sourceTable == _metalSource).toList();
     }
     filtered.sort((a, b) => b.count.compareTo(a.count));
     final total = filtered.isEmpty
@@ -1475,8 +1445,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                   ),
                   Text(
                     'By product metal $_metalView',
-                    style: TextStyle(
-                        color: Colors.grey.shade500, fontSize: 13),
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
                   ),
                 ],
               ),
@@ -1522,8 +1491,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                               width: 10,
                               height: 10,
                               decoration: BoxDecoration(
-                                  color: color,
-                                  shape: BoxShape.circle),
+                                  color: color, shape: BoxShape.circle),
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -1599,8 +1567,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
       byTable[t] = (byTable[t] ?? 0) + 1;
     }
 
-    final recent = [...quotes]
-      ..sort((a, b) {
+    final recent = [...quotes]..sort((a, b) {
         final ad = a.createdAt ?? DateTime(2000);
         final bd = b.createdAt ?? DateTime(2000);
         return bd.compareTo(ad);
@@ -1709,16 +1676,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                               Text(
                                 '${q.userName} · ${_tableLabel(q.productTable)}',
                                 style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey.shade500),
+                                    fontSize: 11, color: Colors.grey.shade500),
                               ),
                             ],
                           ),
                         ),
                         Text(
-                          q.createdAt != null
-                              ? fmt.format(q.createdAt!)
-                              : '—',
+                          q.createdAt != null ? fmt.format(q.createdAt!) : '—',
                           style: TextStyle(
                               fontSize: 11, color: Colors.grey.shade400),
                         ),
@@ -1784,8 +1748,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: _green),
               onPressed: widget.onRefreshRequested,
-              child: const Text('Retry',
-                  style: TextStyle(color: Colors.white)),
+              child: const Text('Retry', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -1898,8 +1861,7 @@ class _AnimatedLiveBadge extends StatelessWidget {
       builder: (ctx, _) {
         final opacity = 0.4 + controller.value * 0.6;
         return Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: Colors.green.shade50,
             borderRadius: BorderRadius.circular(6),
@@ -2175,9 +2137,8 @@ class _SentimentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final likes = item.quoteRequests * 4 + 200; // Derive a like count
-    final likeStr = likes >= 1000
-        ? '${(likes / 1000).toStringAsFixed(1)}k'
-        : '$likes';
+    final likeStr =
+        likes >= 1000 ? '${(likes / 1000).toStringAsFixed(1)}k' : '$likes';
 
     return Container(
       decoration: BoxDecoration(
@@ -2209,8 +2170,7 @@ class _SentimentCard extends StatelessWidget {
                       ? Image.network(
                           item.imageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _placeholderImage(),
+                          errorBuilder: (_, __, ___) => _placeholderImage(),
                         )
                       : _placeholderImage(),
                 ),
@@ -2219,8 +2179,8 @@ class _SentimentCard extends StatelessWidget {
                   top: 12,
                   right: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEC4899).withOpacity(0.9),
                       borderRadius: BorderRadius.circular(999),
@@ -2247,8 +2207,7 @@ class _SentimentCard extends StatelessWidget {
           ),
           // Label row
           Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -2285,8 +2244,7 @@ class _SentimentCard extends StatelessWidget {
       height: 200,
       color: const Color(0xFFF0EDE6),
       child: const Center(
-        child: Icon(Icons.diamond_outlined,
-            color: Color(0xFFD4AF37), size: 40),
+        child: Icon(Icons.diamond_outlined, color: Color(0xFFD4AF37), size: 40),
       ),
     );
   }
@@ -2309,16 +2267,13 @@ class _PredictiveAestheticCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalSaves =
-        bundle.dailyPoints.fold<int>(0, (s, p) => s + p.saves);
+    final totalSaves = bundle.dailyPoints.fold<int>(0, (s, p) => s + p.saves);
     // Real saves trend: compare first half vs second half of period
     final mid = bundle.dailyPoints.length ~/ 2;
-    final firstHalfSaves = bundle.dailyPoints
-        .take(mid)
-        .fold<int>(0, (s, p) => s + p.saves);
-    final secondHalfSaves = bundle.dailyPoints
-        .skip(mid)
-        .fold<int>(0, (s, p) => s + p.saves);
+    final firstHalfSaves =
+        bundle.dailyPoints.take(mid).fold<int>(0, (s, p) => s + p.saves);
+    final secondHalfSaves =
+        bundle.dailyPoints.skip(mid).fold<int>(0, (s, p) => s + p.saves);
     final pctIncrease = firstHalfSaves > 0
         ? ((secondHalfSaves - firstHalfSaves) / firstHalfSaves * 100)
             .abs()
@@ -2352,8 +2307,7 @@ class _PredictiveAestheticCard extends StatelessWidget {
                   color: Colors.white.withOpacity(0.6),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.auto_awesome,
-                    color: gold, size: 18),
+                child: Icon(Icons.auto_awesome, color: gold, size: 18),
               ),
               // Settings circle
               Container(
@@ -2431,8 +2385,7 @@ class _PredictiveAestheticCard extends StatelessWidget {
           GestureDetector(
             onTap: () => ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content:
-                    const Text('Sentiment report export initiated'),
+                content: const Text('Sentiment report export initiated'),
                 backgroundColor: const Color(0xFF0A4F3F),
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(
@@ -2451,8 +2404,7 @@ class _PredictiveAestheticCard extends StatelessWidget {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.download_outlined,
-                      color: Colors.white, size: 15),
+                  Icon(Icons.download_outlined, color: Colors.white, size: 15),
                   SizedBox(width: 6),
                   Text(
                     'EXPORT SENTIMENT REPORT',
@@ -2537,37 +2489,37 @@ class _WorldMapCustomPainter extends CustomPainter {
 
   // Country capital coordinates in (lon, lat) for equirectangular projection
   static const Map<String, List<double>> _countryCoords = {
-    'USA':  [-95.7, 37.1],
-    'CA':   [-96.8, 56.1],
-    'MX':   [-102.5, 23.6],
-    'BR':   [-51.9, -14.2],
-    'AR':   [-63.6, -38.4],
-    'GB':   [-3.4, 55.3],
-    'FR':   [2.2, 46.2],
-    'DE':   [10.4, 51.2],
-    'IT':   [12.5, 41.8],
-    'ES':   [-3.7, 40.4],
-    'RU':   [105.3, 61.5],
-    'TR':   [35.2, 38.9],
-    'NG':   [8.6, 9.0],
-    'ZA':   [22.9, -30.5],
-    'EG':   [30.8, 26.8],
-    'IN':   [78.9, 20.5],
-    'CN':   [104.1, 35.8],
-    'JP':   [138.2, 36.2],
-    'KR':   [127.7, 35.9],
-    'AU':   [133.7, -25.2],
-    'ID':   [113.9, -0.7],
-    'AE':   [53.8, 23.4],
-    'SA':   [44.5, 23.8],
-    'PK':   [69.3, 30.3],
-    'SG':   [103.8, 1.3],
-    'HK':   [114.1, 22.3],
-    'TH':   [100.9, 15.9],
-    'CH':   [8.2, 46.8],
-    'NL':   [5.3, 52.1],
-    'BE':   [4.4, 50.5],
-    'PT':   [-8.2, 39.4],
+    'USA': [-95.7, 37.1],
+    'CA': [-96.8, 56.1],
+    'MX': [-102.5, 23.6],
+    'BR': [-51.9, -14.2],
+    'AR': [-63.6, -38.4],
+    'GB': [-3.4, 55.3],
+    'FR': [2.2, 46.2],
+    'DE': [10.4, 51.2],
+    'IT': [12.5, 41.8],
+    'ES': [-3.7, 40.4],
+    'RU': [105.3, 61.5],
+    'TR': [35.2, 38.9],
+    'NG': [8.6, 9.0],
+    'ZA': [22.9, -30.5],
+    'EG': [30.8, 26.8],
+    'IN': [78.9, 20.5],
+    'CN': [104.1, 35.8],
+    'JP': [138.2, 36.2],
+    'KR': [127.7, 35.9],
+    'AU': [133.7, -25.2],
+    'ID': [113.9, -0.7],
+    'AE': [53.8, 23.4],
+    'SA': [44.5, 23.8],
+    'PK': [69.3, 30.3],
+    'SG': [103.8, 1.3],
+    'HK': [114.1, 22.3],
+    'TH': [100.9, 15.9],
+    'CH': [8.2, 46.8],
+    'NL': [5.3, 52.1],
+    'BE': [4.4, 50.5],
+    'PT': [-8.2, 39.4],
   };
 
   Offset _geoToOffset(double lon, double lat, double w, double h) {
@@ -2587,21 +2539,52 @@ class _WorldMapCustomPainter extends CustomPainter {
 
     // Fuzzy name matching
     final nameMap = {
-      'INDIA': 'IN', 'BHARAT': 'IN',
-      'UNITED STATES': 'USA', 'US': 'USA', 'AMERICA': 'USA',
-      'UNITED KINGDOM': 'GB', 'UK': 'GB', 'ENGLAND': 'GB', 'BRITAIN': 'GB',
-      'UNITED ARAB EMIRATES': 'AE', 'UAE': 'AE', 'EMIRATES': 'AE',
-      'SAUDI': 'SA', 'SAUDI ARABIA': 'SA',
-      'JAPAN': 'JP', 'CHINA': 'CN', 'BRAZIL': 'BR', 'AUSTRALIA': 'AU',
-      'FRANCE': 'FR', 'GERMANY': 'DE', 'ITALY': 'IT', 'SPAIN': 'ES',
-      'RUSSIA': 'RU', 'CANADA': 'CA', 'SINGAPORE': 'SG', 'HONG KONG': 'HK',
-      'THAILAND': 'TH', 'SOUTH KOREA': 'KR', 'KOREA': 'KR',
-      'INDONESIA': 'ID', 'PAKISTAN': 'PK', 'TURKEY': 'TR',
-      'NETHERLANDS': 'NL', 'SWITZERLAND': 'CH', 'MEXICO': 'MX',
-      'NIGERIA': 'NG', 'SOUTH AFRICA': 'ZA', 'EGYPT': 'EG',
-      'MAHARASHTRA': 'IN', 'DELHI': 'IN', 'MUMBAI': 'IN',
-      'NEW YORK': 'USA', 'CALIFORNIA': 'USA', 'TEXAS': 'USA',
-      'DUBAI': 'AE', 'ABU DHABI': 'AE',
+      'INDIA': 'IN',
+      'BHARAT': 'IN',
+      'UNITED STATES': 'USA',
+      'US': 'USA',
+      'AMERICA': 'USA',
+      'UNITED KINGDOM': 'GB',
+      'UK': 'GB',
+      'ENGLAND': 'GB',
+      'BRITAIN': 'GB',
+      'UNITED ARAB EMIRATES': 'AE',
+      'UAE': 'AE',
+      'EMIRATES': 'AE',
+      'SAUDI': 'SA',
+      'SAUDI ARABIA': 'SA',
+      'JAPAN': 'JP',
+      'CHINA': 'CN',
+      'BRAZIL': 'BR',
+      'AUSTRALIA': 'AU',
+      'FRANCE': 'FR',
+      'GERMANY': 'DE',
+      'ITALY': 'IT',
+      'SPAIN': 'ES',
+      'RUSSIA': 'RU',
+      'CANADA': 'CA',
+      'SINGAPORE': 'SG',
+      'HONG KONG': 'HK',
+      'THAILAND': 'TH',
+      'SOUTH KOREA': 'KR',
+      'KOREA': 'KR',
+      'INDONESIA': 'ID',
+      'PAKISTAN': 'PK',
+      'TURKEY': 'TR',
+      'NETHERLANDS': 'NL',
+      'SWITZERLAND': 'CH',
+      'MEXICO': 'MX',
+      'NIGERIA': 'NG',
+      'SOUTH AFRICA': 'ZA',
+      'EGYPT': 'EG',
+      'MAHARASHTRA': 'IN',
+      'DELHI': 'IN',
+      'MUMBAI': 'IN',
+      'NEW YORK': 'USA',
+      'CALIFORNIA': 'USA',
+      'TEXAS': 'USA',
+      'DUBAI': 'AE',
+      'ABU DHABI': 'AE',
     };
 
     for (final entry in nameMap.entries) {
@@ -2673,13 +2656,15 @@ class _WorldMapCustomPainter extends CustomPainter {
       final maxScore = scores.fold(0.0, (a, b) => a > b ? a : b);
 
       for (int i = 0; i < locations.length; i++) {
-        final country = (locations[i]['country'] as String? ?? '').toUpperCase();
+        final country =
+            (locations[i]['country'] as String? ?? '').toUpperCase();
         // Also try state-level match
         final state = (locations[i]['state'] as String? ?? '').toUpperCase();
-        Offset? pt = _getGeoOffset(state.isNotEmpty ? state : country, w, h)
-            ?? _getGeoOffset(country, w, h);
+        Offset? pt = _getGeoOffset(state.isNotEmpty ? state : country, w, h) ??
+            _getGeoOffset(country, w, h);
         if (pt == null) continue;
-        final intensity = maxScore > 0 ? (scores[i] / maxScore).clamp(0.1, 1.0) : 0.3;
+        final intensity =
+            maxScore > 0 ? (scores[i] / maxScore).clamp(0.1, 1.0) : 0.3;
         hotspots.add(MapEntry(pt, intensity));
       }
     }
@@ -2687,7 +2672,11 @@ class _WorldMapCustomPainter extends CustomPainter {
     // Fallback demo hotspots when no data yet (so map doesn't look empty)
     if (hotspots.isEmpty) {
       final demo = [
-        ['IN', 0.9], ['AE', 0.6], ['GB', 0.5], ['USA', 0.4], ['SG', 0.3],
+        ['IN', 0.9],
+        ['AE', 0.6],
+        ['GB', 0.5],
+        ['USA', 0.4],
+        ['SG', 0.3],
       ];
       for (final d in demo) {
         final pt = _getGeoOffset(d[0] as String, w, h);
@@ -2701,31 +2690,46 @@ class _WorldMapCustomPainter extends CustomPainter {
       final r = 28.0 * intensity + 10.0;
 
       // Outermost soft glow
-      canvas.drawCircle(pt, r * 1.8, Paint()
-        ..color = gold.withOpacity(0.06 * intensity)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
-        ..style = PaintingStyle.fill);
+      canvas.drawCircle(
+          pt,
+          r * 1.8,
+          Paint()
+            ..color = gold.withOpacity(0.06 * intensity)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
+            ..style = PaintingStyle.fill);
 
       // Mid glow ring
-      canvas.drawCircle(pt, r, Paint()
-        ..color = gold.withOpacity(0.12 * intensity)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6)
-        ..style = PaintingStyle.fill);
+      canvas.drawCircle(
+          pt,
+          r,
+          Paint()
+            ..color = gold.withOpacity(0.12 * intensity)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6)
+            ..style = PaintingStyle.fill);
 
       // Inner ring
-      canvas.drawCircle(pt, r * 0.4, Paint()
-        ..color = gold.withOpacity(0.35 * intensity)
-        ..style = PaintingStyle.fill);
+      canvas.drawCircle(
+          pt,
+          r * 0.4,
+          Paint()
+            ..color = gold.withOpacity(0.35 * intensity)
+            ..style = PaintingStyle.fill);
 
       // Core bright dot
-      canvas.drawCircle(pt, 4.0 + intensity * 3.0, Paint()
-        ..color = gold.withOpacity(0.85 + intensity * 0.15)
-        ..style = PaintingStyle.fill);
+      canvas.drawCircle(
+          pt,
+          4.0 + intensity * 3.0,
+          Paint()
+            ..color = gold.withOpacity(0.85 + intensity * 0.15)
+            ..style = PaintingStyle.fill);
 
       // White highlight at center
-      canvas.drawCircle(pt, 2.0, Paint()
-        ..color = Colors.white.withOpacity(0.7)
-        ..style = PaintingStyle.fill);
+      canvas.drawCircle(
+          pt,
+          2.0,
+          Paint()
+            ..color = Colors.white.withOpacity(0.7)
+            ..style = PaintingStyle.fill);
     }
   }
 
@@ -2763,8 +2767,7 @@ class _TogglePills extends StatelessWidget {
             onTap: () => onSelect(opt),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: active ? Colors.white : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
@@ -2782,9 +2785,8 @@ class _TogglePills extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: active
-                      ? const Color(0xFF0A4F3F)
-                      : Colors.grey.shade600,
+                  color:
+                      active ? const Color(0xFF0A4F3F) : Colors.grey.shade600,
                 ),
               ),
             ),
@@ -2800,8 +2802,7 @@ class _TogglePills extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SourceDropdown extends StatelessWidget {
-  const _SourceDropdown(
-      {required this.value, required this.onChanged});
+  const _SourceDropdown({required this.value, required this.onChanged});
   final String value;
   final ValueChanged<String> onChanged;
 
@@ -2814,8 +2815,7 @@ class _SourceDropdown extends StatelessWidget {
         initialValue: value,
         style: const TextStyle(fontSize: 12, color: Colors.black),
         decoration: InputDecoration(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 10),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: BorderSide(color: Colors.grey.shade300),
@@ -2826,11 +2826,8 @@ class _SourceDropdown extends StatelessWidget {
         items: const [
           DropdownMenuItem(value: 'all', child: Text('All Sources')),
           DropdownMenuItem(value: 'products', child: Text('Main')),
-          DropdownMenuItem(
-              value: 'designerproducts', child: Text('Designer')),
-          DropdownMenuItem(
-              value: 'manufacturerproducts',
-              child: Text('Maker')),
+          DropdownMenuItem(value: 'designerproducts', child: Text('Designer')),
+          DropdownMenuItem(value: 'manufacturerproducts', child: Text('Maker')),
         ],
         onChanged: (v) {
           if (v != null) onChanged(v);

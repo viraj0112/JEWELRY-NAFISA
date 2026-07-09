@@ -234,7 +234,8 @@ class _ActivityLogsSectionState extends ConsumerState<ActivityLogsSection> {
     final logsAsync = ref.watch(currentActivityLogsProvider('admin'));
 
     return logsAsync.when(
-      loading: () => const AdminSkeletonView(variant: AdminSkeletonVariant.table),
+      loading: () =>
+          const AdminSkeletonView(variant: AdminSkeletonVariant.table),
       error: (err, stack) => Center(child: Text('Error: $err')),
       data: (logs) => _buildLogsTable(logs, _adminColumns, _adminRowBuilder),
     );
@@ -244,7 +245,8 @@ class _ActivityLogsSectionState extends ConsumerState<ActivityLogsSection> {
     final logsAsync = ref.watch(currentActivityLogsProvider('user'));
 
     return logsAsync.when(
-      loading: () => const AdminSkeletonView(variant: AdminSkeletonVariant.table),
+      loading: () =>
+          const AdminSkeletonView(variant: AdminSkeletonVariant.table),
       error: (err, stack) => Center(child: Text('Error: $err')),
       data: (logs) => _buildLogsTable(logs, _userColumns, _userRowBuilder),
     );
@@ -254,7 +256,8 @@ class _ActivityLogsSectionState extends ConsumerState<ActivityLogsSection> {
     final logsAsync = ref.watch(currentActivityLogsProvider('export'));
 
     return logsAsync.when(
-      loading: () => const AdminSkeletonView(variant: AdminSkeletonVariant.table),
+      loading: () =>
+          const AdminSkeletonView(variant: AdminSkeletonVariant.table),
       error: (err, stack) => Center(child: Text('Error: $err')),
       data: (logs) => _buildLogsTable(logs, _exportColumns, _exportRowBuilder),
     );

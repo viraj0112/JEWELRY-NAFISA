@@ -81,7 +81,8 @@ class _SearchPageState extends State<SearchPage> {
     final ImageSource? source = await showDialog<ImageSource>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Select Image Source. \n Feature Coming Soon at your fingertips!🤳🏻'),
+        title: Text(
+            'Select Image Source. \n Feature Coming Soon at your fingertips!🤳🏻'),
         actions: <Widget>[
           TextButton(
             child: Text('Camera'),
@@ -136,7 +137,6 @@ class _SearchPageState extends State<SearchPage> {
       //     await _jewelryService.findSimilarProductsByImage(imageBytes);
       final results = await JewelryService.searchByImage(imageBytes);
 
-
       if (mounted) {
         setState(() {
           _results = results.cast<JewelryItem>();
@@ -183,8 +183,7 @@ class _SearchPageState extends State<SearchPage> {
             IconButton(
               icon: const Icon(Icons.camera_alt_outlined),
               onPressed: _searchByImage,
-              tooltip:
-                  'Search by Image (AI Lens)',
+              tooltip: 'Search by Image (AI Lens)',
             ),
             if (_searchController.text.isNotEmpty)
               IconButton(

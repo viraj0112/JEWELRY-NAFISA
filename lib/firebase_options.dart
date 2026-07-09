@@ -73,5 +73,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'dagina-designs.firebasestorage.app',
     measurementId: 'G-X6JQX6NZMY',
   );
-
 }

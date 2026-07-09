@@ -429,16 +429,18 @@ class AnalyticsService {
   }
 
   /// Get Credit Distribution
-  static List<CreditDistribution> getCreditDistribution(List<CreditUser> users) {
+  static List<CreditDistribution> getCreditDistribution(
+      List<CreditUser> users) {
     final distribution = <String, int>{};
-    
+
     for (final user in users) {
       final range = _getCreditRange(user.currentCredits);
       distribution[range] = (distribution[range] ?? 0) + 1;
     }
-    
+
     return distribution.entries
-        .map((entry) => CreditDistribution(range: entry.key, users: entry.value))
+        .map(
+            (entry) => CreditDistribution(range: entry.key, users: entry.value))
         .toList()
       ..sort((a, b) => a.range.compareTo(b.range));
   }
@@ -448,12 +450,13 @@ class AnalyticsService {
     if (users.isEmpty) {
       return [];
     }
-    
-    final totalCredits = users.fold<int>(0, (sum, user) => sum + user.currentCredits);
+
+    final totalCredits =
+        users.fold<int>(0, (sum, user) => sum + user.currentCredits);
     final averageCredits = (totalCredits / users.length).round();
     final totalUsers = users.length;
     final memberUsers = users.where((user) => user.isMember).length;
-    
+
     return [
       CreditSummary(
         label: 'Total Credits',
@@ -483,7 +486,8 @@ class AnalyticsService {
   }
 
   /// Add Credits to User
-  static Future<bool> addCredits(String userId, int amount, CreditSource source) async {
+  static Future<bool> addCredits(
+      String userId, int amount, CreditSource source) async {
     try {
       // First get the current credits
       final userResponse = await _supabase
@@ -491,19 +495,16 @@ class AnalyticsService {
           .select('credits_remaining')
           .eq('id', userId)
           .single();
-      
+
       final currentCredits = userResponse['credits_remaining'] as int? ?? 0;
       final newCredits = currentCredits + amount;
-      
+
       // Update the user with new credit amount
-      await _supabase
-          .from('users')
-          .update({
-            'credits_remaining': newCredits,
-            'last_credit_refresh': DateTime.now().toIso8601String(),
-          })
-          .eq('id', userId);
-      
+      await _supabase.from('users').update({
+        'credits_remaining': newCredits,
+        'last_credit_refresh': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+
       // Log the credit transaction
       await _supabase.from('credit_transactions').insert({
         'user_id': userId,
@@ -512,7 +513,7 @@ class AnalyticsService {
         'type': 'credit',
         'created_at': DateTime.now().toIso8601String(),
       });
-      
+
       return true;
     } catch (e) {
       debugPrint('Error adding credits: $e');
@@ -521,19 +522,20 @@ class AnalyticsService {
   }
 
   /// Send Bulk Message to Users
-  static Future<bool> sendBulkMessage(List<String> userIds, String message) async {
+  static Future<bool> sendBulkMessage(
+      List<String> userIds, String message) async {
     try {
       // In a real implementation, this would send notifications/messages
       // For now, we'll just simulate success
       await Future.delayed(const Duration(seconds: 1));
-      
+
       // Log the bulk message
       await _supabase.from('bulk_messages').insert({
         'user_ids': userIds,
         'message': message,
         'sent_at': DateTime.now().toIso8601String(),
       });
-      
+
       return true;
     } catch (e) {
       debugPrint('Error sending bulk message: $e');

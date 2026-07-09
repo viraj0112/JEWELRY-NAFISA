@@ -25,6 +25,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:jewelry_nafisa/src/utils/app_update_checker.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class MainShell extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -434,11 +435,25 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
   Widget _buildProfileDropdown(UserProfileProvider user) {
     final avatarUrl = user.userProfile?.avatarUrl;
     final bool isMember = user.userProfile?.role == UserRole.member;
-    final themeProvider = Provider.of<ThemeProvider>(context); // Add this line
 
     return PopupMenuButton<String>(
       tooltip: 'Profile Menu',
-      offset: const Offset(0, 50),
+      offset: const Offset(0, 56),
+      elevation: 8,
+      shadowColor: Colors.black.withOpacity(0.15),
+      surfaceTintColor: Colors.transparent,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: const Color(0xFF006435).withOpacity(0.08),
+          width: 1,
+        ),
+      ),
+      constraints: const BoxConstraints(
+        minWidth: 260,
+        maxWidth: 280,
+      ),
       onSelected: (value) {
         switch (value) {
           case 'edit_profile':
@@ -453,102 +468,188 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
               builder: (context) => const AccountManagementDialog(),
             );
             break;
-          // Inside MainShell -> _buildProfileDropdown
           case 'my_profile':
             Navigator.of(context).push(
               MaterialPageRoute(builder: (context) => const ProfileScreen()),
             );
-
-            // case 'toggle_theme':  // Add this case
-            // themeProvider.toggleTheme();
             break;
-          // case 'request_business_account':
-          //   _handleBusinessRequest(context);
-          //   break;
           case 'logout':
             _signOut();
             break;
         }
       },
-      icon: Icon(
+      icon: const Icon(
         Icons.arrow_drop_down,
         color: Colors.white,
       ),
       itemBuilder: (BuildContext context) {
-        List<PopupMenuEntry<String>> items = [
+        return [
           PopupMenuItem<String>(
             enabled: false,
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundImage:
-                    avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                child: (avatarUrl == null)
-                    ? Text(
-                        user.username.isNotEmpty
-                            ? user.username[0].toUpperCase()
-                            : 'U',
-                        style: const TextStyle(color: Colors.white),
-                      )
-                    : null,
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundImage:
+                        avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                    backgroundColor: const Color(0xFF006435),
+                    child: (avatarUrl == null)
+                        ? Text(
+                            user.username.isNotEmpty
+                                ? user.username[0].toUpperCase()
+                                : 'U',
+                            style: GoogleFonts.ptSerif(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          user.username,
+                          style: GoogleFonts.ptSerif(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: const Color(0xFF111111),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: user.isMember
+                                ? const Color(0xFF006435).withOpacity(0.1)
+                                : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            user.isMember ? 'Premium Member' : 'Free Account',
+                            style: GoogleFonts.poppins(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              color: user.isMember
+                                  ? const Color(0xFF006435)
+                                  : Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              title: Text(
-                user.username,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(user.isMember ? 'Premium Member' : 'Free Account'),
             ),
           ),
-          const PopupMenuDivider(),
-          const PopupMenuItem<String>(
+          const PopupMenuDivider(height: 1),
+          PopupMenuItem<String>(
             value: 'edit_profile',
-            child: Text('Edit Profile'),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.edit_outlined,
+                  size: 20,
+                  color: Color(0xFF006435),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Edit Profile',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF111111),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'change_password',
-            child: Text('Change Password'),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.lock_outline,
+                  size: 20,
+                  color: Color(0xFF006435),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Change Password',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF111111),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'my_profile',
-            child: Text('My Profile'),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.person_outline,
+                  size: 20,
+                  color: Color(0xFF006435),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'My Profile',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF111111),
+                  ),
+                ),
+              ],
+            ),
           ),
-          //   const PopupMenuDivider(),  // Add divider
-          // PopupMenuItem<String>(  // Add theme toggle option
-          //   value: 'toggle_theme',
-          //   child: Row(
-          //     children: [
-          //       Icon(
-          //         themeProvider.themeMode == ThemeMode.light
-          //             ? Icons.dark_mode_outlined
-          //             : Icons.light_mode_outlined,
-          //       ),
-          //       const SizedBox(width: 12),
-          //       Text(
-          //         themeProvider.themeMode == ThemeMode.light
-          //             ? 'Dark Mode'
-          //             : 'Light Mode',
-          //       ),
-          //     ],
-          //   ),
-          // ),
+          const PopupMenuDivider(height: 1),
+          PopupMenuItem<String>(
+            value: 'logout',
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.logout_outlined,
+                  size: 20,
+                  color: Colors.redAccent,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Log out',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.redAccent,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ];
-
-        // Conditionally add the business request item
-        // if (isMember) {
-        //   items.add(
-        //     const PopupMenuItem<String>(
-        //       value: 'request_business_account',
-        //       child: Text('Request Business Account'),
-        //     ),
-        //   );
-        // }
-
-        items.addAll([
-          const PopupMenuDivider(),
-          const PopupMenuItem<String>(value: 'logout', child: Text('Log out')),
-        ]);
-
-        return items;
       },
     );
   }

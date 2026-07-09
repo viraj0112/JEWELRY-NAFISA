@@ -17,7 +17,8 @@ class _DateRangeFilterState extends State<DateRangeFilter> {
   final GlobalKey _buttonKey = GlobalKey();
 
   Future<void> _pickDateRange() async {
-    final RenderBox renderBox = _buttonKey.currentContext!.findRenderObject() as RenderBox;
+    final RenderBox renderBox =
+        _buttonKey.currentContext!.findRenderObject() as RenderBox;
     final Offset offset = renderBox.localToGlobal(Offset.zero);
     final Size size = renderBox.size;
 
@@ -56,7 +57,7 @@ class _DateRangeFilterState extends State<DateRangeFilter> {
       builder: (context) {
         return Stack(
           children: [
-            // Close the dialog when clicking outside (transparent barrier handles this, 
+            // Close the dialog when clicking outside (transparent barrier handles this,
             // but this ensures clicks pass through if needed, though modal barrier usually blocks)
             Positioned(
               left: left,
@@ -73,16 +74,18 @@ class _DateRangeFilterState extends State<DateRangeFilter> {
                   child: Theme(
                     data: ThemeData.light().copyWith(
                       primaryColor: Colors.teal,
-                      colorScheme: const ColorScheme.light(primary: Colors.teal),
-                      buttonTheme: const ButtonThemeData(textTheme: ButtonTextTheme.primary),
+                      colorScheme:
+                          const ColorScheme.light(primary: Colors.teal),
+                      buttonTheme: const ButtonThemeData(
+                          textTheme: ButtonTextTheme.primary),
                     ),
                     child: DateRangePickerDialog(
                       firstDate: DateTime(2023),
                       lastDate: now,
-                      initialDateRange: _selectedRange ?? DateTimeRange(
-                        start: now.subtract(const Duration(days: 30)),
-                        end: now
-                      ),
+                      initialDateRange: _selectedRange ??
+                          DateTimeRange(
+                              start: now.subtract(const Duration(days: 30)),
+                              end: now),
                     ),
                   ),
                 ),
@@ -101,7 +104,7 @@ class _DateRangeFilterState extends State<DateRangeFilter> {
         String end = DateFormat('MMM d').format(picked.end);
         _displayText = "$start - $end";
       });
-      
+
       // Send the data back to your main screen to filter products
       widget.onDateSelected(picked);
     }
@@ -122,7 +125,8 @@ class _DateRangeFilterState extends State<DateRangeFilter> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.grey),
+            const Icon(Icons.calendar_today_outlined,
+                size: 16, color: Colors.grey),
             const SizedBox(width: 8),
             Text(
               _displayText,

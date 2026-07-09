@@ -6,32 +6,33 @@ class ScrapedAnalyticsDashboard extends StatefulWidget {
   const ScrapedAnalyticsDashboard({Key? key}) : super(key: key);
 
   @override
-  State<ScrapedAnalyticsDashboard> createState() => _ScrapedAnalyticsDashboardState();
+  State<ScrapedAnalyticsDashboard> createState() =>
+      _ScrapedAnalyticsDashboardState();
 }
 
 class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
   final supabase = Supabase.instance.client;
-  
+
   // Filter states
   String? selectedCategory;
   String? selectedMetalType;
   String? selectedStoneType;
   DateTimeRange? selectedDateRange;
-  
+
   // Filter options
   List<String> categories = [];
   List<String> metalTypes = [];
   List<String> stoneTypes = [];
-  
+
   // Counter metrics
   int totalProducts = 0;
   int totalCategories = 0;
   int totalDesigns = 0;
   int totalVariations = 0;
-  
+
   // Category performance data
   List<Map<String, dynamic>> categoryPerformance = [];
-  
+
   // Loading states
   bool _isLoading = true;
   bool _isRefreshing = false;
@@ -67,13 +68,10 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
 
   Future<void> _fetchAnalyticsData() async {
     // Fetch aggregated counts
-    final productsData = await supabase
-        .from('products')
-        .select('id');
-    
-    final designerProductsData = await supabase
-        .from('designerproducts')
-        .select('id');
+    final productsData = await supabase.from('products').select('id');
+
+    final designerProductsData =
+        await supabase.from('designerproducts').select('id');
 
     // Fetch category performance - placeholder for now
     // You'll need to create get_category_performance_analytics RPC
@@ -86,27 +84,29 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
       // Generate mock data from existing products
       categoryData = _generateCategoryPerformance();
     }
-    
+
     setState(() {
       totalProducts = productsData.length;
       totalDesigns = designerProductsData.length;
       totalCategories = categories.length;
       totalVariations = totalProducts + totalDesigns;
-      
+
       categoryPerformance = categoryData;
     });
   }
 
   List<Map<String, dynamic>> _generateCategoryPerformance() {
     // Generate from categories list
-    return categories.map((cat) => {
-      'category': cat,
-      'product_count': 0,
-      'avg_views': 0.0,
-      'avg_likes': 0.0,
-      'top_tags': <String>[],
-      'top_colors': <String>[],
-    }).toList();
+    return categories
+        .map((cat) => {
+              'category': cat,
+              'product_count': 0,
+              'avg_views': 0.0,
+              'avg_likes': 0.0,
+              'top_tags': <String>[],
+              'top_colors': <String>[],
+            })
+        .toList();
   }
 
   Future<void> _loadFilterOptions() async {
@@ -173,14 +173,14 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
         children: [
           // Filter dropdowns
           _buildFilterBar(),
-          
+
           const SizedBox(height: 20),
-          
+
           // 4 Gradient counter cards
           _buildCounterCards(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Category performance table with charts
           _buildCategoryPerformanceSection(),
         ],
@@ -206,8 +206,10 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
               ),
               value: selectedCategory,
               items: [
-                const DropdownMenuItem(value: null, child: Text('All Categories')),
-                ...categories.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+                const DropdownMenuItem(
+                    value: null, child: Text('All Categories')),
+                ...categories
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c))),
               ],
               onChanged: (value) => setState(() => selectedCategory = value),
             ),
@@ -223,7 +225,8 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
               value: selectedMetalType,
               items: [
                 const DropdownMenuItem(value: null, child: Text('All Metals')),
-                ...metalTypes.map((m) => DropdownMenuItem(value: m, child: Text(m))),
+                ...metalTypes
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m))),
               ],
               onChanged: (value) => setState(() => selectedMetalType = value),
             ),
@@ -239,7 +242,8 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
               value: selectedStoneType,
               items: [
                 const DropdownMenuItem(value: null, child: Text('All Stones')),
-                ...stoneTypes.map((s) => DropdownMenuItem(value: s, child: Text(s))),
+                ...stoneTypes
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s))),
               ],
               onChanged: (value) => setState(() => selectedStoneType = value),
             ),
@@ -346,13 +350,14 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
                     Text(
                       'Category Performance Analytics',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
+                        Icon(Icons.access_time,
+                            size: 14, color: Colors.grey.shade600),
                         const SizedBox(width: 4),
                         Text(
                           _lastUpdated != null
@@ -376,7 +381,7 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
               ],
             ),
             const SizedBox(height: 24),
-            
+
             // Performance table
             _buildPerformanceTable(),
           ],
@@ -400,22 +405,35 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
       child: DataTable(
         headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
         columns: const [
-          DataColumn(label: Text('Category', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Product Count', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Avg Views', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Avg Likes', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Top Tags', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Top Colors', style: TextStyle(fontWeight: FontWeight.bold))),
+          DataColumn(
+              label: Text('Category',
+                  style: TextStyle(fontWeight: FontWeight.bold))),
+          DataColumn(
+              label: Text('Product Count',
+                  style: TextStyle(fontWeight: FontWeight.bold))),
+          DataColumn(
+              label: Text('Avg Views',
+                  style: TextStyle(fontWeight: FontWeight.bold))),
+          DataColumn(
+              label: Text('Avg Likes',
+                  style: TextStyle(fontWeight: FontWeight.bold))),
+          DataColumn(
+              label: Text('Top Tags',
+                  style: TextStyle(fontWeight: FontWeight.bold))),
+          DataColumn(
+              label: Text('Top Colors',
+                  style: TextStyle(fontWeight: FontWeight.bold))),
         ],
         rows: categoryPerformance.map((cat) {
           final categoryName = cat['category']?.toString() ?? 'Unknown';
           final categoryColor = _getCategoryColor(categoryName);
-          
+
           return DataRow(
             cells: [
               DataCell(
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: categoryColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(4),
@@ -460,16 +478,16 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
                 Wrap(
                   spacing: 4,
                   children: (cat['top_tags'] as List<dynamic>?)
-                      ?.take(3)
-                      .map((tag) => Chip(
-                            label: Text(
-                              tag.toString(),
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                            padding: EdgeInsets.zero,
-                            visualDensity: VisualDensity.compact,
-                          ))
-                      .toList() ?? 
+                          ?.take(3)
+                          .map((tag) => Chip(
+                                label: Text(
+                                  tag.toString(),
+                                  style: const TextStyle(fontSize: 10),
+                                ),
+                                padding: EdgeInsets.zero,
+                                visualDensity: VisualDensity.compact,
+                              ))
+                          .toList() ??
                       [const Text('-')],
                 ),
               ),
@@ -477,17 +495,18 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
                 Wrap(
                   spacing: 4,
                   children: (cat['top_colors'] as List<dynamic>?)
-                      ?.take(3)
-                      .map((color) => Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: _parseColor(color.toString()),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                          ))
-                      .toList() ?? 
+                          ?.take(3)
+                          .map((color) => Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: _parseColor(color.toString()),
+                                  shape: BoxShape.circle,
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
+                                ),
+                              ))
+                          .toList() ??
                       [const Text('-')],
                 ),
               ),
@@ -500,7 +519,7 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
 
   Widget _buildProgressBar(double value, Color color, {double maxValue = 100}) {
     final percentage = maxValue > 0 ? (value / maxValue).clamp(0.0, 1.0) : 0.0;
-    
+
     return SizedBox(
       width: 60,
       height: 8,
@@ -554,13 +573,12 @@ class _ScrapedAnalyticsDashboardState extends State<ScrapedAnalyticsDashboard> {
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     final difference = now.difference(time);
-    
+
     if (difference.inMinutes < 1) return 'Just now';
     if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
     if (difference.inHours < 24) return '${difference.inHours}h ago';
     return '${difference.inDays}d ago';
   }
-
 }
 
 class _GradientCounterCard extends StatelessWidget {

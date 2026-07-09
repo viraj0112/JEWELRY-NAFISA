@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -28,7 +27,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum OtpResult {
   success,
-  alreadySent,      // MSG91: OTP already sent, please wait
+  alreadySent, // MSG91: OTP already sent, please wait
   invalidPhone,
   networkError,
   unknownError,
@@ -36,8 +35,8 @@ enum OtpResult {
 
 enum OtpVerifyResult {
   success,
-  invalid,          // Wrong OTP
-  expired,          // OTP has expired
+  invalid, // Wrong OTP
+  expired, // OTP has expired
   networkError,
   unknownError,
 }

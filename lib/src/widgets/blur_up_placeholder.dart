@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 
 /// Creates a blur-up (LQIP) placeholder widget for image loading
-/// 
+///
 /// This provides a smooth loading experience by showing an animated
 /// blurred background that simulates progressive image loading
 class BlurUpPlaceholder extends StatefulWidget {
@@ -35,7 +35,8 @@ class _BlurUpPlaceholderState extends State<BlurUpPlaceholder>
 
     // Blur animation: gradually reduce blur from 15 to 0
     _blurAnimation = Tween<double>(begin: 15.0, end: 0.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOutCubic),
+      CurvedAnimation(
+          parent: _animationController, curve: Curves.easeInOutCubic),
     );
 
     _animationController.forward();
@@ -80,7 +81,7 @@ class _BlurUpPlaceholderState extends State<BlurUpPlaceholder>
 }
 
 /// Helper function to create a blur-up placeholder
-/// 
+///
 /// Usage:
 /// ```dart
 /// CachedNetworkImage(

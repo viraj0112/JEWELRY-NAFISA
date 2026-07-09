@@ -63,7 +63,9 @@ class _InfoDialogState extends State<InfoDialog> {
             ],
           ),
           constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width > 900 ? 750 : MediaQuery.of(context).size.width * 0.9,
+            maxWidth: MediaQuery.of(context).size.width > 900
+                ? 750
+                : MediaQuery.of(context).size.width * 0.9,
             maxHeight: MediaQuery.of(context).size.height * 0.9,
           ),
           child: Column(
@@ -139,7 +141,9 @@ class _InfoDialogState extends State<InfoDialog> {
                         ElevatedButton.icon(
                           onPressed: _currentPage < 2 ? _nextPage : _skipToEnd,
                           label: Text(_currentPage == 2 ? 'Done' : 'Next'),
-                          icon: Icon(_currentPage == 2 ? Icons.check : Icons.arrow_forward),
+                          icon: Icon(_currentPage == 2
+                              ? Icons.check
+                              : Icons.arrow_forward),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF336B43),
                             foregroundColor: Colors.white,

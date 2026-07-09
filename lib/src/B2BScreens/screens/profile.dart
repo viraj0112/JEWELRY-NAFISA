@@ -126,7 +126,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
       final productIds = productsData.map((e) => e['id'].toString()).toList();
 
-
       // Views = credits
       final viewsResponse = await _supabase
           .from('views')

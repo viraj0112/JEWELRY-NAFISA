@@ -21,7 +21,8 @@ class ActivityLogsService {
       final today = DateTime(now.year, now.month, now.day);
 
       // Admin actions: count notifications as admin actions
-      final adminActionsResponse = await _supabase.from('notifications').select('id');
+      final adminActionsResponse =
+          await _supabase.from('notifications').select('id');
       final adminActionsTodayResponse = await _supabase
           .from('notifications')
           .select('id')
@@ -31,10 +32,13 @@ class ActivityLogsService {
       final viewsResponse = await _supabase.from('views').select('id');
       final likesResponse = await _supabase.from('likes').select('id');
       final sharesResponse = await _supabase.from('shares').select('id');
-      final quotesResponse = await _supabase.from('quote_requests').select('id');
+      final quotesResponse =
+          await _supabase.from('quote_requests').select('id');
 
-      final userActivities = viewsResponse.length + likesResponse.length +
-          sharesResponse.length + quotesResponse.length;
+      final userActivities = viewsResponse.length +
+          likesResponse.length +
+          sharesResponse.length +
+          quotesResponse.length;
 
       final viewsTodayResponse = await _supabase
           .from('views')
@@ -53,8 +57,10 @@ class ActivityLogsService {
           .select('id')
           .gte('created_at', today.toIso8601String());
 
-      final userActivitiesToday = viewsTodayResponse.length + likesTodayResponse.length +
-          sharesTodayResponse.length + quotesTodayResponse.length;
+      final userActivitiesToday = viewsTodayResponse.length +
+          likesTodayResponse.length +
+          sharesTodayResponse.length +
+          quotesTodayResponse.length;
 
       // Exports: for now, assume 0 since no export table
       const exportsGenerated = 0;
@@ -98,7 +104,8 @@ class ActivityLogsService {
     int limit = 100,
   }) async {
     try {
-      final cacheKey = 'admin_logs_${searchTerm}_${category}_${startDate}_${endDate}_$limit';
+      final cacheKey =
+          'admin_logs_${searchTerm}_${category}_${startDate}_${endDate}_$limit';
       if (_isCacheValid(cacheKey)) {
         return _cache[cacheKey] as List<ActivityLog>;
       }
@@ -110,17 +117,28 @@ class ActivityLogsService {
           .order('timestamp', ascending: false)
           .limit(limit);
 
-      List<ActivityLog> logs = response.map((json) => ActivityLog.fromJson(json)).toList();
+      List<ActivityLog> logs =
+          response.map((json) => ActivityLog.fromJson(json)).toList();
 
       // Filter in code
       if (searchTerm != null && searchTerm.isNotEmpty) {
-        logs = logs.where((log) =>
-            (log.details?.toLowerCase().contains(searchTerm.toLowerCase()) ?? false) ||
-            (log.actionType?.toLowerCase().contains(searchTerm.toLowerCase()) ?? false)).toList();
+        logs = logs
+            .where((log) =>
+                (log.details
+                        ?.toLowerCase()
+                        .contains(searchTerm.toLowerCase()) ??
+                    false) ||
+                (log.actionType
+                        ?.toLowerCase()
+                        .contains(searchTerm.toLowerCase()) ??
+                    false))
+            .toList();
       }
 
       if (category != null && category != 'All Actions') {
-        logs = logs.where((log) => log.category == category.toLowerCase()).toList();
+        logs = logs
+            .where((log) => log.category == category.toLowerCase())
+            .toList();
       }
 
       if (startDate != null) {
@@ -148,7 +166,8 @@ class ActivityLogsService {
     int limit = 100,
   }) async {
     try {
-      final cacheKey = 'user_logs_${searchTerm}_${category}_${startDate}_${endDate}_$limit';
+      final cacheKey =
+          'user_logs_${searchTerm}_${category}_${startDate}_${endDate}_$limit';
       if (_isCacheValid(cacheKey)) {
         return _cache[cacheKey] as List<ActivityLog>;
       }
@@ -160,17 +179,28 @@ class ActivityLogsService {
           .order('timestamp', ascending: false)
           .limit(limit);
 
-      List<ActivityLog> logs = response.map((json) => ActivityLog.fromJson(json)).toList();
+      List<ActivityLog> logs =
+          response.map((json) => ActivityLog.fromJson(json)).toList();
 
       // Filter in code
       if (searchTerm != null && searchTerm.isNotEmpty) {
-        logs = logs.where((log) =>
-            (log.details?.toLowerCase().contains(searchTerm.toLowerCase()) ?? false) ||
-            (log.actionType?.toLowerCase().contains(searchTerm.toLowerCase()) ?? false)).toList();
+        logs = logs
+            .where((log) =>
+                (log.details
+                        ?.toLowerCase()
+                        .contains(searchTerm.toLowerCase()) ??
+                    false) ||
+                (log.actionType
+                        ?.toLowerCase()
+                        .contains(searchTerm.toLowerCase()) ??
+                    false))
+            .toList();
       }
 
       if (category != null && category != 'All Actions') {
-        logs = logs.where((log) => log.category == category.toLowerCase()).toList();
+        logs = logs
+            .where((log) => log.category == category.toLowerCase())
+            .toList();
       }
 
       if (startDate != null) {
@@ -209,7 +239,8 @@ class ActivityLogsService {
           .order('timestamp', ascending: false)
           .limit(limit);
 
-      List<ActivityLog> logs = response.map((json) => ActivityLog.fromJson(json)).toList();
+      List<ActivityLog> logs =
+          response.map((json) => ActivityLog.fromJson(json)).toList();
 
       // Filter in code
       if (format != null && format != 'All Exports') {
@@ -316,7 +347,8 @@ class ActivityLogsService {
   }
 
   static bool _isCacheValid(String key) {
-    if (!_cache.containsKey(key) || !_cacheTimestamp.containsKey(key)) return false;
+    if (!_cache.containsKey(key) || !_cacheTimestamp.containsKey(key))
+      return false;
     final timestamp = _cacheTimestamp[key]!;
     return DateTime.now().difference(timestamp) < _cacheTimeout;
   }

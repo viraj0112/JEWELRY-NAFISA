@@ -8,11 +8,11 @@ class SecurityUtils {
   static String sanitizeFileName(String fileName, {String? userId}) {
     // Extract just the filename (no path)
     String name = fileName.split('/').last.split('\\').last;
-    
+
     // Remove path traversal attempts
     name = name.replaceAll('..', '');
     name = name.replaceAll('~', '');
-    
+
     // Extract extension
     final parts = name.split('.');
     String extension = '';
@@ -28,12 +28,12 @@ class SecurityUtils {
         extension = 'bin'; // Default to binary for unknown types
       }
     }
-    
+
     // Generate a unique, safe filename
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final random = _generateRandomString(8);
     final userPrefix = userId != null ? '${userId.substring(0, 8)}_' : '';
-    
+
     return '$userPrefix${timestamp}_$random.$extension';
   }
 
@@ -42,56 +42,72 @@ class SecurityUtils {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     final random = Random.secure();
     return String.fromCharCodes(
-      Iterable.generate(length, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
+      Iterable.generate(
+          length, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
     );
   }
 
   /// Sanitizes search query to prevent injection attacks
   static String sanitizeSearchQuery(String query) {
     if (query.isEmpty) return '';
-    
+
     // Limit query length
     String sanitized = query.length > 200 ? query.substring(0, 200) : query;
-    
+
     // Remove potential SQL injection characters
     sanitized = sanitized
-        .replaceAll(RegExp(r'[;\-\-]'), '') // Remove semicolons and double dashes
+        .replaceAll(
+            RegExp(r'[;\-\-]'), '') // Remove semicolons and double dashes
         .replaceAll(RegExp("['\"]"), '') // Remove quotes
         .replaceAll(RegExp(r'[<>]'), '') // Remove angle brackets (XSS)
         .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '') // Remove control characters
         .replaceAll('/*', '')
         .replaceAll('*/', '')
         .trim();
-    
+
     // Remove SQL keywords (case-insensitive)
     final sqlKeywords = [
-      'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'UNION',
-      'ALTER', 'CREATE', 'TRUNCATE', 'EXEC', 'EXECUTE',
+      'SELECT',
+      'INSERT',
+      'UPDATE',
+      'DELETE',
+      'DROP',
+      'UNION',
+      'ALTER',
+      'CREATE',
+      'TRUNCATE',
+      'EXEC',
+      'EXECUTE',
     ];
-    
+
     for (final keyword in sqlKeywords) {
       sanitized = sanitized.replaceAll(
-        RegExp(keyword, caseSensitive: false), 
+        RegExp(keyword, caseSensitive: false),
         '',
       );
     }
-    
+
     return sanitized.trim();
   }
 
   /// Sanitizes user-provided text content (for profile fields, etc.)
   static String sanitizeText(String text, {int maxLength = 1000}) {
     if (text.isEmpty) return '';
-    
-    String sanitized = text.length > maxLength ? text.substring(0, maxLength) : text;
-    
+
+    String sanitized =
+        text.length > maxLength ? text.substring(0, maxLength) : text;
+
     // Remove potential XSS vectors
     sanitized = sanitized
-        .replaceAll(RegExp(r'<script[^>]*>.*?</script>', caseSensitive: false, dotAll: true), '')
+        .replaceAll(
+            RegExp(r'<script[^>]*>.*?</script>',
+                caseSensitive: false, dotAll: true),
+            '')
         .replaceAll(RegExp(r'javascript:', caseSensitive: false), '')
         .replaceAll(RegExp(r'on\w+\s*=', caseSensitive: false), '')
-        .replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'), ''); // Remove control chars
-    
+        .replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'),
+            ''); // Remove control chars
+
     return sanitized.trim();
   }
 
@@ -144,26 +160,38 @@ class SecurityUtils {
   /// Validates file type by checking magic bytes (more secure than extension check)
   static bool isValidImageMagicBytes(List<int> bytes) {
     if (bytes.length < 4) return false;
-    
+
     // JPEG: FF D8 FF
     if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) {
       return true;
     }
     // PNG: 89 50 4E 47
-    if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
+    if (bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47) {
       return true;
     }
     // GIF: 47 49 46 38
-    if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38) {
+    if (bytes[0] == 0x47 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x38) {
       return true;
     }
     // WebP: 52 49 46 46 ... 57 45 42 50
-    if (bytes.length >= 12 && 
-        bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 &&
-        bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50) {
+    if (bytes.length >= 12 &&
+        bytes[0] == 0x52 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x46 &&
+        bytes[8] == 0x57 &&
+        bytes[9] == 0x45 &&
+        bytes[10] == 0x42 &&
+        bytes[11] == 0x50) {
       return true;
     }
-    
+
     return false;
   }
 }
@@ -184,18 +212,18 @@ class RateLimiter {
   bool checkLimit(String key) {
     final now = DateTime.now();
     final cutoff = now.subtract(window);
-    
+
     // Clean old attempts
-    _attempts[key] = (_attempts[key] ?? [])
-        .where((time) => time.isAfter(cutoff))
-        .toList();
-    
+    _attempts[key] =
+        (_attempts[key] ?? []).where((time) => time.isAfter(cutoff)).toList();
+
     // Check if under limit
     if ((_attempts[key]?.length ?? 0) >= maxAttempts) {
-      SecurityUtils.logSecurityEvent('Rate limit exceeded', details: {'key': key});
+      SecurityUtils.logSecurityEvent('Rate limit exceeded',
+          details: {'key': key});
       return false;
     }
-    
+
     // Record this attempt
     _attempts[key] = [...(_attempts[key] ?? []), now];
     return true;
@@ -205,9 +233,8 @@ class RateLimiter {
   int getRemainingAttempts(String key) {
     final now = DateTime.now();
     final cutoff = now.subtract(window);
-    final recentAttempts = (_attempts[key] ?? [])
-        .where((time) => time.isAfter(cutoff))
-        .length;
+    final recentAttempts =
+        (_attempts[key] ?? []).where((time) => time.isAfter(cutoff)).length;
     return (maxAttempts - recentAttempts).clamp(0, maxAttempts);
   }
 
@@ -216,4 +243,3 @@ class RateLimiter {
     _attempts.remove(key);
   }
 }
-

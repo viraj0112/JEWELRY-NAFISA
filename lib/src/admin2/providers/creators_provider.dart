@@ -313,7 +313,7 @@ class CreatorsProvider extends ChangeNotifier {
 
     final now = DateTime.now();
     final exportDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-    
+
     final List<List<dynamic>> rows = [
       ['Creators/Designers Management Export'],
       ['Generated At', exportDate],
@@ -335,20 +335,20 @@ class CreatorsProvider extends ChangeNotifier {
         'Created At'
       ],
       ...creators.map((c) => [
-        c.id,
-        c.fullName,
-        c.email ?? 'N/A',
-        c.phone ?? 'N/A',
-        c.role,
-        c.businessType,
-        c.location ?? 'N/A',
-        c.approvalStatus,
-        c.isApproved ? 'Yes' : 'No',
-        c.worksCount,
-        c.totalViews,
-        c.avgRating.toStringAsFixed(1),
-        c.createdAt.toIso8601String(),
-      ]),
+            c.id,
+            c.fullName,
+            c.email ?? 'N/A',
+            c.phone ?? 'N/A',
+            c.role,
+            c.businessType,
+            c.location ?? 'N/A',
+            c.approvalStatus,
+            c.isApproved ? 'Yes' : 'No',
+            c.worksCount,
+            c.totalViews,
+            c.avgRating.toStringAsFixed(1),
+            c.createdAt.toIso8601String(),
+          ]),
     ];
 
     final csvString = const ListToCsvConverter().convert(rows);

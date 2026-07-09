@@ -89,8 +89,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           children: [
             CircularProgressIndicator(color: _primary),
             SizedBox(height: 16),
-            Text('Loading analytics...',
-                style: TextStyle(color: Colors.grey)),
+            Text('Loading analytics...', style: TextStyle(color: Colors.grey)),
           ],
         ),
       );

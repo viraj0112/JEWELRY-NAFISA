@@ -41,16 +41,16 @@ class SectionHeader extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   description,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                  ),
+                        color: Colors.grey.shade600,
+                      ),
                 ),
               ],
             ),
@@ -107,13 +107,14 @@ class CustomCard extends StatelessWidget {
         color: backgroundColor ?? Colors.white,
         borderRadius: borderRadius ?? BorderRadius.circular(16),
         border: border,
-        boxShadow: shadows ?? [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: shadows ??
+            [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
       ),
       child: child,
     );
@@ -209,8 +210,8 @@ class SortableTableHeader extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+                  fontWeight: FontWeight.w600,
+                ),
           ),
           if (isSorted) ...[
             const SizedBox(width: 4),
@@ -272,25 +273,25 @@ class MetricCard extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: color.withOpacity(0.8),
-                    fontWeight: FontWeight.w500,
-                  ),
+                        color: color.withOpacity(0.8),
+                        fontWeight: FontWeight.w500,
+                      ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color.withOpacity(0.9),
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: color.withOpacity(0.9),
+                      ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 4),
                   Text(
                     subtitle!,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: color.withOpacity(0.7),
-                    ),
+                          color: color.withOpacity(0.7),
+                        ),
                   ),
                 ],
                 if (trend != null) ...[
@@ -298,17 +299,25 @@ class MetricCard extends StatelessWidget {
                   Row(
                     children: [
                       Icon(
-                        trend!.startsWith('+') ? Icons.trending_up : Icons.trending_down,
+                        trend!.startsWith('+')
+                            ? Icons.trending_up
+                            : Icons.trending_down,
                         size: 16,
-                        color: trendColor ?? (trend!.startsWith('+') ? Colors.green : Colors.red),
+                        color: trendColor ??
+                            (trend!.startsWith('+')
+                                ? Colors.green
+                                : Colors.red),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         trend!,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: trendColor ?? (trend!.startsWith('+') ? Colors.green : Colors.red),
-                          fontWeight: FontWeight.w600,
-                        ),
+                              color: trendColor ??
+                                  (trend!.startsWith('+')
+                                      ? Colors.green
+                                      : Colors.red),
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                     ],
                   ),
@@ -382,7 +391,7 @@ class ProbabilityBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (backgroundColor, textColor) = _getProbabilityColors();
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -392,9 +401,9 @@ class ProbabilityBadge extends StatelessWidget {
       child: Text(
         '$probability% likely',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: textColor,
-          fontWeight: FontWeight.w600,
-        ),
+              color: textColor,
+              fontWeight: FontWeight.w600,
+            ),
       ),
     );
   }
@@ -435,30 +444,36 @@ class CustomTabBar extends StatelessWidget {
           final index = entry.key;
           final tab = entry.value;
           final isSelected = index == selectedIndex;
-          
+
           return Expanded(
             child: GestureDetector(
               onTap: () => onTabChanged(index),
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                 decoration: BoxDecoration(
                   color: isSelected ? Colors.white : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
-                  boxShadow: isSelected ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ] : null,
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Text(
                   tab,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade600,
-                  ),
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                        color: isSelected
+                            ? Theme.of(context).primaryColor
+                            : Colors.grey.shade600,
+                      ),
                 ),
               ),
             ),
@@ -488,7 +503,7 @@ class ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percentage = (value / maxValue * 100).clamp(0, 100);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

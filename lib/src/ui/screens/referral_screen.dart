@@ -80,11 +80,11 @@ class _ReferralScreenState extends State<ReferralScreen> {
       canPop: true,
       child: LayoutBuilder(
         builder: (context, constraints) {
-        if (constraints.maxWidth > 600) {
-          return _buildDesktopLayout(context, referralCode);
-        } else {
-          return _buildMobileLayout(context, referralCode);
-        }
+          if (constraints.maxWidth > 600) {
+            return _buildDesktopLayout(context, referralCode);
+          } else {
+            return _buildMobileLayout(context, referralCode);
+          }
         },
       ),
     );

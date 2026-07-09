@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 final supabase = Supabase.instance.client;
 
 enum UserTypeFilter { all, members, nonMembers }
+
 enum StatusFilter { all, active, inactive }
 
 class UserModel {
@@ -68,11 +69,14 @@ class UserModel {
       shares: getCount(m['shares']),
       // For referrals, we look at the alias we use in the query
       referrals: getCount(m['referrals']),
-      
+
       tier: (m['membership_plan'] ?? 'Basic') as String, // Map to actual plan
-      status: (m['approval_status'] ?? 'pending') as String, // Map to actual status
+      status:
+          (m['approval_status'] ?? 'pending') as String, // Map to actual status
       isMember: m['is_member'] ?? false, // Strict boolean check
-      lastActive: m['created_at'] != null ? DateTime.tryParse(m['created_at']) : null, // Using created_at as fallback for now
+      lastActive: m['created_at'] != null
+          ? DateTime.tryParse(m['created_at'])
+          : null, // Using created_at as fallback for now
     );
   }
 }
@@ -90,7 +94,8 @@ class LeaderboardModel {
     required this.creditsEarned,
   });
 
-  double get successRate => totalReferrals == 0 ? 0.0 : successful / totalReferrals;
+  double get successRate =>
+      totalReferrals == 0 ? 0.0 : successful / totalReferrals;
 }
 
 class UsersProvider extends ChangeNotifier {
@@ -153,7 +158,7 @@ class UsersProvider extends ChangeNotifier {
       ''');
 
       // 2. Apply Filters
-      
+
       // User Type
       if (userType == UserTypeFilter.members) {
         q = q.eq('is_member', true);
@@ -175,7 +180,8 @@ class UsersProvider extends ChangeNotifier {
       }
 
       // 3. Execute Query
-      final List<dynamic> rawData = await q.order('created_at', ascending: false);
+      final List<dynamic> rawData =
+          await q.order('created_at', ascending: false);
 
       // 4. Parse Data
       final data = List<Map<String, dynamic>>.from(rawData);
@@ -191,14 +197,14 @@ class UsersProvider extends ChangeNotifier {
           .map((u) => LeaderboardModel(
                 user: u,
                 totalReferrals: u.referrals, // Total referrals made
-                successful: u.referrals, // Assuming all counted are successful for now
+                successful:
+                    u.referrals, // Assuming all counted are successful for now
                 creditsEarned: u.referrals * 20, // Example calculation
               ))
           .toList();
 
       lb.sort((a, b) => b.successful.compareTo(a.successful));
       _leaderboard = lb.take(50).toList();
-
     } catch (e) {
       error = e.toString();
       debugPrint("Error fetching users: $e");
@@ -214,7 +220,7 @@ class UsersProvider extends ChangeNotifier {
 
     final now = DateTime.now();
     final exportDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-    
+
     final List<List<dynamic>> rows = [
       ['User Management Export'],
       ['Generated At', exportDate],
@@ -235,19 +241,19 @@ class UsersProvider extends ChangeNotifier {
         'Last Active'
       ],
       ...allUsers.map((u) => [
-        u.id,
-        u.name,
-        u.email,
-        u.phone,
-        u.status,
-        u.tier,
-        u.isMember ? 'Yes' : 'No',
-        u.credits,
-        u.boards,
-        u.shares,
-        u.referrals,
-        u.lastActive?.toIso8601String() ?? 'N/A',
-      ]),
+            u.id,
+            u.name,
+            u.email,
+            u.phone,
+            u.status,
+            u.tier,
+            u.isMember ? 'Yes' : 'No',
+            u.credits,
+            u.boards,
+            u.shares,
+            u.referrals,
+            u.lastActive?.toIso8601String() ?? 'N/A',
+          ]),
     ];
 
     final csvString = const ListToCsvConverter().convert(rows);

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:ui'; // For ImageFilter
@@ -12,6 +12,8 @@ import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
+import 'package:jewelry_nafisa/src/utils/share_utils.dart';
+
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -60,8 +62,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
   bool _isSharing = false;
 
-  late final String _itemId;
-  late final String _itemTable;
+  late final String _itemId;    // Integer PK – used for DB joins only
+  late final String _itemTable;  // Table name – kept for legacy queries
+  late final String? _itemUid;   // UUID uid column – used for public URLs and polymorphic tables
 
   String? _pinId;
   int _likeCount = 0;
@@ -87,6 +90,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   void initState() {
     super.initState();
     _itemId = widget.jewelryItem.id;
+    _itemUid = widget.jewelryItem.uid;
 
     if (widget.jewelryItem.isDesignerProduct) {
       _itemTable = 'designerproducts';
@@ -143,13 +147,15 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
   // ── VIEW ─────────────────────────────────────────────────────────────────
   Future<void> _logView() async {
-    final uid = supabase.auth.currentUser?.id;
+    final currentUserId = supabase.auth.currentUser?.id;
     final location = await LocationService.forCurrentUser();
     try {
       await supabase.from('views').insert({
-        'user_id': uid,
+        'user_id': currentUserId,
         'item_id': _itemId,
         'item_table': _itemTable,
+        // Also write item_uid so future queries can use uuid-only lookup
+        if (_itemUid != null) 'item_uid': _itemUid,
         ...location.toInsertMap(), // country, state, pincode
       });
     } catch (e) {
@@ -162,10 +168,18 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     final uid = supabase.auth.currentUser?.id;
 
     try {
-      _likeCount = await supabase
-          .from('likes')
-          .count(CountOption.exact)
-          .match({'item_id': _itemId, 'item_table': _itemTable});
+      // Prefer uid-based count (table-agnostic) when uid is available
+      if (_itemUid != null) {
+        _likeCount = await supabase
+            .from('likes')
+            .count(CountOption.exact)
+            .eq('item_uid', _itemUid!);
+      } else {
+        _likeCount = await supabase
+            .from('likes')
+            .count(CountOption.exact)
+            .match({'item_id': _itemId, 'item_table': _itemTable});
+      }
     } catch (e) {
       debugPrint('Error getting like count: $e');
       _likeCount = 0;
@@ -173,11 +187,18 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
     if (uid != null) {
       try {
-        final likeResponse = await supabase.from('likes').select('id').match({
-          'user_id': uid,
-          'item_id': _itemId,
-          'item_table': _itemTable,
-        }).maybeSingle();
+        final Map<String, Object> matchQuery = {'user_id': uid};
+        if (_itemUid != null) {
+          matchQuery['item_uid'] = _itemUid!;
+        } else {
+          matchQuery['item_id'] = _itemId;
+          matchQuery['item_table'] = _itemTable;
+        }
+        final likeResponse = await supabase
+            .from('likes')
+            .select('id')
+            .match(matchQuery)
+            .maybeSingle();
         _userLiked = (likeResponse != null);
       } catch (e) {
         debugPrint('Error checking user like: $e');
@@ -299,6 +320,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
           'user_id': uid,
           'item_id': _itemId,
           'item_table': _itemTable,
+          // Also write item_uid for table-agnostic future queries
+          if (_itemUid != null) 'item_uid': _itemUid,
           ...location.toInsertMap(), // country, state, pincode
         });
 
@@ -379,6 +402,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         'user_id': uid,
         'item_id': _itemId,
         'item_table': _itemTable,
+        // Also write item_uid for table-agnostic future queries
+        if (_itemUid != null) 'item_uid': _itemUid,
         ...location.toInsertMap(), // country, state, pincode
       });
     } catch (e) {
@@ -416,82 +441,14 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Future<void> _shareItem() async {
-    if (_isSharing) return;
-
-    FirebaseAnalytics.instance.logShare(
-      contentType: 'jewelry_item',
-      itemId: _itemId,
-      method: kIsWeb ? 'web_share' : 'mobile_share',
-    );
+    if (_isSharing || _isLoadingInteraction) return;
 
     setState(() {
       _isSharing = true;
     });
 
-    final item = widget.jewelryItem;
-    const String productBaseUrl = 'https://www.dagina.design/product';
-
-    final String slug = item.productTitle
-        .toLowerCase()
-        .replaceAll(RegExp(r'\s+'), '-')
-        .replaceAll(RegExp(r'[^a-z0-9-]'), '');
-
-    final String productUrl = '$productBaseUrl/$slug';
-
-    // Original Text (without image link)
-    final String baseShareText =
-        'Check out this beautiful ${item.productTitle}! $productUrl from Dagina Designs!';
-
-    String sharePlatform = kIsWeb ? 'web' : 'mobile';
-
     try {
-      if (item.image.isEmpty) {
-        await Share.share(baseShareText, subject: 'Beautiful Jewelry');
-      } else if (kIsWeb) {
-        await Share.share(
-          baseShareText,
-          subject: 'Beautiful Jewelry',
-        );
-        // --- END WEB LOGIC ---
-      } else {
-        // --- MOBILE/DESKTOP LOGIC (Download and Share File) ---
-        final bytes = await _downloadImageBytes(item.image);
-        final tempDir = await getTemporaryDirectory();
-        final fileName = 'shared_jewelry_image.png';
-        final path = '${tempDir.path}/$fileName';
-        final file = await File(path).writeAsBytes(bytes);
-        final xFile = XFile(file.path, mimeType: 'image/png');
-
-        await Share.shareXFiles(
-          [xFile],
-          text: baseShareText,
-          subject: 'Check out this jewelry: ${item.productTitle}',
-        );
-      }
-
-      final uid = supabase.auth.currentUser?.id;
-      if (uid != null) {
-        try {
-          await supabase.from('shares').insert({
-            'user_id': uid,
-            'item_id': _itemId,
-            'item_table': _itemTable,
-            'share_platform': sharePlatform,
-          });
-        } catch (e) {
-          debugPrint('Error logging share: $e');
-        }
-      }
-    } catch (e) {
-      debugPrint("Error sharing item with image: $e");
-      // If image download/saving fails, fall back to sharing text only
-      await Share.share(baseShareText, subject: 'Beautiful Jewelry');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("Could not share image, shared link only.")),
-        );
-      }
+      await ShareUtils.shareJewelryItem(context, widget.jewelryItem, supabase);
     } finally {
       if (mounted) {
         setState(() {
@@ -610,8 +567,9 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             : 10;
 
         // Calculate percentage remaining
-        final percentageRemaining =
-            creditsAllocated > 0 ? (creditsRemaining / creditsAllocated) * 100 : 0.0;
+        final percentageRemaining = creditsAllocated > 0
+            ? (creditsRemaining / creditsAllocated) * 100
+            : 0.0;
 
         // Show warning if 80% or more has been consumed (20% or less remaining)
         shouldShowWarning = percentageRemaining <= 20;
@@ -704,40 +662,41 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         'p_is_designer': widget.jewelryItem.isDesignerProduct,
       });
 
-       // Update local state based on server response
-       if (response != null && response['success'] == true) {
-         int deductedAmount = response['deducted_amount'] ?? 1;
-         int creditsRemaining = response['credits_remaining'] ?? 0;
-         int creditsAllocated = response['credits_allocated'] ?? creditsRemaining + deductedAmount;
+      // Update local state based on server response
+      if (response != null && response['success'] == true) {
+        int deductedAmount = response['deducted_amount'] ?? 1;
+        int creditsRemaining = response['credits_remaining'] ?? 0;
+        int creditsAllocated =
+            response['credits_allocated'] ?? creditsRemaining + deductedAmount;
 
-         if (response['credits_remaining'] != null) {
-           profile.syncCredits(creditsRemaining);
-         } else {
-           profile.deductCredits(deductedAmount);
-         }
+        if (response['credits_remaining'] != null) {
+          profile.syncCredits(creditsRemaining);
+        } else {
+          profile.deductCredits(deductedAmount);
+        }
 
-         await FirebaseAnalytics.instance.logSpendVirtualCurrency(
-           itemName: 'reveal_details', // What they bought
-           virtualCurrencyName: 'credits', // Currency type
-           value: deductedAmount, // Amount spent
-         );
+        await FirebaseAnalytics.instance.logSpendVirtualCurrency(
+          itemName: 'reveal_details', // What they bought
+          virtualCurrencyName: 'credits', // Currency type
+          value: deductedAmount, // Amount spent
+        );
 
-         // Optional: Track specifically as a "lead" generation
-         await FirebaseAnalytics.instance.logEvent(
-           name: 'get_quote_unlocked',
-           parameters: {
-             'item_id': widget.jewelryItem.id,
-             'item_name': widget.jewelryItem.productTitle,
-           },
-         );
+        // Optional: Track specifically as a "lead" generation
+        await FirebaseAnalytics.instance.logEvent(
+          name: 'get_quote_unlocked',
+          parameters: {
+            'item_id': widget.jewelryItem.id,
+            'item_name': widget.jewelryItem.productTitle,
+          },
+        );
 
-         // Check if 80% of credits have been consumed (20% or less remaining)
-         final percentageRemaining = (creditsRemaining / creditsAllocated) * 100;
-         if (percentageRemaining <= 20 && mounted) {
-           _showCreditUsageWarning(creditsRemaining, creditsAllocated);
-         }
+        // Check if 80% of credits have been consumed (20% or less remaining)
+        final percentageRemaining = (creditsRemaining / creditsAllocated) * 100;
+        if (percentageRemaining <= 20 && mounted) {
+          _showCreditUsageWarning(creditsRemaining, creditsAllocated);
+        }
 
-         if (mounted) {
+        if (mounted) {
           // Refetch full product details with all columns
           // Pass isDesignerProduct flag to ensure we query the correct table
           final fullProduct = await _jewelryService.getJewelryItem(
@@ -1419,7 +1378,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   Widget _buildImageThumbnails() {
     // Hide thumbnails completely - user wants only 1 image visible
     return const SizedBox.shrink();
-    
+
     // Original code kept for reference but disabled:
     // if (_imageUrls.length <= 1) return const SizedBox.shrink();
 
@@ -1611,7 +1570,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                 final isDesigner = item.isDesignerProduct;
                 final isManufacturer = item.isManufacturerProduct;
                 context.push(
-                    '/product/${item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
+                    '/product/${item.uid ?? item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
                 // --- END FIX ---
               },
               child: Card(

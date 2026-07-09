@@ -30,9 +30,9 @@ import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
 import 'package:jewelry_nafisa/src/services/search_history_service.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
-import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart'; 
-import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart'; 
-import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_categories.dart'; 
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_1_location.dart';
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_occasions.dart';
+import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_categories.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_2_gender.dart';
 import 'package:jewelry_nafisa/src/ui/screens/onboarding/onboarding_screen_3_age.dart';
 import 'package:jewelry_nafisa/src/ui/screens/home/home_screen.dart';
@@ -43,49 +43,49 @@ import 'package:jewelry_nafisa/src/ui/screens/profile/board_detail_screen.dart';
 import 'package:jewelry_nafisa/src/B2BScreens/b2b_shell.dart';
 import 'package:jewelry_nafisa/src/ui/screens/info_screen.dart';
 
-
 final supabaseClient = Supabase.instance.client;
 FirebaseAnalytics analytics = FirebaseAnalytics.instance;
-FirebaseAnalyticsObserver observer = FirebaseAnalyticsObserver(analytics: analytics);
+FirebaseAnalyticsObserver observer =
+    FirebaseAnalyticsObserver(analytics: analytics);
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final _router = GoRouter(
   navigatorKey: _rootNavigatorKey,
-  initialLocation: '/', 
+  initialLocation: '/',
   observers: [observer],
-  
   redirect: (context, state) {
-  final isLoggedIn = supabaseClient.auth.currentSession != null;
-  
-  final isGoingToAuth = state.matchedLocation == '/welcome' ||
-      state.matchedLocation == '/login' ||
-      state.matchedLocation == '/signup';
-  
-  final isGoingToAuthCallback = state.matchedLocation == '/auth-callback';
-  final isGoingToProduct = state.matchedLocation.startsWith('/product/');
+    final isLoggedIn = supabaseClient.auth.currentSession != null;
 
-  // // 1. ADD THIS: Define the B2B check
-  // final isGoingToB2B = state.matchedLocation.startsWith('/b2b');
+    final isGoingToAuth = state.matchedLocation == '/welcome' ||
+        state.matchedLocation == '/login' ||
+        state.matchedLocation == '/signup';
 
-  if (isGoingToAuthCallback) return null;
+    final isGoingToAuthCallback = state.matchedLocation == '/auth-callback';
+    final isGoingToProduct = state.matchedLocation.startsWith('/product/');
 
-  if (isLoggedIn && isGoingToAuth) {
-    return '/home';
-  }
+    // // 1. ADD THIS: Define the B2B check
+    // final isGoingToB2B = state.matchedLocation.startsWith('/b2b');
 
-  // 2. UPDATE THIS: Include !isGoingToB2B in the condition
-  if (!isLoggedIn && !isGoingToAuth && !isGoingToProduct && state.matchedLocation != '/') {
-    return '/welcome';
-  }
+    if (isGoingToAuthCallback) return null;
 
-  return null; 
-},
-  
+    if (isLoggedIn && isGoingToAuth) {
+      return '/home';
+    }
+
+    // 2. UPDATE THIS: Include !isGoingToB2B in the condition
+    if (!isLoggedIn &&
+        !isGoingToAuth &&
+        !isGoingToProduct &&
+        state.matchedLocation != '/') {
+      return '/welcome';
+    }
+
+    return null;
+  },
   refreshListenable: GoRouterRefreshStream(
     supabaseClient.auth.onAuthStateChange,
   ),
-  
   routes: [
     GoRoute(
       path: '/admin',
@@ -161,26 +161,29 @@ final _router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/boards',
-              builder: (context, state) => const BoardsScreen(),
-              routes: [
-                GoRoute(
-                  path: 'detail/:id',
-                  builder: (context, state) {
-                    final boardId = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
-                    final boardName = state.extra as String? ?? 'Board Details';
-                    return BoardDetailScreen(boardId: boardId, boardName: boardName);
-                  },
-                ),
-              ]
-            ),
+                path: '/boards',
+                builder: (context, state) => const BoardsScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'detail/:id',
+                    builder: (context, state) {
+                      final boardId =
+                          int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+                      final boardName =
+                          state.extra as String? ?? 'Board Details';
+                      return BoardDetailScreen(
+                          boardId: boardId, boardName: boardName);
+                    },
+                  ),
+                ]),
           ],
         ),
         StatefulShellBranch(
           routes: [
             GoRoute(
               path: '/search',
-              builder: (context, state) => SearchScreen(searchController: TextEditingController()),
+              builder: (context, state) =>
+                  SearchScreen(searchController: TextEditingController()),
             ),
           ],
         ),
@@ -196,7 +199,7 @@ final _router = GoRouter(
           routes: [
             GoRoute(
               path: '/info',
-              builder: (context, state) => const StaticInfoScreen(), 
+              builder: (context, state) => const StaticInfoScreen(),
             ),
           ],
         ),
@@ -211,23 +214,35 @@ final _router = GoRouter(
           return const AuthGate();
         }
 
-        final isSlug = identifier.contains('-') || identifier.contains(RegExp(r'[a-zA-Z]'));
+        // Check if identifier is a UUID (8-4-4-4-12 hex groups)
+        final uuidRegex = RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+            caseSensitive: false);
+        final isUid = uuidRegex.hasMatch(identifier);
 
-        if (isSlug) {
-          return ProductPageLoader(productSlug: identifier);
-        } else {
-          final isDesignerParam = state.uri.queryParameters['isDesigner'];
-  final isManufacturerParam = state.uri.queryParameters['isManufacturer'];
-
-  final isDesigner = isDesignerParam == 'true';
-  final isManufacturer = isManufacturerParam == 'true';
-
-  return ProductDetailLoader(
-    productId: identifier,
-    isDesigner: isDesigner,
-    isManufacturer: isManufacturer,
-  );
+        if (isUid) {
+          // New preferred path: look up product by its uid column (UUID)
+          return ProductPageLoader(productSlug: identifier, lookupByUid: true);
         }
+
+        final isPureInteger = int.tryParse(identifier) != null;
+
+        if (!isPureInteger) {
+          // Legacy: fuzzy-title slug lookup
+          return ProductPageLoader(productSlug: identifier);
+        }
+
+        // Legacy: direct integer id lookup with table hint via query params
+        final isDesignerParam = state.uri.queryParameters['isDesigner'];
+        final isManufacturerParam = state.uri.queryParameters['isManufacturer'];
+        final isDesigner = isDesignerParam == 'true';
+        final isManufacturer = isManufacturerParam == 'true';
+
+        return ProductDetailLoader(
+          productId: identifier,
+          isDesigner: isDesigner,
+          isManufacturer: isManufacturer,
+        );
       },
     ),
     GoRoute(
@@ -241,8 +256,8 @@ class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<AuthState> stream) {
     notifyListeners();
     _subscription = stream.asBroadcastStream().listen(
-      (AuthState _) => notifyListeners(),
-    );
+          (AuthState _) => notifyListeners(),
+        );
   }
 
   late final StreamSubscription<AuthState> _subscription;
@@ -264,9 +279,10 @@ Future<void> main() async {
   final supabaseUrl = const String.fromEnvironment('SUPABASE_URL').isNotEmpty
       ? const String.fromEnvironment('SUPABASE_URL')
       : dotenv.env['SUPABASE_URL'] ?? '';
-  final supabaseAnonKey = const String.fromEnvironment('SUPABASE_ANON_KEY').isNotEmpty
-      ? const String.fromEnvironment('SUPABASE_ANON_KEY')
-      : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  final supabaseAnonKey =
+      const String.fromEnvironment('SUPABASE_ANON_KEY').isNotEmpty
+          ? const String.fromEnvironment('SUPABASE_ANON_KEY')
+          : dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
     throw Exception('Supabase URL and Anon Key are required.');
@@ -288,10 +304,13 @@ Future<void> main() async {
       child: provider_pkg.MultiProvider(
         providers: [
           provider_pkg.ChangeNotifierProvider(create: (context) => AppState()),
-          provider_pkg.ChangeNotifierProvider(create: (_) => SearchHistoryService()..init()),
+          provider_pkg.ChangeNotifierProvider(
+              create: (_) => SearchHistoryService()..init()),
           provider_pkg.ChangeNotifierProvider.value(value: userProfileProvider),
-          provider_pkg.ChangeNotifierProvider(create: (context) => ThemeProvider()),
-          provider_pkg.ChangeNotifierProvider(create: (context) => BoardsProvider()),
+          provider_pkg.ChangeNotifierProvider(
+              create: (context) => ThemeProvider()),
+          provider_pkg.ChangeNotifierProvider(
+              create: (context) => BoardsProvider()),
           provider_pkg.Provider<JewelryService>(
             create: (_) => JewelryService(supabaseClient),
           ),
@@ -312,12 +331,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Dagina Designs',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      themeMode: ThemeMode.light,
-      routerConfig: _router
-    );
+        title: 'Dagina Designs',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        themeMode: ThemeMode.light,
+        routerConfig: _router);
   }
 }
 
@@ -325,18 +343,24 @@ class ProductDetailLoader extends StatelessWidget {
   final String productId;
   final bool isDesigner;
   final bool isManufacturer;
-  const ProductDetailLoader({super.key, required this.productId, this.isDesigner = false, this.isManufacturer = false});
+  const ProductDetailLoader(
+      {super.key,
+      required this.productId,
+      this.isDesigner = false,
+      this.isManufacturer = false});
 
   @override
   Widget build(BuildContext context) {
-    final jewelryService = provider_pkg.Provider.of<JewelryService>(context, listen: false);
-    
+    final jewelryService =
+        provider_pkg.Provider.of<JewelryService>(context, listen: false);
 
     return FutureBuilder<JewelryItem?>(
-      future: jewelryService.getJewelryItem(productId, isDesignerProduct: isDesigner, isManufacturerProduct: isManufacturer),
+      future: jewelryService.getJewelryItem(productId,
+          isDesignerProduct: isDesigner, isManufacturerProduct: isManufacturer),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         }
         if (snapshot.hasError || snapshot.data == null) {
           return Scaffold(

@@ -703,9 +703,8 @@ class _QuoteTable extends StatelessWidget {
                   isSelected: selectedIds.contains(q.id),
                   onSelect: (v) => onSelectRow(q.id, v),
                   onActionTap: () => onActionTap(q),
-                  onPreviewTap: q.productUrl.isNotEmpty
-                      ? () => onPreviewTap(q)
-                      : null,
+                  onPreviewTap:
+                      q.productUrl.isNotEmpty ? () => onPreviewTap(q) : null,
                 )),
 
           // ── Pagination ─────────────────────────────────────────────────
@@ -1311,7 +1310,8 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
   @override
   void initState() {
     super.initState();
-    _weightCtrl.text = widget.quote.goldWeight.replaceAll(RegExp(r'[^0-9.]'), '');
+    _weightCtrl.text =
+        widget.quote.goldWeight.replaceAll(RegExp(r'[^0-9.]'), '');
     if (widget.quote.stoneWeight.isNotEmpty) {
       _stoneWeightCtrl.text =
           widget.quote.stoneWeight.first.replaceAll(RegExp(r'[^0-9.]'), '');
@@ -1385,14 +1385,17 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
     final parts = [
       'Metal: ₹${r.toStringAsFixed(0)} x ${w.toStringAsFixed(2)}g',
       'Making: ₹${m.toStringAsFixed(0)} x ${w.toStringAsFixed(2)}g',
-      if (sw > 0) 'Stones: ₹${sr.toStringAsFixed(0)} x ${sw.toStringAsFixed(2)}ct',
+      if (sw > 0)
+        'Stones: ₹${sr.toStringAsFixed(0)} x ${sw.toStringAsFixed(2)}ct',
     ];
     return parts.join('\n');
   }
 
   Widget _buildCalculator() {
     if (_loadingPricing) {
-      return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
+      return const Center(
+          child: Padding(
+              padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
     }
 
     return Container(
@@ -1408,42 +1411,57 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
         children: [
           const Text(
             'QUOTE CALCULATOR',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: Color(0xFF668A73)),
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+                color: Color(0xFF668A73)),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: _formField('Metal Type', DropdownButton<String>(
-                  value: _selectedMetal,
-                  isExpanded: true,
-                  underline: const SizedBox(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() {
-                        _selectedMetal = v;
-                        _applyMetalRate();
-                      });
-                    }
-                  },
-                  items: ['Gold', 'Silver', 'Platinum'].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-                )),
+                child: _formField(
+                    'Metal Type',
+                    DropdownButton<String>(
+                      value: _selectedMetal,
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() {
+                            _selectedMetal = v;
+                            _applyMetalRate();
+                          });
+                        }
+                      },
+                      items: ['Gold', 'Silver', 'Platinum']
+                          .map(
+                              (m) => DropdownMenuItem(value: m, child: Text(m)))
+                          .toList(),
+                    )),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _formField('Metal Rate (₹)', TextField(
-                  controller: _rateCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-                )),
+                child: _formField(
+                    'Metal Rate (₹)',
+                    TextField(
+                      controller: _rateCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          border: InputBorder.none, isDense: true),
+                    )),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _formField('Weight (g)', TextField(
-                  controller: _weightCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-                )),
+                child: _formField(
+                    'Weight (g)',
+                    TextField(
+                      controller: _weightCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          border: InputBorder.none, isDense: true),
+                    )),
               ),
             ],
           ),
@@ -1451,28 +1469,39 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
           Row(
             children: [
               Expanded(
-                child: _formField('Making Group', DropdownButton<String>(
-                  value: _selectedMakingGroup,
-                  isExpanded: true,
-                  underline: const SizedBox(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() {
-                        _selectedMakingGroup = v;
-                        _applyMakingRate(v);
-                      });
-                    }
-                  },
-                  items: <String>[...(_pricing?.makingGroups.keys ?? const <String>[]), 'Custom'].map((m) => DropdownMenuItem<String>(value: m, child: Text(m))).toList(),
-                )),
+                child: _formField(
+                    'Making Group',
+                    DropdownButton<String>(
+                      value: _selectedMakingGroup,
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() {
+                            _selectedMakingGroup = v;
+                            _applyMakingRate(v);
+                          });
+                        }
+                      },
+                      items: <String>[
+                        ...(_pricing?.makingGroups.keys ?? const <String>[]),
+                        'Custom'
+                      ]
+                          .map((m) => DropdownMenuItem<String>(
+                              value: m, child: Text(m)))
+                          .toList(),
+                    )),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _formField('Making/g (₹)', TextField(
-                  controller: _makingCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-                )),
+                child: _formField(
+                    'Making/g (₹)',
+                    TextField(
+                      controller: _makingCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          border: InputBorder.none, isDense: true),
+                    )),
               ),
             ],
           ),
@@ -1480,36 +1509,50 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
           Row(
             children: [
               Expanded(
-                child: _formField('Stone Group', DropdownButton<String>(
-                  value: _selectedStoneGroup,
-                  isExpanded: true,
-                  underline: const SizedBox(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() {
-                        _selectedStoneGroup = v;
-                        _applyStoneRate(v);
-                      });
-                    }
-                  },
-                  items: <String>[...(_pricing?.stoneGroups.keys ?? const <String>[]), 'Custom'].map((m) => DropdownMenuItem<String>(value: m, child: Text(m))).toList(),
-                )),
+                child: _formField(
+                    'Stone Group',
+                    DropdownButton<String>(
+                      value: _selectedStoneGroup,
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() {
+                            _selectedStoneGroup = v;
+                            _applyStoneRate(v);
+                          });
+                        }
+                      },
+                      items: <String>[
+                        ...(_pricing?.stoneGroups.keys ?? const <String>[]),
+                        'Custom'
+                      ]
+                          .map((m) => DropdownMenuItem<String>(
+                              value: m, child: Text(m)))
+                          .toList(),
+                    )),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _formField('Stone/ct (₹)', TextField(
-                  controller: _stoneRateCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-                )),
+                child: _formField(
+                    'Stone/ct (₹)',
+                    TextField(
+                      controller: _stoneRateCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          border: InputBorder.none, isDense: true),
+                    )),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _formField('Stone Wt (ct)', TextField(
-                  controller: _stoneWeightCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-                )),
+                child: _formField(
+                    'Stone Wt (ct)',
+                    TextField(
+                      controller: _stoneWeightCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          border: InputBorder.none, isDense: true),
+                    )),
               ),
             ],
           ),
@@ -1519,10 +1562,17 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('TOTAL ESTIMATE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1B3D2F))),
+              const Text('TOTAL ESTIMATE',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Color(0xFF1B3D2F))),
               Text(
                 '₹${NumberFormat('#,###').format(_total)}',
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: Color(0xFF1B3D2F)),
+                style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                    color: Color(0xFF1B3D2F)),
               ),
             ],
           ),
@@ -1535,7 +1585,11 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF668A73))),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF668A73))),
         const SizedBox(height: 4),
         Container(
           height: 36,
@@ -1697,7 +1751,8 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
                   child: SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => widget.onLaunchUrl(widget.quote.productUrl),
+                      onPressed: () =>
+                          widget.onLaunchUrl(widget.quote.productUrl),
                       icon: const Icon(Icons.open_in_new, size: 18),
                       label: const Text('View Original Product'),
                       style: OutlinedButton.styleFrom(
@@ -1772,7 +1827,8 @@ class _QuoteDetailDialogState extends State<_QuoteDetailDialog> {
                         const SizedBox(width: 12),
                         _ActionBtn(
                           label: 'Send Response',
-                          onTap: () => widget.onReply(_msgCtrl.text, _total, _breakdown),
+                          onTap: () =>
+                              widget.onReply(_msgCtrl.text, _total, _breakdown),
                         ),
                       ],
                     ),
