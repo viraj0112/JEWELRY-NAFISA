@@ -41,7 +41,7 @@ serve(async (req) => {
   // We use 'ilike' for a case-insensitive match
   let { data: prodData, error: prodError } = await supabase
     .from("products")
-    .select('"Product Title", "Description", "Image"')
+    .select('"Product Title", "Description", "Image", images_arr')
     .ilike('"Product Title"', productSearchTerm) // <-- FIX: Use fuzzy search term
     .maybeSingle();
 
@@ -49,9 +49,12 @@ serve(async (req) => {
     productData = prodData;
   } else {
     // If not in 'products', check 'designerproducts'
+    // NOTE: real columns are PascalCase ("Description", "Image"); the previous
+    // lowercase select ("description", "image") never matched any column, so
+    // designerproducts OG tags always fell through to the fallback below.
     let { data: designerProdData, error: designerProdError } = await supabase
       .from("designerproducts")
-      .select('"Product Title", "description", "image"')
+      .select('"Product Title", "Description", "Image", images_arr')
       .ilike('"Product Title"', productSearchTerm) // <-- FIX: Use fuzzy search term
       .maybeSingle();
 
@@ -59,8 +62,9 @@ serve(async (req) => {
       // Map designer product fields to match standard product fields
       productData = {
         "Product Title": designerProdData["Product Title"],
-        "Description": designerProdData["description"], 
-        "Image": designerProdData["image"],
+        "Description": designerProdData["Description"],
+        "Image": designerProdData["Image"],
+        "images_arr": designerProdData["images_arr"],
       };
     } else {
       // If not found in either, set the error
@@ -87,7 +91,11 @@ serve(async (req) => {
   // --- Prepare data for HTML tags ---
   const title = productData["Product Title"] ?? "Dagina Designs";
   const description = productData["Description"] ?? "Beautiful jewelry from Dagina Designs.";
-  const imageUrl = productData["Image"] ?? "https://cxnkagfbymztpwszfaiw.supabase.co/storage/v1/object/public/product-images/Crystal%20Quill%20Gold%20&%20Diamond%20Hoops%20&%20Huggies%20Earring.jpg"; // Fallback image
+  // "Image" is a text[] column, not a scalar; take the first element. Prefer
+  // the unified images_arr (Phase 1) when present.
+  const imageUrl = productData["images_arr"]?.[0]
+    ?? productData["Image"]?.[0]
+    ?? "https://cxnkagfbymztpwszfaiw.supabase.co/storage/v1/object/public/product-images/Crystal%20Quill%20Gold%20&%20Diamond%20Hoops%20&%20Huggies%20Earring.jpg"; // Fallback image
   const pageUrl = url.href; // The full URL that was visited
 
   // --- This is the HTML <head> with the new OG tags ---

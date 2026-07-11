@@ -300,21 +300,21 @@ class _ProductUploadSectionState extends State<ProductUploadSection>
               .map((entry) => entry.value)
               .toList();
 
-          // If Image column is now an Array (TEXT[]):
+          // "Image" is a real text[] column; "images" does not exist as a column
+          // at all. Write the full URL list to both "Image" (legacy) and
+          // images_arr (Phase 1 unified column) so nothing downstream breaks.
           if (matchingImageUrls.isNotEmpty) {
-            // 1. Send the List of URLs to the new 'images' column (Array)
-            product['images'] = matchingImageUrls;
-
-            // 2. Send the FIRST URL to the old 'Image' column (Text/Thumbnail)
-            // This ensures backward compatibility with the rest of the app
-            product['Image'] = matchingImageUrls.first;
+            product['Image'] = matchingImageUrls;
+            product['images_arr'] = matchingImageUrls;
           } else {
-            product['images'] = null;
-            product['Image'] = null;
+            product['Image'] = [];
+            product['images_arr'] = [];
           }
         } else {
-          // If no title, ensure Image field is null
-          product['Image'] = null;
+          // If no title, ensure Image fields are empty (not null, to match
+          // Phase 1's own backfill convention of ARRAY[]::text[] for "no images").
+          product['Image'] = [];
+          product['images_arr'] = [];
         }
 
         productList.add(product);

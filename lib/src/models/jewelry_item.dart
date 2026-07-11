@@ -128,14 +128,24 @@ class JewelryItem {
       sku: _parseString(json['SKU'] ?? json['sku']),
       productTitle:
           json['Product Title'] ?? json['product_title'] ?? json['title'] ?? '',
-      image: json['Image'] is List
-          ? (json['Image'] as List).firstOrNull ?? ''
-          : json['Image'] ?? json['image'] ?? json['image_url'] ?? '',
-      images: (json['images'] is List)
-          ? (json['images'] as List).map((e) => e.toString()).toList()
-          : (json['Image'] is List)
-              ? (json['Image'] as List).map((e) => e.toString()).toList()
-              : null,
+      // Prefer the unified `images_arr` (Phase 1) first, then fall back to the
+      // legacy `Image` (array) / `Images` (text) columns for backward compat.
+      image: (json['images_arr'] is List)
+          ? (json['images_arr'] as List).firstOrNull?.toString() ?? ''
+          : json['Image'] is List
+              ? (json['Image'] as List).firstOrNull ?? ''
+              : json['Image'] ??
+                  json['Images'] ??
+                  json['image'] ??
+                  json['image_url'] ??
+                  '',
+      images: (json['images_arr'] is List)
+          ? (json['images_arr'] as List).map((e) => e.toString()).toList()
+          : (json['images'] is List)
+              ? (json['images'] as List).map((e) => e.toString()).toList()
+              : (json['Image'] is List)
+                  ? (json['Image'] as List).map((e) => e.toString()).toList()
+                  : null,
       description: json['description'] ?? '',
       price: _parseDouble(json['Price'] ?? json['price']),
       isDesignerProduct: json['is_designer_product'] ??
@@ -158,14 +168,22 @@ class JewelryItem {
       stoneCount: _parseList(json['Stone Count'] ?? json['stone_count']),
       stonePurity: _parseList(json['Stone Purity'] ?? json['stone_purity']),
       scrapedUrl: _parseString(json['Scraped URL'] ?? json['scraped_url']),
-      category: _parseString(json['Category'] ?? json['category']),
+      // Prefer unified `category_arr` (Phase 1, merged+deduped array) -> first value;
+      // fall back to the legacy single-text `Category` column.
+      category: _parseString((json['category_arr'] is List)
+          ? (json['category_arr'] as List).firstOrNull
+          : (json['Category'] ?? json['category'])),
       subCategory: _parseString(
           json['Sub Category'] ?? json['sub_category'] ?? json['SubCategory']),
       productType: _parseString(json['Product Type'] ?? json['product_type']),
       gender: _parseString(json['Gender'] ?? json['gender']),
       theme: _parseString(json['Theme'] ?? json['occasions']),
       metalType: _parseString(json['Metal Type'] ?? json['metal_type']),
-      metalColor: _parseString(json['Metal Color'] ?? json['metal_color']),
+      // Prefer unified `metal_color_arr` (Phase 1, an array) -> take first value;
+      // fall back to the legacy single-text `Metal Color` column.
+      metalColor: _parseString((json['metal_color_arr'] is List)
+          ? (json['metal_color_arr'] as List).firstOrNull
+          : (json['Metal Color'] ?? json['metal_color'])),
       netWeight: _parseDouble(json['NET WEIGHT'] ?? json['net_weight']),
       stoneColor: _parseList(json['Stone Color'] ?? json['stone_color']),
       stoneCut: _parseList(json['Stone Cut'] ?? json['stone_cut']),
@@ -212,15 +230,26 @@ class JewelryItem {
     );
   }
 
+  // Dirty-data placeholders seen in the scraped product tables: some upstream
+  // ingestion step serialized empty/null array values as the literal STRING
+  // "{null}" (or similar bracket-wrapped variants) instead of a real SQL NULL,
+  // so it reads back as ordinary text and must be pattern-matched out here.
+  static bool _isFakeEmptyValue(String lower) {
+    return lower.isEmpty ||
+        lower == 'null' ||
+        lower == 'none' ||
+        lower == 'n/a' ||
+        lower == 'na' ||
+        lower == '{null}' ||
+        lower == '{}' ||
+        lower == '[null]' ||
+        lower == '[]';
+  }
+
   static String? _parseString(dynamic value) {
     if (value == null) return null;
     final str = value.toString().trim();
-    // Return null if the string is empty, "null", "None", or "N/A"
-    if (str.isEmpty ||
-        str.toLowerCase() == 'null' ||
-        str.toLowerCase() == 'none' ||
-        str.toLowerCase() == 'n/a' ||
-        str.toLowerCase() == 'na') {
+    if (_isFakeEmptyValue(str.toLowerCase())) {
       return null;
     }
     return str;
@@ -238,22 +267,13 @@ class JewelryItem {
     if (value is List) {
       final list = value
           .map((e) => e.toString().trim())
-          .where((e) =>
-              e.isNotEmpty &&
-              e.toLowerCase() != 'null' &&
-              e.toLowerCase() != 'none' &&
-              e.toLowerCase() != 'n/a' &&
-              e.toLowerCase() != 'na')
+          .where((e) => !_isFakeEmptyValue(e.toLowerCase()))
           .toList();
       return list.isEmpty ? null : list;
     }
     if (value is String) {
       final str = value.trim();
-      if (str.isEmpty ||
-          str.toLowerCase() == 'null' ||
-          str.toLowerCase() == 'none' ||
-          str.toLowerCase() == 'n/a' ||
-          str.toLowerCase() == 'na') {
+      if (_isFakeEmptyValue(str.toLowerCase())) {
         return null;
       }
       return [str];

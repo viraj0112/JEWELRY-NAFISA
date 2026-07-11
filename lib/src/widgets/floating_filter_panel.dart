@@ -988,10 +988,17 @@ class _FloatingFilterPanel extends StatelessWidget {
 
   Color _getMetalColorHex(String colorStr) {
     final lower = colorStr.toLowerCase();
-    if (lower.contains('yellow')) return const Color(0xFFFFD700);
-    if (lower.contains('rose')) return const Color(0xFFB76E79);
-    if (lower.contains('white')) return const Color(0xFFF5F5F5);
-    return Colors.grey.shade300;
+    // Order matters: check the more specific qualifiers (rose/white) before the
+    // generic "gold", so "Rose Gold" doesn't fall into the yellow-gold branch.
+    if (lower.contains('rose')) return const Color(0xFFB76E79); // rose gold
+    if (lower.contains('white')) return const Color(0xFFE8E8E8); // white gold
+    if (lower.contains('platinum')) return const Color(0xFFE5E4E2); // platinum
+    if (lower.contains('silver')) return const Color(0xFFC0C0C0); // silver
+    // "Yellow", "Yellow Gold", and bare "Gold" all read as yellow gold.
+    if (lower.contains('yellow') || lower.contains('gold')) {
+      return const Color(0xFFE6B422); // richer gold (less neon than FFD700)
+    }
+    return Colors.grey.shade300; // unknown / malformed
   }
 }
 

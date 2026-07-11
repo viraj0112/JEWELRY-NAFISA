@@ -783,13 +783,13 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
         try {
           final rows = await _supabase
               .from(entry.key)
-              .select('id, "Product Title", "Image"')
+              .select('id, "Product Title", "Image", images_arr')
               .inFilter('id', entry.value);
           for (final row in (rows as List)) {
             final id = row['id'].toString();
             missingIds.remove(id);
             String imgUrl = '';
-            final img = row['Image'];
+            final img = row['images_arr'] ?? row['Image'];
             if (img is List && img.isNotEmpty) {
               imgUrl = img[0].toString();
             } else if (img is String) {
@@ -815,13 +815,13 @@ class _ProductBreakdownSheetState extends State<_ProductBreakdownSheet> {
           try {
             final rows = await _supabase
                 .from(table)
-                .select('id, "Product Title", "Image"')
+                .select('id, "Product Title", "Image", images_arr')
                 .inFilter('id', missingIds.toList());
             for (final row in (rows as List)) {
               final id = row['id'].toString();
               missingIds.remove(id);
               String imgUrl = '';
-              final img = row['Image'];
+              final img = row['images_arr'] ?? row['Image'];
               if (img is List && img.isNotEmpty) {
                 imgUrl = img[0].toString();
               } else if (img is String) {

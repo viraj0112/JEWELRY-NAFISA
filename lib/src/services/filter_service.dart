@@ -36,6 +36,11 @@ class FilterService {
       if (columnName == 'Category') {
         return await _getDistinctCategoryValues();
       }
+      // Metal Color is now unified into metal_color_arr (text[]); use the
+      // array-unnesting path instead of the scalar RPC.
+      if (columnName == 'Metal Color') {
+        return await getDistinctArrayValues('metal_color_arr');
+      }
 
       final response = await _supabase.rpc(
         'get_distinct_product_values',
@@ -65,80 +70,14 @@ class FilterService {
     try {
       final Set<String> values = {};
 
-      // Query products table for all category columns
-      final productsResponse = await _supabase
-          .from('products')
-          .select('Category, Category1, Category2, Category3');
+      for (final table in ['products', 'designerproducts', 'manufacturerproducts']) {
+        final response = await _supabase
+            .from(table)
+            .select('Category, Category1, Category2, Category3, category_arr');
 
-      if (productsResponse is List) {
-        for (var item in productsResponse) {
-          if (item['Category'] != null &&
-              item['Category'].toString().isNotEmpty) {
-            values.add(item['Category'].toString());
-          }
-          if (item['Category1'] != null &&
-              item['Category1'].toString().isNotEmpty) {
-            values.add(item['Category1'].toString());
-          }
-          if (item['Category2'] != null &&
-              item['Category2'].toString().isNotEmpty) {
-            values.add(item['Category2'].toString());
-          }
-          if (item['Category3'] != null &&
-              item['Category3'].toString().isNotEmpty) {
-            values.add(item['Category3'].toString());
-          }
-        }
-      }
-
-      // Query designerproducts table for all category columns
-      final designerResponse = await _supabase
-          .from('designerproducts')
-          .select('Category, Category1, Category2, Category3');
-
-      if (designerResponse is List) {
-        for (var item in designerResponse) {
-          if (item['Category'] != null &&
-              item['Category'].toString().isNotEmpty) {
-            values.add(item['Category'].toString());
-          }
-          if (item['Category1'] != null &&
-              item['Category1'].toString().isNotEmpty) {
-            values.add(item['Category1'].toString());
-          }
-          if (item['Category2'] != null &&
-              item['Category2'].toString().isNotEmpty) {
-            values.add(item['Category2'].toString());
-          }
-          if (item['Category3'] != null &&
-              item['Category3'].toString().isNotEmpty) {
-            values.add(item['Category3'].toString());
-          }
-        }
-      }
-
-      // Query manufacturerproducts table for all category columns
-      final manufacturerResponse = await _supabase
-          .from('manufacturerproducts')
-          .select('Category, Category1, Category2, Category3');
-
-      if (manufacturerResponse is List) {
-        for (var item in manufacturerResponse) {
-          if (item['Category'] != null &&
-              item['Category'].toString().isNotEmpty) {
-            values.add(item['Category'].toString());
-          }
-          if (item['Category1'] != null &&
-              item['Category1'].toString().isNotEmpty) {
-            values.add(item['Category1'].toString());
-          }
-          if (item['Category2'] != null &&
-              item['Category2'].toString().isNotEmpty) {
-            values.add(item['Category2'].toString());
-          }
-          if (item['Category3'] != null &&
-              item['Category3'].toString().isNotEmpty) {
-            values.add(item['Category3'].toString());
+        if (response is List) {
+          for (var item in response) {
+            _addCategoryValuesFromRow(item, values);
           }
         }
       }
@@ -147,6 +86,27 @@ class FilterService {
     } catch (e) {
       debugPrint('Error fetching distinct category values: $e');
       return [];
+    }
+  }
+
+  /// Prefer the unified category_arr (Phase 1) when present and non-empty;
+  /// fall back to the legacy Category/Category1/2/3 scalar columns.
+  void _addCategoryValuesFromRow(
+      Map<String, dynamic> item, Set<String> values) {
+    final arr = item['category_arr'];
+    if (arr is List && arr.isNotEmpty) {
+      for (final v in arr) {
+        if (v != null && v.toString().trim().isNotEmpty) {
+          values.add(v.toString());
+        }
+      }
+      return;
+    }
+    for (final key in ['Category', 'Category1', 'Category2', 'Category3']) {
+      final v = item[key];
+      if (v != null && v.toString().trim().isNotEmpty) {
+        values.add(v.toString());
+      }
     }
   }
 
@@ -164,6 +124,10 @@ class FilterService {
     // Special handling for Category to aggregate all category columns
     if (columnName == 'Category') {
       return await _getDependentDistinctCategoryValues(filters);
+    }
+    // Metal Color is now unified into metal_color_arr (text[]).
+    if (columnName == 'Metal Color') {
+      return await getDependentDistinctArrayValues('metal_color_arr', filters);
     }
 
     try {
@@ -309,15 +273,16 @@ class FilterService {
       Map<String, String?> filters) async {
     try {
       // 1. Start queries for all three tables, selecting all category columns
+      // plus the unified category_arr (Phase 1).
       var productsQuery = _supabase
           .from('products')
-          .select('Category, Category1, Category2, Category3');
+          .select('Category, Category1, Category2, Category3, category_arr');
       var designerQuery = _supabase
           .from('designerproducts')
-          .select('Category, Category1, Category2, Category3');
+          .select('Category, Category1, Category2, Category3, category_arr');
       var manufacturerQuery = _supabase
           .from('manufacturerproducts')
-          .select('Category, Category1, Category2, Category3');
+          .select('Category, Category1, Category2, Category3, category_arr');
 
       // 2. Apply dependent filters to all three queries (excluding Category filter itself)
       for (var filter in filters.entries) {
@@ -345,68 +310,12 @@ class FilterService {
 
       final Set<String> values = {};
 
-      // 4. Process products results - extract all category columns
-      if (responses[0] is List) {
-        for (var item in responses[0] as List) {
-          if (item['Category'] != null &&
-              item['Category'].toString().isNotEmpty) {
-            values.add(item['Category'].toString());
-          }
-          if (item['Category1'] != null &&
-              item['Category1'].toString().isNotEmpty) {
-            values.add(item['Category1'].toString());
-          }
-          if (item['Category2'] != null &&
-              item['Category2'].toString().isNotEmpty) {
-            values.add(item['Category2'].toString());
-          }
-          if (item['Category3'] != null &&
-              item['Category3'].toString().isNotEmpty) {
-            values.add(item['Category3'].toString());
-          }
-        }
-      }
-
-      // 5. Process designerproducts results - extract all category columns
-      if (responses[1] is List) {
-        for (var item in responses[1] as List) {
-          if (item['Category'] != null &&
-              item['Category'].toString().isNotEmpty) {
-            values.add(item['Category'].toString());
-          }
-          if (item['Category1'] != null &&
-              item['Category1'].toString().isNotEmpty) {
-            values.add(item['Category1'].toString());
-          }
-          if (item['Category2'] != null &&
-              item['Category2'].toString().isNotEmpty) {
-            values.add(item['Category2'].toString());
-          }
-          if (item['Category3'] != null &&
-              item['Category3'].toString().isNotEmpty) {
-            values.add(item['Category3'].toString());
-          }
-        }
-      }
-
-      // 6. Process manufacturerproducts results - extract all category columns
-      if (responses[2] is List) {
-        for (var item in responses[2] as List) {
-          if (item['Category'] != null &&
-              item['Category'].toString().isNotEmpty) {
-            values.add(item['Category'].toString());
-          }
-          if (item['Category1'] != null &&
-              item['Category1'].toString().isNotEmpty) {
-            values.add(item['Category1'].toString());
-          }
-          if (item['Category2'] != null &&
-              item['Category2'].toString().isNotEmpty) {
-            values.add(item['Category2'].toString());
-          }
-          if (item['Category3'] != null &&
-              item['Category3'].toString().isNotEmpty) {
-            values.add(item['Category3'].toString());
+      // 4-6. Process all three tables' results (prefers category_arr, falls
+      // back to legacy Category/Category1/2/3 — see _addCategoryValuesFromRow).
+      for (final response in responses) {
+        if (response is List) {
+          for (var item in response) {
+            _addCategoryValuesFromRow(item, values);
           }
         }
       }

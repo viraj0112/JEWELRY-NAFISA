@@ -62,7 +62,7 @@ migrate_working_dir/
 # If using TypeScript (Supabase/Deno), ignoring generated .js is fine.
 *.js
 node_modules/
-
+.claude
 # -----------------------
 # Platform Specifics
 # -----------------------
@@ -97,3 +97,16 @@ __pycache__/
 .venv310/
 DatabasePrefill/
 *.csv
+implementation_plan_database
+LEARNING_NOTES.md
+DB_SCHEMA_REFERENCE.md
+DEPLOYMENT_PLAN_PHASE2.md
+
+# Local DB scratch / dumps (not for the repo)
+prod_schema.sql
+supabase/prod_integrity_check.sql
+supabase/seed_test_user.sql
+supabase/seed_test_products.sql
+supabase/load_designer_rich_products.sql
+supabase/load_rich_products.sql
+supabase/pull_rich_products.sql

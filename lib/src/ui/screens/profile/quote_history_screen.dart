@@ -158,7 +158,15 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
                       ),
                     ),
                     onTap: () {
-                      _showQuoteDetailsPopup(context, quote, product);
+                      // Defer to the next frame: opening a dialog synchronously
+                      // from a hovered ListTile's onTap trips a Flutter web
+                      // mouse-tracker assertion (mouse_tracker.dart:199) because
+                      // the hoverable widget tree changes mid pointer-update.
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (context.mounted) {
+                          _showQuoteDetailsPopup(context, quote, product);
+                        }
+                      });
                     },
                   ),
                 );

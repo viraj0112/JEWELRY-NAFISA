@@ -125,7 +125,10 @@ class JewelryService {
               "Metal Purity",
               Plain,
               Studded,
-              "Price"
+              "Price",
+              images_arr,
+              category_arr,
+              metal_color_arr
             ''')
             .or('Product Title.ilike.%$query%,'
                 'Description.ilike.%$query%,'
@@ -329,7 +332,10 @@ class JewelryService {
                 "Metal Purity",
                 Plain,
                 Studded,
-                "Price"
+                "Price",
+                images_arr,
+                category_arr,
+                metal_color_arr
               ''').ilike('"Metal Type"', 'AKD%');
 
           if (productType != null && productType.isNotEmpty) {
@@ -397,7 +403,10 @@ class JewelryService {
               "Metal Purity",
               Plain,
               Studded,
-              "Price"
+              "Price",
+              images_arr,
+              category_arr,
+              metal_color_arr
             ''');
 
         if (currentIntId != null) {
@@ -1198,13 +1207,13 @@ class JewelryService {
       final responses = await Future.wait([
         _supabaseClient
             .from('products')
-            .select('"Category1", "Category2", "Category3"'),
+            .select('"Category1", "Category2", "Category3", category_arr'),
         _supabaseClient
             .from('designerproducts')
-            .select('"Category1", "Category2", "Category3"'),
+            .select('"Category1", "Category2", "Category3", category_arr'),
         _supabaseClient
             .from('manufacturerproducts')
-            .select('"Category1", "Category2", "Category3"'),
+            .select('"Category1", "Category2", "Category3", category_arr'),
       ]);
 
       final Map<String, Set<String>> subFilters = {
@@ -1232,6 +1241,20 @@ class JewelryService {
             final cat3 = item['Category3']?.toString().trim();
             if (cat3 != null && cat3.isNotEmpty) {
               subFilters['Category3']!.add(cat3);
+            }
+
+            // Unified category_arr (Phase 1): no per-slot ordering exists, so
+            // union every value into all 3 sets rather than inventing one.
+            final arr = item['category_arr'];
+            if (arr is List) {
+              for (final v in arr) {
+                final s = v?.toString().trim();
+                if (s != null && s.isNotEmpty) {
+                  subFilters['Category1']!.add(s);
+                  subFilters['Category2']!.add(s);
+                  subFilters['Category3']!.add(s);
+                }
+              }
             }
           }
         }

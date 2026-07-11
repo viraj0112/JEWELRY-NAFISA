@@ -24,10 +24,11 @@ serve(async (req) => {
     const supabase = createClient(sbUrl, sbKey);
 
     // 4. Fetch Items (Batch of 5)
-    // FIX: We map "Product Title" to 'title' and "Image" to 'image' using aliasing
+    // FIX: We map "Product Title" to 'title' and "Image" to 'image' using aliasing.
+    // Both "Image" and images_arr are text[]; prefer images_arr (Phase 1 unified column).
     const { data: items, error: fetchError } = await supabase
       .from(table)
-      .select('id, title:"Product Title", image:Image') 
+      .select('id, title:"Product Title", image:Image, images_arr')
       .is('embedding', null)
       .not('Image', 'is', null) // Ensure we don't pick items without images
       .limit(5);
@@ -44,13 +45,18 @@ serve(async (req) => {
     const results = [];
     for (const item of items) {
       try {
-        if (!item.image) {
+        // Prefer images_arr (Phase 1); fall back to legacy Image (also an
+        // array). Both are text[], so always take the first element.
+        const imageUrl = item.images_arr?.[0]
+          ?? (Array.isArray(item.image) ? item.image[0] : item.image);
+
+        if (!imageUrl) {
            console.log(`Skipping ${item.id} (No Image)`);
            continue;
         }
 
         // Fetch Image
-        const imgRes = await fetch(item.image);
+        const imgRes = await fetch(imageUrl);
         if (!imgRes.ok) throw new Error(`Image download failed: ${imgRes.statusText}`);
         const imgBlob = await imgRes.blob();
 

@@ -43,33 +43,55 @@ serve(async (req) => {
     if (userUpdateError) throw userUpdateError;
 
     // 2. Insert the approved asset data into the designerproducts table
-    // Maps fields from the 'assets' table (and its attributes JSONB) to the 'designerproducts' table
+    // Maps fields from the 'assets' table (and its attributes JSONB) to the real
+    // designerproducts columns (PascalCase legacy + Phase-1 unified array columns).
+    // Helper: attributes values may already be an array, or a comma-separated string.
+    const toArray = (v: unknown): string[] | null => {
+      if (v == null) return null;
+      if (Array.isArray(v)) return v;
+      if (typeof v === "string") {
+        return v.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+      }
+      return null;
+    };
+
+    const image = asset.media_url ? [asset.media_url] : [];
+    const goldWeight = asset.attributes?.["Gold Weight"];
+    const metalColor = asset.attributes?.["Metal Color"];
+
     const { error: insertError } = await supabase
       .from("designerproducts")
       .insert({
-        designer_id: asset.owner_id,
-        title: asset.title,
-        description: asset.description,
-        image: asset.media_url,
-        price: asset.attributes?.Price,
-        tags: asset.attributes?.["Product Tags"]
-          ?.split(",")
-          .map((t: string) => t.trim()), // Split tags string into an array
-        gold_weight: asset.attributes?.["Gold Weight"],
-        gold_carat: asset.attributes?.["Metal Purity"],
-        gold_finish: asset.attributes?.["Metal Finish"],
-        stone_weight: asset.attributes?.["Stone Weight"],
-        stone_type: asset.attributes?.["Stone Type"],
-        stone_used: asset.attributes?.["Stone Used"],
-        stone_setting: asset.attributes?.["Stone Setting"],
-        stone_purity: asset.attributes?.["Stone Purity"],
-        stone_count: asset.attributes?.["Stone Count"],
-        category: asset.attributes?.["Product Type"],
-        sub_category: asset.attributes?.["Collection Name"],
-        size: asset.attributes?.["Dimension"],
-        occasions: asset.attributes?.["Theme"],
-        style: asset.attributes?.["Design Type"],
-        // NOTE: Ensure all required fields in 'designerproducts' are present in 'assets.attributes'
+        user_id: asset.owner_id,
+        "Product Title": asset.title,
+        Description: asset.description,
+        Image: image,
+        images_arr: image,
+        Price: asset.attributes?.Price,
+        "Product Tags": toArray(asset.attributes?.["Product Tags"]),
+        "Gold Weight": goldWeight,
+        "Metal Weight": goldWeight,
+        "Metal Purity": asset.attributes?.["Metal Purity"],
+        "Metal Finish": asset.attributes?.["Metal Finish"],
+        "Metal Type": asset.attributes?.["Metal Type"],
+        "Metal Color": metalColor,
+        metal_color_arr: metalColor ? [metalColor] : null,
+        "Stone Weight": toArray(asset.attributes?.["Stone Weight"]),
+        "Stone Type": toArray(asset.attributes?.["Stone Type"]),
+        "Stone Used": toArray(asset.attributes?.["Stone Used"]),
+        "Stone Setting": toArray(asset.attributes?.["Stone Setting"]),
+        "Stone Purity": toArray(asset.attributes?.["Stone Purity"]),
+        "Stone Count": toArray(asset.attributes?.["Stone Count"]),
+        Category: asset.category,
+        category_arr: asset.category ? [asset.category] : null,
+        "Product Type": asset.attributes?.["Product Type"],
+        "Sub Category": asset.attributes?.["Collection Name"],
+        Dimension: asset.attributes?.["Dimension"],
+        Theme: asset.attributes?.["Theme"],
+        "Design Type": asset.attributes?.["Design Type"],
+        // NOTE: Plain, Studded, Enamel Work, Customizable, Stone Cut, Stone Color,
+        // Art Form, Plating, Scraped URL are not derivable from assets/attributes
+        // today and are left null (all nullable columns).
       });
 
     // Handle potential errors during product insertion

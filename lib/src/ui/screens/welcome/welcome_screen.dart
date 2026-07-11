@@ -138,7 +138,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         _filterService.getDistinctArrayValues('Stone Purity'),
         _filterService.getDistinctArrayValues('Stone Setting'),
         _filterService.getDistinctArrayValues('Product Tags'),
-        _filterService.getWeightRange('Net Weight'),
+        // Phase 1 added a real "Metal Weight" column; read it directly instead
+        // of the old "Net Weight" approximation.
+        _filterService.getWeightRange('Metal Weight'),
         _filterService.getWeightRange('Stone Weight', isArray: true),
       ]);
 
@@ -259,7 +261,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       const selectColumns =
           'id, "Product Title", "Image", "Description", "Product Type", '
           'Category, Category1, Category2, Category3, "Sub Category", '
-          '"Metal Type", "Metal Purity", Plain, Studded, "Price"';
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price", '
+          // Phase 2 unified columns (model prefers these, falls back to old ones):
+          'images_arr, category_arr, metal_color_arr';
 
       const designerSelectColumns = '$selectColumns, created_at';
 
@@ -405,7 +409,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       const selectColumns =
           'id, "Product Title", "Image", "Description", "Product Type", '
           'Category, Category1, Category2, Category3, "Sub Category", '
-          '"Metal Type", "Metal Purity", Plain, Studded, "Price", created_at';
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price", created_at, '
+          'images_arr, category_arr, metal_color_arr';
 
       List<dynamic> designerData = [];
       List<dynamic> manufacturerData = [];
@@ -689,7 +694,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       }
 
       const categoryKeys = ['Category', 'Category1', 'Category2', 'Category3'];
-      const selectColumns = '"Category", "Category1", "Category2", "Category3"';
+      const selectColumns =
+          '"Category", "Category1", "Category2", "Category3", category_arr';
 
       Future<Set<String>> fetchFrom(String table) async {
         final query = _supabase.from(table).select(selectColumns);
@@ -701,6 +707,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         final out = <String>{};
         for (final row in (data as List)) {
           final m = row as Map<String, dynamic>;
+          // Prefer the unified category_arr (Phase 1) when present and
+          // non-empty; fall back to the legacy scalar columns otherwise.
+          final arr = m['category_arr'];
+          if (arr is List && arr.isNotEmpty) {
+            for (final v in arr) {
+              final s = v?.toString().trim();
+              if (s != null && s.isNotEmpty) out.add(s);
+            }
+            continue;
+          }
           for (final k in categoryKeys) {
             final v = m[k];
             if (v is String) {
@@ -859,6 +875,45 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
+  /// Maintenance banner that auto-shows only within the announced window and
+  /// disappears on its own afterwards. Window is defined in IST (UTC+5:30);
+  /// we compare in UTC so it's correct regardless of the device's timezone.
+  Widget _buildMaintenanceBanner() {
+    // 21:00 IST == 15:30 UTC. Window: 11 Jul 2026 -> 14 Jul 2026.
+    final startUtc = DateTime.utc(2026, 7, 11, 15, 30);
+    final endUtc = DateTime.utc(2026, 7, 14, 15, 30);
+    final nowUtc = DateTime.now().toUtc();
+
+    if (nowUtc.isBefore(startUtc) || nowUtc.isAfter(endUtc)) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFFF3CD),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.build_circle_outlined,
+              size: 18, color: Color(0xFF8A6D00)),
+          SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'Site is under maintenance from 21:00 11-07-2026 IST to 21:00 14-07-2026',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: Color(0xFF8A6D00),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildWideLayout() {
     final filterConfig = _buildFilterConfig();
     return Scaffold(
@@ -871,6 +926,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               child: Column(
                 children: [
                   _buildAppBar(),
+                  _buildMaintenanceBanner(),
                   _buildFilterBar(),
                   Expanded(
                     child: FloatingFilterOverlay(
@@ -895,6 +951,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       appBar: _buildAppBar(),
       body: Column(
         children: [
+          _buildMaintenanceBanner(),
           _buildFilterBar(),
           Expanded(
             child: FloatingFilterOverlay(

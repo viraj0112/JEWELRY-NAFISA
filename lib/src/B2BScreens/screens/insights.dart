@@ -85,19 +85,19 @@ class _InsightsPageState extends State<InsightsPage> {
       if (_isManufacturer) {
         productsData = await _supabase
             .from('manufacturerproducts')
-            .select('id, "Product Title", "Image", created_at')
+            .select('id, "Product Title", "Image", created_at, images_arr')
             .eq('user_id', userId);
       } else {
         // Designer: try designerproducts first
         productsData = await _supabase
             .from('designerproducts')
-            .select('id, "Product Title", "Image", created_at')
+            .select('id, "Product Title", "Image", created_at, images_arr')
             .eq('user_id', userId);
 
         if (productsData.isEmpty) {
           productsData = await _supabase
               .from('products')
-              .select('id, "Product Title", "Image", created_at')
+              .select('id, "Product Title", "Image", created_at, images_arr')
               .eq('user_id', userId);
         }
       }
@@ -158,7 +158,10 @@ class _InsightsPageState extends State<InsightsPage> {
       final top4 = sortedProducts.take(4).map((p) {
         int count = productViewCounts[p['id'].toString()] ?? 0;
         String imgUrl = '';
-        if (p['Image'] != null &&
+        final imagesArr = p['images_arr'];
+        if (imagesArr is List && imagesArr.isNotEmpty) {
+          imgUrl = imagesArr[0];
+        } else if (p['Image'] != null &&
             p['Image'] is List &&
             (p['Image'] as List).isNotEmpty) {
           imgUrl = p['Image'][0];

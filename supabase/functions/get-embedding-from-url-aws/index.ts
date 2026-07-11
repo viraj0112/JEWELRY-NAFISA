@@ -31,7 +31,7 @@ serve(async (req) => {
     // 4. Fetch Items (Batch of 5)
     const { data: items, error: fetchError } = await supabase
       .from(table)
-      .select('id, "Product Title", Image')
+      .select('id, "Product Title", Image, images_arr')
       .is('embedding', null)
       .not('Image', 'is', null)
       .limit(5);
@@ -48,7 +48,8 @@ serve(async (req) => {
     const results = [];
     for (const item of items) {
       try {
-        const imageUrl = Array.isArray(item.Image) ? item.Image[0] : item.Image;
+        const imageUrl = item.images_arr?.[0]
+          ?? (Array.isArray(item.Image) ? item.Image[0] : item.Image);
         
         if (!imageUrl) {
           console.log(`Skipping ${item.id} (No Image)`);

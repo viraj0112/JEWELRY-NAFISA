@@ -554,7 +554,7 @@ class NewAdminDataService {
     // Fetch base product records
     if (includesProducts) {
       var query = _client.from('products').select(
-          'id,"Product Title","Category","Image","Images",user_id,"Product Type"');
+          'id,"Product Title","Category","Image","Images",user_id,"Product Type",images_arr');
       if (normalizedTerm.isNotEmpty) {
         query = query.ilike('Product Title', '%$normalizedTerm%');
       }
@@ -566,7 +566,7 @@ class NewAdminDataService {
 
     if (includesDesigner) {
       var query = _client.from('designerproducts').select(
-          'id,"Product Title","Category","Image",created_at,user_id,"Product Type"');
+          'id,"Product Title","Category","Image",created_at,user_id,"Product Type",images_arr');
       if (normalizedTerm.isNotEmpty) {
         query = query.ilike('Product Title', '%$normalizedTerm%');
       }
@@ -582,7 +582,7 @@ class NewAdminDataService {
 
     if (includesManufacturer) {
       var query = _client.from('manufacturerproducts').select(
-          'id,"Product Title","Category","Image",created_at,user_id,"Product Type"');
+          'id,"Product Title","Category","Image",created_at,user_id,"Product Type",images_arr');
       if (normalizedTerm.isNotEmpty) {
         query = query.ilike('Product Title', '%$normalizedTerm%');
       }
@@ -679,10 +679,10 @@ class NewAdminDataService {
         category: (row['Category'] as String?) ?? 'Uncategorized',
         status: 'uploaded',
         source: source,
-        thumbUrl:
-            _extractImage(row['Image'], fallback: row['Images'] as String?),
-        mediaUrl:
-            _extractImage(row['Image'], fallback: row['Images'] as String?),
+        thumbUrl: _extractImage(row['images_arr'] ?? row['Image'],
+            fallback: row['Images'] as String?),
+        mediaUrl: _extractImage(row['images_arr'] ?? row['Image'],
+            fallback: row['Images'] as String?),
         ownerId: userId,
         ownerName: owner?['name'] ?? 'Unknown creator',
         ownerEmail: owner?['email'] ?? '',
@@ -1014,17 +1014,17 @@ class NewAdminDataService {
 
     final productRows = await _fetchAllRows(
       table: 'products',
-      columns: 'id,"Product Title","Image","Images","Price"',
+      columns: 'id,"Product Title","Image","Images","Price",images_arr',
     );
     final designerRows = await _fetchAllRows(
       table: 'designerproducts',
-      columns: 'id,"Product Title","Image","Price","created_at"',
+      columns: 'id,"Product Title","Image","Price","created_at",images_arr',
       orderColumn: 'created_at',
       ascending: false,
     );
     final manufacturerRows = await _fetchAllRows(
       table: 'manufacturerproducts',
-      columns: 'id,"Product Title","Image","Price","created_at"',
+      columns: 'id,"Product Title","Image","Price","created_at",images_arr',
       orderColumn: 'created_at',
       ascending: false,
     );
@@ -1040,7 +1040,7 @@ class NewAdminDataService {
           sourceTable: 'products',
           priceLabel: ((row['Price'] as String?) ?? '').trim(),
           imageUrl: _extractImage(
-            row['Image'],
+            row['images_arr'] ?? row['Image'],
             fallback: row['Images'] as String?,
           ),
           quoteRequests: quoteCountByProductKey['products::$id'] ?? 0,
@@ -1057,7 +1057,7 @@ class NewAdminDataService {
           title: (row['Product Title'] as String?) ?? 'Untitled Product',
           sourceTable: 'designerproducts',
           priceLabel: ((row['Price'] as String?) ?? '').trim(),
-          imageUrl: _extractImage(row['Image']),
+          imageUrl: _extractImage(row['images_arr'] ?? row['Image']),
           quoteRequests: quoteCountByProductKey['designerproducts::$id'] ?? 0,
           createdAt: _tryParseDate(row['created_at']),
         ),
@@ -1072,7 +1072,7 @@ class NewAdminDataService {
           title: (row['Product Title'] as String?) ?? 'Untitled Product',
           sourceTable: 'manufacturerproducts',
           priceLabel: ((row['Price'] as String?) ?? '').trim(),
-          imageUrl: _extractImage(row['Image']),
+          imageUrl: _extractImage(row['images_arr'] ?? row['Image']),
           quoteRequests: 0,
           createdAt: _tryParseDate(row['created_at']),
         ),
@@ -1096,13 +1096,13 @@ class NewAdminDataService {
   Future<List<AppraisalQueueItem>> fetchAppraisalQueue({int? limit}) async {
     final designerRows = await _fetchAllRows(
       table: 'designerproducts',
-      columns: 'id,"Product Title","Price","Image",created_at,user_id',
+      columns: 'id,"Product Title","Price","Image",created_at,user_id,images_arr',
       orderColumn: 'created_at',
       ascending: false,
     );
     final manufacturerRows = await _fetchAllRows(
       table: 'manufacturerproducts',
-      columns: 'id,"Product Title","Price","Image",created_at,user_id',
+      columns: 'id,"Product Title","Price","Image",created_at,user_id,images_arr',
       orderColumn: 'created_at',
       ascending: false,
     );
@@ -1141,7 +1141,7 @@ class NewAdminDataService {
             uploaderUserId: userId,
             uploaderName: user?['name'] ?? 'Unknown uploader',
             uploaderEmail: user?['email'] ?? '',
-            imageUrl: _extractImage(row['Image']),
+            imageUrl: _extractImage(row['images_arr'] ?? row['Image']),
             createdAt: _tryParseDate(row['created_at']),
             priceLabel: ((row['Price'] as String?) ?? '').trim(),
           );
@@ -1158,7 +1158,7 @@ class NewAdminDataService {
             uploaderUserId: userId,
             uploaderName: user?['name'] ?? 'Unknown uploader',
             uploaderEmail: user?['email'] ?? '',
-            imageUrl: _extractImage(row['Image']),
+            imageUrl: _extractImage(row['images_arr'] ?? row['Image']),
             createdAt: _tryParseDate(row['created_at']),
             priceLabel: ((row['Price'] as String?) ?? '').trim(),
           );

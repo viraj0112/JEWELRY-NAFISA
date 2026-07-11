@@ -255,8 +255,10 @@ class HomeScreenState extends State<HomeScreen> {
         _filterService.getDependentDistinctArrayValues('Stone Purity', filters),
         _filterService.getDependentDistinctArrayValues('Stone Setting', filters),
         _filterService.getDependentDistinctArrayValues('Product Tags', filters),
-        _filterService
-            .getWeightRange('Net Weight'), // Metal weight approximation
+        // Phase 1 added a real "Metal Weight" column (backfilled from "Gold Weight"),
+        // so the Metal Weight slider now reads it directly instead of the old
+        // "Net Weight" approximation.
+        _filterService.getWeightRange('Metal Weight'),
         _filterService.getWeightRange('Stone Weight', isArray: true),
       ]);
 
@@ -377,7 +379,8 @@ class HomeScreenState extends State<HomeScreen> {
       const selectColumns =
           'id, "Product Title", "Image", "Description", "Product Type", '
           'Category, Category1, Category2, Category3, "Sub Category", '
-          '"Metal Type", "Metal Purity", Plain, Studded, "Price"';
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price", '
+          'images_arr, category_arr, metal_color_arr';
 
       const designerSelectColumns = '$selectColumns, created_at';
 
@@ -739,7 +742,8 @@ class HomeScreenState extends State<HomeScreen> {
       const selectColumns =
           'id, "Product Title", "Image", "Description", "Product Type", '
           'Category, Category1, Category2, Category3, "Sub Category", '
-          '"Metal Type", "Metal Purity", Plain, Studded, "Price", created_at';
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price", created_at, '
+          'images_arr, category_arr, metal_color_arr';
 
       List<dynamic> designerData = [];
       List<dynamic> manufacturerData = [];

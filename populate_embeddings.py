@@ -65,7 +65,7 @@ def process_table(table_name):
         
         try:
             response = supabase.table(table_name)\
-                .select("id, Image")\
+                .select("id, Image, images_arr")\
                 .is_("embedding", "null")\
                 .limit(50)\
                 .execute()
@@ -83,7 +83,8 @@ def process_table(table_name):
         
         for i, row in enumerate(rows):
             record_id = row['id']
-            img_data = row.get('Image')
+            # Prefer the unified images_arr (Phase 1) over the legacy Image column.
+            img_data = row.get('images_arr') or row.get('Image')
             
             print(f"   [{i+1}/{len(rows)}] ID: {record_id}")
 
