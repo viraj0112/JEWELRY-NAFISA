@@ -257,9 +257,11 @@ class HomeScreenState extends State<HomeScreen> {
         _filterService.getDependentDistinctArrayValues('Product Tags', filters),
         // Phase 1 added a real "Metal Weight" column (backfilled from "Gold Weight"),
         // so the Metal Weight slider now reads it directly instead of the old
-        // "Net Weight" approximation.
-        _filterService.getWeightRange('Metal Weight'),
-        _filterService.getWeightRange('Stone Weight', isArray: true),
+        // "Net Weight" approximation. Both weight ranges narrow to whatever
+        // Product Type/Category/Metal Type etc. are currently selected.
+        _filterService.getWeightRange('Metal Weight', filters: filters),
+        _filterService.getWeightRange('Stone Weight',
+            isArray: true, filters: filters),
       ]);
 
       if (mounted) {
@@ -623,9 +625,15 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       if (_selectedMetalColors.isNotEmpty) {
-        productsQuery = productsQuery.inFilter('"Metal Color"', _selectedMetalColors);
-        designerQuery = designerQuery.inFilter('"Metal Color"', _selectedMetalColors);
-        manufacturerQuery = manufacturerQuery.inFilter('"Metal Color"', _selectedMetalColors);
+        // Match against the unified metal_color_arr (text[]) with OR/overlap
+        // semantics, so 2-tone products (e.g. {Yellow Gold, Rose Gold}) match
+        // if ANY selected color is present - same operator used for Product Tags.
+        productsQuery =
+            productsQuery.overlaps('metal_color_arr', _selectedMetalColors);
+        designerQuery =
+            designerQuery.overlaps('metal_color_arr', _selectedMetalColors);
+        manufacturerQuery = manufacturerQuery.overlaps(
+            'metal_color_arr', _selectedMetalColors);
       }
       if (_selectedMetalPurities.isNotEmpty) {
         productsQuery = productsQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
@@ -794,7 +802,7 @@ class HomeScreenState extends State<HomeScreen> {
 
         if (_selectedMetalColors.isNotEmpty) {
           designerQuery =
-              designerQuery.inFilter('"Metal Color"', _selectedMetalColors);
+              designerQuery.overlaps('metal_color_arr', _selectedMetalColors);
         }
         if (_selectedMetalPurities.isNotEmpty) {
           designerQuery =
@@ -879,8 +887,8 @@ class HomeScreenState extends State<HomeScreen> {
         }
 
         if (_selectedMetalColors.isNotEmpty) {
-          manufacturerQuery =
-              manufacturerQuery.inFilter('"Metal Color"', _selectedMetalColors);
+          manufacturerQuery = manufacturerQuery.overlaps(
+              'metal_color_arr', _selectedMetalColors);
         }
         if (_selectedMetalPurities.isNotEmpty) {
           manufacturerQuery = manufacturerQuery.inFilter(

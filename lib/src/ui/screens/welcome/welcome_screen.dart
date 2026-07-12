@@ -130,18 +130,37 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Future<void> _loadAdvancedFilters() async {
     setState(() => _isLoadingAdvancedOptions = true);
     try {
+      final filters = <String, String?>{};
+      final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
+      if (effectiveMetal != null) {
+        filters['Metal Type'] = effectiveMetal;
+      }
+      if (_selectedProductType != 'All') {
+        filters['Product Type'] = _selectedProductType;
+      }
+      if (_selectedCategory != 'All') {
+        filters['Category'] = _selectedCategory;
+      }
+      if (_selectedJewelleryType != null) {
+        filters['Jewellery Type'] = _selectedJewelleryType;
+      }
+
       final futures = await Future.wait([
-        _filterService.getDistinctValues('Metal Color'),
-        _filterService.getDistinctValues('Metal Purity'),
-        _filterService.getDistinctArrayValues('Stone Cut'),
-        _filterService.getDistinctArrayValues('Stone Type'),
-        _filterService.getDistinctArrayValues('Stone Purity'),
-        _filterService.getDistinctArrayValues('Stone Setting'),
-        _filterService.getDistinctArrayValues('Product Tags'),
+        _filterService.getDependentDistinctValues('Metal Color', filters),
+        _filterService.getDependentDistinctValues('Metal Purity', filters),
+        _filterService.getDependentDistinctArrayValues('Stone Cut', filters),
+        _filterService.getDependentDistinctArrayValues('Stone Type', filters),
+        _filterService.getDependentDistinctArrayValues('Stone Purity', filters),
+        _filterService.getDependentDistinctArrayValues(
+            'Stone Setting', filters),
+        _filterService.getDependentDistinctArrayValues(
+            'Product Tags', filters),
         // Phase 1 added a real "Metal Weight" column; read it directly instead
-        // of the old "Net Weight" approximation.
-        _filterService.getWeightRange('Metal Weight'),
-        _filterService.getWeightRange('Stone Weight', isArray: true),
+        // of the old "Net Weight" approximation. Both weight ranges narrow to
+        // the currently selected Product Type/Category/Metal Type etc.
+        _filterService.getWeightRange('Metal Weight', filters: filters),
+        _filterService.getWeightRange('Stone Weight',
+            isArray: true, filters: filters),
       ]);
 
       if (mounted) {
@@ -302,6 +321,27 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         productsQuery = productsQuery.or(orFilter);
         designerQuery = designerQuery.or(orFilter);
         manufacturerQuery = manufacturerQuery.or(orFilter);
+      }
+
+      if (_selectedMetalColors.isNotEmpty) {
+        // OR/overlap semantics against the unified metal_color_arr (text[]):
+        // matches if the product has ANY of the selected colors, so 2-tone
+        // products match on either of their colors.
+        productsQuery =
+            productsQuery.overlaps('metal_color_arr', _selectedMetalColors);
+        designerQuery =
+            designerQuery.overlaps('metal_color_arr', _selectedMetalColors);
+        manufacturerQuery = manufacturerQuery.overlaps(
+            'metal_color_arr', _selectedMetalColors);
+      }
+
+      if (_selectedFeaturedTags.isNotEmpty) {
+        productsQuery =
+            productsQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
+        designerQuery =
+            designerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
+        manufacturerQuery = manufacturerQuery.overlaps(
+            '"Product Tags"', _selectedFeaturedTags);
       }
 
       productsQuery = productsQuery.order('id', ascending: false).range(0, 199);
@@ -843,6 +883,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       productType: value,
     );
     if (mounted) setState(() => _isLoadingCategories = false);
+    _loadAdvancedFilters();
     if (applyImmediately) await _loadProducts();
   }
 
@@ -851,6 +892,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     if (value == null) return;
     setState(() => _selectedCategory = value);
     _displayedCount = _initialItems;
+    _loadAdvancedFilters();
     if (applyImmediately) await _loadProducts();
   }
 

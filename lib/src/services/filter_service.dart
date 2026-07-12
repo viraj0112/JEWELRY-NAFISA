@@ -357,13 +357,22 @@ class FilterService {
     };
   }
 
-  /// Helper to get min and max values for weight sliders by parsing strings
+  /// Helper to get min and max values for weight sliders by parsing strings.
+  /// Pass [filters] (e.g. {'Product Type': 'Rings'}) to narrow the range to
+  /// only the products matching the current filter selection, mirroring the
+  /// dependent-fetch pattern used for Metal Color / Stone Cut / etc.
   Future<List<double>> getWeightRange(String columnName,
-      {bool isArray = false}) async {
+      {bool isArray = false, Map<String, String?> filters = const {}}) async {
     try {
-      List<String> rawValues = isArray
-          ? await getDistinctArrayValues(columnName)
-          : await getDistinctValues(columnName);
+      final hasActiveFilters =
+          filters.values.any((v) => v != null && v != 'All');
+      List<String> rawValues = hasActiveFilters
+          ? (isArray
+              ? await getDependentDistinctArrayValues(columnName, filters)
+              : await getDependentDistinctValues(columnName, filters))
+          : (isArray
+              ? await getDistinctArrayValues(columnName)
+              : await getDistinctValues(columnName));
 
       double minWeight = double.infinity;
       double maxWeight = double.negativeInfinity;
