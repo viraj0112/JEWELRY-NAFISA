@@ -110,3 +110,5 @@ supabase/seed_test_products.sql
 supabase/load_designer_rich_products.sql
 supabase/load_rich_products.sql
 supabase/pull_rich_products.sql
+supabase/check_bracket_metal_color.sql
+supabase/verify_bracket_fix.sql
