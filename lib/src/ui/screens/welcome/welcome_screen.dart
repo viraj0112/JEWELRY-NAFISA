@@ -7,6 +7,7 @@ import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/utils/share_utils.dart';
 import 'package:jewelry_nafisa/src/utils/image_url_resolver.dart';
+import 'package:jewelry_nafisa/src/utils/product_type_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:jewelry_nafisa/src/widgets/login_required_dialog.dart';
 import 'package:go_router/go_router.dart';
@@ -278,11 +279,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Future<List<JewelryItem>> _fetchFilteredProducts() async {
     try {
       const selectColumns =
-          'id, "Product Title", "Image", "Description", "Product Type", '
-          'Category, Category1, Category2, Category3, "Sub Category", '
+          'id, "Product Title", "Images", "Description", "Product Type", '
+          '"Category", "Sub Category", '
           '"Metal Type", "Metal Purity", Plain, Studded, "Price", '
-          // Phase 2 unified columns (model prefers these, falls back to old ones):
-          'images_arr, category_arr, metal_color_arr';
+          '"Metal Color"';
 
       const designerSelectColumns = '$selectColumns, created_at';
 
@@ -315,24 +315,23 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       }
 
       if (_selectedCategory != 'All') {
+        // "Category" is text[]: array-overlap with the single selected value.
         final c = _selectedCategory.trim();
-        final orFilter =
-            'Category.eq.$c,Category1.eq.$c,Category2.eq.$c,Category3.eq.$c';
-        productsQuery = productsQuery.or(orFilter);
-        designerQuery = designerQuery.or(orFilter);
-        manufacturerQuery = manufacturerQuery.or(orFilter);
+        productsQuery = productsQuery.overlaps('Category', [c]);
+        designerQuery = designerQuery.overlaps('Category', [c]);
+        manufacturerQuery = manufacturerQuery.overlaps('Category', [c]);
       }
 
       if (_selectedMetalColors.isNotEmpty) {
-        // OR/overlap semantics against the unified metal_color_arr (text[]):
+        // OR/overlap semantics against the unified "Metal Color" (text[]):
         // matches if the product has ANY of the selected colors, so 2-tone
         // products match on either of their colors.
         productsQuery =
-            productsQuery.overlaps('metal_color_arr', _selectedMetalColors);
+            productsQuery.overlaps('Metal Color', _selectedMetalColors);
         designerQuery =
-            designerQuery.overlaps('metal_color_arr', _selectedMetalColors);
+            designerQuery.overlaps('Metal Color', _selectedMetalColors);
         manufacturerQuery = manufacturerQuery.overlaps(
-            'metal_color_arr', _selectedMetalColors);
+            'Metal Color', _selectedMetalColors);
       }
 
       if (_selectedFeaturedTags.isNotEmpty) {
@@ -447,10 +446,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Future<List<JewelryItem>> _fetchInHouseProducts() async {
     try {
       const selectColumns =
-          'id, "Product Title", "Image", "Description", "Product Type", '
-          'Category, Category1, Category2, Category3, "Sub Category", '
+          'id, "Product Title", "Images", "Description", "Product Type", '
+          '"Category", "Sub Category", '
           '"Metal Type", "Metal Purity", Plain, Studded, "Price", created_at, '
-          'images_arr, category_arr, metal_color_arr';
+          '"Metal Color"';
 
       List<dynamic> designerData = [];
       List<dynamic> manufacturerData = [];
@@ -472,9 +471,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         }
         if (_selectedCategory != 'All') {
           final c = _selectedCategory.trim();
-          designerQuery = designerQuery.or(
-            'Category.eq.$c,Category1.eq.$c,Category2.eq.$c,Category3.eq.$c',
-          );
+          designerQuery = designerQuery.overlaps('Category', [c]);
         }
 
         designerData = await designerQuery
@@ -501,9 +498,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         }
         if (_selectedCategory != 'All') {
           final c = _selectedCategory.trim();
-          manufacturerQuery = manufacturerQuery.or(
-            'Category.eq.$c,Category1.eq.$c,Category2.eq.$c,Category3.eq.$c',
-          );
+          manufacturerQuery = manufacturerQuery.overlaps('Category', [c]);
         }
 
         manufacturerData = await manufacturerQuery
@@ -733,9 +728,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         return;
       }
 
-      const categoryKeys = ['Category', 'Category1', 'Category2', 'Category3'];
-      const selectColumns =
-          '"Category", "Category1", "Category2", "Category3", category_arr';
+      // "Category" is the unified text[] array (Phase-3 rename of category_arr).
+      const selectColumns = '"Category"';
 
       Future<Set<String>> fetchFrom(String table) async {
         final query = _supabase.from(table).select(selectColumns);
@@ -747,21 +741,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         final out = <String>{};
         for (final row in (data as List)) {
           final m = row as Map<String, dynamic>;
-          // Prefer the unified category_arr (Phase 1) when present and
-          // non-empty; fall back to the legacy scalar columns otherwise.
-          final arr = m['category_arr'];
-          if (arr is List && arr.isNotEmpty) {
+          final arr = m['Category'];
+          if (arr is List) {
             for (final v in arr) {
               final s = v?.toString().trim();
               if (s != null && s.isNotEmpty) out.add(s);
-            }
-            continue;
-          }
-          for (final k in categoryKeys) {
-            final v = m[k];
-            if (v is String) {
-              final s = v.trim();
-              if (s.isNotEmpty) out.add(s);
             }
           }
         }
@@ -1527,6 +1511,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   Widget _buildBubbleChip(String label, bool isSelected, VoidCallback onTap) {
+    // Shared lookup (see utils/product_type_icons.dart); null means the chip
+    // renders without an icon.
+    final iconPath = productTypeIconAsset(label);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1554,13 +1541,30 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
             ],
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.white : const Color(0xFF424242),
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              fontSize: 12,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (iconPath != null) ...[
+                // Small optimized PNG icons (extracted + downscaled from the
+                // original heavy SVGs; gold strokes on a transparent
+                // background, ~1-2KB each).
+                Image.asset(
+                  iconPath,
+                  width: 18,
+                  height: 18,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF424242),
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
       ),

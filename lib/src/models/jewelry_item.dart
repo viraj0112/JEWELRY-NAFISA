@@ -122,30 +122,32 @@ class JewelryItem {
   });
 
   factory JewelryItem.fromJson(Map<String, dynamic> json) {
+    // Handles all 3 schema shapes for images: pre-Phase-1 (Image = array
+    // already, or Images = text scalar on products), Phase 1/2 today
+    // (images_arr = array, Image/Images still the old columns), and
+    // post-Phase-3 (Images IS the renamed array; images_arr no longer exists
+    // as a key, old Image/Images columns are dropped).
+    final imgList = json['images_arr'] is List
+        ? json['images_arr'] as List
+        : json['Image'] is List
+            ? json['Image'] as List
+            : json['Images'] is List
+                ? json['Images'] as List
+                : (json['images'] is List ? json['images'] as List : null);
+
     return JewelryItem(
       id: json['id']?.toString() ?? '',
       uid: _parseString(json['uid']),
       sku: _parseString(json['SKU'] ?? json['sku']),
       productTitle:
           json['Product Title'] ?? json['product_title'] ?? json['title'] ?? '',
-      // Prefer the unified `images_arr` (Phase 1) first, then fall back to the
-      // legacy `Image` (array) / `Images` (text) columns for backward compat.
-      image: (json['images_arr'] is List)
-          ? (json['images_arr'] as List).firstOrNull?.toString() ?? ''
-          : json['Image'] is List
-              ? (json['Image'] as List).firstOrNull ?? ''
-              : json['Image'] ??
-                  json['Images'] ??
-                  json['image'] ??
-                  json['image_url'] ??
-                  '',
-      images: (json['images_arr'] is List)
-          ? (json['images_arr'] as List).map((e) => e.toString()).toList()
-          : (json['images'] is List)
-              ? (json['images'] as List).map((e) => e.toString()).toList()
-              : (json['Image'] is List)
-                  ? (json['Image'] as List).map((e) => e.toString()).toList()
-                  : null,
+      image: imgList?.firstOrNull?.toString() ??
+          json['Image'] ??
+          json['Images'] ??
+          json['image'] ??
+          json['image_url'] ??
+          '',
+      images: imgList?.map((e) => e.toString()).toList(),
       description: json['description'] ?? '',
       price: _parseDouble(json['Price'] ?? json['price']),
       isDesignerProduct: json['is_designer_product'] ??
@@ -168,22 +170,22 @@ class JewelryItem {
       stoneCount: _parseList(json['Stone Count'] ?? json['stone_count']),
       stonePurity: _parseList(json['Stone Purity'] ?? json['stone_purity']),
       scrapedUrl: _parseString(json['Scraped URL'] ?? json['scraped_url']),
-      // Prefer unified `category_arr` (Phase 1, merged+deduped array) -> first value;
-      // fall back to the legacy single-text `Category` column.
-      category: _parseString((json['category_arr'] is List)
-          ? (json['category_arr'] as List).firstOrNull
-          : (json['Category'] ?? json['category'])),
+      // Handles all 3 schema shapes: pre-Phase-1 (Category = scalar text),
+      // Phase 1/2 today (category_arr = array, Category = scalar), and
+      // post-Phase-3 (Category IS the renamed array; category_arr no longer
+      // exists as a key at all).
+      category: _firstFromArrayOrScalarKey(json, 'category_arr', 'Category',
+          legacyCamelKey: 'category'),
       subCategory: _parseString(
           json['Sub Category'] ?? json['sub_category'] ?? json['SubCategory']),
       productType: _parseString(json['Product Type'] ?? json['product_type']),
       gender: _parseString(json['Gender'] ?? json['gender']),
       theme: _parseString(json['Theme'] ?? json['occasions']),
       metalType: _parseString(json['Metal Type'] ?? json['metal_type']),
-      // Prefer unified `metal_color_arr` (Phase 1, an array) -> take first value;
-      // fall back to the legacy single-text `Metal Color` column.
-      metalColor: _parseString((json['metal_color_arr'] is List)
-          ? (json['metal_color_arr'] as List).firstOrNull
-          : (json['Metal Color'] ?? json['metal_color'])),
+      // Same 3-shape handling as `category` above.
+      metalColor: _firstFromArrayOrScalarKey(
+          json, 'metal_color_arr', 'Metal Color',
+          legacyCamelKey: 'metal_color'),
       netWeight: _parseDouble(json['NET WEIGHT'] ?? json['net_weight']),
       stoneColor: _parseList(json['Stone Color'] ?? json['stone_color']),
       stoneCut: _parseList(json['Stone Cut'] ?? json['stone_cut']),
@@ -244,6 +246,36 @@ class JewelryItem {
         lower == '{}' ||
         lower == '[null]' ||
         lower == '[]';
+  }
+
+  // Resolves a field that has TWO possible JSON keys for the same underlying
+  // data: a "new" key which may already be the renamed array column (Phase 3)
+  // or the pre-rename staging column (Phase 1's `*_arr`), and a "legacy" key
+  // which is the pre-migration scalar column. Handles all three schema shapes
+  // this app has to work against over the migration's lifetime:
+  //   1. Pre-Phase-1: only `legacyKey` exists, as a scalar.
+  //   2. Phase 1/2 (today): BOTH keys exist - `newKey` is the array, `legacyKey`
+  //      is still the original scalar.
+  //   3. Post-Phase-3: only `legacyKey`'s NAME exists in the response, but it
+  //      now holds the renamed ARRAY (e.g. "Category" is category_arr renamed).
+  // Never calls .toString() on a raw List - every path explicitly checks
+  // `is List` before deciding to treat a value as an array or a scalar.
+  static List<dynamic>? _resolveArrayField(
+      Map<String, dynamic> json, String newKey, String legacyKey) {
+    if (json[newKey] is List) return json[newKey] as List;
+    if (json[legacyKey] is List) return json[legacyKey] as List;
+    return null;
+  }
+
+  static String? _firstFromArrayOrScalarKey(
+      Map<String, dynamic> json, String newKey, String legacyKey,
+      {String? legacyCamelKey}) {
+    final arr = _resolveArrayField(json, newKey, legacyKey);
+    if (arr != null) return _parseString(arr.firstOrNull);
+    // Neither key is an array (pre-Phase-1 world, or both genuinely absent):
+    // legacyKey is safe to read as a scalar here.
+    return _parseString(
+        json[legacyKey] ?? (legacyCamelKey != null ? json[legacyCamelKey] : null));
   }
 
   static String? _parseString(dynamic value) {

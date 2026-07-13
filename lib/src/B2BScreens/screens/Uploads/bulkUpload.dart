@@ -92,13 +92,16 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
   bool _isLoading = false;
 
   void _downloadSampleCsv() {
-    // Headers matching the designerproducts table schema
+    // Headers matching the designerproducts/manufacturerproducts table
+    // schema. "Gold Weight", "Collection Name", "Net Weight", "Design Type",
+    // "Art Form", "Category1/2/3" are dropped (confirmed unused, Phase 3
+    // cleanup) - no longer offered as upload columns.
     final List<String> headers = [
       'Product Title',
       'Description',
       'Price',
       'Product Tags',
-      'Gold Weight',
+      'Metal Weight',
       'Metal Purity',
       'Metal Finish',
       'Stone Weight',
@@ -109,16 +112,12 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
       'Stone Color',
       'Stone Cut',
       'Stone Purity',
-      'Collection Name',
       'Product Type',
       'Gender',
       'Theme',
       'Metal Type',
       'Metal Color',
-      'Net Weight',
       'Dimension',
-      'Design Type',
-      'Art Form',
       'Plating',
       'Enamel Work',
       'Customizable',
@@ -126,9 +125,6 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
       'Sub Category',
       'Plain',
       'Studded',
-      'Category1',
-      'Category2',
-      'Category3',
     ];
 
     final String csvContent = const ListToCsvConverter().convert([headers]);
@@ -334,10 +330,13 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
           return str.isEmpty ? null : str;
         }
 
+        final imagesList =
+            uploadedImageUrls.isEmpty ? null : uploadedImageUrls;
+        // Unified schema: "Images"/"Category"/"Metal Color" are all text[].
         final Map<String, dynamic> productData = {
           'user_id': user.id, // Automatically associate with logged-in user
           'Product Title': title,
-          'Image': uploadedImageUrls.isEmpty ? null : uploadedImageUrls,
+          'Images': imagesList,
         };
 
         for (int j = 0; j < headers.length; j++) {
@@ -351,6 +350,13 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
             productData[header] = parseArrayValue(value);
           } else if (header == 'Metal Type') {
             productData[header] = normalizeMetalType(value);
+          } else if (header == 'Metal Color') {
+            final metalColor = getStringValue(value);
+            productData['Metal Color'] =
+                metalColor != null ? [metalColor] : null;
+          } else if (header == 'Category') {
+            final category = getStringValue(value);
+            productData['Category'] = category != null ? [category] : null;
           } else {
             productData[header] = getStringValue(value);
           }
@@ -524,7 +530,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
                         children: const [
                           _ColumnChip(
                               "Product Title"), // Changed from Image Filename to match logic
-                          _ColumnChip("Gold Weight"),
+                          _ColumnChip("Metal Weight"),
                           _ColumnChip("Metal Type"),
                           _ColumnChip("Product Type"),
                           _ColumnChip("Category"),

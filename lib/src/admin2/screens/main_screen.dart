@@ -43,6 +43,10 @@ class _MainScreenState extends State<MainScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final NewAdminDataService _dataService = NewAdminDataService();
   final TextEditingController _searchController = TextEditingController();
+
+  // Appraisal queue filters: source table + uploader email / business name.
+  String _appraisalTableFilter = 'all';
+  final TextEditingController _appraisalUploaderCtrl = TextEditingController();
   final DateFormat _dateFormat = DateFormat('MMM d, yyyy');
 
   _AdminView _activeView = _AdminView.dashboard;
@@ -68,6 +72,7 @@ class _MainScreenState extends State<MainScreen> {
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _appraisalUploaderCtrl.dispose();
     super.dispose();
   }
 
@@ -443,6 +448,14 @@ class _MainScreenState extends State<MainScreen> {
               style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
+            _buildAppraisalFilters(),
+            const SizedBox(height: 8),
+            if (previewItems.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text('No submissions match the current filters.',
+                    style: TextStyle(color: Color(0xFF61726C), fontSize: 13)),
+              ),
             ...previewItems.map(
               (item) => _AppraisalTile(
                 item: item,
@@ -462,6 +475,82 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  // Table / uploader filters for the appraisal queue. setState alone is
+  // enough: _buildDashboard re-derives the filtered list on every build.
+  Widget _buildAppraisalFilters() {
+    const tables = [
+      ('all', 'All'),
+      ('designerproducts', 'Designer'),
+      ('manufacturerproducts', 'Manufacturer'),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: tables.map((t) {
+            final active = _appraisalTableFilter == t.$1;
+            return ChoiceChip(
+              label: Text(t.$2),
+              selected: active,
+              onSelected: (_) =>
+                  setState(() => _appraisalTableFilter = t.$1),
+              selectedColor: const Color(0xFF0A4F3F),
+              showCheckmark: false,
+              labelStyle: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: active ? Colors.white : const Color(0xFF61726C),
+              ),
+              visualDensity: VisualDensity.compact,
+              side: BorderSide(
+                  color: active
+                      ? const Color(0xFF0A4F3F)
+                      : const Color(0xFFD9E3DE)),
+              backgroundColor: Colors.white,
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _appraisalUploaderCtrl,
+          onChanged: (_) => setState(() {}),
+          style: const TextStyle(fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'Filter by email or business name',
+            hintStyle:
+                const TextStyle(fontSize: 12.5, color: Color(0xFF7E8F89)),
+            prefixIcon:
+                const Icon(Icons.alternate_email, size: 16, color: Color(0xFF0A4F3F)),
+            suffixIcon: _appraisalUploaderCtrl.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 16),
+                    onPressed: () {
+                      _appraisalUploaderCtrl.clear();
+                      setState(() {});
+                    },
+                  )
+                : null,
+            isDense: true,
+            filled: true,
+            fillColor: const Color(0xFFF7FAF8),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFD9E3DE)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFD9E3DE)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -486,6 +575,7 @@ class _MainScreenState extends State<MainScreen> {
       fields: {
         'Table': item.sourceTable,
         'Uploader': item.uploaderName,
+        'Business': item.businessName.isEmpty ? 'N/A' : item.businessName,
         'Email': item.uploaderEmail.isEmpty ? 'N/A' : item.uploaderEmail,
         'Price': item.priceLabel.isEmpty ? 'N/A' : item.priceLabel,
         'Created':
@@ -682,7 +772,9 @@ class _MainScreenState extends State<MainScreen> {
                 leading: _Thumb(imageUrl: item.imageUrl),
                 title: Text(item.title),
                 subtitle: Text(
-                  '${item.sourceTable}\n${item.uploaderName}${item.uploaderEmail.isEmpty ? '' : ' • ${item.uploaderEmail}'}',
+                  '${item.sourceTable}\n${item.uploaderName}'
+                  '${item.businessName.isEmpty ? '' : ' • ${item.businessName}'}'
+                  '${item.uploaderEmail.isEmpty ? '' : ' • ${item.uploaderEmail}'}',
                 ),
                 trailing: Text(
                   item.createdAt == null
@@ -766,13 +858,28 @@ class _MainScreenState extends State<MainScreen> {
     List<AppraisalQueueItem> items,
     String query,
   ) {
-    if (query.isEmpty) return items;
-    return items.where((item) {
+    var result = items;
+    if (_appraisalTableFilter != 'all') {
+      result =
+          result.where((i) => i.sourceTable == _appraisalTableFilter).toList();
+    }
+    final uploaderQuery = _appraisalUploaderCtrl.text.trim().toLowerCase();
+    if (uploaderQuery.isNotEmpty) {
+      result = result
+          .where((i) =>
+              i.uploaderEmail.toLowerCase().contains(uploaderQuery) ||
+              i.businessName.toLowerCase().contains(uploaderQuery) ||
+              i.uploaderName.toLowerCase().contains(uploaderQuery))
+          .toList();
+    }
+    if (query.isEmpty) return result;
+    return result.where((item) {
       final haystack = [
         item.title,
         item.sourceTable,
         item.uploaderName,
         item.uploaderEmail,
+        item.businessName,
         item.priceLabel,
         item.id,
       ].join(' ').toLowerCase();

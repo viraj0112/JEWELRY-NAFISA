@@ -75,8 +75,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/         
+    - assets/
     - assets/icons/
+    - assets/jewelry_icons/
 
 flutter_launcher_icons:
   android: true

@@ -101,13 +101,11 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
   final productTitleCtrl = TextEditingController();
   final descCtrl = TextEditingController();
   final metalWeightCtrl = TextEditingController();
-  final goldNetWeightCtrl = TextEditingController();
   final metalColorCtrl = TextEditingController();
   final stoneCountCtrl = TextEditingController();
   final stoneColorCtrl = TextEditingController();
   final dimensionCtrl = TextEditingController();
   final enamelWorkCtrl = TextEditingController();
-  final collectionNameCtrl = TextEditingController();
   final themeCtrl = TextEditingController();
 
   // --- Dropdown state ---
@@ -268,13 +266,11 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
     productTitleCtrl.dispose();
     descCtrl.dispose();
     metalWeightCtrl.dispose();
-    goldNetWeightCtrl.dispose();
     metalColorCtrl.dispose();
     stoneCountCtrl.dispose();
     stoneColorCtrl.dispose();
     dimensionCtrl.dispose();
     enamelWorkCtrl.dispose();
-    collectionNameCtrl.dispose();
     themeCtrl.dispose();
     super.dispose();
   }
@@ -290,8 +286,7 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
             productType != null &&
             metalWeightCtrl.text.isNotEmpty &&
             gender != null &&
-            jewelryType != null &&
-            goldNetWeightCtrl.text.isNotEmpty;
+            jewelryType != null;
       case 2:
         return true;
       default:
@@ -440,10 +435,6 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
               });
             }, hintText: 'Select jewelry type'),
 
-            // --- Gold Net Weight ---
-            _field('Gold Net Weight (in grams) *', goldNetWeightCtrl,
-                number: true, hintText: 'e.g., 12.5'),
-
             // --- Stone fields (only if Studded) ---
             if (jewelryType == 'Studded') ...[
               const Padding(
@@ -479,10 +470,6 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
             // --- Enamel Work + Weight ---
             _field('Enamel Work + Weight', enamelWorkCtrl,
                 hintText: 'e.g., Pink 0.6g, Blue 4g'),
-
-            // --- Collection Name ---
-            _field('Collection Name', collectionNameCtrl,
-                hintText: 'e.g., Heritage Collection'),
 
             // --- Theme ---
             _field('Theme', themeCtrl,
@@ -570,7 +557,6 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                 _reviewItem('Metal Finish', metalFinish ?? '-'),
                 _reviewItem('Gender', gender ?? '-'),
                 _reviewItem('Jewelry Type', jewelryType ?? '-'),
-                _reviewItem('Gold Net Weight', '${goldNetWeightCtrl.text}g'),
               ],
             ),
             if (jewelryType == 'Studded') ...[
@@ -609,11 +595,6 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                     dimensionCtrl.text.isEmpty ? '-' : dimensionCtrl.text),
                 _reviewItem('Enamel Work',
                     enamelWorkCtrl.text.isEmpty ? '-' : enamelWorkCtrl.text),
-                _reviewItem(
-                    'Collection',
-                    collectionNameCtrl.text.isEmpty
-                        ? '-'
-                        : collectionNameCtrl.text),
                 _reviewItem(
                     'Theme', themeCtrl.text.isEmpty ? '-' : themeCtrl.text),
                 _reviewItem('Visibility', visibility),
@@ -946,6 +927,26 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
         }
       }
 
+      // 3b. assets.media_url is NOT NULL, so a product with no successfully
+      // uploaded image cannot be published. If every image upload above failed
+      // (bad bytes, storage/RLS error, offline), stop here with a clear message
+      // instead of letting the DB reject the insert with a raw constraint error.
+      if (uploadedImageUrls.isEmpty) {
+        if (mounted) {
+          setState(() => _isUploading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Image upload failed — a product needs at least one image. '
+                  'Please re-add the image and try again.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
       // 4. Helper functions
       String? getTextValue(TextEditingController controller) {
         final text = controller.text.trim();
@@ -963,24 +964,32 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
         return text.isEmpty ? null : [text];
       }
 
-      // 5. Prepare product data with all fields
+      // 5. Prepare product data with all fields.
+      // Write both the legacy scalar columns AND the Phase 1 unified array
+      // columns (images_arr, metal_color_arr) so this keeps working whether
+      // Phase 3 (column drop/rename) has run yet or not. "Design Type",
+      // "Collection Name", and "Net Weight" are confirmed-unused fields being
+      // dropped in Phase 3 - no longer written. "Gold Weight" was a
+      // label/column mismatch (the "Metal Weight (in grams)" field was being
+      // written to the "Gold Weight" key) - now correctly written to the real
+      // "Metal Weight" column.
+      final metalColorValue = getTextValue(metalColorCtrl);
+      final imagesList = uploadedImageUrls.isEmpty ? null : uploadedImageUrls;
+      // Unified schema: "Images"/"Metal Color" are text[] arrays.
       final Map<String, dynamic> productData = {
         'user_id': user.id,
         'Product Title': productTitleCtrl.text.trim(),
         'Description': getTextValue(descCtrl),
-        'Image': uploadedImageUrls.isEmpty ? null : uploadedImageUrls,
+        'Images': imagesList,
         'Metal Type': normalizeMetalType(metalType),
         'Metal Purity': metalPurity,
         'Product Type': productType,
-        'Gold Weight': getTextValue(metalWeightCtrl),
-        'Metal Color': getTextValue(metalColorCtrl),
+        'Metal Weight': getTextValue(metalWeightCtrl),
+        'Metal Color': metalColorValue != null ? [metalColorValue] : null,
         'Metal Finish': metalFinish,
         'Gender': gender,
-        'Design Type': jewelryType, // Jewelry Type maps to Design Type in DB
-        'Net Weight': getTextValue(goldNetWeightCtrl),
         'Dimension': getTextValue(dimensionCtrl),
         'Enamel Work': textToList(enamelWorkCtrl),
-        'Collection Name': getTextValue(collectionNameCtrl),
         'Theme': getTextValue(themeCtrl),
       };
 

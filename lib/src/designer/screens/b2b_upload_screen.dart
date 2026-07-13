@@ -209,6 +209,10 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           uploadedImageUrls.add(imageUrl);
         }
 
+        // assets.media_url is NOT NULL: skip any entry whose images all failed
+        // to upload, rather than hitting the DB constraint.
+        if (uploadedImageUrls.isEmpty) continue;
+
         // Helper functions for array fields
         List<String>? textToList(TextEditingController controller) {
           final text = controller.text.trim();
@@ -231,29 +235,27 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           return text.isEmpty ? null : text;
         }
 
+        // Dropped in Phase 3 (confirmed unused): Gold Weight, Collection Name,
+        // Net Weight, Design Type, Art Form - no longer captured.
         final Map<String, dynamic> attributes = {
           'Price': getTextValue(entry.priceController),
-          'Gold Weight': getTextValue(entry.goldWeightController),
           'Metal Purity': getTextValue(entry.metalPurityController),
           'Metal Finish': getTextValue(entry.metalFinishController),
+          'Metal Weight': getTextValue(entry.goldWeightController),
           'Stone Weight': textToList(entry.stoneWeightController),
           'Stone Type': textToList(entry.stoneTypeController),
           'Stone Used': entry.stoneUsed == null ? null : [entry.stoneUsed],
           'Stone Setting': textToList(entry.stoneSettingController),
           'Stone Count': textToList(entry.stoneCountController),
-          'Collection Name': getTextValue(entry.collectionNameController),
           'Gender': entry.gender,
           'Theme': getTextValue(entry.themeController),
           'Metal Type':
               _normalizeMetalType(getTextValue(entry.metalTypeController)),
           'Metal Color': getTextValue(entry.metalColorController),
-          'Net Weight': getTextValue(entry.netWeightController),
           'Stone Color': textToList(entry.stoneColorController),
           'Stone Cut': textToList(entry.stoneCutController),
           'Dimension': getTextValue(entry.dimensionController),
-          'Design Type': entry.designType,
           'Jewelry Type': entry.jewelryType,
-          'Art Form': getTextValue(entry.artFormController),
           'Plating': getTextValue(entry.platingController),
           'Enamel Work': textToList(entry.enamelWorkController),
           'Customizable':
@@ -273,12 +275,8 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
         final insertResult = await supabase.from('assets').insert({
           'title': entry.productTitleController.text.trim(),
           'description': getTextValue(entry.descriptionController),
-          'media_url': uploadedImageUrls.isEmpty
-              ? null
-              : uploadedImageUrls
-                  .first, // Just taking first for now, can be updated
-          'thumb_url':
-              uploadedImageUrls.isEmpty ? null : uploadedImageUrls.first,
+          'media_url': uploadedImageUrls.first,
+          'thumb_url': uploadedImageUrls.first,
           'category': getTextValue(entry.productTypeController),
           'owner_id': userId,
           'status': 'pending', // This ensures it shows up in moderation
@@ -407,12 +405,14 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
   void _downloadSampleCsv() {
     // Headers matching the designerproducts table schema
     // Note: 'Image' column is not needed in CSV - images are matched by file name
+    // Unified schema (Phase 3): dropped Gold Weight, Collection Name,
+    // Net Weight, Design Type, Art Form, Category1/2/3.
     final List<String> headers = [
       'Product Title',
       'Description',
       'Price',
       'Product Tags',
-      'Gold Weight',
+      'Metal Weight',
       'Metal Purity',
       'Metal Finish',
       'Stone Weight',
@@ -423,16 +423,12 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
       'Stone Color',
       'Stone Cut',
       'Stone Purity',
-      'Collection Name',
       'Product Type',
       'Gender',
       'Theme',
       'Metal Type',
       'Metal Color',
-      'Net Weight',
       'Dimension',
-      'Design Type',
-      'Art Form',
       'Plating',
       'Enamel Work',
       'Customizable',
@@ -440,9 +436,6 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
       'Sub Category',
       'Plain',
       'Studded',
-      'Category1',
-      'Category2',
-      'Category3',
     ];
 
     final String csvContent = const ListToCsvConverter().convert([headers]);
@@ -630,11 +623,11 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
             assetData['tags'] = attributes['Product Tags'];
           }
 
-          if (uploadedImageUrls.isNotEmpty) {
-            assetData['media_url'] = uploadedImageUrls.first;
-            assetData['thumb_url'] = uploadedImageUrls.first;
-            attributes['Image'] = uploadedImageUrls;
-          }
+          // assets.media_url is NOT NULL - skip rows with no image.
+          if (uploadedImageUrls.isEmpty) continue;
+          assetData['media_url'] = uploadedImageUrls.first;
+          assetData['thumb_url'] = uploadedImageUrls.first;
+          attributes['Images'] = uploadedImageUrls;
 
           // Insert directly into assets table for moderation
           final insertResult =
@@ -1173,16 +1166,6 @@ class _ProductFormCardState extends State<ProductFormCard> {
         ),
         const SizedBox(height: 16),
 
-        // --- Gold Net Weight ---
-        TextFormField(
-          controller: widget.entry.netWeightController,
-          decoration:
-              const InputDecoration(labelText: "Gold Net Weight (in grams) *"),
-          keyboardType: TextInputType.number,
-          validator: (v) => v!.isEmpty ? "Gold Net Weight is required" : null,
-        ),
-        const SizedBox(height: 16),
-
         // --- Stone fields (only when Studded) ---
         if (isStudded) ...[
           const Padding(
@@ -1313,13 +1296,6 @@ class _ProductFormCardState extends State<ProductFormCard> {
         ),
         const SizedBox(height: 16),
 
-        // --- Collection Name ---
-        TextFormField(
-          controller: widget.entry.collectionNameController,
-          decoration: const InputDecoration(labelText: "Collection Name"),
-        ),
-        const SizedBox(height: 16),
-
         // --- Theme ---
         TextFormField(
           controller: widget.entry.themeController,
@@ -1340,29 +1316,6 @@ class _ProductFormCardState extends State<ProductFormCard> {
           controller: widget.entry.productTagsController,
           decoration: const InputDecoration(
               labelText: "Product Tags (comma-separated)"),
-        ),
-        const SizedBox(height: 16),
-
-        // --- Design Type ---
-        DropdownButtonFormField<String>(
-          value: widget.entry.designType,
-          decoration: const InputDecoration(labelText: "Design Type"),
-          items: ['Handcrafted', 'Machine-made', '3D cast']
-              .map(
-                  (label) => DropdownMenuItem(value: label, child: Text(label)))
-              .toList(),
-          onChanged: (value) {
-            setState(() {
-              widget.entry.designType = value;
-            });
-          },
-        ),
-        const SizedBox(height: 16),
-
-        // --- Art Form ---
-        TextFormField(
-          controller: widget.entry.artFormController,
-          decoration: const InputDecoration(labelText: "Art Form"),
         ),
         const SizedBox(height: 16),
 

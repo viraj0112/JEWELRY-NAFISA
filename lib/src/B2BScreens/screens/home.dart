@@ -5,6 +5,7 @@ import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'page_template.dart';
+import 'Uploads/editInSheets.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/models/filter_criteria.dart';
@@ -26,6 +27,86 @@ class _HomePageState extends State<HomePage> {
   // User type detection
   bool _isManufacturer = false;
   bool _isPremium = false;
+
+  // View + bulk-selection state
+  bool _isGridView = true;
+  final Set<String> _selectedIds = {};
+
+  String get _tableName =>
+      _isManufacturer ? 'manufacturerproducts' : 'designerproducts';
+
+  void _reload() {
+    setState(() {
+      _selectedIds.clear();
+      _future = _isManufacturer
+          ? _jewelryService.getMyManufacturerProducts()
+          : _jewelryService.getMyDesignerProducts();
+    });
+  }
+
+  void _toggleSelected(String id) {
+    setState(() {
+      if (!_selectedIds.remove(id)) _selectedIds.add(id);
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    final count = _selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete $count product(s)?'),
+        content: const Text(
+            'This permanently removes the selected products from your catalog. This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    try {
+      final ids = _selectedIds.map((e) => int.tryParse(e) ?? e).toList();
+      await Supabase.instance.client
+          .from(_tableName)
+          .delete()
+          .inFilter('id', ids)
+          .eq('user_id', user.id); // never delete rows the user doesn't own
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('$count product(s) deleted'),
+            backgroundColor: Colors.green),
+      );
+      _reload();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Delete failed: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _openEditInSheets(List<JewelryItem> products) async {
+    final changed = await showDialog<bool>(
+      context: context,
+      builder: (context) => EditInSheetsDialog(
+        tableName: _tableName,
+        selectedIds: _selectedIds.toList(),
+      ),
+    );
+    if (changed == true) _reload();
+  }
 
   @override
   void initState() {
@@ -58,6 +139,19 @@ class _HomePageState extends State<HomePage> {
   bool _matchesFilter(JewelryItem item) {
     if (widget.filters == null || widget.filters!.isEmpty) return true;
     final f = widget.filters!;
+
+    // 0. Free-text search across SKU, title, product type and category.
+    final search = f.searchText?.trim().toLowerCase();
+    if (search != null && search.isNotEmpty) {
+      final haystack = [
+        item.sku ?? '',
+        item.productTitle ?? '',
+        item.productType ?? '',
+        item.category ?? '',
+        item.subCategory ?? '',
+      ].join(' ').toLowerCase();
+      if (!haystack.contains(search)) return false;
+    }
 
     // 1. Location (Mock: assumes item.users['address'] contains specific location string)
     if (f.location != null && f.location != 'India') {
@@ -141,45 +235,228 @@ class _HomePageState extends State<HomePage> {
             );
           }
 
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              // Responsive Grid Logic
-              int crossAxisCount = 2; // Mobile default
-              if (constraints.maxWidth > 600) crossAxisCount = 3; // Tablet
-              if (constraints.maxWidth > 900) crossAxisCount = 4; // Desktop
-              if (constraints.maxWidth > 1200)
-                crossAxisCount = 4; // Keep 4 columns on large screens
-
-              return Center(
-                // child: ConstrainedBox(
-                //   constraints: const BoxConstraints(maxWidth: 1280), // max-w-7xl from Tailwind
-                child: GridView.builder(
-                  padding: const EdgeInsets.all(16).copyWith(bottom: 80),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    childAspectRatio: 0.70, // Slightly taller cards
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  itemCount: products.length,
-                  itemBuilder: (context, index) {
-                    return _ProductCard(item: products[index]);
-                  },
-                ),
-              );
-              // );
-            },
+          return Column(
+            children: [
+              _buildToolbar(products),
+              Expanded(
+                child: _isGridView
+                    ? _buildGrid(products)
+                    : _buildList(products),
+              ),
+            ],
           );
         },
       ),
+    );
+  }
+
+  Widget _buildToolbar(List<JewelryItem> products) {
+    final allSelected = products.isNotEmpty &&
+        products.every((p) => _selectedIds.contains(p.id));
+    final anySelected = _selectedIds.isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          // Select all / none
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Checkbox(
+                value: allSelected
+                    ? true
+                    : (anySelected ? null : false),
+                tristate: true,
+                activeColor: Colors.teal,
+                onChanged: (_) => setState(() {
+                  if (allSelected) {
+                    _selectedIds.clear();
+                  } else {
+                    _selectedIds.addAll(products.map((p) => p.id));
+                  }
+                }),
+              ),
+              Text(
+                anySelected
+                    ? '${_selectedIds.length} selected'
+                    : 'Select all',
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          if (anySelected) ...[
+            OutlinedButton.icon(
+              onPressed: _deleteSelected,
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('Delete'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+              ),
+            ),
+          ],
+          OutlinedButton.icon(
+            onPressed: () => _openEditInSheets(products),
+            icon: const Icon(Icons.table_chart_outlined, size: 18),
+            label: Text(anySelected
+                ? 'Edit in Sheets (${_selectedIds.length})'
+                : 'Edit in Sheets'),
+            style: OutlinedButton.styleFrom(foregroundColor: Colors.teal),
+          ),
+          // View toggle
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(Icons.grid_view_rounded,
+                      size: 18,
+                      color: _isGridView ? Colors.teal : Colors.grey),
+                  tooltip: 'Grid view',
+                  onPressed: () => setState(() => _isGridView = true),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(Icons.view_list_rounded,
+                      size: 18,
+                      color: !_isGridView ? Colors.teal : Colors.grey),
+                  tooltip: 'List view',
+                  onPressed: () => setState(() => _isGridView = false),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGrid(List<JewelryItem> products) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Responsive Grid Logic
+        int crossAxisCount = 2; // Mobile default
+        if (constraints.maxWidth > 600) crossAxisCount = 3; // Tablet
+        if (constraints.maxWidth > 900) crossAxisCount = 4; // Desktop
+
+        return Center(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(16).copyWith(bottom: 80),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              childAspectRatio: 0.70, // Slightly taller cards
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: products.length,
+            itemBuilder: (context, index) {
+              final item = products[index];
+              return _ProductCard(
+                item: item,
+                selected: _selectedIds.contains(item.id),
+                onToggleSelected: () => _toggleSelected(item.id),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildList(List<JewelryItem> products) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(16).copyWith(bottom: 80),
+      itemCount: products.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final item = products[index];
+        final images = item.images ?? [];
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: ListTile(
+            onTap: () => _toggleSelected(item.id),
+            leading: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Checkbox(
+                  value: _selectedIds.contains(item.id),
+                  activeColor: Colors.teal,
+                  onChanged: (_) => _toggleSelected(item.id),
+                ),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: images.isNotEmpty
+                      ? Image.network(images.first,
+                          width: 52,
+                          height: 52,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox(
+                              width: 52,
+                              height: 52,
+                              child: Icon(Icons.image_not_supported,
+                                  color: Colors.grey)))
+                      : const SizedBox(
+                          width: 52,
+                          height: 52,
+                          child: Icon(Icons.image, color: Colors.grey)),
+                ),
+              ],
+            ),
+            title: Text(item.productTitle ?? 'Unknown Product',
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(
+              [
+                if ((item.sku ?? '').isNotEmpty) 'SKU ${item.sku}',
+                if ((item.category ?? '').isNotEmpty) item.category!,
+                if ((item.productType ?? '').isNotEmpty) item.productType!,
+              ].join(' • '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('₹${item.price ?? '0'}',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(width: 12),
+                Icon(Icons.favorite, size: 14, color: Colors.red.shade300),
+                const SizedBox(width: 4),
+                Text('${item.likes ?? 0}',
+                    style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
 class _ProductCard extends StatefulWidget {
   final JewelryItem item;
+  final bool selected;
+  final VoidCallback? onToggleSelected;
 
-  const _ProductCard({required this.item});
+  const _ProductCard({
+    required this.item,
+    this.selected = false,
+    this.onToggleSelected,
+  });
 
   @override
   State<_ProductCard> createState() => _ProductCardState();
@@ -278,6 +555,9 @@ class _ProductCardState extends State<_ProductCard> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
+            border: widget.selected
+                ? Border.all(color: Colors.teal, width: 2)
+                : null,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(_isHovered ? 0.15 : 0.05),
@@ -321,6 +601,29 @@ class _ProductCardState extends State<_ProductCard> {
                                 ),
                               ),
                       ),
+
+                      // Bulk-selection checkbox
+                      if (widget.onToggleSelected != null)
+                        Positioned(
+                          top: 6,
+                          left: 6,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: Checkbox(
+                                value: widget.selected,
+                                activeColor: Colors.teal,
+                                onChanged: (_) =>
+                                    widget.onToggleSelected!.call(),
+                              ),
+                            ),
+                          ),
+                        ),
 
                       // Moderation Status Badge
                       if (widget.item.status == 'pending' ||

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -537,11 +538,15 @@ class NewAdminDataService {
     final includesManufacturer =
         table == 'all' || table == 'manufacturerproducts';
 
-    // Increase fetch limit during manual aggregation to ensure enough results remain after filtering
-    final fetchLimit =
-        (minLikes > 0 || minViews > 0 || minShares > 0 || minCreditsUsed > 0)
-            ? 300
-            : limit;
+    // Over-fetch when any post-fetch filter is active (metrics are counted in
+    // Dart; category/uploader matching also happens in Dart), so enough rows
+    // survive the final filtering to fill `limit`.
+    final hasPostFilters = minLikes > 0 ||
+        minViews > 0 ||
+        minShares > 0 ||
+        minCreditsUsed > 0 ||
+        normalizedTerm.isNotEmpty;
+    final fetchLimit = hasPostFilters ? math.max(limit, 1000) : limit;
 
     int calculatedLimit = fetchLimit ~/ 3;
     if (calculatedLimit < 1) calculatedLimit = 1;
@@ -551,46 +556,50 @@ class NewAdminDataService {
     final designerRows = <dynamic>[];
     final manufacturerRows = <dynamic>[];
 
-    // Fetch base product records
-    if (includesProducts) {
-      var query = _client.from('products').select(
-          'id,"Product Title","Category","Image","Images",user_id,"Product Type",images_arr');
-      if (normalizedTerm.isNotEmpty) {
-        query = query.ilike('Product Title', '%$normalizedTerm%');
-      }
-      // Note: 'products' table lacks 'created_at', so date filtering is skipped here.
+    // NOTE(Phase 3 flip): 'category_arr' becomes '"Category"' and the legacy
+    // "Category"/"Image"/"Images" columns disappear - update these selects in
+    // the SAME release as the Phase 3 SQL migration.
+    const commonCols =
+        'id,"Product Title","Category",created_at,user_id,"Product Type","Images"';
 
-      productRows.addAll(
-          await query.order('id', ascending: false).limit(perTableLimit));
+    // The free-text term matches title, category, uploader and product type.
+    // Category is a text[] and uploader lives in `users`, so that matching
+    // happens in Dart on the over-fetched newest rows; only the structured
+    // filters (product type, date window) narrow server-side.
+    PostgrestFilterBuilder<dynamic> applyCommon(
+        PostgrestFilterBuilder<dynamic> query) {
+      if (productType != null && productType.trim().isNotEmpty) {
+        query = query.ilike('Product Type', '%${productType.trim()}%');
+      }
+      if (startDate != null) {
+        query = query.gte('created_at', startDate.toIso8601String());
+      }
+      if (endDate != null) {
+        query = query.lte('created_at', endDate.toIso8601String());
+      }
+      return query;
+    }
+
+    if (includesProducts) {
+      // products.created_at exists since Phase 1 - date filter/sort now real.
+      final query =
+          applyCommon(_client.from('products').select('$commonCols,"Images"'));
+      productRows.addAll(await query
+          .order('created_at', ascending: false)
+          .limit(perTableLimit));
     }
 
     if (includesDesigner) {
-      var query = _client.from('designerproducts').select(
-          'id,"Product Title","Category","Image",created_at,user_id,"Product Type",images_arr');
-      if (normalizedTerm.isNotEmpty) {
-        query = query.ilike('Product Title', '%$normalizedTerm%');
-      }
-      if (startDate != null)
-        query = query.gte('created_at', startDate.toIso8601String());
-      if (endDate != null)
-        query = query.lte('created_at', endDate.toIso8601String());
-
+      final query =
+          applyCommon(_client.from('designerproducts').select(commonCols));
       designerRows.addAll(await query
           .order('created_at', ascending: false)
           .limit(perTableLimit));
     }
 
     if (includesManufacturer) {
-      var query = _client.from('manufacturerproducts').select(
-          'id,"Product Title","Category","Image",created_at,user_id,"Product Type",images_arr');
-      if (normalizedTerm.isNotEmpty) {
-        query = query.ilike('Product Title', '%$normalizedTerm%');
-      }
-      if (startDate != null)
-        query = query.gte('created_at', startDate.toIso8601String());
-      if (endDate != null)
-        query = query.lte('created_at', endDate.toIso8601String());
-
+      final query =
+          applyCommon(_client.from('manufacturerproducts').select(commonCols));
       manufacturerRows.addAll(await query
           .order('created_at', ascending: false)
           .limit(perTableLimit));
@@ -673,22 +682,26 @@ class NewAdminDataService {
       final owner = uploaderMap[userId];
       final key = '$source:$id';
 
+      // "Category" is text[]; join its values for display.
+      String category = 'Uncategorized';
+      final arr = row['Category'];
+      if (arr is List && arr.isNotEmpty) {
+        category = arr.map((e) => e.toString()).join(', ');
+      }
+
       return InventoryItem(
         id: key,
         title: (row['Product Title'] as String?) ?? 'Untitled Product',
-        category: (row['Category'] as String?) ?? 'Uncategorized',
+        category: category,
         status: 'uploaded',
         source: source,
-        thumbUrl: _extractImage(row['images_arr'] ?? row['Image'],
-            fallback: row['Images'] as String?),
-        mediaUrl: _extractImage(row['images_arr'] ?? row['Image'],
-            fallback: row['Images'] as String?),
+        thumbUrl: _extractImage(row['Images']),
+        mediaUrl: _extractImage(row['Images']),
         ownerId: userId,
         ownerName: owner?['name'] ?? 'Unknown creator',
         ownerEmail: owner?['email'] ?? '',
         ownerPhone: owner?['phone'] ?? '',
-        createdAt:
-            source == 'products' ? null : _tryParseDate(row['created_at']),
+        createdAt: _tryParseDate(row['created_at']),
         likesCount: likesMap[key] ?? 0,
         viewsCount: viewsMap[key] ?? 0,
         sharesCount: sharesMap[key] ?? 0,
@@ -712,10 +725,16 @@ class NewAdminDataService {
       items = items.where((i) => i.sharesCount >= minShares).toList();
     if (minCreditsUsed > 0)
       items = items.where((i) => i.creditsUsed >= minCreditsUsed).toList();
-    if (productType != null && productType.trim().isNotEmpty) {
-      final pType = productType.trim().toLowerCase();
-      items =
-          items.where((i) => i.productType?.toLowerCase() == pType).toList();
+    if (normalizedTerm.isNotEmpty) {
+      final term = normalizedTerm.toLowerCase();
+      items = items
+          .where((i) =>
+              i.title.toLowerCase().contains(term) ||
+              i.category.toLowerCase().contains(term) ||
+              i.ownerName.toLowerCase().contains(term) ||
+              i.ownerEmail.toLowerCase().contains(term) ||
+              (i.productType ?? '').toLowerCase().contains(term))
+          .toList();
     }
 
     // Sort by date
@@ -1014,17 +1033,17 @@ class NewAdminDataService {
 
     final productRows = await _fetchAllRows(
       table: 'products',
-      columns: 'id,"Product Title","Image","Images","Price",images_arr',
+      columns: 'id,"Product Title","Price","Images"',
     );
     final designerRows = await _fetchAllRows(
       table: 'designerproducts',
-      columns: 'id,"Product Title","Image","Price","created_at",images_arr',
+      columns: 'id,"Product Title","Price","created_at","Images"',
       orderColumn: 'created_at',
       ascending: false,
     );
     final manufacturerRows = await _fetchAllRows(
       table: 'manufacturerproducts',
-      columns: 'id,"Product Title","Image","Price","created_at",images_arr',
+      columns: 'id,"Product Title","Price","created_at","Images"',
       orderColumn: 'created_at',
       ascending: false,
     );
@@ -1040,7 +1059,7 @@ class NewAdminDataService {
           sourceTable: 'products',
           priceLabel: ((row['Price'] as String?) ?? '').trim(),
           imageUrl: _extractImage(
-            row['images_arr'] ?? row['Image'],
+            row['Images'],
             fallback: row['Images'] as String?,
           ),
           quoteRequests: quoteCountByProductKey['products::$id'] ?? 0,
@@ -1057,7 +1076,7 @@ class NewAdminDataService {
           title: (row['Product Title'] as String?) ?? 'Untitled Product',
           sourceTable: 'designerproducts',
           priceLabel: ((row['Price'] as String?) ?? '').trim(),
-          imageUrl: _extractImage(row['images_arr'] ?? row['Image']),
+          imageUrl: _extractImage(row['Images']),
           quoteRequests: quoteCountByProductKey['designerproducts::$id'] ?? 0,
           createdAt: _tryParseDate(row['created_at']),
         ),
@@ -1072,7 +1091,7 @@ class NewAdminDataService {
           title: (row['Product Title'] as String?) ?? 'Untitled Product',
           sourceTable: 'manufacturerproducts',
           priceLabel: ((row['Price'] as String?) ?? '').trim(),
-          imageUrl: _extractImage(row['images_arr'] ?? row['Image']),
+          imageUrl: _extractImage(row['Images']),
           quoteRequests: 0,
           createdAt: _tryParseDate(row['created_at']),
         ),
@@ -1096,13 +1115,13 @@ class NewAdminDataService {
   Future<List<AppraisalQueueItem>> fetchAppraisalQueue({int? limit}) async {
     final designerRows = await _fetchAllRows(
       table: 'designerproducts',
-      columns: 'id,"Product Title","Price","Image",created_at,user_id,images_arr',
+      columns: 'id,"Product Title","Price",created_at,user_id,"Images"',
       orderColumn: 'created_at',
       ascending: false,
     );
     final manufacturerRows = await _fetchAllRows(
       table: 'manufacturerproducts',
-      columns: 'id,"Product Title","Price","Image",created_at,user_id,images_arr',
+      columns: 'id,"Product Title","Price",created_at,user_id,"Images"',
       orderColumn: 'created_at',
       ascending: false,
     );
@@ -1113,12 +1132,22 @@ class NewAdminDataService {
     }..removeWhere((id) => id.isEmpty || id == 'null');
 
     final uploaderMap = <String, Map<String, String>>{};
+    // business_name lives in the role-specific profile tables (PK: user_id).
+    final businessNameMap = <String, String>{};
     if (uploaderIds.isNotEmpty) {
-      final uploaderRows = await _client
-          .from('users')
-          .select('id,full_name,email')
-          .inFilter('id', uploaderIds.toList());
-      for (final user in uploaderRows) {
+      final ids = uploaderIds.toList();
+      final results = await Future.wait([
+        _client.from('users').select('id,full_name,email').inFilter('id', ids),
+        _client
+            .from('designer_profiles')
+            .select('user_id,business_name')
+            .inFilter('user_id', ids),
+        _client
+            .from('manufacturer_profiles')
+            .select('user_id,business_name')
+            .inFilter('user_id', ids),
+      ]);
+      for (final user in results[0]) {
         final id = '${user['id']}';
         uploaderMap[id] = {
           'name': (user['full_name'] as String?)?.trim().isNotEmpty == true
@@ -1127,43 +1156,34 @@ class NewAdminDataService {
           'email': (user['email'] as String?) ?? '',
         };
       }
+      for (final profile in [...results[1], ...results[2]]) {
+        final name = (profile['business_name'] as String?)?.trim() ?? '';
+        if (name.isNotEmpty) {
+          businessNameMap['${profile['user_id']}'] = name;
+        }
+      }
+    }
+
+    AppraisalQueueItem mapRow(dynamic row, String sourceTable) {
+      final userId = '${row['user_id'] ?? ''}';
+      final user = uploaderMap[userId];
+      return AppraisalQueueItem(
+        id: '${row['id']}',
+        title: (row['Product Title'] as String?) ?? 'Untitled upload',
+        sourceTable: sourceTable,
+        uploaderUserId: userId,
+        uploaderName: user?['name'] ?? 'Unknown uploader',
+        uploaderEmail: user?['email'] ?? '',
+        businessName: businessNameMap[userId] ?? '',
+        imageUrl: _extractImage(row['Images']),
+        createdAt: _tryParseDate(row['created_at']),
+        priceLabel: ((row['Price'] as String?) ?? '').trim(),
+      );
     }
 
     final items = <AppraisalQueueItem>[
-      ...designerRows.map(
-        (row) {
-          final userId = '${row['user_id'] ?? ''}';
-          final user = uploaderMap[userId];
-          return AppraisalQueueItem(
-            id: '${row['id']}',
-            title: (row['Product Title'] as String?) ?? 'Untitled upload',
-            sourceTable: 'designerproducts',
-            uploaderUserId: userId,
-            uploaderName: user?['name'] ?? 'Unknown uploader',
-            uploaderEmail: user?['email'] ?? '',
-            imageUrl: _extractImage(row['images_arr'] ?? row['Image']),
-            createdAt: _tryParseDate(row['created_at']),
-            priceLabel: ((row['Price'] as String?) ?? '').trim(),
-          );
-        },
-      ),
-      ...manufacturerRows.map(
-        (row) {
-          final userId = '${row['user_id'] ?? ''}';
-          final user = uploaderMap[userId];
-          return AppraisalQueueItem(
-            id: '${row['id']}',
-            title: (row['Product Title'] as String?) ?? 'Untitled upload',
-            sourceTable: 'manufacturerproducts',
-            uploaderUserId: userId,
-            uploaderName: user?['name'] ?? 'Unknown uploader',
-            uploaderEmail: user?['email'] ?? '',
-            imageUrl: _extractImage(row['images_arr'] ?? row['Image']),
-            createdAt: _tryParseDate(row['created_at']),
-            priceLabel: ((row['Price'] as String?) ?? '').trim(),
-          );
-        },
-      ),
+      ...designerRows.map((row) => mapRow(row, 'designerproducts')),
+      ...manufacturerRows.map((row) => mapRow(row, 'manufacturerproducts')),
     ];
 
     items.sort((a, b) {
@@ -1452,6 +1472,12 @@ class NewAdminDataService {
 
   Future<List<MetalInsight>> _fetchMetalMetrics(String column) async {
     final List<MetalInsight> insights = [];
+    // "Metal Color" is the Phase 1 unified array column `metal_color_arr` -
+    // a product can contribute MULTIPLE color values, so it must be unnested,
+    // not scalar-cast (the previous code did `row[column] as String?`, which
+    // "Metal Color" is a text[] array (unified); "Metal Type" stays scalar.
+    final isArrayColumn = column == 'Metal Color';
+    final selectColumn = '"$column"';
 
     Future<void> fetchTableWithPagination(String tableName) async {
       int offset = 0;
@@ -1462,16 +1488,28 @@ class NewAdminDataService {
       while (hasMore) {
         final rows = await _client
             .from(tableName)
-            .select('"$column"')
+            .select(selectColumn)
             .range(offset, offset + limit - 1);
 
         if (rows.isEmpty) {
           hasMore = false;
         } else {
           for (final row in rows) {
-            final val = (row[column] as String?)?.trim();
-            if (val != null && val.isNotEmpty && val != 'null') {
-              counts[val] = (counts[val] ?? 0) + 1;
+            if (isArrayColumn) {
+              final arr = row['Metal Color'];
+              if (arr is List) {
+                for (final item in arr) {
+                  final val = item?.toString().trim();
+                  if (val != null && val.isNotEmpty && val != 'null') {
+                    counts[val] = (counts[val] ?? 0) + 1;
+                  }
+                }
+              }
+            } else {
+              final val = (row[column] as String?)?.trim();
+              if (val != null && val.isNotEmpty && val != 'null') {
+                counts[val] = (counts[val] ?? 0) + 1;
+              }
             }
           }
           if (rows.length < limit) {

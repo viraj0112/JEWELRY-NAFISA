@@ -4,6 +4,9 @@ class FilterCriteria {
   String? location;
   DateTimeRange? dateRange;
 
+  // Free-text search: matches SKU, product title, product type and category.
+  String? searchText;
+
   // Advanced Filters (Single selection for simplicity based on chips in image,
   // but could be Set<String> if multi-select needed. 'ChoiceChip' implies single)
   String? productType;
@@ -19,6 +22,7 @@ class FilterCriteria {
   FilterCriteria({
     this.location,
     this.dateRange,
+    this.searchText,
     this.productType,
     this.category,
     this.metalType,
@@ -31,6 +35,7 @@ class FilterCriteria {
   bool get isEmpty {
     return location == null &&
         dateRange == null &&
+        (searchText == null || searchText!.trim().isEmpty) &&
         productType == null &&
         category == null &&
         metalType == null &&

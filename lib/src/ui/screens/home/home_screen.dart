@@ -11,6 +11,7 @@ import 'package:jewelry_nafisa/src/utils/share_utils.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart';
 import 'package:jewelry_nafisa/src/ui/widgets/save_to_board_dialog.dart';
 import 'package:jewelry_nafisa/src/utils/image_url_resolver.dart';
+import 'package:jewelry_nafisa/src/utils/product_type_icons.dart';
 import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -379,10 +380,10 @@ class HomeScreenState extends State<HomeScreen> {
 
     try {
       const selectColumns =
-          'id, "Product Title", "Image", "Description", "Product Type", '
-          'Category, Category1, Category2, Category3, "Sub Category", '
+          'id, "Product Title", "Images", "Description", "Product Type", '
+          '"Category", "Sub Category", '
           '"Metal Type", "Metal Purity", Plain, Studded, "Price", '
-          'images_arr, category_arr, metal_color_arr';
+          '"Metal Color"';
 
       const designerSelectColumns = '$selectColumns, created_at';
 
@@ -418,11 +419,11 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       if (_selectedCategory != 'All') {
-        final categoryFilter =
-            'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
-        productsQuery = productsQuery.or(categoryFilter);
-        designerQuery = designerQuery.or(categoryFilter);
-        manufacturerQuery = manufacturerQuery.or(categoryFilter);
+        // "Category" is text[]: match by array overlap with the selection.
+        productsQuery = productsQuery.overlaps('Category', [_selectedCategory]);
+        designerQuery = designerQuery.overlaps('Category', [_selectedCategory]);
+        manufacturerQuery =
+            manufacturerQuery.overlaps('Category', [_selectedCategory]);
       }
 
       if (_selectedSubCategory != 'All') {
@@ -538,8 +539,8 @@ class HomeScreenState extends State<HomeScreen> {
     }
     try {
       const selectColumns =
-          'id, "Product Title", "Image", "Description", "Product Type", '
-          'Category, Category1, Category2, Category3, "Sub Category", '
+          'id, "Product Title", "Images", "Description", "Product Type", '
+          '"Category", "Sub Category", '
           '"Metal Type", "Metal Purity", Plain, Studded, "Price"';
 
       // For designerproducts, we can include created_at
@@ -576,12 +577,11 @@ class HomeScreenState extends State<HomeScreen> {
             manufacturerQuery.eq('"Product Type"', _selectedProductType);
       }
       if (_selectedCategory != 'All') {
-        // Filter by Category OR Category1 OR Category2 OR Category3 for both tables
-        final categoryFilter =
-            'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
-        productsQuery = productsQuery.or(categoryFilter);
-        designerQuery = designerQuery.or(categoryFilter);
-        manufacturerQuery = manufacturerQuery.or(categoryFilter);
+        // "Category" is text[]: match by array overlap with the selection.
+        productsQuery = productsQuery.overlaps('Category', [_selectedCategory]);
+        designerQuery = designerQuery.overlaps('Category', [_selectedCategory]);
+        manufacturerQuery =
+            manufacturerQuery.overlaps('Category', [_selectedCategory]);
       }
       if (_selectedSubCategory != 'All') {
         productsQuery =
@@ -629,11 +629,11 @@ class HomeScreenState extends State<HomeScreen> {
         // semantics, so 2-tone products (e.g. {Yellow Gold, Rose Gold}) match
         // if ANY selected color is present - same operator used for Product Tags.
         productsQuery =
-            productsQuery.overlaps('metal_color_arr', _selectedMetalColors);
+            productsQuery.overlaps('Metal Color', _selectedMetalColors);
         designerQuery =
-            designerQuery.overlaps('metal_color_arr', _selectedMetalColors);
+            designerQuery.overlaps('Metal Color', _selectedMetalColors);
         manufacturerQuery = manufacturerQuery.overlaps(
-            'metal_color_arr', _selectedMetalColors);
+            'Metal Color', _selectedMetalColors);
       }
       if (_selectedMetalPurities.isNotEmpty) {
         productsQuery = productsQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
@@ -748,10 +748,10 @@ class HomeScreenState extends State<HomeScreen> {
       {int offset = 0, int limit = _pageSize}) async {
     try {
       const selectColumns =
-          'id, "Product Title", "Image", "Description", "Product Type", '
-          'Category, Category1, Category2, Category3, "Sub Category", '
+          'id, "Product Title", "Images", "Description", "Product Type", '
+          '"Category", "Sub Category", '
           '"Metal Type", "Metal Purity", Plain, Studded, "Price", created_at, '
-          'images_arr, category_arr, metal_color_arr';
+          '"Metal Color"';
 
       List<dynamic> designerData = [];
       List<dynamic> manufacturerData = [];
@@ -772,9 +772,8 @@ class HomeScreenState extends State<HomeScreen> {
               designerQuery.eq('"Product Type"', _selectedProductType);
         }
         if (_selectedCategory != 'All') {
-          final categoryFilter =
-              'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
-          designerQuery = designerQuery.or(categoryFilter);
+          designerQuery =
+              designerQuery.overlaps('Category', [_selectedCategory]);
         }
         if (_selectedSubCategory != 'All') {
           designerQuery =
@@ -802,7 +801,7 @@ class HomeScreenState extends State<HomeScreen> {
 
         if (_selectedMetalColors.isNotEmpty) {
           designerQuery =
-              designerQuery.overlaps('metal_color_arr', _selectedMetalColors);
+              designerQuery.overlaps('Metal Color', _selectedMetalColors);
         }
         if (_selectedMetalPurities.isNotEmpty) {
           designerQuery =
@@ -858,9 +857,8 @@ class HomeScreenState extends State<HomeScreen> {
               manufacturerQuery.eq('"Product Type"', _selectedProductType);
         }
         if (_selectedCategory != 'All') {
-          final categoryFilter =
-              'Category.eq.$_selectedCategory,Category1.eq.$_selectedCategory,Category2.eq.$_selectedCategory,Category3.eq.$_selectedCategory';
-          manufacturerQuery = manufacturerQuery.or(categoryFilter);
+          manufacturerQuery =
+              manufacturerQuery.overlaps('Category', [_selectedCategory]);
         }
         if (_selectedSubCategory != 'All') {
           manufacturerQuery =
@@ -888,7 +886,7 @@ class HomeScreenState extends State<HomeScreen> {
 
         if (_selectedMetalColors.isNotEmpty) {
           manufacturerQuery = manufacturerQuery.overlaps(
-              'metal_color_arr', _selectedMetalColors);
+              'Metal Color', _selectedMetalColors);
         }
         if (_selectedMetalPurities.isNotEmpty) {
           manufacturerQuery = manufacturerQuery.inFilter(
@@ -1962,6 +1960,9 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBubbleChip(String label, bool isSelected, VoidCallback onTap) {
+    // Shared lookup (see utils/product_type_icons.dart); null (e.g. for
+    // category/subcategory options) renders the chip without an icon.
+    final iconPath = productTypeIconAsset(label);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1989,13 +1990,27 @@ class HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.white : const Color(0xFF424242),
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              fontSize: 12,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (iconPath != null) ...[
+                Image.asset(
+                  iconPath,
+                  width: 18,
+                  height: 18,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF424242),
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -2087,9 +2102,9 @@ class HomeScreenState extends State<HomeScreen> {
               return displayOptions.map<Widget>((String item) {
                 return Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    item.replaceAll('AKD-', ''),
-                    style: const TextStyle(
+                  child: _dropdownOptionLabel(
+                    item,
+                    const TextStyle(
                       color: Color(0xFF2F2F2F),
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
@@ -2101,10 +2116,9 @@ class HomeScreenState extends State<HomeScreen> {
             items: displayOptions.map<DropdownMenuItem<String>>((String value) {
               return DropdownMenuItem<String>(
                 value: value,
-                child: Text(
-                  value.replaceAll('AKD-', ''),
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                child: _dropdownOptionLabel(
+                  value,
+                  const TextStyle(
                     color: Colors.black87,
                     fontSize: 15,
                   ),
@@ -2114,6 +2128,31 @@ class HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // Dropdown option label with the golden product-type icon when one exists
+  // (see utils/product_type_icons.dart); non-product options (e.g. metal
+  // types, "All") simply have no match and render as plain text.
+  Widget _dropdownOptionLabel(String value, TextStyle style) {
+    final label = value.replaceAll('AKD-', '');
+    final iconPath = productTypeIconAsset(label);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (iconPath != null) ...[
+          Image.asset(
+            iconPath,
+            width: 18,
+            height: 18,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
+          const SizedBox(width: 8),
+        ],
+        Flexible(
+          child: Text(label, overflow: TextOverflow.ellipsis, style: style),
+        ),
+      ],
     );
   }
 

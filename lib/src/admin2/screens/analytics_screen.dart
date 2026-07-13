@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/new_admin_models.dart';
 import '../services/new_admin_data_service.dart';
 import '../services/dashboard_service.dart';
+import '../widgets/catalog_analytics_dashboard.dart';
 import '../../widgets/geo_analytics_widget.dart';
 import '../../services/geo_analytics_service.dart';
 
@@ -450,6 +451,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildContent(AnalyticsBundle bundle) {
+    if (_activeTab == 'Catalog') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildPageHeader(bundle),
+          const SizedBox(height: 28),
+          const CatalogAnalyticsDashboard(),
+          const SizedBox(height: 40),
+        ],
+      );
+    }
     final showJewels = _activeTab == 'All Records' || _activeTab == 'Jewels';
     final showGlobal = _activeTab == 'All Records' || _activeTab == 'Global';
     return Column(
@@ -649,6 +661,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
       const _TabDef('All Records', null),
       const _TabDef('Jewels', Icons.diamond_outlined),
       const _TabDef('Global', Icons.language_outlined),
+      const _TabDef('Catalog', Icons.inventory_2_outlined),
     ];
 
     return Row(

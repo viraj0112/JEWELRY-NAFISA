@@ -32,14 +32,14 @@ class FilterService {
 
   Future<List<String>> getDistinctValues(String columnName) async {
     try {
-      // Special handling for Category to aggregate Category, Category1, Category2, Category3
+      // "Category" is now a text[] (unified array); unnest it like Metal Color.
       if (columnName == 'Category') {
-        return await _getDistinctCategoryValues();
+        return await getDistinctArrayValues('Category');
       }
       // Metal Color is now unified into metal_color_arr (text[]); use the
       // array-unnesting path instead of the scalar RPC.
       if (columnName == 'Metal Color') {
-        return await getDistinctArrayValues('metal_color_arr');
+        return await getDistinctArrayValues('Metal Color');
       }
 
       final response = await _supabase.rpc(
@@ -64,48 +64,15 @@ class FilterService {
     }
   }
 
-  /// Fetches distinct category values from Category, Category1, Category2, Category3 columns
-  /// across both 'products' and 'designerproducts' tables
-  Future<List<String>> _getDistinctCategoryValues() async {
-    try {
-      final Set<String> values = {};
-
-      for (final table in ['products', 'designerproducts', 'manufacturerproducts']) {
-        final response = await _supabase
-            .from(table)
-            .select('Category, Category1, Category2, Category3, category_arr');
-
-        if (response is List) {
-          for (var item in response) {
-            _addCategoryValuesFromRow(item, values);
-          }
-        }
-      }
-
-      return values.toList()..sort();
-    } catch (e) {
-      debugPrint('Error fetching distinct category values: $e');
-      return [];
-    }
-  }
-
-  /// Prefer the unified category_arr (Phase 1) when present and non-empty;
-  /// fall back to the legacy Category/Category1/2/3 scalar columns.
+  /// "Category" is the unified text[] array; collect its non-blank elements.
   void _addCategoryValuesFromRow(
       Map<String, dynamic> item, Set<String> values) {
-    final arr = item['category_arr'];
-    if (arr is List && arr.isNotEmpty) {
+    final arr = item['Category'];
+    if (arr is List) {
       for (final v in arr) {
         if (v != null && v.toString().trim().isNotEmpty) {
           values.add(v.toString());
         }
-      }
-      return;
-    }
-    for (final key in ['Category', 'Category1', 'Category2', 'Category3']) {
-      final v = item[key];
-      if (v != null && v.toString().trim().isNotEmpty) {
-        values.add(v.toString());
       }
     }
   }
@@ -127,7 +94,7 @@ class FilterService {
     }
     // Metal Color is now unified into metal_color_arr (text[]).
     if (columnName == 'Metal Color') {
-      return await getDependentDistinctArrayValues('metal_color_arr', filters);
+      return await getDependentDistinctArrayValues('Metal Color', filters);
     }
 
     try {
@@ -272,17 +239,13 @@ class FilterService {
   Future<List<String>> _getDependentDistinctCategoryValues(
       Map<String, String?> filters) async {
     try {
-      // 1. Start queries for all three tables, selecting all category columns
-      // plus the unified category_arr (Phase 1).
-      var productsQuery = _supabase
-          .from('products')
-          .select('Category, Category1, Category2, Category3, category_arr');
-      var designerQuery = _supabase
-          .from('designerproducts')
-          .select('Category, Category1, Category2, Category3, category_arr');
-      var manufacturerQuery = _supabase
-          .from('manufacturerproducts')
-          .select('Category, Category1, Category2, Category3, category_arr');
+      // 1. Start queries for all three tables. "Category" is the unified
+      // text[] array (Phase-3-renamed from category_arr).
+      var productsQuery = _supabase.from('products').select('"Category"');
+      var designerQuery =
+          _supabase.from('designerproducts').select('"Category"');
+      var manufacturerQuery =
+          _supabase.from('manufacturerproducts').select('"Category"');
 
       // 2. Apply dependent filters to all three queries (excluding Category filter itself)
       for (var filter in filters.entries) {

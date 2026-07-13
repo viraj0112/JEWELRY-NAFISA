@@ -300,21 +300,12 @@ class _ProductUploadSectionState extends State<ProductUploadSection>
               .map((entry) => entry.value)
               .toList();
 
-          // "Image" is a real text[] column; "images" does not exist as a column
-          // at all. Write the full URL list to both "Image" (legacy) and
-          // images_arr (Phase 1 unified column) so nothing downstream breaks.
-          if (matchingImageUrls.isNotEmpty) {
-            product['Image'] = matchingImageUrls;
-            product['images_arr'] = matchingImageUrls;
-          } else {
-            product['Image'] = [];
-            product['images_arr'] = [];
-          }
+          // "Images" is the unified text[] column. Empty array (not null) for
+          // "no images", matching the migration's ARRAY[]::text[] convention.
+          product['Images'] =
+              matchingImageUrls.isNotEmpty ? matchingImageUrls : [];
         } else {
-          // If no title, ensure Image fields are empty (not null, to match
-          // Phase 1's own backfill convention of ARRAY[]::text[] for "no images").
-          product['Image'] = [];
-          product['images_arr'] = [];
+          product['Images'] = [];
         }
 
         productList.add(product);

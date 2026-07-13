@@ -44,6 +44,7 @@ class AppraisalQueueItem {
     required this.createdAt,
     required this.priceLabel,
     this.uploaderPhone = '',
+    this.businessName = '',
   });
 
   final String id;
@@ -53,6 +54,7 @@ class AppraisalQueueItem {
   final String uploaderName;
   final String uploaderEmail;
   final String uploaderPhone;
+  final String businessName;
   final String? imageUrl;
   final DateTime? createdAt;
   final String priceLabel;

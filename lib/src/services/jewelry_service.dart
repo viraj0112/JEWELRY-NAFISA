@@ -113,30 +113,25 @@ class JewelryService {
             .select('''
               id,
               "Product Title",
-              "Image",
+              "Images",
               "Description",
               "Product Type",
-              Category,
-              Category1,
-              Category2,
-              Category3,
+              "Category",
               "Sub Category",
               "Metal Type",
               "Metal Purity",
               Plain,
               Studded,
               "Price",
-              images_arr,
-              category_arr,
-              metal_color_arr
+              "Metal Color"
             ''')
+            // "Category" is now text[]; match it with array containment via
+            // cs (contains) is exact, so fall back to text-search on the
+            // scalar columns and let category matching happen in the RPC path.
             .or('Product Title.ilike.%$query%,'
                 'Description.ilike.%$query%,'
                 'Product Type.ilike.%$query%,'
-                'Category.ilike.%$query%,'
-                'Category1.ilike.%$query%,'
-                'Category2.ilike.%$query%,'
-                'Category3.ilike.%$query%')
+                'Sub Category.ilike.%$query%')
             .limit(50);
 
         if (manufacturerResponse is List) {
@@ -292,18 +287,17 @@ class JewelryService {
     String? productType,
     String? category,
     String? subCategory,
-    String? category1,
-    String? category2,
-    String? category3,
+    // Full set of the viewed item's categories (from category_arr), used for
+    // array-overlap matching so a product with ANY shared category counts as
+    // "more like this" - not just an exact single-value AND chain.
+    List<String> categories = const [],
     int limit = 10,
   }) async {
     // Check if at least ONE relevant field has a value (be more lenient)
     if ((productType == null || productType.isEmpty) &&
         (category == null || category.isEmpty) &&
         (subCategory == null || subCategory.isEmpty) &&
-        (category1 == null || category1.isEmpty) &&
-        (category2 == null || category2.isEmpty) &&
-        (category3 == null || category3.isEmpty)) {
+        categories.isEmpty) {
       debugPrint(
           'Similar items: All filter fields are empty, cannot find similar products');
       return [];
@@ -320,22 +314,17 @@ class JewelryService {
           dynamic query = _supabaseClient.from(table).select('''
                 id,
                 "Product Title",
-                "Image",
+                "Images",
                 "Description",
                 "Product Type",
-                Category,
-                Category1,
-                Category2,
-                Category3,
+                "Category",
                 "Sub Category",
                 "Metal Type",
                 "Metal Purity",
                 Plain,
                 Studded,
                 "Price",
-                images_arr,
-                category_arr,
-                metal_color_arr
+                "Metal Color"
               ''').ilike('"Metal Type"', 'AKD%');
 
           if (productType != null && productType.isNotEmpty) {
@@ -343,10 +332,9 @@ class JewelryService {
           }
 
           if (category != null && category.isNotEmpty) {
-            final c = category.trim();
-            query = query.or(
-              'Category.eq.$c,Category1.eq.$c,Category2.eq.$c,Category3.eq.$c',
-            );
+            // "Category" is text[] post-Phase-3: match by array overlap with
+            // the single requested category.
+            query = query.overlaps('Category', [category.trim()]);
           }
 
           final currentIntId = int.tryParse(currentItemId);
@@ -391,22 +379,17 @@ class JewelryService {
             _supabaseClient.from('manufacturerproducts').select('''
               id,
               "Product Title",
-              "Image",
+              "Images",
               "Description",
               "Product Type",
-              Category,
-              Category1,
-              Category2,
-              Category3,
+              "Category",
               "Sub Category",
               "Metal Type",
               "Metal Purity",
               Plain,
               Studded,
               "Price",
-              images_arr,
-              category_arr,
-              metal_color_arr
+              "Metal Color"
             ''');
 
         if (currentIntId != null) {
@@ -419,21 +402,19 @@ class JewelryService {
           manufacturerQuery =
               manufacturerQuery.eq('"Product Type"', productType);
         }
-        if (category != null && category.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.eq('Category', category);
-        }
         if (subCategory != null && subCategory.isNotEmpty) {
           manufacturerQuery =
               manufacturerQuery.eq('"Sub Category"', subCategory);
         }
-        if (category1 != null && category1.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.eq('Category1', category1);
-        }
-        if (category2 != null && category2.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.eq('Category2', category2);
-        }
-        if (category3 != null && category3.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.eq('Category3', category3);
+        if (categories.isNotEmpty) {
+          // Array-overlap match: any shared category counts. "Category" is a
+          // text[] (post-Phase-3 rename of category_arr), so use && overlap.
+          manufacturerQuery =
+              manufacturerQuery.overlaps('Category', categories);
+        } else if (category != null && category.isNotEmpty) {
+          // Single category → still an array column, so match by overlap
+          // with a one-element list rather than scalar equality.
+          manufacturerQuery = manufacturerQuery.overlaps('Category', [category]);
         }
 
         final response = await manufacturerQuery.limit(limit) as List<dynamic>;
@@ -453,9 +434,10 @@ class JewelryService {
           'p_product_type': productType,
           'p_category': category,
           'p_sub_category': subCategory,
-          'p_category1': category1,
-          'p_category2': category2,
-          'p_category3': category3,
+          // Full category set for array-overlap matching (replaces the old
+          // p_category1/p_category2/p_category3 scalar-AND params, which were
+          // ineffective since Category1/2/3 are usually null on real rows).
+          'p_categories': categories,
           'p_limit': limit,
           'p_exclude_id': currentItemId,
           'p_is_designer': isDesigner,
@@ -1095,179 +1077,57 @@ class JewelryService {
 
   // --- FILTER OPTIONS METHODS ---
 
-  /// Fetches distinct Product Type values from both products and designerproducts tables
-  Future<List<String>> getDistinctProductTypes() async {
+
+  /// Distinct filter options for the B2B screens, scoped to ONE table and to
+  /// the currently-signed-in user's own products (`user_id = current user`),
+  /// so a manufacturer/designer only ever filters within their own catalog.
+  ///
+  /// [table] is 'manufacturerproducts' or 'designerproducts'. "Category" is a
+  /// text[] (the Phase-3-renamed unified category array).
+  Future<Map<String, List<String>>> getB2BFilterOptions(String table) async {
+    final empty = {
+      'productTypes': <String>[],
+      'categories': <String>[],
+      'metalTypes': <String>[],
+    };
     try {
-      final responses = await Future.wait([
-        _supabaseClient
-            .from('products')
-            .select('"Product Type"')
-            .not('Product Type', 'is', null),
-        _supabaseClient
-            .from('designerproducts')
-            .select('"Product Type"')
-            .not('Product Type', 'is', null),
-      ]);
+      final user = _supabaseClient.auth.currentUser;
+      if (user == null) return empty;
 
-      final Set<String> uniqueTypes = {};
+      final rows = await _supabaseClient
+          .from(table)
+          .select('"Product Type","Metal Type","Category"')
+          .eq('user_id', user.id);
 
-      for (var response in responses) {
-        if (response is List) {
-          for (var item in response) {
-            final type = item['Product Type']?.toString().trim();
-            if (type != null && type.isNotEmpty) {
-              uniqueTypes.add(type);
-            }
+      final productTypes = <String>{};
+      final categories = <String>{};
+      final metalTypes = <String>{};
+
+      void addArray(Set<String> into, dynamic arr) {
+        if (arr is List) {
+          for (final v in arr) {
+            final s = v?.toString().trim();
+            if (s != null && s.isNotEmpty) into.add(s);
           }
         }
       }
 
-      final result = uniqueTypes.toList()..sort();
-      return result;
-    } catch (e) {
-      debugPrint('Error fetching distinct product types: $e');
-      return [];
-    }
-  }
-
-  /// Fetches distinct Category values from both products and designerproducts tables
-  Future<List<String>> getDistinctCategories() async {
-    try {
-      final responses = await Future.wait([
-        _supabaseClient
-            .from('products')
-            .select('"Category"')
-            .not('Category', 'is', null),
-        _supabaseClient
-            .from('designerproducts')
-            .select('"Category"')
-            .not('Category', 'is', null),
-      ]);
-
-      final Set<String> uniqueCategories = {};
-
-      for (var response in responses) {
-        if (response is List) {
-          for (var item in response) {
-            final category = item['Category']?.toString().trim();
-            if (category != null && category.isNotEmpty) {
-              uniqueCategories.add(category);
-            }
-          }
-        }
+      for (final item in (rows as List)) {
+        final pt = item['Product Type']?.toString().trim();
+        if (pt != null && pt.isNotEmpty) productTypes.add(pt);
+        final mt = item['Metal Type']?.toString().trim();
+        if (mt != null && mt.isNotEmpty) metalTypes.add(mt);
+        addArray(categories, item['Category']);
       }
 
-      final result = uniqueCategories.toList()..sort();
-      return result;
-    } catch (e) {
-      debugPrint('Error fetching distinct categories: $e');
-      return [];
-    }
-  }
-
-  /// Fetches distinct Metal Type values from both products and designerproducts tables
-  Future<List<String>> getDistinctMetalTypes() async {
-    try {
-      final responses = await Future.wait([
-        _supabaseClient
-            .from('products')
-            .select('"Metal Type"')
-            .not('Metal Type', 'is', null),
-        _supabaseClient
-            .from('designerproducts')
-            .select('"Metal Type"')
-            .not('Metal Type', 'is', null),
-      ]);
-
-      final Set<String> uniqueMetalTypes = {};
-
-      for (var response in responses) {
-        if (response is List) {
-          for (var item in response) {
-            final metalType = item['Metal Type']?.toString().trim();
-            if (metalType != null && metalType.isNotEmpty) {
-              uniqueMetalTypes.add(metalType);
-            }
-          }
-        }
-      }
-
-      final result = uniqueMetalTypes.toList()..sort();
-      return result;
-    } catch (e) {
-      debugPrint('Error fetching distinct metal types: $e');
-      return [];
-    }
-  }
-
-  /// Fetches distinct Category1, Category2, Category3 values grouped by category
-  /// Returns a map where keys are category names and values are lists of sub-categories
-  Future<Map<String, Set<String>>> getCategorySubFilters() async {
-    try {
-      final responses = await Future.wait([
-        _supabaseClient
-            .from('products')
-            .select('"Category1", "Category2", "Category3", category_arr'),
-        _supabaseClient
-            .from('designerproducts')
-            .select('"Category1", "Category2", "Category3", category_arr'),
-        _supabaseClient
-            .from('manufacturerproducts')
-            .select('"Category1", "Category2", "Category3", category_arr'),
-      ]);
-
-      final Map<String, Set<String>> subFilters = {
-        'Category1': {},
-        'Category2': {},
-        'Category3': {},
-      };
-
-      for (var response in responses) {
-        if (response is List) {
-          for (var item in response) {
-            // Category1
-            final cat1 = item['Category1']?.toString().trim();
-            if (cat1 != null && cat1.isNotEmpty) {
-              subFilters['Category1']!.add(cat1);
-            }
-
-            // Category2
-            final cat2 = item['Category2']?.toString().trim();
-            if (cat2 != null && cat2.isNotEmpty) {
-              subFilters['Category2']!.add(cat2);
-            }
-
-            // Category3
-            final cat3 = item['Category3']?.toString().trim();
-            if (cat3 != null && cat3.isNotEmpty) {
-              subFilters['Category3']!.add(cat3);
-            }
-
-            // Unified category_arr (Phase 1): no per-slot ordering exists, so
-            // union every value into all 3 sets rather than inventing one.
-            final arr = item['category_arr'];
-            if (arr is List) {
-              for (final v in arr) {
-                final s = v?.toString().trim();
-                if (s != null && s.isNotEmpty) {
-                  subFilters['Category1']!.add(s);
-                  subFilters['Category2']!.add(s);
-                  subFilters['Category3']!.add(s);
-                }
-              }
-            }
-          }
-        }
-      }
-
-      return subFilters;
-    } catch (e) {
-      debugPrint('Error fetching category sub-filters: $e');
       return {
-        'Category1': {},
-        'Category2': {},
-        'Category3': {},
+        'productTypes': productTypes.toList()..sort(),
+        'categories': categories.toList()..sort(),
+        'metalTypes': metalTypes.toList()..sort(),
       };
+    } catch (e) {
+      debugPrint('Error fetching B2B filter options for $table: $e');
+      return empty;
     }
   }
 

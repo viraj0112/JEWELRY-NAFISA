@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import "package:jewelry_nafisa/src/widgets/date_range_filter.dart";
 import 'package:jewelry_nafisa/src/widgets/location_dropdown.dart';
@@ -9,6 +9,8 @@ import 'package:jewelry_nafisa/src/B2BScreens/screens/notifications.dart';
 import 'package:jewelry_nafisa/src/B2BScreens/screens/upload.dart';
 import 'package:jewelry_nafisa/src/models/filter_criteria.dart';
 import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
+import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class B2BShell extends StatefulWidget {
@@ -28,12 +30,14 @@ class _B2BShellState extends State<B2BShell> {
   // Temporary state for the bottom sheet (to apply only on button press)
   FilterCriteria _tempFilters = FilterCriteria();
 
-  // Dynamic filter options
+  // Dynamic filter options (from the signed-in user's own catalog only)
   List<String> _productTypeOptions = [];
   List<String> _categoryOptions = [];
   List<String> _metalTypeOptions = [];
-  Map<String, Set<String>> _categorySubOptions = {};
   bool _isLoadingFilters = false;
+
+  final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
 
   late JewelryService _jewelryService;
 
@@ -44,22 +48,35 @@ class _B2BShellState extends State<B2BShell> {
     _fetchFilterOptions();
   }
 
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Which catalog table the current user owns. Manufacturers filter their
+  /// manufacturerproducts; everyone else (designers) their designerproducts.
+  String get _userTable {
+    final profile =
+        Provider.of<UserProfileProvider>(context, listen: false).userProfile;
+    return profile?.manufacturerProfile != null
+        ? 'manufacturerproducts'
+        : 'designerproducts';
+  }
+
   Future<void> _fetchFilterOptions() async {
     setState(() => _isLoadingFilters = true);
 
     try {
-      final results = await Future.wait([
-        _jewelryService.getDistinctProductTypes(),
-        _jewelryService.getDistinctCategories(),
-        _jewelryService.getDistinctMetalTypes(),
-        _jewelryService.getCategorySubFilters(),
-      ]);
+      // Scoped to the user's own table + user_id, so the chips only ever show
+      // values that actually exist in this seller's catalog.
+      final options = await _jewelryService.getB2BFilterOptions(_userTable);
 
       setState(() {
-        _productTypeOptions = results[0] as List<String>;
-        _categoryOptions = results[1] as List<String>;
-        _metalTypeOptions = results[2] as List<String>;
-        _categorySubOptions = results[3] as Map<String, Set<String>>;
+        _productTypeOptions = options['productTypes'] ?? [];
+        _categoryOptions = options['categories'] ?? [];
+        _metalTypeOptions = options['metalTypes'] ?? [];
         _isLoadingFilters = false;
       });
     } catch (e) {
@@ -117,8 +134,9 @@ class _B2BShellState extends State<B2BShell> {
         ],
       ),
       body: <Widget>[
-        HomePage(),
-        SizedBox.shrink(),
+        // _filters must be passed down - the home grid applies them per item.
+        HomePage(filters: _filters),
+        const SizedBox.shrink(),
         InsightsPage(),
         NotificationsPage(),
         ProfilePage(),
@@ -151,6 +169,19 @@ class _B2BShellState extends State<B2BShell> {
         ),
         const SizedBox(width: 15),
         DateRangeFilter(onDateSelected: (DateTimeRange range) {}),
+        const SizedBox(width: 15),
+        // Same filter sheet as mobile - previously the button only existed in
+        // the mobile app bar, so desktop had no way to filter at all.
+        OutlinedButton.icon(
+          onPressed: _openFilterSheet,
+          icon: const Icon(Icons.filter_list, color: Colors.teal, size: 20),
+          label: const Text('Filters', style: TextStyle(color: Colors.teal)),
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(color: Colors.teal.withOpacity(0.3)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
       ],
     );
   }
@@ -163,9 +194,21 @@ class _B2BShellState extends State<B2BShell> {
         ),
         const SizedBox(width: 8),
         IconButton(
-          onPressed: () {
-            // Initialize temp filters with current state when opening sheet
-            _tempFilters = FilterCriteria(
+          onPressed: _openFilterSheet,
+          icon: const Icon(Icons.filter_list, color: Colors.teal),
+          style: IconButton.styleFrom(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: Colors.teal.withOpacity(0.3)))),
+        ),
+      ],
+    );
+  }
+
+  void _openFilterSheet() {
+    // Initialize temp filters with current state when opening sheet
+    _tempFilters = FilterCriteria(
               location: _filters.location,
               dateRange: _filters.dateRange,
               productType: _filters.productType,
@@ -274,89 +317,9 @@ class _B2BShellState extends State<B2BShell> {
                                         .category =
                                     val == _tempFilters.category ? null : val)),
 
-                          // Category Sub-filters (show when category is selected)
-                          if (_tempFilters.category != null)
-                            const SizedBox(height: 12),
-                          if (_tempFilters.category != null)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Category1
-                                  if (_categorySubOptions['Category1']
-                                          ?.isNotEmpty ??
-                                      false) ...[
-                                    const Text("Category 1",
-                                        style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.grey)),
-                                    const SizedBox(height: 8),
-                                    _buildChipSection(
-                                      "",
-                                      _categorySubOptions['Category1']!.toList()
-                                        ..sort(),
-                                      _tempFilters.category1,
-                                      (val) => setSheetState(() =>
-                                          _tempFilters.category1 =
-                                              val == _tempFilters.category1
-                                                  ? null
-                                                  : val),
-                                      showTitle: false,
-                                    ),
-                                    const SizedBox(height: 8),
-                                  ],
-                                  // Category2
-                                  if (_categorySubOptions['Category2']
-                                          ?.isNotEmpty ??
-                                      false) ...[
-                                    const Text("Category 2",
-                                        style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.grey)),
-                                    const SizedBox(height: 8),
-                                    _buildChipSection(
-                                      "",
-                                      _categorySubOptions['Category2']!.toList()
-                                        ..sort(),
-                                      _tempFilters.category2,
-                                      (val) => setSheetState(() =>
-                                          _tempFilters.category2 =
-                                              val == _tempFilters.category2
-                                                  ? null
-                                                  : val),
-                                      showTitle: false,
-                                    ),
-                                    const SizedBox(height: 8),
-                                  ],
-                                  // Category3
-                                  if (_categorySubOptions['Category3']
-                                          ?.isNotEmpty ??
-                                      false) ...[
-                                    const Text("Category 3",
-                                        style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.grey)),
-                                    const SizedBox(height: 8),
-                                    _buildChipSection(
-                                      "",
-                                      _categorySubOptions['Category3']!.toList()
-                                        ..sort(),
-                                      _tempFilters.category3,
-                                      (val) => setSheetState(() =>
-                                          _tempFilters.category3 =
-                                              val == _tempFilters.category3
-                                                  ? null
-                                                  : val),
-                                      showTitle: false,
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
+                          // Category1/2/3 sub-filters were removed: those
+                          // columns are being dropped in Phase 3 and are
+                          // folded into the single unified Category array.
                           const SizedBox(height: 20),
 
                           // -- Metal Type --
@@ -433,16 +396,6 @@ class _B2BShellState extends State<B2BShell> {
                 });
               },
             );
-          },
-          icon: const Icon(Icons.filter_list, color: Colors.teal),
-          style: IconButton.styleFrom(
-              backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: Colors.teal.withOpacity(0.3)))),
-        ),
-      ],
-    );
   }
 
   // Widget _buildSearchBar() {
@@ -462,16 +415,49 @@ class _B2BShellState extends State<B2BShell> {
 
   Widget _buildSearchBar() {
     return TextField(
+      controller: _searchCtrl,
       maxLength: 250,
+      textInputAction: TextInputAction.search,
+      onChanged: _onSearchChanged,
       decoration: InputDecoration(
         counterText: "",
-        hintText: "Search designs...",
+        hintText: "Search by SKU, name, type, category…",
         prefixIcon: const Icon(Icons.search),
+        suffixIcon: (_filters.searchText ?? '').isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear, size: 18),
+                tooltip: 'Clear search',
+                onPressed: () {
+                  _searchCtrl.clear();
+                  _onSearchChanged('');
+                },
+              )
+            : null,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(25.0)),
         contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
         isDense: true,
       ),
     );
+  }
+
+  // Debounced free-text search: pushes the term into _filters (so HomePage,
+  // which receives _filters, filters its already-loaded product list by it).
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() {
+        _filters = FilterCriteria(
+          location: _filters.location,
+          dateRange: _filters.dateRange,
+          searchText: value.trim().isEmpty ? null : value.trim(),
+          productType: _filters.productType,
+          category: _filters.category,
+          metalType: _filters.metalType,
+          demandLevel: _filters.demandLevel,
+        );
+      });
+    });
   }
 
   Widget _buildChipSection(String title, List<String> options,
@@ -485,10 +471,19 @@ class _B2BShellState extends State<B2BShell> {
               style:
                   const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
         if (showTitle && title.isNotEmpty) const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: options.map((option) {
+        if (options.isEmpty)
+          Text(
+            'No options in your catalog yet',
+            style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade500,
+                fontStyle: FontStyle.italic),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: options.map((option) {
             final isSelected = selectedValue == option;
             return ChoiceChip(
               label: Text(option),
@@ -509,8 +504,8 @@ class _B2BShellState extends State<B2BShell> {
                   borderRadius: BorderRadius.circular(20)),
               showCheckmark: false,
             );
-          }).toList(),
-        ),
+            }).toList(),
+          ),
       ],
     );
   }

@@ -1482,8 +1482,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
         minShares = int.tryParse(minSharesCtrl.text) ?? 0;
         minCreditsUsed = int.tryParse(minCreditsCtrl.text) ?? 0;
         productType = productTypeCtrl.text.trim();
-        final startDate = DateTime.tryParse(startDateCtrl.text.trim());
-        final endDate = DateTime.tryParse(endDateCtrl.text.trim());
+        // The date pickers write widget.dateFormat-formatted text, so parse
+        // with the same format (ISO accepted too for hand-typed values).
+        DateTime? parseDateField(String raw) {
+          final t = raw.trim();
+          if (t.isEmpty) return null;
+          if (DateTime.tryParse(t) != null) return DateTime.parse(t);
+          try {
+            return widget.dateFormat.parse(t);
+          } catch (_) {
+            return null;
+          }
+        }
+
+        final startDate = parseDateField(startDateCtrl.text);
+        // Make the end date inclusive of that whole day.
+        final endDate = parseDateField(endDateCtrl.text)
+            ?.add(const Duration(hours: 23, minutes: 59, seconds: 59));
 
         final data = await widget.dataService.fetchContentActivityLog(
           table: selectedTable,
@@ -1775,7 +1790,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         );
 
                         Widget _buildMetricField(String label, IconData icon,
-                            TextEditingController controller) {
+                            TextEditingController controller,
+                            {TextInputType keyboardType =
+                                TextInputType.number}) {
                           return Container(
                             decoration: BoxDecoration(
                               color: const Color(0xFFF7FAF8),
@@ -1785,7 +1802,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             ),
                             child: TextField(
                               controller: controller,
-                              keyboardType: TextInputType.number,
+                              keyboardType: keyboardType,
                               style: const TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.w600),
                               decoration: InputDecoration(
@@ -1867,7 +1884,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                           const NeverScrollableScrollPhysics(),
                                       mainAxisSpacing: 12,
                                       crossAxisSpacing: 12,
-                                      childAspectRatio: 2.2,
+                                      childAspectRatio: stacked ? 3.0 : 4.2,
                                       children: [
                                         _buildMetricField(
                                             'Min Likes',
@@ -1901,9 +1918,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                         Expanded(
                                           flex: 2,
                                           child: _buildMetricField(
-                                              'Product Type',
+                                              'Product Type (contains)',
                                               Icons.category_outlined,
-                                              productTypeCtrl),
+                                              productTypeCtrl,
+                                              keyboardType:
+                                                  TextInputType.text),
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(

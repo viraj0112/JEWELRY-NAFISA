@@ -85,19 +85,19 @@ class _InsightsPageState extends State<InsightsPage> {
       if (_isManufacturer) {
         productsData = await _supabase
             .from('manufacturerproducts')
-            .select('id, "Product Title", "Image", created_at, images_arr')
+            .select('id, "Product Title", "Images", created_at')
             .eq('user_id', userId);
       } else {
         // Designer: try designerproducts first
         productsData = await _supabase
             .from('designerproducts')
-            .select('id, "Product Title", "Image", created_at, images_arr')
+            .select('id, "Product Title", "Images", created_at')
             .eq('user_id', userId);
 
         if (productsData.isEmpty) {
           productsData = await _supabase
               .from('products')
-              .select('id, "Product Title", "Image", created_at, images_arr')
+              .select('id, "Product Title", "Images", created_at')
               .eq('user_id', userId);
         }
       }
@@ -158,15 +158,10 @@ class _InsightsPageState extends State<InsightsPage> {
       final top4 = sortedProducts.take(4).map((p) {
         int count = productViewCounts[p['id'].toString()] ?? 0;
         String imgUrl = '';
-        final imagesArr = p['images_arr'];
-        if (imagesArr is List && imagesArr.isNotEmpty) {
-          imgUrl = imagesArr[0];
-        } else if (p['Image'] != null &&
-            p['Image'] is List &&
-            (p['Image'] as List).isNotEmpty) {
-          imgUrl = p['Image'][0];
-        } else if (p['Images'] != null) {
-          imgUrl = p['Images'];
+        // "Images" is text[] (Phase-3 rename of images_arr).
+        final images = p['Images'];
+        if (images is List && images.isNotEmpty) {
+          imgUrl = images[0].toString();
         }
         return {
           'id': p['id'],

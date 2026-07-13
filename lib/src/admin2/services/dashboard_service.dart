@@ -606,10 +606,13 @@ class DashboardService {
 
       List<MetalInsight> allInsights = [];
 
+      // "Metal Color" is a text[] array (unified) - a product can contribute
+      // MULTIPLE colors, so it is unnested. "Metal Type" stays a plain scalar.
+      final isArrayColumn = column == 'Metal Color';
+
       for (final table in tables) {
         try {
-          // Column names with spaces (e.g. "Metal Type") must be double-quoted
-          // in the PostgREST select/order parameters.
+          // Column names with spaces must be double-quoted in PostgREST.
           final quotedColumn = '"$column"';
           final response = await _supabase.from(table).select(quotedColumn);
 
@@ -617,6 +620,18 @@ class DashboardService {
 
           Map<String, int> counts = {};
           for (final item in response) {
+            if (isArrayColumn) {
+              final arr = item['Metal Color'];
+              if (arr is List) {
+                for (final entry in arr) {
+                  final val = entry?.toString().trim();
+                  if (val != null && val.isNotEmpty) {
+                    counts[val] = (counts[val] ?? 0) + 1;
+                  }
+                }
+              }
+              continue;
+            }
             // Access the row value using the original unquoted column name
             final val = (item[column] as String?)?.trim();
             if (val != null && val.isNotEmpty) {

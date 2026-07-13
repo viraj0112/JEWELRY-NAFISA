@@ -120,15 +120,25 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
         productType: widget.jewelryItem.productType,
         category: widget.jewelryItem.category,
         subCategory: widget.jewelryItem.subCategory,
-        category1: widget.jewelryItem.category1,
-        category2: widget.jewelryItem.category2,
-        category3: widget.jewelryItem.category3,
+        categories: _categoriesOf(widget.jewelryItem),
         limit: 80,
         isDesigner: widget.jewelryItem.isDesignerProduct,
         isManufacturer: widget.jewelryItem.isManufacturerProduct);
 
     _logView();
   } // end initState
+
+  // All of an item's known categories, deduped, for array-overlap "More Like
+  // This" matching (replaces the old category1/category2/category3 scalar
+  // params - those columns are being dropped in Phase 3).
+  List<String> _categoriesOf(JewelryItem item) {
+    return {
+      item.category,
+      item.category1,
+      item.category2,
+      item.category3,
+    }.whereType<String>().where((c) => c.isNotEmpty).toList();
+  }
 
   @override
   void dispose() {
@@ -726,6 +736,8 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                   _fullProductDetails?.category ?? widget.jewelryItem.category,
               subCategory: _fullProductDetails?.subCategory ??
                   widget.jewelryItem.subCategory,
+              categories:
+                  _categoriesOf(_fullProductDetails ?? widget.jewelryItem),
               limit: 80,
               isDesigner: widget.jewelryItem.isDesignerProduct,
               isManufacturer: widget.jewelryItem.isManufacturerProduct,
