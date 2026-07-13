@@ -61,6 +61,7 @@ CREATE POLICY "Users can manage their board pins"
         WHERE id = board_id AND user_id = auth.uid()
     ));
 
+DROP POLICY IF EXISTS "Admins can view all users" ON public.users;
 CREATE POLICY "Admins can view all users"
 ON public.users FOR SELECT
 TO authenticated

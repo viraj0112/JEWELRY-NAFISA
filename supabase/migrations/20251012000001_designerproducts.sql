@@ -1,4 +1,4 @@
-CREATE TABLE public.designerproducts (
+CREATE TABLE IF NOT EXISTS public.designerproducts (
     id bigserial PRIMARY KEY,
     designer_id UUID REFERENCES public.users(id),
     title TEXT,

@@ -300,11 +300,15 @@ RETURNS TABLE (
   "Price" text,
   is_designer_product boolean
 )
-LANGUAGE sql STABLE AS $$
+LANGUAGE plpgsql STABLE AS $$
+BEGIN
+  RETURN QUERY
   WITH combined AS (
     SELECT
       p.id::text AS id, p."Product Title", p."Images", p."Description",
-      p."Product Type", p."Category", p."Sub Category", p."Metal Type",
+      p."Product Type", p."Category",
+      NULL::text AS "Sub Category",
+      p."Metal Type",
       p."Metal Purity", p."Plain", p."Studded", p."Price",
       FALSE AS is_designer_product
     FROM public.products p
@@ -324,7 +328,9 @@ LANGUAGE sql STABLE AS $$
 
     SELECT
       dp.id::text, dp."Product Title", dp."Images", dp."Description",
-      dp."Product Type", dp."Category", dp."Sub Category", dp."Metal Type",
+      dp."Product Type", dp."Category",
+      NULL::text AS "Sub Category",
+      dp."Metal Type",
       dp."Metal Purity", dp."Plain", dp."Studded", dp."Price",
       TRUE AS is_designer_product
     FROM public.designerproducts dp
@@ -342,10 +348,10 @@ LANGUAGE sql STABLE AS $$
   )
   SELECT * FROM combined
   ORDER BY
-    CASE WHEN p_product_type IS NOT NULL AND "Product Type" = p_product_type THEN 0 ELSE 1 END,
-    CASE WHEN p_sub_category IS NOT NULL AND "Sub Category" = p_sub_category THEN 0 ELSE 1 END,
+    CASE WHEN p_product_type IS NOT NULL AND combined."Product Type" = p_product_type THEN 0 ELSE 1 END,
     random()
   LIMIT p_limit;
+END;
 $$;
 
 -- ----------------------------------------------------------------------------
@@ -548,7 +554,9 @@ RETURNS TABLE (
   "Image" text[],
   similarity float
 )
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE
+SET search_path = public, extensions
+AS $$
   (
     SELECT 'products' AS source, p.id, p."Product Title", p."Images",
            1 - (p.embedding <=> query_embedding) AS similarity
@@ -596,7 +604,7 @@ LANGUAGE sql STABLE AS $$
   WITH combined_results AS (
     SELECT
       p.id::text AS id, p."Product Title", (p."Images")[1] AS "Image",
-      p."Description", p."Product Type", p."Category", p."Sub Category",
+      p."Description", p."Product Type", p."Category", NULL::text AS "Sub Category",
       p."Metal Type", p."Metal Purity", p."Plain", p."Studded", p."Price",
       FALSE AS is_designer_product,
       CASE
@@ -615,7 +623,7 @@ LANGUAGE sql STABLE AS $$
 
     SELECT
       dp.id::text, dp."Product Title", (dp."Images")[1],
-      dp."Description", dp."Product Type", dp."Category", dp."Sub Category",
+      dp."Description", dp."Product Type", dp."Category", NULL::text AS "Sub Category",
       dp."Metal Type", dp."Metal Purity", dp."Plain", dp."Studded", dp."Price",
       TRUE,
       CASE
@@ -656,7 +664,9 @@ RETURNS TABLE (
   is_designer_product boolean,
   similarity float
 )
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE
+SET search_path = public, extensions
+AS $$
   SELECT
     p.id::text,
     p."Product Title" AS product_title,

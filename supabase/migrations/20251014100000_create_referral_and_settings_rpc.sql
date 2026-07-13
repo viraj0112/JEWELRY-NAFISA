@@ -1,4 +1,5 @@
 
+DROP FUNCTION IF EXISTS public.get_top_referrers(INT);
 CREATE OR REPLACE FUNCTION public.get_top_referrers(limit_count INT)
 RETURNS TABLE(user_id UUID, username TEXT, email TEXT, referral_count BIGINT) AS $$
 BEGIN

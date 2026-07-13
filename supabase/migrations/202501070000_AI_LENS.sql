@@ -1,12 +1,14 @@
+create extension if not exists vector with schema extensions;
+
 drop function if exists match_products(
-  vector,
+  extensions.vector,
   double precision,
   integer
 );
 
 
 create or replace function match_products(
-  query_embedding vector(512),
+  query_embedding extensions.vector(512),
   match_threshold float,
   match_count int
 )
@@ -19,6 +21,7 @@ returns table (
 )
 language sql
 stable
+set search_path = public, extensions
 as $$
   (
     select

@@ -1,3 +1,4 @@
+DROP FUNCTION IF EXISTS get_all_post_analytics();
 CREATE OR REPLACE FUNCTION get_all_post_analytics()
 RETURNS TABLE(
   asset_id UUID,

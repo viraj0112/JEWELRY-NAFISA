@@ -1,11 +1,19 @@
--- Drop the existing function to allow return type change
--- We use both signatures to be safe, as float maps to double precision
-DROP FUNCTION IF EXISTS search_all_products(vector, float, int);
-DROP FUNCTION IF EXISTS search_all_products(vector, double precision, integer);
+-- Ensure pgvector extension is available
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
+
+-- Set search path to find the vector type
+SET search_path TO public, extensions;
+
+-- Drop the existing function by name without type signature (safe)
+DO $$
+BEGIN
+  DROP FUNCTION IF EXISTS public.search_all_products CASCADE;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
 -- Create a function to search for products by image embedding
 create or replace function search_all_products(
-  query_embedding vector(512),
+  query_embedding extensions.vector(512),
   match_threshold float,
   match_count int
 )
@@ -18,6 +26,7 @@ returns table (
   similarity float
 )
 language plpgsql
+SET search_path = public, extensions
 as $$
 begin
   return query
@@ -47,3 +56,6 @@ begin
   limit match_count;
 end;
 $$;
+
+-- Reset search path
+RESET search_path;

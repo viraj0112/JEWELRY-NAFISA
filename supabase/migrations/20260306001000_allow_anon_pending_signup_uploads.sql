@@ -1,3 +1,4 @@
+DROP POLICY IF EXISTS "Allow anon signup uploads to pending designer files" ON storage.objects;
 CREATE POLICY "Allow anon signup uploads to pending designer files"
 ON storage.objects
 FOR INSERT

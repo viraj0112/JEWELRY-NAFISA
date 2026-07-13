@@ -1,9 +1,9 @@
 -- Add a 'type' to boards to distinguish between public and secret boards.
 ALTER TABLE public.boards
-ADD COLUMN is_secret BOOLEAN NOT NULL DEFAULT FALSE;
+ADD COLUMN IF NOT EXISTS is_secret BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Create a table to manage collaborators on boards.
-CREATE TABLE public.board_collaborators (
+CREATE TABLE IF NOT EXISTS public.board_collaborators (
     board_id INTEGER NOT NULL REFERENCES public.boards(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -11,7 +11,7 @@ CREATE TABLE public.board_collaborators (
 );
 
 -- Create a table for board sections.
-CREATE TABLE public.board_sections (
+CREATE TABLE IF NOT EXISTS public.board_sections (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     board_id INTEGER NOT NULL REFERENCES public.boards(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE public.board_sections (
 
 -- Add a foreign key to the pins table to link them to board sections.
 ALTER TABLE public.pins
-ADD COLUMN section_id UUID REFERENCES public.board_sections(id) ON DELETE SET NULL;
+ADD COLUMN IF NOT EXISTS section_id UUID REFERENCES public.board_sections(id) ON DELETE SET NULL;
 
 
 -- RLS Policies for new tables and features.
@@ -45,6 +45,7 @@ DROP POLICY IF EXISTS "Enable read access for all users" ON public.boards;
 DROP POLICY IF EXISTS "Enable read access for user's own boards and public boards" ON public.boards;
 DROP POLICY IF EXISTS "Enable read access for collaborators" ON public.boards;
 DROP POLICY IF EXISTS "Users can view own boards" ON public.boards;
+DROP POLICY IF EXISTS "Enable read access for boards" ON public.boards;
 
 
 -- FIX: A single, combined policy for reading boards that uses the new function
@@ -60,12 +61,14 @@ USING (
 -- RLS for board_collaborators table (this policy is now safe because the recursion is broken)
 ALTER TABLE public.board_collaborators ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow owner to manage collaborators" ON public.board_collaborators;
 CREATE POLICY "Allow owner to manage collaborators" ON public.board_collaborators
 FOR ALL
 USING (
     (SELECT user_id FROM public.boards WHERE id = board_id) = auth.uid()
 );
 
+DROP POLICY IF EXISTS "Allow collaborators to view their own collaboration" ON public.board_collaborators;
 CREATE POLICY "Allow collaborators to view their own collaboration" ON public.board_collaborators
 FOR SELECT
 USING (
@@ -76,6 +79,7 @@ USING (
 -- RLS for board_sections table
 ALTER TABLE public.board_sections ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow board owner and collaborators to manage sections" ON public.board_sections;
 CREATE POLICY "Allow board owner and collaborators to manage sections" ON public.board_sections
 FOR ALL
 USING (

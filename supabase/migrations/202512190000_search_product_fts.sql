@@ -1,4 +1,5 @@
 -- Create a function for full-text search across both products and designerproducts tables
+DROP FUNCTION IF EXISTS search_products_fts(TEXT, INT);
 CREATE OR REPLACE FUNCTION search_products_fts(
   search_query TEXT,
   limit_count INT DEFAULT 50

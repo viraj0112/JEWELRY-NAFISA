@@ -1,3 +1,10 @@
+-- Drop functions first to allow return type changes
+DROP FUNCTION IF EXISTS get_total_users_previous_month();
+DROP FUNCTION IF EXISTS get_total_posts_previous_month();
+DROP FUNCTION IF EXISTS get_total_referrals_previous_month();
+DROP FUNCTION IF EXISTS get_total_credits_used_previous_month();
+DROP FUNCTION IF EXISTS get_new_users_per_month();
+
 -- Function to get the total count of users from the previous month
 CREATE OR REPLACE FUNCTION get_total_users_previous_month()
 RETURNS INT AS $$

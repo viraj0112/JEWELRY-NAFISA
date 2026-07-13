@@ -1,17 +1,39 @@
 -- Migration to update embedding dimensions from 512 to 768 for Dinov2
 -- Dinov2-base produces 768-dimensional embeddings
 
--- Update embedding columns to support 768 dimensions
-ALTER TABLE products ALTER COLUMN embedding TYPE vector(768);
-ALTER TABLE designerproducts ALTER COLUMN embedding TYPE vector(768);
-ALTER TABLE pins ALTER COLUMN embedding TYPE vector(768);
+-- Ensure pgvector extension is available
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
+
+-- Set search path to find vector type
+SET search_path TO public, extensions;
+
+-- Update embedding columns to support 768 dimensions (only if they exist and have the old type)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'products' AND column_name = 'embedding') THEN
+    -- Clear existing embeddings (512-dim can't be cast to 768-dim; they need regeneration)
+    UPDATE products SET embedding = NULL;
+    ALTER TABLE products ALTER COLUMN embedding TYPE extensions.vector(768) USING NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'designerproducts' AND column_name = 'embedding') THEN
+    UPDATE designerproducts SET embedding = NULL;
+    ALTER TABLE designerproducts ALTER COLUMN embedding TYPE extensions.vector(768) USING NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'pins' AND column_name = 'embedding') THEN
+    UPDATE pins SET embedding = NULL;
+    ALTER TABLE pins ALTER COLUMN embedding TYPE extensions.vector(768) USING NULL;
+  END IF;
+END $$;
 
 -- Update search function to use 768 dimensions
-DROP FUNCTION IF EXISTS search_all_products(vector, float, int);
-DROP FUNCTION IF EXISTS search_all_products(vector, double precision, integer);
+DO $$
+BEGIN
+  DROP FUNCTION IF EXISTS public.search_all_products CASCADE;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
 CREATE OR REPLACE FUNCTION search_all_products(
-  query_embedding vector(768),
+  query_embedding extensions.vector(768),
   match_threshold float,
   match_count int
 )
@@ -24,6 +46,7 @@ RETURNS TABLE (
   similarity float
 )
 LANGUAGE plpgsql
+SET search_path = public, extensions
 AS $$
 BEGIN
   RETURN QUERY
@@ -64,3 +87,5 @@ BEGIN
 END;
 $$;
 
+-- Reset search path
+RESET search_path;

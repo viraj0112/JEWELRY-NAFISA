@@ -1,4 +1,4 @@
-CREATE TABLE public.views (
+CREATE TABLE IF NOT EXISTS public.views (
     id BIGSERIAL PRIMARY KEY,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     user_id UUID REFERENCES public.users(id), -- The user who viewed the item (optional)

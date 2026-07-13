@@ -5,18 +5,23 @@ CREATE EXTENSION IF NOT EXISTS "pg_cron";
 --================================================-
 -- Step 1: Define Custom Types
 --================================================-
--- Defines user roles for the application.
-CREATE TYPE public.user_role AS ENUM ('member', 'designer', 'admin');
--- Defines visibility states for assets.
-CREATE TYPE public.asset_visibility AS ENUM ('public', 'hidden');
--- Defines approval statuses for assets.
-CREATE TYPE public.asset_status AS ENUM ('pending', 'approved', 'rejected');
+DO $$ BEGIN
+  CREATE TYPE public.user_role AS ENUM ('member', 'designer', 'admin');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE public.asset_visibility AS ENUM ('public', 'hidden');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE public.asset_status AS ENUM ('pending', 'approved', 'rejected');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 --================================================-
 -- Step 2: Create Core Tables
 --================================================-
 -- User Profiles Table
-CREATE TABLE public.users (
+CREATE TABLE IF NOT EXISTS public.users (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     username TEXT UNIQUE,
     full_name TEXT,
@@ -39,7 +44,7 @@ CREATE TABLE public.users (
 );
 
 -- Products Table (for scraped items)
-CREATE TABLE public.products (
+CREATE TABLE IF NOT EXISTS public.products (
     id bigserial PRIMARY KEY,
     title TEXT,
     image TEXT,
@@ -64,7 +69,7 @@ CREATE TABLE public.products (
 );
 
 -- User-Generated Content ("Pins") Table
-CREATE TABLE public.pins (
+CREATE TABLE IF NOT EXISTS public.pins (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id UUID NOT NULL REFERENCES public.users(id),
     title TEXT NOT NULL,
@@ -77,7 +82,7 @@ CREATE TABLE public.pins (
 );
 
 -- User-Created Boards Table
-CREATE TABLE public.boards (
+CREATE TABLE IF NOT EXISTS public.boards (
     id SERIAL PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES public.users(id),
     name TEXT NOT NULL,
@@ -86,7 +91,7 @@ CREATE TABLE public.boards (
 );
 
 -- B2B Creator Assets Table
-CREATE TABLE public.assets (
+CREATE TABLE IF NOT EXISTS public.assets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
@@ -105,7 +110,7 @@ CREATE TABLE public.assets (
 );
 
 -- Notifications Table
-CREATE TABLE public.notifications(
+CREATE TABLE IF NOT EXISTS public.notifications(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     message TEXT NOT NULL,
@@ -114,7 +119,7 @@ CREATE TABLE public.notifications(
 );
 
 -- Settings Table
-CREATE TABLE public.settings (
+CREATE TABLE IF NOT EXISTS public.settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
     description TEXT,
@@ -125,7 +130,7 @@ CREATE TABLE public.settings (
 -- Step 3: Create Join & Tracking Tables
 --================================================-
 -- Many-to-Many join table for Boards and Pins
-CREATE TABLE public.boards_pins (
+CREATE TABLE IF NOT EXISTS public.boards_pins (
     board_id INT NOT NULL REFERENCES public.boards(id) ON DELETE CASCADE,
     pin_id UUID NOT NULL REFERENCES public.pins(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -133,7 +138,7 @@ CREATE TABLE public.boards_pins (
 );
 
 -- Tracks which users liked which pins
-CREATE TABLE public.user_likes (
+CREATE TABLE IF NOT EXISTS public.user_likes (
     user_id UUID NOT NULL REFERENCES public.users(id),
     pin_id UUID NOT NULL REFERENCES public.pins(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -141,7 +146,7 @@ CREATE TABLE public.user_likes (
 );
 
 -- Referrals tracking table
-CREATE TABLE public.referrals (
+CREATE TABLE IF NOT EXISTS public.referrals (
     id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     referrer_id UUID NOT NULL REFERENCES public.users(id),
     referred_id UUID NOT NULL REFERENCES public.users(id),
@@ -150,7 +155,7 @@ CREATE TABLE public.referrals (
 );
 
 -- Daily Analytics Table
-CREATE TABLE public.analytics_daily (
+CREATE TABLE IF NOT EXISTS public.analytics_daily (
     date DATE NOT NULL,
     asset_id UUID NOT NULL,
     views INT DEFAULT 0,
@@ -190,6 +195,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Trigger to execute the function on new user creation
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -236,17 +242,38 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analytics_daily ENABLE ROW LEVEL SECURITY;
 
--- POLICIES
-CREATE POLICY "Public can view all products" ON public.products FOR SELECT USING (true);
-CREATE POLICY "Users can view their own profile" ON public.users FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can create their own profile" ON public.users FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY "Users can update their own profile" ON public.users FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Anyone can view pins" ON public.pins FOR SELECT USING (true);
-CREATE POLICY "Users can create pins" ON public.pins FOR INSERT WITH CHECK (auth.uid() = owner_id);
-CREATE POLICY "Users can manage their likes" ON public.user_likes FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Designers can manage their own assets" ON public.assets FOR ALL USING (auth.uid() = owner_id) WITH CHECK (auth.uid() = owner_id);
-CREATE POLICY "Admins have full access" ON public.assets FOR ALL USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'::user_role));
-CREATE POLICY "Users can view their own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+-- POLICIES (drop first to avoid "already exists" errors)
+DO $$ BEGIN
+  DROP POLICY IF EXISTS "Public can view all products" ON public.products;
+  CREATE POLICY "Public can view all products" ON public.products FOR SELECT USING (true);
+
+  DROP POLICY IF EXISTS "Users can view their own profile" ON public.users;
+  CREATE POLICY "Users can view their own profile" ON public.users FOR SELECT USING (auth.uid() = id);
+
+  DROP POLICY IF EXISTS "Users can create their own profile" ON public.users;
+  CREATE POLICY "Users can create their own profile" ON public.users FOR INSERT WITH CHECK (auth.uid() = id);
+
+  DROP POLICY IF EXISTS "Users can update their own profile" ON public.users;
+  CREATE POLICY "Users can update their own profile" ON public.users FOR UPDATE USING (auth.uid() = id);
+
+  DROP POLICY IF EXISTS "Anyone can view pins" ON public.pins;
+  CREATE POLICY "Anyone can view pins" ON public.pins FOR SELECT USING (true);
+
+  DROP POLICY IF EXISTS "Users can create pins" ON public.pins;
+  CREATE POLICY "Users can create pins" ON public.pins FOR INSERT WITH CHECK (auth.uid() = owner_id);
+
+  DROP POLICY IF EXISTS "Users can manage their likes" ON public.user_likes;
+  CREATE POLICY "Users can manage their likes" ON public.user_likes FOR ALL USING (auth.uid() = user_id);
+
+  DROP POLICY IF EXISTS "Designers can manage their own assets" ON public.assets;
+  CREATE POLICY "Designers can manage their own assets" ON public.assets FOR ALL USING (auth.uid() = owner_id) WITH CHECK (auth.uid() = owner_id);
+
+  DROP POLICY IF EXISTS "Admins have full access" ON public.assets;
+  CREATE POLICY "Admins have full access" ON public.assets FOR ALL USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'::user_role));
+
+  DROP POLICY IF EXISTS "Users can view their own notifications" ON public.notifications;
+  CREATE POLICY "Users can view their own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+END $$;
 
 --================================================-
 -- Step 6: Insert Default Data & Schedule Jobs
@@ -259,9 +286,10 @@ INSERT INTO public.settings (key, value, description) VALUES
   ('referral_bonus_non_member', '2', 'Credits awarded to a non-member for a successful referral.')
 ON CONFLICT (key) DO NOTHING;
 
--- Schedule daily credit reset
-SELECT cron.schedule(
-    'reset-daily-credits',
-    '0 0 * * *',
-    'SELECT public.reset_daily_credits_for_members()'
-);
+-- Schedule daily credit reset (skip if already scheduled)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'reset-daily-credits') THEN
+    PERFORM cron.schedule('reset-daily-credits', '0 0 * * *', 'SELECT public.reset_daily_credits_for_members()');
+  END IF;
+END $$;

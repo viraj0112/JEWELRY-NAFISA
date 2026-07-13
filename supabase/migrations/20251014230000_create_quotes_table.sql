@@ -1,4 +1,4 @@
-CREATE TABLE public.quotes (
+CREATE TABLE IF NOT EXISTS public.quotes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
     product_id TEXT, -- Or whatever type your product IDs are

@@ -1,4 +1,5 @@
 
+DROP FUNCTION IF EXISTS get_monetization_metrics();
 CREATE OR REPLACE FUNCTION get_monetization_metrics()
 RETURNS jsonb AS $$
 DECLARE

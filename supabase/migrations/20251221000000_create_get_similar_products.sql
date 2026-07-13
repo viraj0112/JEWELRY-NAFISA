@@ -1,4 +1,5 @@
 -- Create function to get similar products from both products and designerproducts tables
+DROP FUNCTION IF EXISTS get_similar_products(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INT, TEXT, BOOLEAN);
 CREATE OR REPLACE FUNCTION get_similar_products(
   p_product_type TEXT DEFAULT NULL,
   p_category TEXT DEFAULT NULL,

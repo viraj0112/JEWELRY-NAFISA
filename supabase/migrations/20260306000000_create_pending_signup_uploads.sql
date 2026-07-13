@@ -1,4 +1,4 @@
-CREATE TABLE public.pending_signup_uploads (
+CREATE TABLE IF NOT EXISTS public.pending_signup_uploads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   signup_id UUID NOT NULL,
   email TEXT NOT NULL,
@@ -12,10 +12,10 @@ CREATE TABLE public.pending_signup_uploads (
   linked_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE INDEX pending_signup_uploads_signup_id_idx
+CREATE INDEX IF NOT EXISTS pending_signup_uploads_signup_id_idx
   ON public.pending_signup_uploads (signup_id);
 
-CREATE INDEX pending_signup_uploads_email_idx
+CREATE INDEX IF NOT EXISTS pending_signup_uploads_email_idx
   ON public.pending_signup_uploads (email);
 
 ALTER TABLE public.pending_signup_uploads ENABLE ROW LEVEL SECURITY;

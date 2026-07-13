@@ -1,5 +1,10 @@
+-- Create the designer_role_type enum if it doesn't exist
+DO $$ BEGIN
+  CREATE TYPE public.designer_role_type AS ENUM ('manufacturer', 'retailer', 'wholesaler', 'designer', 'other');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- Create the table for designer-specific profile information
-CREATE TABLE public.designer_profiles (
+CREATE TABLE IF NOT EXISTS public.designer_profiles (
   -- This links directly to the main users table
   user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
 

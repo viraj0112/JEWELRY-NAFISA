@@ -1,4 +1,4 @@
-CREATE TABLE public.quote_requests (
+CREATE TABLE IF NOT EXISTS public.quote_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
@@ -19,14 +19,14 @@ CREATE TABLE public.quote_requests (
     metal_color TEXT, 
     metal_finish TEXT, 
     metal_type TEXT, 
-    stone_type TEXT[], -- <-- ADDED (as text array)
-    stone_color TEXT[], -- <-- ADDED (as text array)
-    stone_count TEXT[], -- <-- ADDED (as text array)
-    stone_purity TEXT[], -- <-- ADDED (as text array)
-    stone_cut TEXT[], -- <-- ADDED (as text array)
-    stone_used TEXT[], -- <-- ADDED (as text array)
-    stone_weight TEXT[], -- <-- ADDED (as text array)
-    stone_setting TEXT[], -- <-- ADDED (as text array)
+    stone_type TEXT[], -- ADDED (as text array)
+    stone_color TEXT[], -- ADDED (as text array)
+    stone_count TEXT[], -- ADDED (as text array)
+    stone_purity TEXT[], -- ADDED (as text array)
+    stone_cut TEXT[], -- ADDED (as text array)
+    stone_used TEXT[], -- ADDED (as text array)
+    stone_weight TEXT[], -- ADDED (as text array)
+    stone_setting TEXT[], -- ADDED (as text array)
     
     -- User's Optional Notes
     additional_notes TEXT 
@@ -41,11 +41,13 @@ COMMENT ON COLUMN public.quote_requests.additional_notes IS 'Optional details (m
 ALTER TABLE public.quote_requests ENABLE ROW LEVEL SECURITY;
 
 -- Policies
+DROP POLICY IF EXISTS "Users can insert their own quote requests" ON public.quote_requests;
 CREATE POLICY "Users can insert their own quote requests"
 ON public.quote_requests FOR INSERT
 TO authenticated
 WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view their own quote requests" ON public.quote_requests;
 CREATE POLICY "Users can view their own quote requests"
 ON public.quote_requests FOR SELECT
 TO authenticated

@@ -1,5 +1,4 @@
--- Create the "likes" table to track likes
-CREATE TABLE public.likes (
+CREATE TABLE IF NOT EXISTS public.likes (
     id BIGSERIAL PRIMARY KEY,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     user_id UUID NOT NULL REFERENCES public.users(id), -- The user who liked the item

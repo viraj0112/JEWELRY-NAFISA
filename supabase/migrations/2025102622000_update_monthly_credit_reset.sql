@@ -19,7 +19,7 @@ BEGIN
     last_credit_refresh = NOW()
   WHERE
     is_member = TRUE
-    AND (last_credit_refresh IS NULL OR last_credit_refresh < NOW() - INTERVAL '28 days'); -- Fixed: Semicolon removed
+    AND (last_credit_refresh IS NULL OR last_credit_refresh < NOW() - INTERVAL '28 days');
 
   -- Update non-members' credits
   UPDATE public.users
@@ -28,20 +28,30 @@ BEGIN
     last_credit_refresh = NOW()
   WHERE
     is_member = FALSE
-    AND (last_credit_refresh IS NULL OR last_credit_refresh < NOW() - INTERVAL '28 days'); -- Fixed: Semicolon removed and uncommented
+    AND (last_credit_refresh IS NULL OR last_credit_refresh < NOW() - INTERVAL '28 days');
 
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Drop the old daily cron job (will fail if it doesn't exist, which is OK)
-SELECT cron.unschedule('reset-daily-credits');
+-- Drop the old daily cron job if it exists (safe version)
+DO $$
+BEGIN
+  PERFORM cron.unschedule('reset-daily-credits');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
 -- Schedule the NEW function to run monthly (at 00:00 UTC on the 1st of every month)
-SELECT cron.schedule(
-    'reset-monthly-credits',
-    '0 0 1 * *', -- 1st day of month at 00:00
-    'SELECT public.reset_monthly_credits()'
-);
+-- Only schedule if not already scheduled
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'reset-monthly-credits') THEN
+    PERFORM cron.schedule(
+        'reset-monthly-credits',
+        '0 0 1 * *', -- 1st day of month at 00:00
+        'SELECT public.reset_monthly_credits()'
+    );
+  END IF;
+END $$;
 
 -- Grant permission
 GRANT EXECUTE ON FUNCTION public.reset_monthly_credits() TO service_role;
