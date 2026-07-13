@@ -379,6 +379,12 @@ class HomeScreenState extends State<HomeScreen> {
     }
 
     try {
+      // "products" has no "Sub Category" column (only designer/manufacturer do).
+      const productsSelectColumns =
+          'id, "Product Title", "Images", "Description", "Product Type", '
+          '"Category", '
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price", '
+          '"Metal Color"';
       const selectColumns =
           'id, "Product Title", "Images", "Description", "Product Type", '
           '"Category", "Sub Category", '
@@ -393,7 +399,7 @@ class HomeScreenState extends State<HomeScreen> {
       // Query 1: products table - Metal Type contains "Silver"
       dynamic productsQuery = _supabase
           .from('products')
-          .select(selectColumns)
+          .select(productsSelectColumns)
           .ilike('"Metal Type"', '%Silver%'); // Pattern matching for Silver
 
       // Query 2: designerproducts table - Metal Type contains "Silver"
@@ -427,8 +433,7 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       if (_selectedSubCategory != 'All') {
-        productsQuery =
-            productsQuery.eq('"Sub Category"', _selectedSubCategory);
+        // "products" has no "Sub Category" column; filter designer/manufacturer only.
         designerQuery =
             designerQuery.eq('"Sub Category"', _selectedSubCategory);
         manufacturerQuery =
@@ -538,6 +543,11 @@ class HomeScreenState extends State<HomeScreen> {
       setState(() => _isLoadingProducts = true);
     }
     try {
+      // "products" has no "Sub Category" column (only designer/manufacturer do).
+      const productsSelectColumns =
+          'id, "Product Title", "Images", "Description", "Product Type", '
+          '"Category", '
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price"';
       const selectColumns =
           'id, "Product Title", "Images", "Description", "Product Type", '
           '"Category", "Sub Category", '
@@ -552,7 +562,8 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       // Build query for 'products' table
-      dynamic productsQuery = _supabase.from('products').select(selectColumns);
+      dynamic productsQuery =
+          _supabase.from('products').select(productsSelectColumns);
 
       // Build query for 'designerproducts' table (includes created_at)
       dynamic designerQuery =
@@ -584,8 +595,7 @@ class HomeScreenState extends State<HomeScreen> {
             manufacturerQuery.overlaps('Category', [_selectedCategory]);
       }
       if (_selectedSubCategory != 'All') {
-        productsQuery =
-            productsQuery.eq('"Sub Category"', _selectedSubCategory);
+        // "products" has no "Sub Category" column; filter designer/manufacturer only.
         designerQuery =
             designerQuery.eq('"Sub Category"', _selectedSubCategory);
         manufacturerQuery =

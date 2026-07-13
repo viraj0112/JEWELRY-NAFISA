@@ -278,6 +278,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   Future<List<JewelryItem>> _fetchFilteredProducts() async {
     try {
+      // "products" has no "Sub Category" column (only designer/manufacturer do).
+      const productsSelectColumns =
+          'id, "Product Title", "Images", "Description", "Product Type", '
+          '"Category", '
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price", '
+          '"Metal Color"';
       const selectColumns =
           'id, "Product Title", "Images", "Description", "Product Type", '
           '"Category", "Sub Category", '
@@ -291,7 +297,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         return await _fetchInHouseProducts();
       }
 
-      dynamic productsQuery = _supabase.from('products').select(selectColumns);
+      dynamic productsQuery =
+          _supabase.from('products').select(productsSelectColumns);
       dynamic designerQuery =
           _supabase.from('designerproducts').select(designerSelectColumns);
       dynamic manufacturerQuery =
