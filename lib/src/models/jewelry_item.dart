@@ -142,10 +142,10 @@ class JewelryItem {
       productTitle:
           json['Product Title'] ?? json['product_title'] ?? json['title'] ?? '',
       image: imgList?.firstOrNull?.toString() ??
-          json['Image'] ??
-          json['Images'] ??
-          json['image'] ??
-          json['image_url'] ??
+          _parseImageString(json['Image']) ??
+          _parseImageString(json['Images']) ??
+          _parseImageString(json['image']) ??
+          _parseImageString(json['image_url']) ??
           '',
       images: imgList?.map((e) => e.toString()).toList(),
       description: json['description'] ?? '',
@@ -285,6 +285,14 @@ class JewelryItem {
       return null;
     }
     return str;
+  }
+
+  /// Like [_parseString] but rejects Lists outright instead of stringifying
+  /// them - used for legacy "Image"/"Images" fallback keys that may now hold
+  /// a text[] (post-Phase-3) instead of the scalar string they used to be.
+  static String? _parseImageString(dynamic value) {
+    if (value == null || value is List) return null;
+    return _parseString(value);
   }
 
   static double? _parseDouble(dynamic value) {

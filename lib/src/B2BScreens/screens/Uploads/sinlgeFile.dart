@@ -397,9 +397,9 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                 ]),
               )
             else
-              _dropdown('Product Type *', _productTypes, productType,
+              _editableDropdown('Product Type *', _productTypes, productType,
                   (v) => setState(() => productType = v),
-                  hintText: 'Select product type'),
+                  hintText: 'Select or type a product type', required: true),
 
             // --- Metal Weight ---
             _field('Metal Weight (in grams) *', metalWeightCtrl,
@@ -669,6 +669,59 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide(color: Colors.grey.shade300)),
             )),
+      ]),
+    );
+  }
+
+  /// Like [_dropdown] but the user can also TYPE a new value that isn't in
+  /// [items] — existing DB values act as suggestions, not a closed list.
+  Widget _editableDropdown(String label, List<String> items, String? value,
+      ValueChanged<String?> onChanged,
+      {String? hintText, bool required = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+        const SizedBox(height: 6),
+        Autocomplete<String>(
+          initialValue: TextEditingValue(text: value ?? ''),
+          optionsBuilder: (textValue) {
+            final q = textValue.text.trim().toLowerCase();
+            if (q.isEmpty) return items;
+            return items.where((e) => e.toLowerCase().contains(q));
+          },
+          onSelected: onChanged,
+          fieldViewBuilder:
+              (context, controller, focusNode, onFieldSubmitted) {
+            return TextFormField(
+              controller: controller,
+              focusNode: focusNode,
+              // Free text: keep the parent in sync on every keystroke so a
+              // typed-but-not-selected value is still captured.
+              onChanged: (v) => onChanged(v.trim().isEmpty ? null : v.trim()),
+              validator: required
+                  ? (v) => (v == null || v.trim().isEmpty)
+                      ? '$label is required'
+                      : null
+                  : null,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: hintText,
+                hintStyle:
+                    TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300)),
+              ),
+            );
+          },
+        ),
       ]),
     );
   }

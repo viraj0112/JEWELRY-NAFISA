@@ -181,15 +181,19 @@ class NewAdminDataService {
               .eq('user_id', assetResult['owner_id'] ?? '')
               .maybeSingle();
 
-          final attributes =
-              (assetResult['attributes'] as Map<String, dynamic>?) ?? {};
+          final attributes = _sanitizeProductAttributes(
+            (assetResult['attributes'] as Map<String, dynamic>?) ?? {},
+          );
+
+          // "Images" is the unified text[] column (Phase 3 rename of "Image").
+          final imagesArray = assetResult['media_url'] != null
+              ? [assetResult['media_url']]
+              : <String>[];
 
           if (existingProduct != null) {
             // Update existing
             await _client.from(source).update({
-              'Image': assetResult['media_url'] != null
-                  ? [assetResult['media_url']]
-                  : null,
+              'Images': imagesArray,
               'Description': assetResult['description'],
               'Product Tags': assetResult['tags'],
               ...attributes,
@@ -199,9 +203,7 @@ class NewAdminDataService {
             await _client.from(source).insert({
               'Product Title': assetResult['title'],
               'Description': assetResult['description'],
-              'Image': assetResult['media_url'] != null
-                  ? [assetResult['media_url']]
-                  : null,
+              'Images': imagesArray,
               'Product Type': assetResult['category'],
               'user_id': assetResult['owner_id'],
               'Product Tags': assetResult['tags'],
@@ -210,8 +212,11 @@ class NewAdminDataService {
           }
         }
       } catch (e) {
+        // Surface the failure instead of silently claiming success: if the
+        // product row never lands, the admin needs to know (this is what made
+        // an earlier "approved but not in DB" bug invisible).
         print('Error updating product table after moderation: $e');
-        // Don't fail the moderation if the sync fails
+        rethrow;
       }
     }
 
@@ -1058,10 +1063,7 @@ class NewAdminDataService {
           title: (row['Product Title'] as String?) ?? 'Untitled Product',
           sourceTable: 'products',
           priceLabel: ((row['Price'] as String?) ?? '').trim(),
-          imageUrl: _extractImage(
-            row['Images'],
-            fallback: row['Images'] as String?,
-          ),
+          imageUrl: _extractImage(row['Images']),
           quoteRequests: quoteCountByProductKey['products::$id'] ?? 0,
           createdAt: null,
         ),
@@ -1311,6 +1313,29 @@ class NewAdminDataService {
       offset += pageSize;
     }
     return allRows;
+  }
+
+  /// Normalizes an asset's `attributes` JSONB (written by the B2B upload
+  /// flow) into a shape that is safe to spread into a designer/manufacturer
+  /// product row: coerces the unified array columns to text[], and drops keys
+  /// that are not real product columns (e.g. "Jewelry Type", a UI-only field).
+  Map<String, dynamic> _sanitizeProductAttributes(Map<String, dynamic> attrs) {
+    // Keys that exist in attributes but are NOT columns on the product tables.
+    const nonColumnKeys = {'Jewelry Type'};
+    // Columns that are text[] post-Phase-3 but may arrive as a scalar String.
+    const arrayColumns = {'Metal Color', 'Category', 'Images'};
+
+    final out = <String, dynamic>{};
+    attrs.forEach((key, value) {
+      if (nonColumnKeys.contains(key) || value == null) return;
+      if (arrayColumns.contains(key) && value is! List) {
+        final s = '$value'.trim();
+        out[key] = s.isEmpty ? <String>[] : [s];
+      } else {
+        out[key] = value;
+      }
+    });
+    return out;
   }
 
   String? _extractImage(dynamic value, {String? fallback}) {
