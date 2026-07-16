@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/geo_analytics_service.dart';
+import '../../widgets/geo_analytics_widget.dart';
 
 /// Catalog composition analytics: Product Type distribution, category totals,
 /// and Plain vs Studded splits — per catalog table, with multi-select
@@ -156,6 +158,8 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
                 ],
               );
             }),
+            const SizedBox(height: 16),
+            const TopProductsByRegionCard(),
           ],
         ],
       ),
@@ -563,6 +567,318 @@ class _EmptyNote extends StatelessWidget {
       child: Center(
         child: Text('No data for this scope.',
             style: TextStyle(fontSize: 12.5, color: Color(0xFF61726C))),
+      ),
+    );
+  }
+}
+
+/// "Which product is winning where" — platform-wide views/likes/shares,
+/// broken down per state, so an admin can pick a region and see its top
+/// products (not just a global leaderboard, and not just region totals).
+class TopProductsByRegionCard extends StatefulWidget {
+  const TopProductsByRegionCard({super.key});
+
+  @override
+  State<TopProductsByRegionCard> createState() =>
+      _TopProductsByRegionCardState();
+}
+
+class _TopProductsByRegionCardState extends State<TopProductsByRegionCard> {
+  static const _ink = Color(0xFF0A2F22);
+  static const _mutedInk = Color(0xFF61726C);
+  static const _surface = Colors.white;
+  static const _border = Color(0xFFE3E9E6);
+  static const _accent = Color(0xFF0A4F3F);
+
+  final _supabase = Supabase.instance.client;
+
+  bool _loading = true;
+  String? _error;
+  GeoAnalyticsData _data = GeoAnalyticsData.empty;
+  String? _selectedState; // null = all regions (global ranking)
+  String _metric = 'views'; // views | likes | shares
+
+  // Resolved once per (state, metric) selection.
+  Map<String, Map<String, String>> _productDetails = {};
+  bool _loadingDetails = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await GeoAnalyticsService.fetchGeoData();
+      if (!mounted) return;
+      setState(() {
+        _data = data;
+        _loading = false;
+      });
+      _resolveDetails();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = '$e';
+      });
+    }
+  }
+
+  List<MapEntry<String, Map<String, int>>> get _rankedProducts {
+    final Map<String, Map<String, int>> source;
+    if (_selectedState == null) {
+      source = _data.byProduct;
+    } else {
+      source = _data.byStateProduct[_selectedState] ?? const {};
+    }
+    final entries = source.entries.toList()
+      ..sort((a, b) =>
+          (b.value[_metric] ?? 0).compareTo(a.value[_metric] ?? 0));
+    return entries.where((e) => (e.value[_metric] ?? 0) > 0).take(10).toList();
+  }
+
+  Future<void> _resolveDetails() async {
+    final top = _rankedProducts.map((e) => e.key).toList();
+    if (top.isEmpty) {
+      setState(() => _productDetails = {});
+      return;
+    }
+    setState(() => _loadingDetails = true);
+
+    final Map<String, List<String>> byTable = {};
+    for (final id in top) {
+      final table = _data.itemTables[id] ?? 'products';
+      byTable.putIfAbsent(table, () => []).add(id);
+    }
+
+    final details = <String, Map<String, String>>{};
+    for (final entry in byTable.entries) {
+      try {
+        final rows = await _supabase
+            .from(entry.key)
+            .select('id, "Product Title", "Images"')
+            .inFilter('id', entry.value);
+        for (final row in (rows as List)) {
+          final id = row['id'].toString();
+          String imgUrl = '';
+          final img = row['Images'];
+          if (img is List && img.isNotEmpty) imgUrl = img[0].toString();
+          details[id] = {
+            'title': (row['Product Title'] as String?) ?? 'Untitled Product',
+            'image': imgUrl,
+            'table': entry.key,
+          };
+        }
+      } catch (_) {
+        // Skip products that fail to resolve; the row still ranks, just
+        // rendered with a fallback title below.
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _productDetails = details;
+      _loadingDetails = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final states = _data.byStateProduct.keys.toList()..sort();
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Top Products by Region',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: _ink)),
+                    SizedBox(height: 4),
+                    Text(
+                      'Most viewed, liked or shared products — platform-wide or filtered to one state.',
+                      style: TextStyle(fontSize: 12.5, color: _mutedInk),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _loading ? null : _load,
+                icon: const Icon(Icons.refresh, size: 20, color: _mutedInk),
+                tooltip: 'Reload',
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _regionDropdown(states),
+              _metricPills(),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else if (_error != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Text('Could not load region analytics: $_error',
+                  style: const TextStyle(color: Colors.redAccent)),
+            )
+          else
+            _buildRankedList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _regionDropdown(List<String> states) {
+    return SizedBox(
+      width: 220,
+      child: DropdownButtonFormField<String?>(
+        value: _selectedState,
+        isDense: true,
+        decoration: InputDecoration(
+          isDense: true,
+          labelText: 'Region',
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: _border)),
+        ),
+        items: [
+          const DropdownMenuItem<String?>(
+              value: null, child: Text('All regions')),
+          ...states.map(
+              (s) => DropdownMenuItem<String?>(value: s, child: Text(s))),
+        ],
+        onChanged: (v) {
+          setState(() => _selectedState = v);
+          _resolveDetails();
+        },
+      ),
+    );
+  }
+
+  Widget _metricPills() {
+    const options = [
+      ('views', 'Most Viewed'),
+      ('likes', 'Most Liked'),
+      ('shares', 'Most Shared'),
+    ];
+    return Wrap(
+      spacing: 8,
+      children: options.map((o) {
+        final active = _metric == o.$1;
+        return ChoiceChip(
+          label: Text(o.$2),
+          selected: active,
+          onSelected: (_) {
+            if (_metric == o.$1) return;
+            setState(() => _metric = o.$1);
+            _resolveDetails();
+          },
+          selectedColor: _accent,
+          labelStyle: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: active ? Colors.white : _mutedInk,
+          ),
+          showCheckmark: false,
+          side: BorderSide(color: active ? _accent : _border),
+          backgroundColor: Colors.white,
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildRankedList() {
+    final ranked = _rankedProducts;
+    if (ranked.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Text(
+            _selectedState == null
+                ? 'No engagement data yet.'
+                : 'No engagement data yet for $_selectedState.',
+            style: const TextStyle(fontSize: 12.5, color: _mutedInk),
+          ),
+        ),
+      );
+    }
+    return Column(
+      children: [
+        for (int i = 0; i < ranked.length; i++)
+          _buildRankedRow(i + 1, ranked[i].key, ranked[i].value),
+      ],
+    );
+  }
+
+  Widget _buildRankedRow(int rank, String id, Map<String, int> metrics) {
+    final details = _productDetails[id];
+    final title = details?['title'] ?? (_loadingDetails ? 'Loading…' : id);
+    final imgUrl = details?['image'] ?? '';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            child: Text('#$rank',
+                style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: _mutedInk)),
+          ),
+          const SizedBox(width: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: imgUrl.isNotEmpty
+                ? Image.network(imgUrl,
+                    width: 36,
+                    height: 36,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                        width: 36, height: 36, color: _border))
+                : Container(width: 36, height: 36, color: _border),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13, color: _ink)),
+          ),
+          const SizedBox(width: 8),
+          Text('${metrics[_metric] ?? 0}',
+              style: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w700, color: _accent)),
+        ],
       ),
     );
   }

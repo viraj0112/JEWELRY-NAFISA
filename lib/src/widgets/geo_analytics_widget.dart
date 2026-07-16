@@ -27,6 +27,9 @@ class GeoAnalyticsData {
   final Map<String, Map<String, int>> byProduct;
   // item_id -> table name (e.g. 'designerproducts')
   final Map<String, String> itemTables;
+  // state -> item_id -> {views, likes, shares} — "most engaged product per
+  // region". Shares have no geo columns, so they never populate this.
+  final Map<String, Map<String, Map<String, int>>> byStateProduct;
 
   const GeoAnalyticsData({
     required this.totalViews,
@@ -38,6 +41,7 @@ class GeoAnalyticsData {
     required this.byPincode,
     this.byProduct = const {},
     this.itemTables = const {},
+    this.byStateProduct = const {},
   });
 
   static const empty = GeoAnalyticsData(
@@ -50,6 +54,7 @@ class GeoAnalyticsData {
     byPincode: {},
     byProduct: {},
     itemTables: {},
+    byStateProduct: {},
   );
 }
 

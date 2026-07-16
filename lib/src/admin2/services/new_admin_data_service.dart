@@ -186,9 +186,17 @@ class NewAdminDataService {
           );
 
           // "Images" is the unified text[] column (Phase 3 rename of "Image").
-          final imagesArray = assetResult['media_url'] != null
-              ? [assetResult['media_url']]
-              : <String>[];
+          // Bulk upload submits multi-image products but assets.media_url only
+          // holds one, so it keeps the full ordered list in attributes. Prefer
+          // that; fall back to media_url for single-image/admin submissions.
+          final attributeImages = attributes['Images'];
+          final imagesArray = (attributeImages is List && attributeImages.isNotEmpty)
+              ? attributeImages
+              : (assetResult['media_url'] != null
+                  ? [assetResult['media_url']]
+                  : <String>[]);
+          // Already applied above; prevent the attributes spread from re-adding it.
+          attributes.remove('Images');
 
           if (existingProduct != null) {
             // Update existing

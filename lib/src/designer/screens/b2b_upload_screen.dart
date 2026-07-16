@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:csv/csv.dart';
+import '../../utils/product_image_matcher.dart';
 
 class ProductEntry {
   final int id;
@@ -525,17 +526,10 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
         }
 
         // Find ALL matching image files using pattern: {Product Title}-Image*
-        // This matches files like "Gold Ring-Image1.jpg", "Gold Ring-Image2.png", etc.
-        final matchingImageFiles = _imageFiles!.where((file) {
-          final fileNameWithoutExt = file.name.split('.').first;
-          // Match exact title OR title followed by -Image (for multiple images)
-          return fileNameWithoutExt == title ||
-              fileNameWithoutExt.startsWith('$title-Image') ||
-              fileNameWithoutExt.startsWith('$title-image');
-        }).toList();
-
-        // Sort to ensure consistent ordering (Image1, Image2, etc.)
-        matchingImageFiles.sort((a, b) => a.name.compareTo(b.name));
+        // This matches files like "Gold Ring-Image1.jpg", "Gold Ring-Image2.png",
+        // in natural order (Image2 before Image10).
+        final matchingImageFiles =
+            matchingImagesForTitle(_imageFiles!, title, (file) => file.name);
 
         List<String> uploadedImageUrls = [];
 

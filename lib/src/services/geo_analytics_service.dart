@@ -73,6 +73,8 @@ class GeoAnalyticsService {
       // ── Aggregate by product ──────────────────────────────────────────────
       final byProduct = <String, Map<String, int>>{};
       final itemTables = <String, String>{};
+      // ── Aggregate by state + product ("most engaged product per region") ──
+      final byStateProduct = <String, Map<String, Map<String, int>>>{};
 
       void aggregate(List rows, String metricKey, {bool hasGeo = true}) {
         for (final row in rows) {
@@ -96,6 +98,19 @@ class GeoAnalyticsService {
           final country = (row['country'] as String?)?.trim() ?? '';
           final state = (row['state'] as String?)?.trim() ?? '';
           final pincode = (row['pincode'] as String?)?.trim() ?? '';
+
+          if (state.isNotEmpty && id.isNotEmpty) {
+            final stateMap = byStateProduct.putIfAbsent(state, () => {});
+            final productMetrics = stateMap.putIfAbsent(
+                id,
+                () => <String, int>{
+                      'views': 0,
+                      'likes': 0,
+                      'shares': 0,
+                      'saves': 0
+                    });
+            productMetrics[metricKey] = (productMetrics[metricKey] ?? 0) + 1;
+          }
 
           if (country.isNotEmpty) {
             byCountry.putIfAbsent(
@@ -150,6 +165,7 @@ class GeoAnalyticsService {
         byPincode: byPincode,
         byProduct: byProduct,
         itemTables: itemTables,
+        byStateProduct: byStateProduct,
       );
     } catch (e) {
       debugPrint('Error fetching geo analytics: $e');

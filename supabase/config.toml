@@ -366,3 +366,10 @@ entrypoint = "./functions/get-embedding-from-url/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/get-embedding-from-url/*.html" ]
+
+# Proxies AI database prefill so the per-user x-api-key stays server-side.
+# verify_jwt: the gateway rejects unauthenticated calls before the function
+# runs; the function then reads the caller's identity from that same JWT.
+[functions.run-ai-fill]
+enabled = true
+verify_jwt = true

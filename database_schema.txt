@@ -448,3 +448,23 @@ CREATE TABLE public.b2b_sync_history (
   CONSTRAINT b2b_sync_history_pkey PRIMARY KEY (id),
   CONSTRAINT b2b_sync_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.api_credentials (
+  user_id uuid NOT NULL,
+  x_api_key text NOT NULL UNIQUE,
+  llm_api_key text,
+  llm_model text,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT api_credentials_pkey PRIMARY KEY (user_id),
+  CONSTRAINT api_credentials_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.llm_settings (
+  id integer NOT NULL DEFAULT 1 CHECK (id = 1),
+  global_llm_api_key text,
+  default_model text NOT NULL DEFAULT 'gemini-2.5-pro'::text,
+  updated_by uuid,
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT llm_settings_pkey PRIMARY KEY (id),
+  CONSTRAINT llm_settings_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id)
+);

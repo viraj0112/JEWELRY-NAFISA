@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:universal_html/html.dart' as html;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../utils/product_image_matcher.dart';
 import '../models/new_admin_models.dart';
 import '../services/new_admin_data_service.dart';
 import '../widgets/admin_skeletons.dart';
@@ -1131,6 +1132,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
       final supabase = Supabase.instance.client;
       final rows = <Map<String, dynamic>>[];
+      final imageWarnings = <String>[];
 
       for (final r in table.sublist(1)) {
         // Support both 'title' and 'Product Title' (from old logic)
@@ -1145,22 +1147,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
         // --- IMAGE MATCHING LOGIC (Old Logic Integration) ---
         if (_imageFiles != null && _imageFiles!.isNotEmpty) {
-          final matchingFiles = _imageFiles!.where((file) {
-            final name = file.name.toLowerCase();
-            final titleLower = title.toLowerCase();
-            final fileNameWithoutExt = name.contains('.')
-                ? name.substring(0, name.lastIndexOf('.'))
-                : name;
-
-            // Match exact title OR title followed by -Image
-            return fileNameWithoutExt == titleLower ||
-                fileNameWithoutExt.startsWith('$titleLower-image') ||
-                fileNameWithoutExt.startsWith('$titleLower-img');
-          }).toList();
+          final matchingFiles =
+              matchingImagesForTitle(_imageFiles!, title, (file) => file.name);
 
           if (matchingFiles.isNotEmpty) {
-            // Sort to pick 'Image1' or just the first one
-            matchingFiles.sort((a, b) => a.name.compareTo(b.name));
+            // assets.media_url holds a single image, so the first (natural
+            // order: Image1 before Image2/Image10) is the one published.
             final fileToUpload = matchingFiles.first;
 
             try {
@@ -1169,13 +1161,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
               await supabase.storage.from('assets').uploadBinary(
                     storagePath,
                     fileToUpload.bytes!,
-                    fileOptions: FileOptions(contentType: 'image/jpeg'),
+                    fileOptions:
+                        FileOptions(contentType: contentTypeFor(fileToUpload.name)),
                   );
               finalMediaUrl =
                   supabase.storage.from('assets').getPublicUrl(storagePath);
             } catch (e) {
               debugPrint('Failed to upload matched image for $title: $e');
+              imageWarnings.add('$title: ${fileToUpload.name} failed to upload');
             }
+          } else {
+            imageWarnings.add('$title: no matching image files selected');
           }
         }
 
@@ -1211,11 +1207,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
       final inserted = await widget.dataService.bulkCreateInventoryAssets(rows);
 
       if (mounted) {
+        final buffer = StringBuffer(
+            'Successfully synced $inserted products to moderation queue.');
+        if (imageWarnings.isNotEmpty) {
+          buffer.write('\n${imageWarnings.length} without images:\n'
+              '${imageWarnings.take(3).join('\n')}');
+          if (imageWarnings.length > 3) {
+            buffer.write('\n...and ${imageWarnings.length - 3} more.');
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Successfully synced $inserted products to moderation queue.'),
-            backgroundColor: const Color(0xFF1B7A59),
+            content: Text(buffer.toString()),
+            backgroundColor: imageWarnings.isEmpty
+                ? const Color(0xFF1B7A59)
+                : Colors.orange,
+            duration: Duration(seconds: imageWarnings.isEmpty ? 3 : 8),
           ),
         );
         widget.onRefreshRequested();

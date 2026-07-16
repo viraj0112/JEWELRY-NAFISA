@@ -19,21 +19,18 @@ serve(async (req) => {
       { auth: { persistSession: false } } // Ensure no session persistence server-side
     );
 
-    // 1. Get the asset details and the owner's business type
-    // Joins assets -> users (aliased as 'owner') -> designer_profiles
+    // 1. Get the asset. The destination table comes from asset.source, so the
+    // old designer_profiles join (which could not describe a manufacturer
+    // submission anyway) is no longer needed.
     const { data: asset, error: getError } = await supabase
       .from("assets")
-      // Select all asset fields, and join through users (owner_id) to designer_profiles to get business_type
-      .select("*, owner:users!owner_id(designer_profiles(business_type))") // <--- CORRECTED JOIN
+      .select("*")
       .eq("id", assetId)
       .single(); // Expecting only one asset
 
     // Handle potential errors during asset fetch
     if (getError) throw getError;
 
-    // Safely access the business type
-    // The optional chaining (?.) prevents errors if 'owner' or 'designer_profiles' is null
-    const businessType = asset.owner?.designer_profiles?.business_type;
     const { error: userUpdateError } = await supabase
       .from("users")
       .update({ is_approved: true })
@@ -42,9 +39,8 @@ serve(async (req) => {
     // Handle potential errors during user update
     if (userUpdateError) throw userUpdateError;
 
-    // 2. Insert the approved asset data into the designerproducts table
-    // Maps fields from the 'assets' table (and its attributes JSONB) to the real
-    // designerproducts columns (PascalCase legacy + Phase-1 unified array columns).
+    // 2. Publish the approved asset into the real product table, mapping the
+    // assets row + its attributes JSONB onto the Phase-3 column contract.
     // Helper: attributes values may already be an array, or a comma-separated string.
     const toArray = (v: unknown): string[] | null => {
       if (v == null) return null;
@@ -55,43 +51,58 @@ serve(async (req) => {
       return null;
     };
 
-    const image = asset.media_url ? [asset.media_url] : [];
-    const goldWeight = asset.attributes?.["Gold Weight"];
-    const metalColor = asset.attributes?.["Metal Color"];
+    // Publish to the table the submission came from. Uploads record the
+    // destination in `source` (see sinlgeFile.dart / bulkUpload.dart); anything
+    // else (e.g. 'bulk_admin', legacy 'uploaded') is a designer submission.
+    const targetTable =
+      asset.source === "manufacturerproducts"
+        ? "manufacturerproducts"
+        : "designerproducts";
 
+    // Bulk upload stashes the full ordered image list in attributes because
+    // assets.media_url only holds one. Fall back to media_url for submissions
+    // that predate that (or came from the admin screen).
+    const attributeImages = toArray(asset.attributes?.["Images"]);
+    const images = attributeImages ?? (asset.media_url ? [asset.media_url] : []);
+
+    // Phase 3 dropped "Image"/"Gold Weight"/"Design Type"/"Collection Name" and
+    // renamed images_arr/metal_color_arr/category_arr to "Images"/"Metal
+    // Color"/"Category" (text[]). Writing the old names made every approval
+    // fail with "column does not exist".
     const { error: insertError } = await supabase
-      .from("designerproducts")
+      .from(targetTable)
       .insert({
         user_id: asset.owner_id,
         "Product Title": asset.title,
         Description: asset.description,
-        Image: image,
-        images_arr: image,
+        Images: images,
         Price: asset.attributes?.Price,
         "Product Tags": toArray(asset.attributes?.["Product Tags"]),
-        "Gold Weight": goldWeight,
-        "Metal Weight": goldWeight,
+        "Metal Weight": asset.attributes?.["Metal Weight"],
         "Metal Purity": asset.attributes?.["Metal Purity"],
         "Metal Finish": asset.attributes?.["Metal Finish"],
         "Metal Type": asset.attributes?.["Metal Type"],
-        "Metal Color": metalColor,
-        metal_color_arr: metalColor ? [metalColor] : null,
+        "Metal Color": toArray(asset.attributes?.["Metal Color"]),
         "Stone Weight": toArray(asset.attributes?.["Stone Weight"]),
         "Stone Type": toArray(asset.attributes?.["Stone Type"]),
         "Stone Used": toArray(asset.attributes?.["Stone Used"]),
         "Stone Setting": toArray(asset.attributes?.["Stone Setting"]),
         "Stone Purity": toArray(asset.attributes?.["Stone Purity"]),
         "Stone Count": toArray(asset.attributes?.["Stone Count"]),
-        Category: asset.category,
-        category_arr: asset.category ? [asset.category] : null,
-        "Product Type": asset.attributes?.["Product Type"],
-        "Sub Category": asset.attributes?.["Collection Name"],
+        "Stone Color": toArray(asset.attributes?.["Stone Color"]),
+        "Stone Cut": toArray(asset.attributes?.["Stone Cut"]),
+        Category: toArray(asset.attributes?.["Category"]) ??
+          (asset.category ? [asset.category] : null),
+        "Product Type": asset.attributes?.["Product Type"] ?? asset.category,
+        "Sub Category": asset.attributes?.["Sub Category"],
         Dimension: asset.attributes?.["Dimension"],
         Theme: asset.attributes?.["Theme"],
-        "Design Type": asset.attributes?.["Design Type"],
-        // NOTE: Plain, Studded, Enamel Work, Customizable, Stone Cut, Stone Color,
-        // Art Form, Plating, Scraped URL are not derivable from assets/attributes
-        // today and are left null (all nullable columns).
+        Gender: asset.attributes?.["Gender"],
+        Plating: asset.attributes?.["Plating"],
+        Plain: asset.attributes?.["Plain"],
+        Studded: toArray(asset.attributes?.["Studded"]),
+        "Enamel Work": toArray(asset.attributes?.["Enamel Work"]),
+        Customizable: toArray(asset.attributes?.["Customizable"]),
       });
 
     // Handle potential errors during product insertion

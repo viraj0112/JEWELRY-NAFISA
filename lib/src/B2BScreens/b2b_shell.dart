@@ -4,6 +4,7 @@ import "package:jewelry_nafisa/src/widgets/date_range_filter.dart";
 import 'package:jewelry_nafisa/src/widgets/location_dropdown.dart';
 import 'package:jewelry_nafisa/src/B2BScreens/screens/home.dart';
 import 'package:jewelry_nafisa/src/B2BScreens/screens/insights.dart';
+import 'package:jewelry_nafisa/src/B2BScreens/screens/ai_fill_page.dart';
 import 'package:jewelry_nafisa/src/B2BScreens/screens/profile.dart';
 import 'package:jewelry_nafisa/src/B2BScreens/screens/notifications.dart';
 import 'package:jewelry_nafisa/src/B2BScreens/screens/upload.dart';
@@ -95,6 +96,13 @@ class _B2BShellState extends State<B2BShell> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1,
+        actions: [
+          IconButton(
+            tooltip: 'AI Fill My Products',
+            icon: const Icon(Icons.auto_awesome, color: Colors.teal),
+            onPressed: () => AiFillPage.show(context),
+          ),
+        ],
         title: isMobile
             ? const Text("Dagina.Design", style: TextStyle(color: Colors.teal))
             : _buildDesktopLayout(),

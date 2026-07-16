@@ -17,6 +17,7 @@ import 'system_controls_screen.dart';
 import 'user_management_screen.dart';
 import 'quote_tracking_screen.dart';
 import 'teams_screen.dart';
+import 'ai_fill_screen.dart';
 
 enum _AdminView {
   dashboard('Dashboard'),
@@ -26,6 +27,7 @@ enum _AdminView {
   teams('Teams'),
   analytics('Analytics'),
   inventory('Inventory'),
+  aiFill('AI Data Fill'),
   settings('Settings');
 
   const _AdminView(this.label);
@@ -118,6 +120,9 @@ class _MainScreenState extends State<MainScreen> {
           break;
         case _AdminView.inventory:
           _inventoryFuture = _dataService.fetchInventory();
+          break;
+        case _AdminView.aiFill:
+          // Self-contained screen; nothing to refresh here.
           break;
         case _AdminView.settings:
           _settingsFuture = _dataService.fetchSystemSettings();
@@ -237,6 +242,8 @@ class _MainScreenState extends State<MainScreen> {
             builder: (data) => _buildInventory(data),
           ),
         );
+      case _AdminView.aiFill:
+        return const AdminAiFillScreen();
       case _AdminView.settings:
         return FutureBuilder<List<SystemSetting>>(
           future: _settingsFuture,
@@ -262,6 +269,7 @@ class _MainScreenState extends State<MainScreen> {
           _AdminView.teams => AdminSkeletonVariant.cards,
           _AdminView.analytics => AdminSkeletonVariant.dashboard,
           _AdminView.inventory => AdminSkeletonVariant.cards,
+          _AdminView.aiFill => AdminSkeletonVariant.cards,
           _AdminView.settings => AdminSkeletonVariant.list,
         },
       );
@@ -371,7 +379,7 @@ class _MainScreenState extends State<MainScreen> {
                   Expanded(
                     child: Column(
                       children: [
-                        _buildAppraisalQueue(filteredAppraisal),
+                        _buildAppraisalQueue(filteredAppraisal, dashboard.appraisalQueue),
                         const SizedBox(height: 12),
                         _buildMarketPulse(dashboard.marketPulse),
                       ],
@@ -384,7 +392,7 @@ class _MainScreenState extends State<MainScreen> {
               children: [
                 _buildCurationFeed(filteredCuration),
                 const SizedBox(height: 12),
-                _buildAppraisalQueue(filteredAppraisal),
+                _buildAppraisalQueue(filteredAppraisal, dashboard.appraisalQueue),
                 const SizedBox(height: 12),
                 _buildMarketPulse(dashboard.marketPulse),
               ],
@@ -435,7 +443,8 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildAppraisalQueue(List<AppraisalQueueItem> items) {
+  Widget _buildAppraisalQueue(
+      List<AppraisalQueueItem> items, List<AppraisalQueueItem> allItems) {
     final previewItems = items.take(3).toList();
     return Card(
       child: Padding(
@@ -468,7 +477,7 @@ class _MainScreenState extends State<MainScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () => _showAllAppraisalDialog(items),
+                onPressed: () => _showAllAppraisalDialog(allItems),
                 child: const Text('View all submissions'),
               ),
             ),
@@ -743,56 +752,151 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  void _showAllAppraisalDialog(List<AppraisalQueueItem> items) {
+  void _showAllAppraisalDialog(List<AppraisalQueueItem> allItems) {
+    // Seed the dialog's own filter state from the panel's current filters,
+    // so opening it doesn't feel like a reset — but it's independent from
+    // here on, so the user can broaden/narrow without leaving the dialog.
+    String dialogTableFilter = _appraisalTableFilter;
+    final dialogUploaderCtrl =
+        TextEditingController(text: _appraisalUploaderCtrl.text);
+
     showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFFF7FAF8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'All Upload Submissions',
-          style: TextStyle(
-            color: Color(0xFF0A4F3F),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        content: SizedBox(
-          width: 900,
-          height: 520,
-          child: ListView.separated(
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(),
-            itemBuilder: (_, index) {
-              final item = items[index];
-              return ListTile(
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _showAppraisalDetails(item);
-                },
-                leading: _Thumb(imageUrl: item.imageUrl),
-                title: Text(item.title),
-                subtitle: Text(
-                  '${item.sourceTable}\n${item.uploaderName}'
-                  '${item.businessName.isEmpty ? '' : ' • ${item.businessName}'}'
-                  '${item.uploaderEmail.isEmpty ? '' : ' • ${item.uploaderEmail}'}',
-                ),
-                trailing: Text(
-                  item.createdAt == null
-                      ? '-'
-                      : _dateFormat.format(item.createdAt!),
-                ),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final filtered = _applyAppraisalFilters(
+              allItems, dialogTableFilter, dialogUploaderCtrl.text);
+          const tables = [
+            ('all', 'All'),
+            ('designerproducts', 'Designer'),
+            ('manufacturerproducts', 'Manufacturer'),
+          ];
+          return AlertDialog(
+            backgroundColor: const Color(0xFFF7FAF8),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text(
+              'All Upload Submissions',
+              style: TextStyle(
+                color: Color(0xFF0A4F3F),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: SizedBox(
+              width: 900,
+              height: 580,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: tables.map((t) {
+                      final active = dialogTableFilter == t.$1;
+                      return ChoiceChip(
+                        label: Text(t.$2),
+                        selected: active,
+                        onSelected: (_) =>
+                            setDialogState(() => dialogTableFilter = t.$1),
+                        selectedColor: const Color(0xFF0A4F3F),
+                        showCheckmark: false,
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color:
+                              active ? Colors.white : const Color(0xFF61726C),
+                        ),
+                        visualDensity: VisualDensity.compact,
+                        side: BorderSide(
+                            color: active
+                                ? const Color(0xFF0A4F3F)
+                                : const Color(0xFFD9E3DE)),
+                        backgroundColor: Colors.white,
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: dialogUploaderCtrl,
+                    onChanged: (_) => setDialogState(() {}),
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Filter by email or business name',
+                      hintStyle: const TextStyle(
+                          fontSize: 12.5, color: Color(0xFF7E8F89)),
+                      prefixIcon: const Icon(Icons.alternate_email,
+                          size: 16, color: Color(0xFF0A4F3F)),
+                      suffixIcon: dialogUploaderCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16),
+                              onPressed: () => setDialogState(
+                                  dialogUploaderCtrl.clear),
+                            )
+                          : null,
+                      isDense: true,
+                      filled: true,
+                      fillColor: const Color(0xFFF7FAF8),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFD9E3DE)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFD9E3DE)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No submissions match the current filters.',
+                              style: TextStyle(
+                                  color: Color(0xFF61726C), fontSize: 13),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, __) => const Divider(),
+                            itemBuilder: (_, index) {
+                              final item = filtered[index];
+                              return ListTile(
+                                onTap: () {
+                                  Navigator.of(context).pop();
+                                  _showAppraisalDetails(item);
+                                },
+                                leading: _Thumb(imageUrl: item.imageUrl),
+                                title: Text(item.title),
+                                subtitle: Text(
+                                  '${item.sourceTable}\n${item.uploaderName}'
+                                  '${item.businessName.isEmpty ? '' : ' • ${item.businessName}'}'
+                                  '${item.uploaderEmail.isEmpty ? '' : ' • ${item.uploaderEmail}'}',
+                                ),
+                                trailing: Text(
+                                  item.createdAt == null
+                                      ? '-'
+                                      : _dateFormat.format(item.createdAt!),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
       ),
-    );
+    ).then((_) => dialogUploaderCtrl.dispose());
   }
 
   Widget _buildMarketPulse(MarketPulse pulse) {
@@ -854,24 +958,36 @@ class _MainScreenState extends State<MainScreen> {
     }).toList();
   }
 
+  // Shared table/uploader filter logic, factored out so both the inline
+  // panel and the "View all submissions" dialog (which has its own local
+  // filter state) can reuse it without duplicating the predicate.
+  static List<AppraisalQueueItem> _applyAppraisalFilters(
+    List<AppraisalQueueItem> items,
+    String tableFilter,
+    String uploaderQuery,
+  ) {
+    var result = items;
+    if (tableFilter != 'all') {
+      result = result.where((i) => i.sourceTable == tableFilter).toList();
+    }
+    final q = uploaderQuery.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      result = result
+          .where((i) =>
+              i.uploaderEmail.toLowerCase().contains(q) ||
+              i.businessName.toLowerCase().contains(q) ||
+              i.uploaderName.toLowerCase().contains(q))
+          .toList();
+    }
+    return result;
+  }
+
   List<AppraisalQueueItem> _filterAppraisalQueue(
     List<AppraisalQueueItem> items,
     String query,
   ) {
-    var result = items;
-    if (_appraisalTableFilter != 'all') {
-      result =
-          result.where((i) => i.sourceTable == _appraisalTableFilter).toList();
-    }
-    final uploaderQuery = _appraisalUploaderCtrl.text.trim().toLowerCase();
-    if (uploaderQuery.isNotEmpty) {
-      result = result
-          .where((i) =>
-              i.uploaderEmail.toLowerCase().contains(uploaderQuery) ||
-              i.businessName.toLowerCase().contains(uploaderQuery) ||
-              i.uploaderName.toLowerCase().contains(uploaderQuery))
-          .toList();
-    }
+    var result = _applyAppraisalFilters(
+        items, _appraisalTableFilter, _appraisalUploaderCtrl.text);
     if (query.isEmpty) return result;
     return result.where((item) {
       final haystack = [

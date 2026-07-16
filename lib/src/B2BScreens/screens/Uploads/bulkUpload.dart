@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:csv/csv.dart';
 import 'package:universal_html/html.dart' as html;
+import '../../../utils/product_image_matcher.dart';
 
 class BulkUploadUploadCard extends StatelessWidget {
   const BulkUploadUploadCard({super.key});
@@ -251,10 +252,15 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
       final fields = const CsvToListConverter().convert(input);
       final headers = fields[0].map((e) => e.toString().trim()).toList();
 
+      // Keep the CSV's Metal Type verbatim, INCLUDING any leading "AKD-".
+      // That prefix is how a product is classified into the "Get it" catalog:
+      // the home/welcome screens query `Metal Type ILIKE 'AKD-%'`, and strip
+      // the prefix only for display. Stripping it here (an earlier change)
+      // silently dropped every uploaded product out of "Get it".
       String? normalizeMetalType(dynamic value) {
         final text = value?.toString().trim();
         if (text == null || text.isEmpty) return null;
-        return text.replaceFirst(RegExp(r'^AKD-'), '');
+        return text;
       }
 
       // debugPrint("=== CSV DATA ===");
@@ -267,6 +273,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
 
       int successCount = 0;
       int failCount = 0;
+      final List<String> imageWarnings = [];
 
       for (int i = 1; i < fields.length; i++) {
         final row = fields[i];
@@ -284,16 +291,14 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
           continue;
         }
 
-        // Find ALL matching image files
-        final matchingImageFiles = _imageFiles!.where((file) {
-          final fileNameWithoutExt =
-              file.name.substring(0, file.name.lastIndexOf('.'));
-          return fileNameWithoutExt == title ||
-              fileNameWithoutExt.startsWith('$title-Image') ||
-              fileNameWithoutExt.startsWith('$title-image');
-        }).toList();
+        // Find ALL matching image files (case-insensitive, natural ordering so
+        // -Image2 precedes -Image10).
+        final matchingImageFiles =
+            matchingImagesForTitle(_imageFiles!, title, (file) => file.name);
 
-        matchingImageFiles.sort((a, b) => a.name.compareTo(b.name));
+        if (matchingImageFiles.isEmpty) {
+          imageWarnings.add('$title: no matching image files selected');
+        }
 
         List<String> uploadedImageUrls = [];
         for (final imageFile in matchingImageFiles) {
@@ -307,7 +312,11 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
                 supabase.storage.from(storageBucket).getPublicUrl(fileName);
             uploadedImageUrls.add(imageUrl);
           } catch (e) {
+            // Surface this instead of only logging it: the product row still
+            // inserts with Images = null, which previously reported as a fully
+            // successful upload.
             debugPrint("Failed to upload image ${imageFile.name}: $e");
+            imageWarnings.add('$title: ${imageFile.name} failed to upload ($e)');
           }
         }
 
@@ -362,9 +371,43 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
           }
         }
 
+        // assets.media_url is NOT NULL, so a product whose images all failed to
+        // upload cannot be submitted. Skip it with a clear reason rather than
+        // letting the DB reject the insert with a raw constraint error.
+        if (uploadedImageUrls.isEmpty) {
+          failCount++;
+          debugPrint("Skipping $title: no image uploaded");
+          continue;
+        }
+
+        // Submit for admin approval instead of writing straight to the catalog.
+        // Mirrors sinlgeFile.dart: `source` carries the destination table so
+        // approve-product knows where to publish the row on approval.
+        final Map<String, dynamic> assetData = {
+          'owner_id': user.id,
+          'title': title,
+          'status': 'pending',
+          'source': tableName,
+          'description': getStringValue(productData['Description']),
+          'category': getStringValue(productData['Product Type']),
+          'media_url': uploadedImageUrls.first,
+          'thumb_url': uploadedImageUrls.first,
+        };
+
+        // Everything else rides in attributes JSONB. Fields promoted to real
+        // asset columns above are removed to avoid storing them twice.
+        final attributes = Map<String, dynamic>.from(productData);
+        attributes.remove('user_id');
+        attributes.remove('Description');
+        attributes.remove('Product Type');
+        // assets.media_url only holds one image; keep the full ordered list so
+        // approve-product can restore the Images text[] array intact.
+        attributes['Images'] = uploadedImageUrls;
+        assetData['attributes'] = attributes;
+
         try {
           final insertResult =
-              await supabase.from(tableName).insert(productData).select();
+              await supabase.from('assets').insert(assetData).select();
 
           if (insertResult.isNotEmpty) {
             successCount++;
@@ -373,19 +416,30 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
           }
         } catch (e) {
           failCount++;
-          debugPrint("Error inserting product $title: $e");
+          debugPrint("Error submitting product $title: $e");
         }
       }
 
       if (mounted) {
         final catalogType = isManufacturer ? 'Manufacturer' : 'Designer';
-        final message = failCount == 0
-            ? "Bulk upload successful! $successCount products uploaded to $catalogType catalog."
-            : "Upload completed. $successCount succeeded, $failCount failed ($catalogType catalog).";
+        final buffer = StringBuffer(
+          failCount == 0
+              ? "$successCount products submitted for review. They will appear in the $catalogType catalog once approved."
+              : "Submitted $successCount for review, $failCount failed ($catalogType catalog).",
+        );
+        if (imageWarnings.isNotEmpty) {
+          buffer.write("\n${imageWarnings.length} product(s) had image "
+              "problems:\n${imageWarnings.take(3).join('\n')}");
+          if (imageWarnings.length > 3) {
+            buffer.write("\n...and ${imageWarnings.length - 3} more.");
+          }
+        }
+        final hasProblem = failCount > 0 || imageWarnings.isNotEmpty;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(message),
-            backgroundColor: failCount == 0 ? Colors.green : Colors.orange,
+            content: Text(buffer.toString()),
+            backgroundColor: hasProblem ? Colors.orange : Colors.green,
+            duration: Duration(seconds: hasProblem ? 8 : 3),
           ),
         );
         setState(() {
