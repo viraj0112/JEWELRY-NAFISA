@@ -115,7 +115,6 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
       'Stone Purity',
       'Product Type',
       'Gender',
-      'Theme',
       'Metal Type',
       'Metal Color',
       'Dimension',

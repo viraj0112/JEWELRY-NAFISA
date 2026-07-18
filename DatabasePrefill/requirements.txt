@@ -1,0 +1,24 @@
+# DatabasePrefill — AI product-attribute enrichment pipeline.
+# Python 3.11+ recommended.
+
+# --- Web API (main.py entry point) ---
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.29,<1.0
+python-multipart>=0.0.9          # required by FastAPI for UploadFile/File uploads
+
+# --- LLM (Gemini) ---
+google-genai>=0.3.0              # `from google import genai`
+
+# --- Agent / graph orchestration ---
+langgraph>=0.2,<2.0
+
+# --- Data models & settings ---
+pydantic>=2.6,<3.0
+pydantic-settings>=2.2,<3.0
+python-dotenv>=1.0,<2.0          # loads .env for pydantic-settings / config.py
+
+# --- Supabase (database access) ---
+supabase>=2.4,<3.0
+
+# --- HTTP client (image downloads in llm_service.py) ---
+httpx>=0.27,<1.0

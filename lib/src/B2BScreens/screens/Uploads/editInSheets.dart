@@ -61,7 +61,6 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
     'Plain',
     'Studded',
     'Gender',
-    'Theme',
     'Dimension',
     'Plating',
     'Product Tags',

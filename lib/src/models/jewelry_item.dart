@@ -36,7 +36,6 @@ class JewelryItem {
   final String? subCategory;
   final String? productType;
   final String? gender;
-  final String? theme;
   final String? metalType;
   final String? metalColor;
   final double? netWeight;
@@ -94,7 +93,6 @@ class JewelryItem {
     this.subCategory,
     this.productType,
     this.gender,
-    this.theme,
     this.metalType,
     this.metalColor,
     this.netWeight,
@@ -180,7 +178,6 @@ class JewelryItem {
           json['Sub Category'] ?? json['sub_category'] ?? json['SubCategory']),
       productType: _parseString(json['Product Type'] ?? json['product_type']),
       gender: _parseString(json['Gender'] ?? json['gender']),
-      theme: _parseString(json['Theme'] ?? json['occasions']),
       metalType: _parseString(json['Metal Type'] ?? json['metal_type']),
       // Same 3-shape handling as `category` above.
       metalColor: _firstFromArrayOrScalarKey(

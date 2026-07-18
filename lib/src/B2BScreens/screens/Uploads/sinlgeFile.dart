@@ -106,7 +106,6 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
   final stoneColorCtrl = TextEditingController();
   final dimensionCtrl = TextEditingController();
   final enamelWorkCtrl = TextEditingController();
-  final themeCtrl = TextEditingController();
 
   // --- Dropdown state ---
   String? metalType;
@@ -271,7 +270,6 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
     stoneColorCtrl.dispose();
     dimensionCtrl.dispose();
     enamelWorkCtrl.dispose();
-    themeCtrl.dispose();
     super.dispose();
   }
 
@@ -470,10 +468,6 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
             // --- Enamel Work + Weight ---
             _field('Enamel Work + Weight', enamelWorkCtrl,
                 hintText: 'e.g., Pink 0.6g, Blue 4g'),
-
-            // --- Theme ---
-            _field('Theme', themeCtrl,
-                hintText: 'e.g., Bridal, Festive, Contemporary'),
           ],
         );
 
@@ -595,8 +589,6 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                     dimensionCtrl.text.isEmpty ? '-' : dimensionCtrl.text),
                 _reviewItem('Enamel Work',
                     enamelWorkCtrl.text.isEmpty ? '-' : enamelWorkCtrl.text),
-                _reviewItem(
-                    'Theme', themeCtrl.text.isEmpty ? '-' : themeCtrl.text),
                 _reviewItem('Visibility', visibility),
               ],
             ),
@@ -1043,7 +1035,6 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
         'Gender': gender,
         'Dimension': getTextValue(dimensionCtrl),
         'Enamel Work': textToList(enamelWorkCtrl),
-        'Theme': getTextValue(themeCtrl),
       };
 
       // Add stone fields only if Studded

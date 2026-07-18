@@ -28,7 +28,6 @@ class ProductEntry {
       TextEditingController();
   final TextEditingController productTypeController = TextEditingController();
   String? gender;
-  final TextEditingController themeController = TextEditingController();
   final TextEditingController metalTypeController = TextEditingController();
   final TextEditingController metalColorController = TextEditingController();
   final TextEditingController netWeightController = TextEditingController();
@@ -58,7 +57,6 @@ class ProductEntry {
     stoneCountController.dispose();
     collectionNameController.dispose();
     productTypeController.dispose();
-    themeController.dispose();
     metalTypeController.dispose();
     metalColorController.dispose();
     netWeightController.dispose();
@@ -249,7 +247,6 @@ class _ManualUploadTabState extends State<ManualUploadTab> {
           'Stone Setting': textToList(entry.stoneSettingController),
           'Stone Count': textToList(entry.stoneCountController),
           'Gender': entry.gender,
-          'Theme': getTextValue(entry.themeController),
           'Metal Type':
               _normalizeMetalType(getTextValue(entry.metalTypeController)),
           'Metal Color': getTextValue(entry.metalColorController),
@@ -426,7 +423,6 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
       'Stone Purity',
       'Product Type',
       'Gender',
-      'Theme',
       'Metal Type',
       'Metal Color',
       'Dimension',
@@ -1287,13 +1283,6 @@ class _ProductFormCardState extends State<ProductFormCard> {
           decoration: const InputDecoration(
               labelText: "Enamel Work + Weight",
               hintText: "e.g., Pink 0.6g, Blue 4g"),
-        ),
-        const SizedBox(height: 16),
-
-        // --- Theme ---
-        TextFormField(
-          controller: widget.entry.themeController,
-          decoration: const InputDecoration(labelText: "Theme"),
         ),
         const SizedBox(height: 16),
 
