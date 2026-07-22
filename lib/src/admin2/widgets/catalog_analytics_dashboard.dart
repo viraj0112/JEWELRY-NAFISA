@@ -48,6 +48,9 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
   final _supabase = Supabase.instance.client;
 
   String _tableFilter = 'all';
+  // Middle tier of the filter hierarchy: Table → Product Type → Categories.
+  // 'all' means no product-type narrowing.
+  String _productTypeFilter = 'all';
   final Set<String> _selectedCategories = {};
   bool _loading = true;
   String? _error;
@@ -91,9 +94,14 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
       setState(() {
         _typeRows = typeRows;
         _psRows = psRows;
-        // Drop selections that no longer exist under the new table scope.
+        // Drop a product-type selection that no longer exists in the new scope.
+        if (_productTypeFilter != 'all' &&
+            !typeRows.any((r) => r.productType == _productTypeFilter)) {
+          _productTypeFilter = 'all';
+        }
+        // Drop category selections that no longer exist under the new scope.
         _selectedCategories
-            .removeWhere((c) => !psRows.any((r) => r.category == c));
+            .removeWhere((c) => !_categoriesInScope().contains(c));
         _loading = false;
       });
     } catch (e) {
@@ -105,8 +113,40 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
     }
   }
 
-  bool _categorySelected(String category) =>
-      _selectedCategories.isEmpty || _selectedCategories.contains(category);
+  // Product types available under the current table scope, ranked by volume.
+  List<String> _productTypesInScope() {
+    final totals = <String, int>{};
+    for (final r in _typeRows) {
+      totals[r.productType] = (totals[r.productType] ?? 0) + r.count;
+    }
+    final types = totals.keys.toList()
+      ..sort((a, b) => totals[b]!.compareTo(totals[a]!));
+    return types;
+  }
+
+  // Categories visible under the current Table → Product Type scope. When a
+  // product type is selected, only categories that co-occur with it remain.
+  Set<String> _categoriesInScope() {
+    if (_productTypeFilter == 'all') {
+      return _psRows.map((r) => r.category).toSet();
+    }
+    return _typeRows
+        .where((r) => r.productType == _productTypeFilter)
+        .map((r) => r.category)
+        .toSet();
+  }
+
+  // A category counts as selected only if it's in the current product-type
+  // scope AND either no explicit chips are picked or it's among the picked ones.
+  bool _categorySelected(String category) {
+    if (!_categoriesInScope().contains(category)) return false;
+    return _selectedCategories.isEmpty ||
+        _selectedCategories.contains(category);
+  }
+
+  // Whether a data row's product type passes the middle-tier filter.
+  bool _productTypeInScope(String productType) =>
+      _productTypeFilter == 'all' || _productTypeFilter == productType;
 
   @override
   Widget build(BuildContext context) {
@@ -136,6 +176,8 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
                   style: const TextStyle(color: Colors.redAccent)),
             )
           else ...[
+            _buildProductTypePills(),
+            const SizedBox(height: 12),
             _buildCategoryChips(),
             const SizedBox(height: 20),
             LayoutBuilder(builder: (context, constraints) {
@@ -227,8 +269,59 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
     );
   }
 
+  // Middle filter tier: Product Type. Sits between the table scope and the
+  // category chips, and narrows both the category list and the charts below.
+  Widget _buildProductTypePills() {
+    final types = _productTypesInScope();
+    if (types.isEmpty) return const SizedBox.shrink();
+
+    // 'all' pill + one pill per product type, single-select.
+    final options = ['all', ...types];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Product Type',
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w700, color: _ink)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: options.map((t) {
+            final active = _productTypeFilter == t;
+            final label = t == 'all' ? 'All Types' : t;
+            return ChoiceChip(
+              label: Text(label),
+              selected: active,
+              onSelected: (_) {
+                if (_productTypeFilter == t) return;
+                setState(() {
+                  _productTypeFilter = t;
+                  // Selecting a type can invalidate category picks that don't
+                  // belong to it — drop the ones now out of scope.
+                  _selectedCategories
+                      .removeWhere((c) => !_categoriesInScope().contains(c));
+                });
+              },
+              selectedColor: const Color(0xFF0A4F3F),
+              labelStyle: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: active ? Colors.white : _mutedInk,
+              ),
+              showCheckmark: false,
+              side: BorderSide(
+                  color: active ? const Color(0xFF0A4F3F) : _border),
+              backgroundColor: _surface,
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildCategoryChips() {
-    final categories = _psRows.map((r) => r.category).toSet().toList()
+    final categories = _categoriesInScope().toList()
       ..sort((a, b) {
         int total(String c) =>
             _psRows.where((r) => r.category == c).fold(0, (s, r) => s + r.total);
@@ -295,6 +388,7 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
   Widget _buildProductTypeCard() {
     final totals = <String, int>{};
     for (final row in _typeRows) {
+      if (!_productTypeInScope(row.productType)) continue;
       if (!_categorySelected(row.category)) continue;
       totals[row.productType] = (totals[row.productType] ?? 0) + row.count;
     }
@@ -380,9 +474,11 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
       'manufacturerproducts' => 'Manufacturer products',
       _ => 'All catalog tables',
     };
+    final withType =
+        _productTypeFilter == 'all' ? scope : '$scope · $_productTypeFilter';
     return _selectedCategories.isEmpty
-        ? scope
-        : '$scope · ${_selectedCategories.length} categories';
+        ? withType
+        : '$withType · ${_selectedCategories.length} categories';
   }
 
   Widget _card({

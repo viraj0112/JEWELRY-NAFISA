@@ -8,6 +8,7 @@ import '../models/new_admin_models.dart';
 import '../services/new_admin_data_service.dart';
 import '../services/dashboard_service.dart';
 import '../widgets/catalog_analytics_dashboard.dart';
+import '../widgets/ai_fill_usage_card.dart';
 import '../../widgets/geo_analytics_widget.dart';
 import '../../services/geo_analytics_service.dart';
 
@@ -458,6 +459,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
           _buildPageHeader(bundle),
           const SizedBox(height: 28),
           const CatalogAnalyticsDashboard(),
+          const SizedBox(height: 28),
+          const AiFillUsageCard(),
           const SizedBox(height: 40),
         ],
       );

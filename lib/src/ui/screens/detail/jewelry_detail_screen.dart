@@ -62,6 +62,12 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
 
   bool _isSharing = false;
 
+  // Feature flag: when false, the "Donors Only" blur lock on the 2nd+ image is
+  // disabled and every uploaded image is visible to all users. Flip to true to
+  // restore the donor-gated behaviour. Kept as a non-const field on purpose so
+  // the (now-inactive) lock branches don't trip dead-code analysis.
+  final bool _donorImageLockEnabled = false;
+
   late final String _itemId;    // Integer PK – used for DB joins only
   late final String _itemTable;  // Table name – kept for legacy queries
   late final String? _itemUid;   // UUID uid column – used for public URLs and polymorphic tables
@@ -876,8 +882,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                       // --- ADDITION: Wrapped image with InteractiveViewer for zoom ---
                       Consumer<UserProfileProvider>(
                         builder: (context, userProfile, child) {
-                          final bool isLocked =
-                              !userProfile.isMember && _selectedImageIndex > 0;
+                          // Donors-only lock disabled via _donorImageLockEnabled
+                          // — every uploaded image is now visible to all users.
+                          final bool isLocked = _donorImageLockEnabled &&
+                              !userProfile.isMember &&
+                              _selectedImageIndex > 0;
 
                           return AspectRatio(
                             aspectRatio: widget.jewelryItem.aspectRatio,
@@ -900,9 +909,12 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                                     });
                                   },
                                   itemBuilder: (context, index) {
-                                    // Lock logic per image
+                                    // Lock disabled via _donorImageLockEnabled
+                                    // so all uploaded images show unblurred.
                                     final bool isImageLocked =
-                                        !userProfile.isMember && index > 0;
+                                        _donorImageLockEnabled &&
+                                            !userProfile.isMember &&
+                                            index > 0;
 
                                     return InteractiveViewer(
                                       minScale: 1.0,
@@ -1062,8 +1074,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             flexibleSpace: FlexibleSpaceBar(
               background: Consumer<UserProfileProvider>(
                 builder: (context, userProfile, child) {
-                  final bool isLocked =
-                      !userProfile.isMember && _selectedImageIndex > 0;
+                  // Donors-only lock disabled via _donorImageLockEnabled —
+                  // every uploaded image is now visible to all users.
+                  final bool isLocked = _donorImageLockEnabled &&
+                      !userProfile.isMember &&
+                      _selectedImageIndex > 0;
 
                   return Stack(
                     alignment: Alignment.center,
@@ -1082,8 +1097,11 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
                           });
                         },
                         itemBuilder: (context, index) {
-                          final bool isImageLocked =
-                              !userProfile.isMember && index > 0;
+                          // Lock disabled via _donorImageLockEnabled so all
+                          // uploaded images are shown unblurred.
+                          final bool isImageLocked = _donorImageLockEnabled &&
+                              !userProfile.isMember &&
+                              index > 0;
 
                           return InteractiveViewer(
                             minScale: 1.0,
@@ -1386,11 +1404,12 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
   }
 
   Widget _buildImageThumbnails() {
-    // Hide thumbnails completely - user wants only 1 image visible
-    return const SizedBox.shrink();
+    // Previously hard-disabled to show a single image. Re-enabled so every
+    // uploaded image for the product is visible/navigable via thumbnails.
+    // return const SizedBox.shrink();
 
-    // Original code kept for reference but disabled:
-    // if (_imageUrls.length <= 1) return const SizedBox.shrink();
+    // Only a single image → nothing to page through.
+    if (_imageUrls.length <= 1) return const SizedBox.shrink();
 
     // Calculate visible thumbnails (max 3 at a time)
     final visibleCount = _imageUrls.length > 3 ? 3 : _imageUrls.length;

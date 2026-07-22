@@ -87,8 +87,8 @@ serve(async (req: Request) => {
     }
 
     const path = mode === "admin"
-      ? "/process-database-fill"
-      : "/fill-my-products";
+      ? "/api/v1/process-database-fill"
+      : "/api/v1/fill-my-products";
     const backendBody = mode === "admin"
       ? { table_name: body.table_name ?? "", limit }
       : { table_name: "ignored", limit };
@@ -105,6 +105,37 @@ serve(async (req: Request) => {
     // Pass the backend's response straight through. On error, forward the
     // backend's detail but never anything containing the key.
     const text = await resp.text();
+
+    // 5. Record this invocation in the authoritative usage log. This is the
+    // server choke point every fill passes through, so logging here captures
+    // every user (admins included) and can't be skipped by the client. Parse
+    // the backend's BatchFillResponse for the row counts when present. Wrapped
+    // so a logging failure never affects the fill response the user gets.
+    try {
+      let total = 0, success = 0, failed = 0;
+      if (resp.ok) {
+        const parsed = JSON.parse(text) as {
+          data?: { total?: number; success?: number; failed?: number };
+        };
+        total = Number(parsed?.data?.total ?? 0);
+        success = Number(parsed?.data?.success ?? 0);
+        failed = Number(parsed?.data?.failed ?? 0);
+      }
+      await admin.from("ai_fill_usage").insert({
+        user_id: userId,
+        mode,
+        table_name: mode === "admin" ? (body.table_name ?? null) : null,
+        requested_limit: limit,
+        total_processed: total,
+        success_count: success,
+        failed_count: failed,
+        http_status: resp.status,
+        ok: resp.ok,
+      });
+    } catch (logErr) {
+      console.error("ai_fill_usage log failed:", logErr);
+    }
+
     return new Response(text, {
       status: resp.status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
