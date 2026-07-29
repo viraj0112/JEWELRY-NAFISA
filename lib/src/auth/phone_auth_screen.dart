@@ -207,14 +207,23 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
     final syntheticEmail =
         'phone_${_fullPhoneNumber.replaceAll('+', '').replaceAll(' ', '')}@dagina.internal';
 
-    final user = await _authService.signUpWithEmailPassword(
-      syntheticEmail,
-      _passwordController.text.trim(),
-      _usernameController.text.trim(),
-      _fullPhoneNumber,
-      '', // birthdate — not required for phone sign-up
-      '', // referral code
-    );
+    // A duplicate now throws instead of returning null. For phone sign-up that
+    // is not an error state: the synthetic address already existing just means
+    // this number has an account, so we fall through to the sign-in attempt
+    // below exactly as before.
+    dynamic user;
+    try {
+      user = await _authService.signUpWithEmailPassword(
+        syntheticEmail,
+        _passwordController.text.trim(),
+        _usernameController.text.trim(),
+        _fullPhoneNumber,
+        '', // birthdate — not required for phone sign-up
+        '', // referral code
+      );
+    } on EmailAlreadyRegisteredException {
+      user = null;
+    }
 
     setState(() => _isLoading = false);
 

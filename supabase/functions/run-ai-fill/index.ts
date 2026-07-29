@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { decryptSecret } from "../_shared/crypto.ts";
 
 // Server-side proxy for AI database prefill.
 //
@@ -54,13 +55,34 @@ serve(async (req: Request) => {
 
     const { data: cred, error: credErr } = await admin
       .from("api_credentials")
-      .select("x_api_key, is_active")
+      .select("x_api_key, x_api_key_enc, is_active, expires_at")
       .eq("user_id", userId)
       .maybeSingle();
 
     if (credErr) return json({ error: "Credential lookup failed" }, 500);
     if (!cred) return json({ error: "No API key issued for this user" }, 403);
     if (cred.is_active === false) return json({ error: "API key is disabled" }, 403);
+
+    // TTL. `expires_at` NULL means "never expires"; anything in the past is a
+    // hard stop here as well as in the backend, so an expired key cannot be
+    // used even if the backend check were ever bypassed.
+    if (cred.expires_at && new Date(cred.expires_at).getTime() <= Date.now()) {
+      return json({
+        error: "Your API key expired. Ask your admin to generate a new one.",
+      }, 403);
+    }
+
+    // New keys are stored encrypted; `x_api_key` is only populated for keys
+    // issued before the encryption migration and is cleared on next rotation.
+    let apiKey: string;
+    try {
+      apiKey = cred.x_api_key_enc
+        ? await decryptSecret(cred.x_api_key_enc)
+        : (cred.x_api_key ?? "");
+    } catch (_e) {
+      return json({ error: "Stored API key could not be read" }, 500);
+    }
+    if (!apiKey) return json({ error: "No API key issued for this user" }, 403);
 
     // 3. For an admin fill, confirm the caller is actually an admin server-side
     // rather than trusting a client-supplied flag.
@@ -97,7 +119,7 @@ serve(async (req: Request) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": cred.x_api_key,
+        "x-api-key": apiKey,
       },
       body: JSON.stringify(backendBody),
     });
@@ -132,6 +154,10 @@ serve(async (req: Request) => {
         http_status: resp.status,
         ok: resp.ok,
       });
+      await admin
+        .from("api_credentials")
+        .update({ last_used_at: new Date().toISOString() })
+        .eq("user_id", userId);
     } catch (logErr) {
       console.error("ai_fill_usage log failed:", logErr);
     }

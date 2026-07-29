@@ -67,7 +67,10 @@ class _AiFillPageState extends State<AiFillPage> {
       if (!mounted) return;
       setState(() {
         _credential = cred;
-        _llmKeyCtrl.text = cred?.llmApiKey ?? '';
+        // Deliberately NOT prefilled with the stored key: the server only ever
+        // returns a hint (last 4 chars), and the key itself is encrypted at
+        // rest. An empty field here means "keep what's saved".
+        _llmKeyCtrl.clear();
         _modelCtrl.text = cred?.llmModel ?? '';
         _loading = false;
       });
@@ -81,15 +84,52 @@ class _AiFillPageState extends State<AiFillPage> {
   }
 
   Future<void> _saveKey() async {
+    final key = _llmKeyCtrl.text.trim();
     try {
-      await _service.updateMyLlmKey(
-        llmApiKey: _llmKeyCtrl.text,
-        llmModel: _modelCtrl.text,
-      );
-      _toast('Your LLM key saved');
+      if (key.isEmpty) {
+        // Blank means "leave my key as it is" - only the model changes.
+        await _service.updateMyLlmModel(_modelCtrl.text);
+        _toast('Model preference saved');
+      } else {
+        await _service.updateMyLlmKey(
+          llmApiKey: key,
+          llmModel: _modelCtrl.text,
+        );
+        _toast('Your LLM key saved (encrypted)');
+      }
       _load();
     } catch (e) {
       _toast('Save failed: $e', error: true);
+    }
+  }
+
+  Future<void> _removeKey() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove your LLM key'),
+        content: const Text(
+          'Fills will fall back to the platform key configured by your admin.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _service.clearMyLlmKey();
+      _toast('Your LLM key was removed');
+      _load();
+    } catch (e) {
+      _toast('Remove failed: $e', error: true);
     }
   }
 
@@ -190,19 +230,40 @@ class _AiFillPageState extends State<AiFillPage> {
                     style: TextStyle(fontSize: 12, color: Color(0xFF61726C)),
                   ),
                   const SizedBox(height: 10),
-                  _field('LLM API key', _llmKeyCtrl, obscure: true,
-                      hint: 'Paste your provider key'),
+                  _storedKeyHint(),
+                  const SizedBox(height: 10),
+                  _field(
+                    _credential?.llmKeyHint == null
+                        ? 'LLM API key'
+                        : 'Replace LLM API key',
+                    _llmKeyCtrl,
+                    obscure: true,
+                    hint: _credential?.llmKeyHint == null
+                        ? 'Paste your provider key'
+                        : 'Leave blank to keep your saved key',
+                  ),
                   const SizedBox(height: 10),
                   _field('Model name (optional)', _modelCtrl,
                       hint: 'e.g. gemini-2.5-pro'),
                   const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: OutlinedButton.icon(
-                      onPressed: _saveKey,
-                      icon: const Icon(Icons.save_outlined, size: 18),
-                      label: const Text('Save my key'),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (_credential?.llmKeyHint != null)
+                        TextButton.icon(
+                          onPressed: _removeKey,
+                          style: TextButton.styleFrom(
+                              foregroundColor: Colors.red.shade700),
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          label: const Text('Remove key'),
+                        ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: _saveKey,
+                        icon: const Icon(Icons.save_outlined, size: 18),
+                        label: const Text('Save'),
+                      ),
+                    ],
                   ),
                   const Divider(height: 32),
                   Row(children: [
@@ -251,10 +312,31 @@ class _AiFillPageState extends State<AiFillPage> {
     );
   }
 
+  /// Shows only that a key is stored and its last 4 characters. The value
+  /// itself is AES-encrypted server-side and is never sent to this screen.
+  Widget _storedKeyHint() {
+    final hint = _credential?.llmKeyHint;
+    return Row(children: [
+      Icon(hint == null ? Icons.info_outline : Icons.lock_outline,
+          size: 16, color: hint == null ? const Color(0xFF61726C) : _accent),
+      const SizedBox(width: 6),
+      Expanded(
+        child: Text(
+          hint == null
+              ? 'No personal key saved — the platform key will be used.'
+              : 'Your key is saved and encrypted: $hint',
+          style: const TextStyle(fontSize: 12, color: Color(0xFF61726C)),
+        ),
+      ),
+    ]);
+  }
+
   Widget _keyStatusBanner() {
-    final hasKey = _credential?.hasKey ?? false;
-    final active = _credential?.isActive ?? false;
-    final ok = hasKey && active;
+    final cred = _credential;
+    final hasKey = cred?.hasKey ?? false;
+    final active = cred?.isActive ?? false;
+    final expired = cred?.isExpired ?? false;
+    final ok = hasKey && active && !expired;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -268,10 +350,12 @@ class _AiFillPageState extends State<AiFillPage> {
         Expanded(
           child: Text(
             ok
-                ? 'Your API key is active. You can run AI fills.'
-                : hasKey
-                    ? 'Your API key is disabled. Contact your admin.'
-                    : 'No API key assigned yet. Ask your admin to issue one.',
+                ? 'Master key ${cred!.statusLabel.toLowerCase()}. You can run AI fills.'
+                : expired
+                    ? 'Your master key expired. Ask your admin to generate a new one.'
+                    : hasKey
+                        ? 'Your master key is disabled. Contact your admin.'
+                        : 'No master key assigned yet. Ask your admin to generate one.',
             style: TextStyle(
                 fontSize: 12.5,
                 color: ok ? _ink : Colors.red.shade800),

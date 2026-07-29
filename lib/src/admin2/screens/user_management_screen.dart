@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universal_html/html.dart' as html;
 
 import '../models/new_admin_models.dart';
+import '../services/new_admin_data_service.dart';
 import '../widgets/admin_skeletons.dart';
 
 enum _UserTypeFilter {
@@ -450,6 +451,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 const DataColumn(label: Text('User Name')),
                 const DataColumn(label: Text('Type')),
                 const DataColumn(label: Text('Credit Balance')),
+                const DataColumn(label: Text('Documents')),
                 const DataColumn(label: Text('Views')),
                 const DataColumn(label: Text('Likes')),
                 const DataColumn(label: Text('Shares')),
@@ -515,6 +517,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                             ),
                           ),
                         ),
+                        DataCell(_DocumentsCell(
+                          row: row,
+                          onOpen: () => _showDocumentsDialog(row),
+                        )),
                         DataCell(
                           Text(
                             row.totalViews.toString(),
@@ -682,6 +688,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ],
                 ),
                 const SizedBox(height: 10),
+                _DocumentsCell(
+                  row: row,
+                  onOpen: () => _showDocumentsDialog(row),
+                ),
+                const SizedBox(height: 8),
                 Text(
                   'Activity: ${_formatLastActivity(row.lastActivityAt ?? row.createdAt)}',
                   style:
@@ -957,6 +968,122 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         SnackBar(content: Text('Failed to update credits: $e')),
       );
     }
+  }
+
+  /// Registration documents for one user, with links that open in a new tab.
+  ///
+  /// Pending documents have no public URL, so a short-lived signed URL is
+  /// minted on demand. Deliberately not pre-generated for every row: that
+  /// would create dozens of live links to private business documents on every
+  /// page load, most of which nobody opens.
+  Future<void> _showDocumentsDialog(UserLedgerRow row) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Documents - ${row.name}'),
+        content: SizedBox(
+          width: 460,
+          child: row.documents.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'No registration documents found for this user.\n\n'
+                    'Customers do not upload any. For a designer or '
+                    'manufacturer, this usually means the signup did not '
+                    'complete the document step.',
+                    style: TextStyle(color: Color(0xFF5D6D67)),
+                  ),
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: row.documents
+                      .map((doc) => _documentTile(row, doc))
+                      .toList(),
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _documentTile(UserLedgerRow row, UserDocument doc) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Icon(
+            doc.fileType == 'business_card'
+                ? Icons.badge_outlined
+                : Icons.description_outlined,
+            size: 20,
+            color: const Color(0xFF0A4F3F),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(doc.label,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text(
+                  doc.isPending
+                      ? 'Awaiting account activation'
+                      : 'Verified upload',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: doc.isPending
+                        ? const Color(0xFF9D6A00)
+                        : const Color(0xFF5D6D67),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton.icon(
+            onPressed: () => _openDocument(doc),
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: const Text('Open'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openDocument(UserDocument doc) async {
+    // Always prefer a signed URL. The bucket is private, so the stored
+    // getPublicUrl() links on finalised documents do not resolve - the object
+    // path is the only thing that reliably opens the file.
+    final path =
+        doc.objectPath ?? NewAdminDataService.objectPathFromUrl(doc.url);
+
+    String? url;
+    if (path != null && path.isNotEmpty) {
+      url = await NewAdminDataService().createDocumentSignedUrl(path);
+    }
+    url ??= doc.url;
+
+    if (url == null || url.isEmpty) {
+      _snack('Could not open the document. It may have been moved.');
+      return;
+    }
+    if (kIsWeb) {
+      html.window.open(url, '_blank');
+    } else {
+      await Clipboard.setData(ClipboardData(text: url));
+      _snack('Document link copied to clipboard.');
+    }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _showLedgerDialog(UserLedgerRow row) async {
@@ -1473,6 +1600,75 @@ class _LedgerStatCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Compact document indicator. Amber when something still needs attention
+/// (missing documents on a B2B account, or uploads not yet finalised), so the
+/// admin can spot incomplete registrations while scanning the approval queue.
+class _DocumentsCell extends StatelessWidget {
+  const _DocumentsCell({required this.row, required this.onOpen});
+
+  final UserLedgerRow row;
+  final VoidCallback onOpen;
+
+  bool get _isB2b {
+    final role = row.role.toLowerCase();
+    return role.contains('designer') ||
+        role.contains('manufacturer') ||
+        role.contains('supplier');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final docs = row.documents;
+
+    if (docs.isEmpty) {
+      // Customers never upload anything, so an empty list is only noteworthy
+      // for a business account.
+      return Text(
+        _isB2b ? 'None uploaded' : '—',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: _isB2b ? FontWeight.w600 : FontWeight.w400,
+          color: _isB2b ? const Color(0xFFA33A32) : const Color(0xFF9AA8A3),
+        ),
+      );
+    }
+
+    final pending = docs.where((d) => d.isPending).length;
+    final color =
+        pending > 0 ? const Color(0xFF9D6A00) : const Color(0xFF1B7A59);
+
+    return InkWell(
+      onTap: onOpen,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              pending > 0 ? Icons.pending_actions : Icons.folder_shared_outlined,
+              size: 16,
+              color: color,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              pending > 0
+                  ? '${docs.length} file${docs.length == 1 ? '' : 's'} · $pending pending'
+                  : '${docs.length} file${docs.length == 1 ? '' : 's'}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -49,7 +49,7 @@ class UserProfileProvider with ChangeNotifier {
     }
 
     _isLoading = true;
-    notifyListeners();
+    Future.microtask(() => notifyListeners());
 
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -112,7 +112,7 @@ class UserProfileProvider with ChangeNotifier {
       _unlockedItemIds = {};
     } finally {
       _isLoading = false;
-      notifyListeners();
+      Future.microtask(() => notifyListeners());
     }
   }
 

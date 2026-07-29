@@ -37,6 +37,9 @@ CREATE TABLE public.users (
   CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
   CONSTRAINT users_referred_by_fkey FOREIGN KEY (referred_by) REFERENCES public.users(id)
 );
+-- Duplicate-registration guard (migration 20260729121000):
+CREATE UNIQUE INDEX users_email_lower_unique ON public.users (lower(email)) WHERE email IS NOT NULL;
+-- public.email_is_registered(text) -> jsonb {exists, confirmed} : signup pre-flight check.
 CREATE TABLE public.pins (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   owner_id uuid NOT NULL,
@@ -256,7 +259,6 @@ CREATE TABLE public.products (
   Scraped URL text,
   Product Type text,
   Gender text,
-  Theme text,
   Metal Type text,
   Stone Color ARRAY,
   Stone Cut ARRAY,
@@ -277,6 +279,8 @@ CREATE TABLE public.products (
   Metal Color ARRAY,
   Category ARRAY,
   created_at timestamp with time zone DEFAULT now(),
+  Stone Quality ARRAY,
+  Enamel Weight text,
   CONSTRAINT products_pkey PRIMARY KEY (id),
   CONSTRAINT products_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -296,7 +300,6 @@ CREATE TABLE public.designerproducts (
   Scraped URL text,
   Product Type text,
   Gender text,
-  Theme text,
   Metal Type text,
   Stone Color ARRAY,
   Stone Cut ARRAY,
@@ -318,6 +321,8 @@ CREATE TABLE public.designerproducts (
   Metal Color ARRAY,
   Category ARRAY,
   Metal Weight text,
+  Stone Quality ARRAY,
+  Enamel Weight text,
   CONSTRAINT designerproducts_pkey PRIMARY KEY (id),
   CONSTRAINT designerproducts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -381,7 +386,6 @@ CREATE TABLE public.manufacturerproducts (
   Scraped URL text,
   Product Type text,
   Gender text,
-  Theme text,
   Metal Type text,
   Stone Color ARRAY,
   Stone Cut ARRAY,
@@ -403,6 +407,8 @@ CREATE TABLE public.manufacturerproducts (
   Metal Color ARRAY,
   Category ARRAY,
   Metal Weight text,
+  Stone Quality ARRAY,
+  Enamel Weight text,
   CONSTRAINT manufacturerproducts_pkey PRIMARY KEY (id),
   CONSTRAINT manufacturerproducts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -450,21 +456,53 @@ CREATE TABLE public.b2b_sync_history (
 );
 CREATE TABLE public.api_credentials (
   user_id uuid NOT NULL,
-  x_api_key text NOT NULL UNIQUE,
-  llm_api_key text,
+  x_api_key text UNIQUE,              -- DEPRECATED plaintext (legacy rows only)
+  x_api_key_hash text UNIQUE,         -- sha256(master key), hex; used for lookup
+  x_api_key_enc text,                 -- AES-256-GCM 'v1.<iv>.<ct>' of the master key
+  key_prefix text,                    -- display only, e.g. 'dgn_4452abeb'
+  expires_at timestamp with time zone,-- master-key TTL; NULL = never expires
+  llm_api_key text,                   -- DEPRECATED plaintext (legacy rows only)
+  llm_api_key_enc text,               -- AES-256-GCM 'v1.<iv>.<ct>' of the user's LLM key
+  llm_key_hint text,                  -- last 4 chars, for the UI
   llm_model text,
   is_active boolean NOT NULL DEFAULT true,
+  last_used_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT api_credentials_pkey PRIMARY KEY (user_id),
   CONSTRAINT api_credentials_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+-- Column-level GRANTs: the `authenticated` role may SELECT only
+-- (user_id, llm_model, llm_key_hint, is_active, key_prefix, expires_at,
+--  last_used_at, created_at, updated_at) and UPDATE only (llm_model).
+-- All secret columns are service_role-only. See migration 20260729120000.
+CREATE VIEW public.api_credential_status AS -- security_invoker; adds is_expired / is_usable
+  SELECT user_id, key_prefix, llm_model, llm_key_hint, is_active, expires_at,
+         last_used_at, created_at, is_expired, is_usable
+  FROM public.api_credentials;
 CREATE TABLE public.llm_settings (
   id integer NOT NULL DEFAULT 1 CHECK (id = 1),
-  global_llm_api_key text,
+  global_llm_api_key text,            -- DEPRECATED plaintext
+  global_llm_api_key_enc text,        -- AES-256-GCM 'v1.<iv>.<ct>'
+  global_llm_key_hint text,
   default_model text NOT NULL DEFAULT 'gemini-2.5-pro'::text,
   updated_by uuid,
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT llm_settings_pkey PRIMARY KEY (id),
   CONSTRAINT llm_settings_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.ai_fill_usage (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  user_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  mode text NOT NULL,
+  table_name text,
+  requested_limit integer,
+  total_processed integer NOT NULL DEFAULT 0,
+  success_count integer NOT NULL DEFAULT 0,
+  failed_count integer NOT NULL DEFAULT 0,
+  http_status integer,
+  ok boolean NOT NULL DEFAULT true,
+  CONSTRAINT ai_fill_usage_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_fill_usage_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );

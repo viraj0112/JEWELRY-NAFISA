@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show User;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
@@ -41,6 +42,10 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
+  /// Set when the server rejects the address as already registered, and
+  /// cleared as soon as the user edits the field.
+  bool _emailTaken = false;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -67,19 +72,34 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    final user = await _authService.signUpWithEmailPassword(
-      _emailController.text.trim(),
-      _passwordController.text.trim(),
-      _usernameController.text.trim(),
-      _fullPhoneNumber,
-      _birthdateController.text.trim(),
-      _referralCodeController.text.trim(),
-    );
+    final User? user;
+    try {
+      user = await _authService.signUpWithEmailPassword(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+        _usernameController.text.trim(),
+        _fullPhoneNumber,
+        _birthdateController.text.trim(),
+        _referralCodeController.text.trim(),
+      );
+    } on EmailAlreadyRegisteredException catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _emailTaken = true;
+        });
+        // Re-run validation so the message sits on the field, not only in a
+        // snackbar that disappears.
+        _formKey.currentState!.validate();
+        _showSnackbar(e.message);
+      }
+      return;
+    }
 
     if (user == null) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showSnackbar('Sign up failed. The email might already be in use.');
+        _showSnackbar('Sign up failed. Please try again.');
       }
     } else {
       FirebaseAnalytics.instance.logEvent(
@@ -266,9 +286,15 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
               hint: 'your.email@example.com',
               icon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
+              onChanged: (_) {
+                if (_emailTaken) setState(() => _emailTaken = false);
+              },
               validator: (val) {
                 if (val == null || val.isEmpty) return 'Email is required';
                 if (!val.contains('@')) return 'Please enter a valid email';
+                if (_emailTaken) {
+                  return 'This email is already registered. Log in instead.';
+                }
                 return null;
               },
             ),
@@ -476,11 +502,13 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
     required IconData icon,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    void Function(String)? onChanged,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
+      onChanged: onChanged,
       style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF1A1A1A)),
       decoration: _inputDecoration(hint: hint, prefixIcon: icon),
     );

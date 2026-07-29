@@ -168,6 +168,8 @@ class VerificationRequest {
     required this.hasAddress,
     required this.hasBusinessType,
     required this.createdAt,
+    this.workFileUrl,
+    this.businessCardUrl,
   });
 
   final String userId;
@@ -180,6 +182,58 @@ class VerificationRequest {
   final bool hasAddress;
   final bool hasBusinessType;
   final DateTime? createdAt;
+  final String? workFileUrl;
+  final String? businessCardUrl;
+}
+
+/// A verification document a B2B user uploaded during registration.
+///
+/// These arrive by two different routes, which is why the admin screen has to
+/// look in two places:
+///   * `pending`  - uploaded at signup, still sitting in `pending_signup_uploads`
+///                  under `pending/<signup_id>/`. Keyed by EMAIL, because no
+///                  user row exists yet. Documents stay here until the user
+///                  confirms their email and signs in, so this is the state a
+///                  user is in for the entire time they are awaiting approval.
+///   * `linked`   - after `finalize-signup-uploads` ran, moved to
+///                  `users/<user_id>/` and recorded in the `designer-files`
+///                  table (or the legacy `*_profiles.work_file_url` columns).
+class UserDocument {
+  const UserDocument({
+    required this.fileType,
+    required this.source,
+    this.url,
+    this.objectPath,
+    this.uploadedAt,
+  });
+
+  /// 'work_file' | 'business_card' | anything else the signup flow adds.
+  final String fileType;
+
+  /// 'linked' or 'pending' - see the class doc.
+  final String source;
+
+  /// Public URL, when one exists (linked documents).
+  final String? url;
+
+  /// Storage object path, used to mint a signed URL for pending documents
+  /// that have no public URL yet.
+  final String? objectPath;
+
+  final DateTime? uploadedAt;
+
+  bool get isPending => source == 'pending';
+
+  String get label {
+    switch (fileType) {
+      case 'work_file':
+        return 'Work sample';
+      case 'business_card':
+        return 'Business card';
+      default:
+        return fileType.replaceAll('_', ' ');
+    }
+  }
 }
 
 class UserLedgerRow {
@@ -198,6 +252,7 @@ class UserLedgerRow {
     this.totalLikes = 0,
     this.totalShares = 0,
     this.totalViews = 0,
+    this.documents = const [],
   });
 
   final String id;
@@ -214,6 +269,9 @@ class UserLedgerRow {
   final int totalLikes;
   final int totalShares;
   final int totalViews;
+
+  /// Registration documents, empty for customers who never uploaded any.
+  final List<UserDocument> documents;
 }
 
 class QuoteRecord {

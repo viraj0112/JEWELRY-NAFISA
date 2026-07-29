@@ -29,10 +29,8 @@ class CreatorsManufacturerTab extends StatelessWidget {
                   creator: c,
                   onApprove: (id) => provider.approveCreator(id),
                   onReject: (id) => provider.rejectCreator(id),
-                  onOpenPortfolio: (id) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Open portfolio for $id')));
-                  },
+                  onOpenPortfolio: () =>
+                      CreatorCard.showDocumentsDialog(context, c),
                   onEmail: (id) {
                     ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Email manufacturer $id')));

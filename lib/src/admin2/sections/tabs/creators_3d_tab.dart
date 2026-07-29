@@ -34,7 +34,8 @@ class Creators3DTab extends StatelessWidget {
                   creator: c,
                   onApprove: (id) => provider.approveCreator(id),
                   onReject: (id) => provider.rejectCreator(id),
-                  onOpenPortfolio: (id) {},
+                  onOpenPortfolio: () =>
+                      CreatorCard.showDocumentsDialog(context, c),
                   onEmail: (id) {},
                   onTap: () => _showSubmissionDetails(context, c, provider),
                 );

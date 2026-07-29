@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/new_admin_models.dart';
 import '../services/new_admin_data_service.dart';
@@ -412,6 +413,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
                           ],
                         ),
                       ),
+                      // Document indicator icons
                       Row(
                         children: [
                           Icon(
@@ -440,6 +442,13 @@ class _ModerationScreenState extends State<ModerationScreen> {
                         ],
                       ),
                       const SizedBox(width: 10),
+                      // Document view buttons
+                      _DocumentButtons(
+                        workFileUrl: item.workFileUrl,
+                        businessCardUrl: item.businessCardUrl,
+                        onViewDocuments: () => _showVerificationDocumentsDialog(item),
+                      ),
+                      const SizedBox(width: 10),
                       OutlinedButton(
                         onPressed: _actionBusy
                             ? null
@@ -458,6 +467,123 @@ class _ModerationScreenState extends State<ModerationScreen> {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showVerificationDocumentsDialog(VerificationRequest item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: 720,
+          constraints: const BoxConstraints(maxHeight: 600),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0F0E8),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _initials(item.name),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 16),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.name,
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          '${item.email} • ${item.role.toUpperCase()}',
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF6C7C76)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const Divider(height: 24),
+              const Text(
+                'Uploaded Documents',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Portfolio / Work File
+                      Expanded(
+                        child: _DocumentPreviewCard(
+                          label: 'Portfolio / Work File',
+                          icon: Icons.folder_outlined,
+                          url: item.workFileUrl,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Business Card
+                      Expanded(
+                        child: _DocumentPreviewCard(
+                          label: 'Business Card',
+                          icon: Icons.contact_mail_outlined,
+                          url: item.businessCardUrl,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: _actionBusy
+                        ? null
+                        : () {
+                            Navigator.of(ctx).pop();
+                            _verificationAction(item, approve: false);
+                          },
+                    child: const Text('Reject'),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: _actionBusy
+                        ? null
+                        : () {
+                            Navigator.of(ctx).pop();
+                            _verificationAction(item, approve: true);
+                          },
+                    child: const Text('Verify Partner'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -893,4 +1019,230 @@ Widget _itemImage(ModerationItem item) {
       child: const Icon(Icons.broken_image_outlined, color: Color(0xFF6D7E77)),
     ),
   );
+}
+
+// ── Document helper widgets for Verification tab ────────────────────────
+
+class _DocumentButtons extends StatelessWidget {
+  const _DocumentButtons({
+    required this.workFileUrl,
+    required this.businessCardUrl,
+    required this.onViewDocuments,
+  });
+
+  final String? workFileUrl;
+  final String? businessCardUrl;
+  final VoidCallback onViewDocuments;
+
+  bool get _hasAny =>
+      (workFileUrl?.isNotEmpty ?? false) ||
+      (businessCardUrl?.isNotEmpty ?? false);
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_hasAny) {
+      return Tooltip(
+        message: 'No documents uploaded',
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF3E0),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.warning_amber_rounded,
+                  size: 14, color: Color(0xFFE65100)),
+              SizedBox(width: 4),
+              Text(
+                'No docs',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFE65100),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return OutlinedButton.icon(
+      onPressed: onViewDocuments,
+      icon: const Icon(Icons.visibility_outlined, size: 16),
+      label: const Text('View Docs'),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        side: const BorderSide(color: Color(0xFF0A4F3F)),
+        foregroundColor: const Color(0xFF0A4F3F),
+      ),
+    );
+  }
+}
+
+class _DocumentPreviewCard extends StatelessWidget {
+  const _DocumentPreviewCard({
+    required this.label,
+    required this.icon,
+    required this.url,
+  });
+
+  final String label;
+  final IconData icon;
+  final String? url;
+
+  bool get _isImage {
+    if (url == null) return false;
+    final lower = url!.toLowerCase();
+    return lower.contains('.jpg') ||
+        lower.contains('.jpeg') ||
+        lower.contains('.png') ||
+        lower.contains('.gif') ||
+        lower.contains('.webp');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasUrl = url?.isNotEmpty ?? false;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasUrl ? const Color(0xFFD0DDD7) : const Color(0xFFE8E8E8),
+        ),
+        color: hasUrl ? Colors.white : const Color(0xFFF5F5F5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: hasUrl
+                  ? const Color(0xFFE8F5EE)
+                  : const Color(0xFFF0F0F0),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(11)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon,
+                    size: 18,
+                    color: hasUrl
+                        ? const Color(0xFF0A4F3F)
+                        : const Color(0xFF9E9E9E)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: hasUrl
+                          ? const Color(0xFF0A4F3F)
+                          : const Color(0xFF9E9E9E),
+                    ),
+                  ),
+                ),
+                if (hasUrl)
+                  const Icon(Icons.check_circle,
+                      size: 16, color: Color(0xFF1B7A59)),
+              ],
+            ),
+          ),
+          // Content
+          if (!hasUrl)
+            Container(
+              height: 160,
+              alignment: Alignment.center,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.cloud_off_outlined,
+                      size: 36, color: Color(0xFFBDBDBD)),
+                  SizedBox(height: 8),
+                  Text(
+                    'Not uploaded',
+                    style: TextStyle(
+                        fontSize: 12, color: Color(0xFF9E9E9E)),
+                  ),
+                ],
+              ),
+            )
+          else if (_isImage)
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(11)),
+              child: Stack(
+                children: [
+                  Image.network(
+                    url!,
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 160,
+                      color: const Color(0xFFF5F5F5),
+                      alignment: Alignment.center,
+                      child: const Text('Failed to load image',
+                          style: TextStyle(color: Color(0xFF9E9E9E))),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Material(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(8),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () => launchUrl(Uri.parse(url!),
+                            mode: LaunchMode.externalApplication),
+                        child: const Padding(
+                          padding: EdgeInsets.all(6),
+                          child: Icon(Icons.open_in_new,
+                              size: 16, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            InkWell(
+              onTap: () => launchUrl(Uri.parse(url!),
+                  mode: LaunchMode.externalApplication),
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(11)),
+              child: Container(
+                height: 160,
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.insert_drive_file_outlined,
+                        size: 36, color: Color(0xFF0A4F3F)),
+                    SizedBox(height: 8),
+                    Text(
+                      'Tap to open document',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0A4F3F),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

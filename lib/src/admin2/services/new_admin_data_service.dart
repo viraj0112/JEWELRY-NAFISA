@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dashboard_service.dart';
@@ -15,19 +17,56 @@ class NewAdminDataService {
   static DateTime? _marketPulseCacheDate;
 
   Future<DashboardViewData> fetchDashboardViewData() async {
-    final snapshot = await fetchDashboardSnapshot();
-    final curationFeed = await fetchCurationFeed();
-    final appraisalQueue = await fetchAppraisalQueue();
-    final marketPulse = await fetchMarketPulse();
-    final metalTypeInsights = await _fetchMetalMetrics('Metal Type');
-    final metalColorInsights = await _fetchMetalMetrics('Metal Color');
+    DashboardSnapshot? snapshot;
+    List<CurationFeedItem>? curationFeed;
+    List<AppraisalQueueItem>? appraisalQueue;
+    MarketPulse? marketPulse;
+    List<MetalInsight>? metalTypeInsights;
+    List<MetalInsight>? metalColorInsights;
+
+    try {
+      snapshot = await fetchDashboardSnapshot();
+    } catch (e) {
+      throw Exception('fetchDashboardSnapshot failed: $e');
+    }
+    
+    try {
+      curationFeed = await fetchCurationFeed();
+    } catch (e) {
+      throw Exception('fetchCurationFeed failed: $e');
+    }
+    
+    try {
+      appraisalQueue = await fetchAppraisalQueue();
+    } catch (e) {
+      throw Exception('fetchAppraisalQueue failed: $e');
+    }
+    
+    try {
+      marketPulse = await fetchMarketPulse();
+    } catch (e) {
+      throw Exception('fetchMarketPulse failed: $e');
+    }
+    
+    try {
+      metalTypeInsights = await _fetchMetalMetrics('Metal Type');
+    } catch (e) {
+      throw Exception('fetchMetalMetrics(Metal Type) failed: $e');
+    }
+    
+    try {
+      metalColorInsights = await _fetchMetalMetrics('Metal Color');
+    } catch (e) {
+      throw Exception('fetchMetalMetrics(Metal Color) failed: $e');
+    }
+
     return DashboardViewData(
-      snapshot: snapshot,
-      curationFeed: curationFeed,
-      appraisalQueue: appraisalQueue,
-      marketPulse: marketPulse,
-      metalTypeInsights: metalTypeInsights,
-      metalColorInsights: metalColorInsights,
+      snapshot: snapshot!,
+      curationFeed: curationFeed!,
+      appraisalQueue: appraisalQueue!,
+      marketPulse: marketPulse!,
+      metalTypeInsights: metalTypeInsights!,
+      metalColorInsights: metalColorInsights!,
     );
   }
 
@@ -56,10 +95,29 @@ class NewAdminDataService {
     final rows = await _client
         .from('assets')
         .select(
-            'id,title,status,category,thumb_url,media_url,description,attributes,source,tags,owner_id,created_at,owner:users!assets_owner_id_fkey(full_name,business_name,email,phone,country)')
+            'id,title,status,category,thumb_url,media_url,description,attributes,source,tags,owner_id,created_at')
         .eq('status', 'pending')
         .order('created_at', ascending: false)
         .limit(limit);
+
+    final ownerIds = rows
+        .map((r) => '${r['owner_id'] ?? ''}')
+        .where((id) => id.isNotEmpty && id != 'null')
+        .toSet()
+        .toList();
+
+    final ownerMap = <String, Map<String, dynamic>>{};
+    if (ownerIds.isNotEmpty) {
+      try {
+        final users = await _client
+            .from('users')
+            .select('id,full_name,business_name,email,phone,country')
+            .inFilter('id', ownerIds);
+        for (final u in users) {
+          ownerMap['${u['id']}'] = u;
+        }
+      } catch (_) {}
+    }
 
     return rows
         .map<ModerationItem>(
@@ -73,10 +131,10 @@ class NewAdminDataService {
             source: (row['source'] as String?) ?? 'uploaded',
             tags: _toStringList(row['tags']),
             ownerId: '${row['owner_id'] ?? ''}',
-            ownerName: _ownerName(row['owner']),
-            ownerLocation: _ownerLocation(row['owner']),
-            ownerEmail: _ownerEmail(row['owner']),
-            ownerPhone: _ownerPhone(row['owner']),
+            ownerName: _ownerName(ownerMap['${row['owner_id']}'] ?? row['owner']),
+            ownerLocation: _ownerLocation(ownerMap['${row['owner_id']}'] ?? row['owner']),
+            ownerEmail: _ownerEmail(ownerMap['${row['owner_id']}'] ?? row['owner']),
+            ownerPhone: _ownerPhone(ownerMap['${row['owner_id']}'] ?? row['owner']),
             createdAt: _tryParseDate(row['created_at']),
             description: (row['description'] as String?) ?? '',
             attributes: (row['attributes'] as Map<String, dynamic>?) ?? {},
@@ -89,10 +147,29 @@ class NewAdminDataService {
     final rows = await _client
         .from('assets')
         .select(
-            'id,title,status,category,thumb_url,media_url,description,attributes,source,tags,owner_id,created_at,owner:users!assets_owner_id_fkey(full_name,business_name,email,phone,country)')
+            'id,title,status,category,thumb_url,media_url,description,attributes,source,tags,owner_id,created_at')
         .neq('status', 'pending')
         .order('updated_at', ascending: false)
         .limit(limit);
+
+    final ownerIds = rows
+        .map((r) => '${r['owner_id'] ?? ''}')
+        .where((id) => id.isNotEmpty && id != 'null')
+        .toSet()
+        .toList();
+
+    final ownerMap = <String, Map<String, dynamic>>{};
+    if (ownerIds.isNotEmpty) {
+      try {
+        final users = await _client
+            .from('users')
+            .select('id,full_name,business_name,email,phone,country')
+            .inFilter('id', ownerIds);
+        for (final u in users) {
+          ownerMap['${u['id']}'] = u;
+        }
+      } catch (_) {}
+    }
 
     return rows
         .map<ModerationItem>(
@@ -106,10 +183,10 @@ class NewAdminDataService {
             source: (row['source'] as String?) ?? 'uploaded',
             tags: _toStringList(row['tags']),
             ownerId: '${row['owner_id'] ?? ''}',
-            ownerName: _ownerName(row['owner']),
-            ownerLocation: _ownerLocation(row['owner']),
-            ownerEmail: _ownerEmail(row['owner']),
-            ownerPhone: _ownerPhone(row['owner']),
+            ownerName: _ownerName(ownerMap['${row['owner_id']}'] ?? row['owner']),
+            ownerLocation: _ownerLocation(ownerMap['${row['owner_id']}'] ?? row['owner']),
+            ownerEmail: _ownerEmail(ownerMap['${row['owner_id']}'] ?? row['owner']),
+            ownerPhone: _ownerPhone(ownerMap['${row['owner_id']}'] ?? row['owner']),
             createdAt: _tryParseDate(row['created_at']),
             description: (row['description'] as String?) ?? '',
             attributes: (row['attributes'] as Map<String, dynamic>?) ?? {},
@@ -126,25 +203,69 @@ class NewAdminDataService {
         .select(
             'id,full_name,business_name,email,role,country,business_type,gst_number,address,created_at')
         .eq('approval_status', 'pending')
-        .or('role.eq.designer,role.eq.manufacturer')
+        .inFilter('role', ['designer', 'manufacturer'])
         .order('created_at', ascending: false)
         .limit(limit);
 
+    // Collect user IDs to look up document URLs from profile tables
+    final userIds = rows
+        .map<String>((r) => '${r['id'] ?? ''}')
+        .where((id) => id.isNotEmpty && id != 'null')
+        .toList();
+
+    // Fetch document URLs from both profile tables in parallel.
+    // Wrapped in try-catch because RLS may restrict reading other users' profiles.
+    final docMap = <String, Map<String, String?>>{};
+    if (userIds.isNotEmpty) {
+      try {
+        final results = await Future.wait([
+          _client
+              .from('designer_profiles')
+              .select('user_id,work_file_url,business_card_url')
+              .inFilter('user_id', userIds),
+          _client
+              .from('manufacturer_profiles')
+              .select('user_id,work_file_url,business_card_url')
+              .inFilter('user_id', userIds),
+        ]);
+        for (final profileRows in results) {
+          for (final p in profileRows) {
+            final uid = '${p['user_id'] ?? ''}';
+            if (uid.isEmpty || uid == 'null') continue;
+            docMap[uid] = {
+              'work_file_url': p['work_file_url'] as String?,
+              'business_card_url': p['business_card_url'] as String?,
+            };
+          }
+        }
+      } catch (_) {
+        // RLS may block reading other users' profiles — continue without docs
+      }
+    }
+
     return rows
         .map<VerificationRequest>(
-          (row) => VerificationRequest(
-            userId: '${row['id']}',
-            name: _nameFromUserRow(row),
-            subtitle: _subtitleFromUserRow(row),
-            email: (row['email'] as String?) ?? '',
-            role: (row['role'] as String?) ?? 'member',
-            country: (row['country'] as String?) ?? '',
-            hasGst: ((row['gst_number'] as String?) ?? '').trim().isNotEmpty,
-            hasAddress: ((row['address'] as String?) ?? '').trim().isNotEmpty,
-            hasBusinessType:
-                ((row['business_type'] as String?) ?? '').trim().isNotEmpty,
-            createdAt: _tryParseDate(row['created_at']),
-          ),
+          (row) {
+            final uid = '${row['id']}';
+            final docs = docMap[uid];
+            return VerificationRequest(
+              userId: uid,
+              name: _nameFromUserRow(row),
+              subtitle: _subtitleFromUserRow(row),
+              email: (row['email'] as String?) ?? '',
+              role: (row['role'] as String?) ?? 'member',
+              country: (row['country'] as String?) ?? '',
+              hasGst:
+                  ((row['gst_number'] as String?) ?? '').trim().isNotEmpty,
+              hasAddress:
+                  ((row['address'] as String?) ?? '').trim().isNotEmpty,
+              hasBusinessType:
+                  ((row['business_type'] as String?) ?? '').trim().isNotEmpty,
+              createdAt: _tryParseDate(row['created_at']),
+              workFileUrl: docs?['work_file_url'],
+              businessCardUrl: docs?['business_card_url'],
+            );
+          },
         )
         .toList();
   }
@@ -268,23 +389,223 @@ class NewAdminDataService {
     }).eq('id', userId);
   }
 
+  /// Largest number of values put into a single PostgREST `in.(…)` filter.
+  ///
+  /// PostgREST filters ride in the query string of a GET. A UUID costs ~39
+  /// characters there, so ~200 of them already pushes the URL past the 8 KB
+  /// request-line limit that Supabase's edge proxy enforces. The proxy rejects
+  /// it *before* PostgREST sees it, which is why the failure arrives as a bare
+  /// `PostgrestException(message: Bad Request, code: 400, details: , hint: null)`
+  /// - the body is a plain gateway error with none of the SQL detail a genuine
+  /// PostgREST 400 would carry. That is exactly the error the admin User
+  /// Management screen was showing once the catalog grew past a few hundred
+  /// assets. 100 keeps each URL comfortably under 4 KB.
+  static const int _inFilterChunkSize = 100;
+
+  /// Run `select ... where <column> in (...)` in URL-safe batches.
+  Future<List<Map<String, dynamic>>> _selectInChunks({
+    required String table,
+    required String columns,
+    required String column,
+    required List<String> values,
+  }) async {
+    if (values.isEmpty) return [];
+    final out = <Map<String, dynamic>>[];
+    for (var i = 0; i < values.length; i += _inFilterChunkSize) {
+      final end = (i + _inFilterChunkSize).clamp(0, values.length);
+      final chunk = values.sublist(i, end);
+      final rows =
+          await _client.from(table).select(columns).inFilter(column, chunk);
+      out.addAll((rows as List).map((e) => Map<String, dynamic>.from(e)));
+    }
+    return out;
+  }
+
+  /// Registration documents for the given user rows, keyed by user id.
+  ///
+  /// Three sources, because a document's location depends on how far the user
+  /// got through onboarding:
+  ///   1. `designer-files` table   - finalised uploads, keyed by user_id.
+  ///   2. `pending_signup_uploads` - uploaded at signup but not yet finalised.
+  ///      Keyed by EMAIL, since `finalize-signup-uploads` only runs once the
+  ///      user confirms their address and signs in. A user sitting in
+  ///      "pending approval" has their documents ONLY here - which is exactly
+  ///      the moment the admin needs to see them, and why the screen looked
+  ///      empty before.
+  ///   3. `designer_profiles` / `manufacturer_profiles` - the legacy columns
+  ///      written by the older signUpAdmin path.
+  ///
+  /// A failure in any one source is logged and skipped rather than thrown: a
+  /// missing document list must not take down the whole User Management screen.
+  Future<Map<String, List<UserDocument>>> _fetchUserDocuments(
+      List<Map<String, dynamic>> rows) async {
+    final out = <String, List<UserDocument>>{};
+    if (rows.isEmpty) return out;
+
+    final userIds = rows.map((r) => '${r['id']}').toList();
+    final emailToId = <String, String>{};
+    for (final r in rows) {
+      final email = (r['email'] as String?)?.trim().toLowerCase();
+      if (email != null && email.isNotEmpty) emailToId[email] = '${r['id']}';
+    }
+
+    void add(String userId, UserDocument doc) =>
+        (out[userId] ??= <UserDocument>[]).add(doc);
+
+    // 1. Finalised uploads.
+    try {
+      final files = await _selectInChunks(
+        table: 'designer-files',
+        columns: 'user_id, file_type, file_url, created_at',
+        column: 'user_id',
+        values: userIds,
+      );
+      for (final f in files) {
+        add('${f['user_id']}', UserDocument(
+          fileType: '${f['file_type']}',
+          source: 'linked',
+          url: f['file_url'] as String?,
+          uploadedAt: _tryParseDate(f['created_at']),
+        ));
+      }
+    } catch (e) {
+      debugPrint('designer-files lookup failed: $e');
+    }
+
+    // 2. Not-yet-finalised uploads, matched on email.
+    if (emailToId.isNotEmpty) {
+      try {
+        final pending = await _selectInChunks(
+          table: 'pending_signup_uploads',
+          columns: 'email, file_type, object_path, status, created_at',
+          column: 'email',
+          values: emailToId.keys.toList(),
+        );
+        for (final p in pending) {
+          if ('${p['status']}' == 'linked') continue; // already covered above
+          final uid = emailToId['${p['email']}'.toLowerCase()];
+          if (uid == null) continue;
+          add(uid, UserDocument(
+            fileType: '${p['file_type']}',
+            source: 'pending',
+            objectPath: p['object_path'] as String?,
+            uploadedAt: _tryParseDate(p['created_at']),
+          ));
+        }
+      } catch (e) {
+        debugPrint('pending_signup_uploads lookup failed: $e');
+      }
+    }
+
+    // 3. Legacy profile columns.
+    for (final table in ['designer_profiles', 'manufacturer_profiles']) {
+      try {
+        final profiles = await _selectInChunks(
+          table: table,
+          columns: 'user_id, work_file_url, business_card_url',
+          column: 'user_id',
+          values: userIds,
+        );
+        for (final p in profiles) {
+          final uid = '${p['user_id']}';
+          final work = p['work_file_url'] as String?;
+          final card = p['business_card_url'] as String?;
+          if (work != null && work.isNotEmpty) {
+            add(uid,
+                UserDocument(fileType: 'work_file', source: 'linked', url: work));
+          }
+          if (card != null && card.isNotEmpty) {
+            add(uid, UserDocument(
+                fileType: 'business_card', source: 'linked', url: card));
+          }
+        }
+      } catch (e) {
+        debugPrint('$table lookup failed: $e');
+      }
+    }
+
+    // The same document can surface from more than one source (e.g. a legacy
+    // profile column plus a designer-files row). Keep one per file_type,
+    // preferring a finalised copy over a pending one.
+    for (final entry in out.entries) {
+      final byType = <String, UserDocument>{};
+      for (final doc in entry.value) {
+        final existing = byType[doc.fileType];
+        if (existing == null || (existing.isPending && !doc.isPending)) {
+          byType[doc.fileType] = doc;
+        }
+      }
+      out[entry.key] = byType.values.toList();
+    }
+
+    return out;
+  }
+
+  /// Mint a time-limited URL for a registration document.
+  ///
+  /// Signed URLs are used for BOTH kinds of document, not just pending ones:
+  /// the `designer-files` bucket is private (`public = false`), yet
+  /// `finalize-signup-uploads` stores a `getPublicUrl()` link, which does not
+  /// resolve against a private bucket. Signing the object path is what actually
+  /// works — and it expires, so a link copied out of the admin screen doesn't
+  /// become a permanent handle on someone's business documents.
+  Future<String?> createDocumentSignedUrl(String objectPath,
+      {int expiresInSeconds = 300}) async {
+    try {
+      return await _client.storage
+          .from('designer-files')
+          .createSignedUrl(objectPath, expiresInSeconds);
+    } catch (e) {
+      debugPrint('createSignedUrl failed for $objectPath: $e');
+      return null;
+    }
+  }
+
+  /// Recover the storage object path from a stored URL.
+  ///
+  /// Handles both shapes Supabase produces:
+  ///   .../storage/v1/object/public/designer-files/users/<uid>/work_file.pdf
+  ///   .../storage/v1/object/sign/designer-files/users/<uid>/work_file.pdf?...
+  /// Returns null when the string isn't a designer-files URL, in which case the
+  /// caller falls back to using it verbatim.
+  static String? objectPathFromUrl(String? url) {
+    if (url == null || url.isEmpty) return null;
+    const marker = '/designer-files/';
+    final idx = url.indexOf(marker);
+    if (idx == -1) return null;
+    final path = url.substring(idx + marker.length).split('?').first;
+    return path.isEmpty ? null : Uri.decodeComponent(path);
+  }
+
   Future<List<UserLedgerRow>> fetchUserLedger({int limit = 100}) async {
-    final rows = await _client
-        .from('users')
-        .select(
-            'id,full_name,username,business_name,email,phone,role,is_member,credits_remaining,approval_status,last_credit_refresh,created_at,last_activity_at')
-        .order('created_at', ascending: false)
-        .limit(limit);
+    List<Map<String, dynamic>> rows = [];
+    try {
+      rows = await _client
+          .from('users')
+          .select(
+              'id,full_name,username,business_name,email,phone,role,is_member,credits_remaining,approval_status,last_credit_refresh,created_at,last_activity_at')
+          .order('created_at', ascending: false)
+          .limit(limit);
+    } catch (e) {
+      throw Exception('users query failed: $e');
+    }
 
     if (rows.isEmpty) return [];
 
     final userIds = rows.map((r) => '${r['id']}').toList();
 
     // 1. Fetch assets owned by these users to get asset_id -> owner_id mapping
-    final assetsRes = await _client
-        .from('assets')
-        .select('id, owner_id')
-        .inFilter('owner_id', userIds);
+    List<Map<String, dynamic>> assetsRes = [];
+    try {
+      assetsRes = await _selectInChunks(
+        table: 'assets',
+        columns: 'id, owner_id',
+        column: 'owner_id',
+        values: userIds,
+      );
+    } catch (e) {
+      throw Exception('assets query failed: $e');
+    }
 
     final Map<String, String> assetToOwner = {};
     final Set<String> relevantAssetIds = {};
@@ -302,13 +623,15 @@ class NewAdminDataService {
     }
 
     if (relevantAssetIds.isNotEmpty) {
-      // Use inFilter for batch fetch
-      final analyticsRes = await _client
-          .from('analytics_daily')
-          .select('asset_id, views, likes, shares')
-          .inFilter('asset_id', relevantAssetIds.toList());
+      try {
+        final analyticsRes = await _selectInChunks(
+          table: 'analytics_daily',
+          columns: 'asset_id, views, likes, shares',
+          column: 'asset_id',
+          values: relevantAssetIds.toList(),
+        );
 
-      for (final stat in analyticsRes) {
+        for (final stat in analyticsRes) {
         final aid = '${stat['asset_id']}';
         final ownerId = assetToOwner[aid];
         if (ownerId != null && userMetrics.containsKey(ownerId)) {
@@ -320,12 +643,18 @@ class NewAdminDataService {
               (userMetrics[ownerId]!['s'] ?? 0) + (stat['shares'] as int? ?? 0);
         }
       }
+      } catch (e) {
+        throw Exception('analytics_daily query failed: $e');
+      }
     }
+
+    final documents = await _fetchUserDocuments(rows);
 
     return rows.map<UserLedgerRow>((row) {
       final uid = '${row['id']}';
       final metrics = userMetrics[uid] ?? {'v': 0, 'l': 0, 's': 0};
       return UserLedgerRow(
+        documents: documents[uid] ?? const [],
         id: uid,
         name: _resolveDisplayName(row),
         email: (row['email'] as String?) ?? '',
@@ -1086,7 +1415,7 @@ class NewAdminDataService {
           title: (row['Product Title'] as String?) ?? 'Untitled Product',
           sourceTable: 'designerproducts',
           priceLabel: ((row['Price'] as String?) ?? '').trim(),
-          imageUrl: _extractImage(row['Images']),
+          imageUrl: _extractImage(row['Images'] ?? row['Image']),
           quoteRequests: quoteCountByProductKey['designerproducts::$id'] ?? 0,
           createdAt: _tryParseDate(row['created_at']),
         ),
@@ -1101,7 +1430,7 @@ class NewAdminDataService {
           title: (row['Product Title'] as String?) ?? 'Untitled Product',
           sourceTable: 'manufacturerproducts',
           priceLabel: ((row['Price'] as String?) ?? '').trim(),
-          imageUrl: _extractImage(row['Images']),
+          imageUrl: _extractImage(row['Images'] ?? row['Image']),
           quoteRequests: 0,
           createdAt: _tryParseDate(row['created_at']),
         ),
@@ -1185,7 +1514,7 @@ class NewAdminDataService {
         uploaderName: user?['name'] ?? 'Unknown uploader',
         uploaderEmail: user?['email'] ?? '',
         businessName: businessNameMap[userId] ?? '',
-        imageUrl: _extractImage(row['Images']),
+        imageUrl: _extractImage(row['Images'] ?? row['Image']),
         createdAt: _tryParseDate(row['created_at']),
         priceLabel: ((row['Price'] as String?) ?? '').trim(),
       );

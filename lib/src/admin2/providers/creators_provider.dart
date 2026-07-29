@@ -23,6 +23,9 @@ class CreatorModel {
   int totalViews;
   double avgRating;
 
+  final String? workFileUrl;
+  final String? businessCardUrl;
+
   CreatorModel({
     required this.id,
     required this.fullName,
@@ -38,6 +41,8 @@ class CreatorModel {
     this.worksCount = 0,
     this.totalViews = 0,
     this.avgRating = 0.0,
+    this.workFileUrl,
+    this.businessCardUrl,
   });
 
   final String? phone;
@@ -110,11 +115,44 @@ class CreatorsProvider extends ChangeNotifier {
       ''').inFilter('role', ['designer', 'manufacturer', 'admin']);
 
       final List<dynamic> data = res;
+
+      // 3. Fetch document URLs from profile tables in parallel
+      final userIds = data
+          .map<String>((c) => '${c['id'] ?? ''}')
+          .where((id) => id.isNotEmpty && id != 'null')
+          .toList();
+
+      final docMap = <String, Map<String, String?>>{};
+      if (userIds.isNotEmpty) {
+        final profileResults = await Future.wait([
+          supabase
+              .from('designer_profiles')
+              .select('user_id,work_file_url,business_card_url')
+              .inFilter('user_id', userIds),
+          supabase
+              .from('manufacturer_profiles')
+              .select('user_id,work_file_url,business_card_url')
+              .inFilter('user_id', userIds),
+        ]);
+        for (final profileRows in profileResults) {
+          for (final p in profileRows) {
+            final uid = '${p['user_id'] ?? ''}';
+            if (uid.isEmpty || uid == 'null') continue;
+            docMap[uid] = {
+              'work_file_url': p['work_file_url'] as String?,
+              'business_card_url': p['business_card_url'] as String?,
+            };
+          }
+        }
+      }
+
       creators = [];
 
       for (var c in data) {
+        final uid = '${c['id']}';
+        final docs = docMap[uid];
         creators.add(CreatorModel(
-          id: c['id'],
+          id: uid,
           fullName: (c['full_name'] ?? 'Unknown').toString(),
           email: c['email'] as String?,
           phone: c['phone'] as String?,
@@ -126,6 +164,8 @@ class CreatorsProvider extends ChangeNotifier {
           role: (c['role'] ?? 'designer').toString(),
           createdAt: DateTime.tryParse((c['created_at'] ?? '').toString()) ??
               DateTime.now(),
+          workFileUrl: docs?['work_file_url'],
+          businessCardUrl: docs?['business_card_url'],
         ));
       }
 

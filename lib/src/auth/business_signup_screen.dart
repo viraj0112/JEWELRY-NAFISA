@@ -258,6 +258,11 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen>
     }
     setState(() => _isLoading = true);
     try {
+      // Check the address BEFORE uploading anything. Signing up last meant a
+      // duplicate email was only discovered after two files had already been
+      // pushed to storage and a pending_signup_uploads row created.
+      await _authService.ensureEmailAvailable(_emailController.text.trim());
+
       final supabase = Supabase.instance.client;
 
       final workFileExt = _workFile!.name.split('.').last;
@@ -319,8 +324,9 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen>
         address: _addressController.text.trim(),
         gstNumber: _gstController.text.trim(),
       );
-      if (user == null)
-        throw Exception('Sign up failed. Email may already be in use.');
+      if (user == null) {
+        throw Exception('Sign up failed. Please try again.');
+      }
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('pending_signup_id', signupId);
@@ -330,6 +336,8 @@ class _BusinessSignUpScreenState extends State<BusinessSignUpScreen>
       if (mounted) {
         await _showEmailConfirmationDialog(_emailController.text.trim());
       }
+    } on EmailAlreadyRegisteredException catch (e) {
+      _showSnack(e.message);
     } catch (e) {
       _showSnack('An error occurred: ${e.toString()}');
     } finally {

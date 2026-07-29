@@ -30,14 +30,10 @@ class CreatorsSketchTab extends StatelessWidget {
                 final c = list[idx];
                 return CreatorCard(
                   creator: c,
-                  // --- ADD THESE LINES ---
                   onApprove: (id) => provider.approveCreator(id),
                   onReject: (id) => provider.rejectCreator(id),
-                  // -----------------------
-                  onOpenPortfolio: (id) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Open portfolio for $id')));
-                  },
+                  onOpenPortfolio: () =>
+                      CreatorCard.showDocumentsDialog(context, c),
                   onEmail: (id) {
                     ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Email creator $id')));
