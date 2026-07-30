@@ -287,10 +287,14 @@ class AiFillService {
 
   /// Only the non-secret parts: the model name and a hint showing whether a
   /// global key is configured.
+  ///
+  /// Read through `llm_settings_public`, a SECURITY DEFINER view. The browser
+  /// has no usable grant on `llm_settings` itself - the key columns are not in
+  /// the view's select list, so there is no path to them from a session token.
   Future<Map<String, dynamic>?> getLlmSettings() async {
     return await _supabase
-        .from('llm_settings')
-        .select('default_model, global_llm_key_hint')
+        .from('llm_settings_public')
+        .select('default_model, global_llm_key_hint, has_global_key')
         .eq('id', 1)
         .maybeSingle();
   }
