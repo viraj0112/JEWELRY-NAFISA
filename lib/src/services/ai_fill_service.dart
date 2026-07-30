@@ -204,7 +204,7 @@ class AiFillService {
     final uid = _supabase.auth.currentUser?.id;
     if (uid == null) throw Exception('Not signed in');
     await _supabase
-        .from('api_credentials')
+        .from('api_credential_status')
         .update({'llm_model': llmModel.trim().isEmpty ? null : llmModel.trim()})
         .eq('user_id', uid);
   }
