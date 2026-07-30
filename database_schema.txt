@@ -476,10 +476,15 @@ CREATE TABLE public.api_credentials (
 -- (user_id, llm_model, llm_key_hint, is_active, key_prefix, expires_at,
 --  last_used_at, created_at, updated_at) and UPDATE only (llm_model).
 -- All secret columns are service_role-only. See migration 20260729120000.
-CREATE VIEW public.api_credential_status AS -- security_invoker; adds is_expired / is_usable
+-- SECURITY DEFINER view (security_invoker = false): it is the privilege bridge
+-- that lets `authenticated` read the non-secret columns without table-level
+-- SELECT on api_credentials. Access control is the WHERE clause, which mirrors
+-- the cred_select_own / cred_admin_all RLS policies. See migration 20260730140000.
+CREATE VIEW public.api_credential_status AS -- adds is_expired / is_usable
   SELECT user_id, key_prefix, llm_model, llm_key_hint, is_active, expires_at,
          last_used_at, created_at, is_expired, is_usable
-  FROM public.api_credentials;
+  FROM public.api_credentials
+  WHERE user_id = auth.uid() OR public.is_admin();
 CREATE TABLE public.llm_settings (
   id integer NOT NULL DEFAULT 1 CHECK (id = 1),
   global_llm_api_key text,            -- DEPRECATED plaintext
