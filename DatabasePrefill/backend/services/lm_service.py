@@ -109,7 +109,19 @@ class LLMService:
             # 2. Build prompt
             prompt = custom_prompt or DATA_SCRAPER_PROMPT
             if existing_data:
-                prompt += f"\n\nExisting product data context:\n{existing_data}"
+                # The schema forces a value for every field, so the model will
+                # answer for columns that are already populated too. Those
+                # answers are discarded on the write side — this instruction
+                # makes the ones we DO keep consistent with them (e.g. a
+                # Description written against the recorded metal colour rather
+                # than the model's own guess from the photo).
+                prompt += (
+                    "\n\nAlready-recorded data for this product (treat as "
+                    "authoritative — it was set by the seller and outranks your "
+                    "reading of the image; stay consistent with it and do not "
+                    "contradict it):\n"
+                    f"{json.dumps(existing_data, ensure_ascii=False, default=str)}"
+                )
             # 3. Request Gemini (non-blocking, with retries)
             response = await self._generate_with_retry(prompt, image_part)
             # 4. Parse returned JSON (SDK validates against response_schema)
@@ -125,19 +137,31 @@ class LLMService:
     async def batch_analyze(
         self,
         image_urls: List[str],
+        existing_data: Optional[List[Optional[Dict[str, Any]]]] = None,
         max_concurrency: Optional[int] = None,
     )->List[Dict[str, Any]]:
-        """Process multiple images concurrently using a Semaphore."""
+        """Process multiple images concurrently using a Semaphore.
+
+        `existing_data[i]` is the already-known attributes of the product behind
+        `image_urls[i]` — the same context `analyze_product_image` accepts for a
+        single fill. Passing it keeps the batch path consistent with the single
+        path: the model sees what the row already says and extends it, instead
+        of describing the image from scratch and contradicting the human.
+
+        Results stay positional (`gather` preserves order), so callers can keep
+        zipping results back to their products.
+        """
         limit = max_concurrency or settings.llm_max_concurrency
         semaphore = asyncio.Semaphore(limit)
-        async def worker(url: str):
+        async def worker(url: str, context: Optional[Dict[str, Any]]):
             async with semaphore:
                 try:
-                    return await self.analyze_product_image(url)
+                    return await self.analyze_product_image(url, existing_data=context)
                 except Exception as e:
                     logger.warning(f"Failed to process image {url}: {e}")
                     return {"image_url": url, "error": str(e)}
-        tasks = [worker(url) for url in image_urls]
+        contexts = existing_data or [None] * len(image_urls)
+        tasks = [worker(url, ctx) for url, ctx in zip(image_urls, contexts)]
         return await asyncio.gather(*tasks, return_exceptions=False)
 
         

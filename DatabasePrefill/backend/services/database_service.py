@@ -6,6 +6,25 @@ logger = get_logger(__name__)
 
 from constants import TARGET_COLUMNS
 
+
+def is_empty_value(value: Any) -> bool:
+    """A column counts as empty — and therefore fillable — only when it is NULL,
+    blank/whitespace, or an empty array.
+
+    Anything else is data a human or an earlier fill already put there. This is
+    the single definition of "empty" for the whole fill pipeline: the same test
+    picks the candidate rows and decides which columns may be written, so a row
+    can never be selected on one rule and overwritten on another.
+    """
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value.strip() == ""
+    if isinstance(value, (list, tuple, dict, set)):
+        return len(value) == 0
+    return False
+
+
 class DatabaseService:
     def __init__(self, client: Client):
         self.client = client
@@ -50,10 +69,7 @@ class DatabaseService:
                 if product.get("id") in exclude_ids:
                     continue
                 has_empty = any(
-                    product.get(col) is None or
-                    product.get(col) == '' or
-                    product.get(col) == []
-                    for col in TARGET_COLUMNS
+                    is_empty_value(product.get(col)) for col in TARGET_COLUMNS
                 )
                 if has_empty:
                     products.append(product)
