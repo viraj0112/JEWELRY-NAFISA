@@ -100,12 +100,21 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
   // --- Controllers ---
   final productTitleCtrl = TextEditingController();
   final descCtrl = TextEditingController();
+  final priceCtrl = TextEditingController();
+  final skuCtrl = TextEditingController();
+  final productTagsCtrl = TextEditingController();
+  final subCategoryCtrl = TextEditingController();
   final metalWeightCtrl = TextEditingController();
   final metalColorCtrl = TextEditingController();
   final stoneCountCtrl = TextEditingController();
   final stoneColorCtrl = TextEditingController();
+  final stoneWeightCtrl = TextEditingController();
+  final stonePurityCtrl = TextEditingController();
+  final stoneQualityCtrl = TextEditingController();
   final dimensionCtrl = TextEditingController();
+  final platingCtrl = TextEditingController();
   final enamelWorkCtrl = TextEditingController();
+  final enamelWeightCtrl = TextEditingController();
 
   // --- Dropdown state ---
   String? metalType;
@@ -118,6 +127,7 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
   String? stoneUsed;
   String? stoneSetting;
   String? stoneCut;
+  bool customizable = false;
   String visibility = 'Public';
 
   // --- Dynamic data ---
@@ -264,12 +274,21 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
   void dispose() {
     productTitleCtrl.dispose();
     descCtrl.dispose();
+    priceCtrl.dispose();
+    skuCtrl.dispose();
+    productTagsCtrl.dispose();
+    subCategoryCtrl.dispose();
     metalWeightCtrl.dispose();
     metalColorCtrl.dispose();
     stoneCountCtrl.dispose();
     stoneColorCtrl.dispose();
+    stoneWeightCtrl.dispose();
+    stonePurityCtrl.dispose();
+    stoneQualityCtrl.dispose();
     dimensionCtrl.dispose();
+    platingCtrl.dispose();
     enamelWorkCtrl.dispose();
+    enamelWeightCtrl.dispose();
     super.dispose();
   }
 
@@ -365,6 +384,21 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
             _field('Description', descCtrl,
                 lines: 3, hintText: 'Add details about your product...'),
 
+            // --- Price ---
+            _field('Price (₹)', priceCtrl,
+                number: true, hintText: 'e.g., 15000'),
+
+            // --- SKU ---
+            _field('SKU', skuCtrl, hintText: 'e.g., GLD-NK-001'),
+
+            // --- Product Tags ---
+            _field('Product Tags', productTagsCtrl,
+                hintText: 'e.g., kundan, bridal, gold (comma separated)'),
+
+            // --- Sub Category ---
+            _field('Sub Category', subCategoryCtrl,
+                hintText: 'e.g., Pendant, Choker, Solitaire'),
+
             // --- Metal Type ---
             _dropdown('Metal Type *', ['Gold', 'Silver', 'Platinum'], metalType,
                 (v) {
@@ -412,6 +446,10 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                 (v) => setState(() => metalFinish = v),
                 hintText: 'Select metal finish'),
 
+            // --- Plating ---
+            _field('Plating', platingCtrl,
+                hintText: 'e.g., Rhodium, Gold plated'),
+
             // --- Gender ---
             _dropdown('Gender *', ['Women', 'Men', 'Unisex', 'Kids'], gender,
                 (v) => setState(() => gender = v),
@@ -429,6 +467,9 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                   stoneCountCtrl.clear();
                   stoneColorCtrl.clear();
                   stoneCut = null;
+                  stoneWeightCtrl.clear();
+                  stonePurityCtrl.clear();
+                  stoneQualityCtrl.clear();
                 }
               });
             }, hintText: 'Select jewelry type'),
@@ -452,22 +493,50 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
               _dropdown('Stone Setting', _stoneSettingOptions, stoneSetting,
                   (v) => setState(() => stoneSetting = v),
                   hintText: 'e.g., Prong, Bezel, Pave'),
+              _dropdown('Stone Cut', _stoneCutOptions, stoneCut,
+                  (v) => setState(() => stoneCut = v),
+                  hintText: 'e.g., Round, Princess, Emerald'),
               _field('Stone Count', stoneCountCtrl,
                   hintText: 'e.g., 3 Ruby, 4 Diamond'),
               _field('Stone Color', stoneColorCtrl,
                   hintText: 'e.g., Red, Blue, Green'),
-              _dropdown('Stone Cut', _stoneCutOptions, stoneCut,
-                  (v) => setState(() => stoneCut = v),
-                  hintText: 'e.g., Round, Princess, Emerald'),
+              _field('Stone Weight (ct)', stoneWeightCtrl,
+                  hintText: 'e.g., 0.5, 1.2'),
+              _field('Stone Purity', stonePurityCtrl,
+                  hintText: 'e.g., VVS1, VS2, SI1'),
+              _field('Stone Quality', stoneQualityCtrl,
+                  hintText: 'e.g., AAA, AA, A'),
             ],
 
             // --- Dimension ---
             _field('Dimension', dimensionCtrl,
                 hintText: 'e.g., Length x Width x Height'),
 
-            // --- Enamel Work + Weight ---
-            _field('Enamel Work + Weight', enamelWorkCtrl,
-                hintText: 'e.g., Pink 0.6g, Blue 4g'),
+            // --- Enamel Work ---
+            _field('Enamel Work', enamelWorkCtrl,
+                hintText: 'e.g., Pink, Blue (comma separated colors)'),
+
+            // --- Enamel Weight ---
+            _field('Enamel Weight (g)', enamelWeightCtrl,
+                hintText: 'e.g., 0.6'),
+
+            // --- Customizable ---
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Customizable',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w500, fontSize: 13)),
+                  Switch(
+                    value: customizable,
+                    activeThumbColor: const Color(0xFF00BFA5),
+                    onChanged: (v) => setState(() => customizable = v),
+                  ),
+                ],
+              ),
+            ),
           ],
         );
 
@@ -537,6 +606,14 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
             const SizedBox(height: 12),
             _reviewItem(
                 'Description', descCtrl.text.isEmpty ? '-' : descCtrl.text),
+            const SizedBox(height: 12),
+            _reviewItem('Price', priceCtrl.text.isEmpty ? '-' : '₹${priceCtrl.text}'),
+            const SizedBox(height: 12),
+            _reviewItem('SKU', skuCtrl.text.isEmpty ? '-' : skuCtrl.text),
+            const SizedBox(height: 12),
+            _reviewItem('Tags', productTagsCtrl.text.isEmpty ? '-' : productTagsCtrl.text),
+            const SizedBox(height: 12),
+            _reviewItem('Sub Category', subCategoryCtrl.text.isEmpty ? '-' : subCategoryCtrl.text),
             const SizedBox(height: 16),
             Wrap(
               spacing: 32,
@@ -549,8 +626,11 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                 _reviewItem('Metal Color',
                     metalColorCtrl.text.isEmpty ? '-' : metalColorCtrl.text),
                 _reviewItem('Metal Finish', metalFinish ?? '-'),
+                _reviewItem('Plating',
+                    platingCtrl.text.isEmpty ? '-' : platingCtrl.text),
                 _reviewItem('Gender', gender ?? '-'),
                 _reviewItem('Jewelry Type', jewelryType ?? '-'),
+                _reviewItem('Customizable', customizable ? 'Yes' : 'No'),
               ],
             ),
             if (jewelryType == 'Studded') ...[
@@ -570,11 +650,17 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                   _reviewItem('Stone Type', stoneType ?? '-'),
                   _reviewItem('Stone Used', stoneUsed ?? '-'),
                   _reviewItem('Stone Setting', stoneSetting ?? '-'),
+                  _reviewItem('Stone Cut', stoneCut ?? '-'),
                   _reviewItem('Stone Count',
                       stoneCountCtrl.text.isEmpty ? '-' : stoneCountCtrl.text),
                   _reviewItem('Stone Color',
                       stoneColorCtrl.text.isEmpty ? '-' : stoneColorCtrl.text),
-                  _reviewItem('Stone Cut', stoneCut ?? '-'),
+                  _reviewItem('Stone Weight',
+                      stoneWeightCtrl.text.isEmpty ? '-' : stoneWeightCtrl.text),
+                  _reviewItem('Stone Purity',
+                      stonePurityCtrl.text.isEmpty ? '-' : stonePurityCtrl.text),
+                  _reviewItem('Stone Quality',
+                      stoneQualityCtrl.text.isEmpty ? '-' : stoneQualityCtrl.text),
                 ],
               ),
             ],
@@ -589,6 +675,8 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                     dimensionCtrl.text.isEmpty ? '-' : dimensionCtrl.text),
                 _reviewItem('Enamel Work',
                     enamelWorkCtrl.text.isEmpty ? '-' : enamelWorkCtrl.text),
+                _reviewItem('Enamel Weight',
+                    enamelWeightCtrl.text.isEmpty ? '-' : '${enamelWeightCtrl.text}g'),
                 _reviewItem('Visibility', visibility),
               ],
             ),
@@ -1004,11 +1092,6 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
         return text.replaceFirst(RegExp(r'^AKD-'), '');
       }
 
-      List<String>? textToList(TextEditingController controller) {
-        final text = controller.text.trim();
-        return text.isEmpty ? null : [text];
-      }
-
       // 5. Prepare product data with all fields.
       // Write both the legacy scalar columns AND the Phase 1 unified array
       // columns (images_arr, metal_color_arr) so this keeps working whether
@@ -1020,11 +1103,28 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
       // "Metal Weight" column.
       final metalColorValue = getTextValue(metalColorCtrl);
       final imagesList = uploadedImageUrls.isEmpty ? null : uploadedImageUrls;
+
+      // Helper: split comma-separated text into a non-empty list or null.
+      List<String>? commaToList(TextEditingController ctrl) {
+        final text = ctrl.text.trim();
+        if (text.isEmpty) return null;
+        final parts = text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        return parts.isEmpty ? null : parts;
+      }
+
       // Unified schema: "Images"/"Metal Color" are text[] arrays.
       final Map<String, dynamic> productData = {
         'user_id': user.id,
         'Product Title': productTitleCtrl.text.trim(),
         'Description': getTextValue(descCtrl),
+        'Price': getTextValue(priceCtrl),
+        'SKU': skuCtrl.text.trim().isEmpty ? null : skuCtrl.text.trim(),
+        'Product Tags': commaToList(productTagsCtrl),
+        'Sub Category': getTextValue(subCategoryCtrl),
         'Images': imagesList,
         'Metal Type': normalizeMetalType(metalType),
         'Metal Purity': metalPurity,
@@ -1032,9 +1132,13 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
         'Metal Weight': getTextValue(metalWeightCtrl),
         'Metal Color': metalColorValue != null ? [metalColorValue] : null,
         'Metal Finish': metalFinish,
+        'Plating': getTextValue(platingCtrl),
         'Gender': gender,
         'Dimension': getTextValue(dimensionCtrl),
-        'Enamel Work': textToList(enamelWorkCtrl),
+        'Enamel Work': commaToList(enamelWorkCtrl),
+        'Enamel Weight': getTextValue(enamelWeightCtrl),
+        'Customizable': customizable ? ['Yes'] : null,
+        'Plain': jewelryType == 'Plain' ? 'Yes' : null,
       };
 
       // Add stone fields only if Studded
@@ -1043,9 +1147,12 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
         productData['Stone Used'] = stoneUsed != null ? [stoneUsed] : null;
         productData['Stone Setting'] =
             stoneSetting != null ? [stoneSetting] : null;
-        productData['Stone Count'] = textToList(stoneCountCtrl);
-        productData['Stone Color'] = textToList(stoneColorCtrl);
         productData['Stone Cut'] = stoneCut != null ? [stoneCut] : null;
+        productData['Stone Count'] = commaToList(stoneCountCtrl);
+        productData['Stone Color'] = commaToList(stoneColorCtrl);
+        productData['Stone Weight'] = commaToList(stoneWeightCtrl);
+        productData['Stone Purity'] = commaToList(stonePurityCtrl);
+        productData['Stone Quality'] = commaToList(stoneQualityCtrl);
       }
 
       // 6. Insert to appropriate table

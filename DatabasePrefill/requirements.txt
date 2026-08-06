@@ -5,6 +5,7 @@
 fastapi>=0.110,<1.0
 uvicorn[standard]>=0.29,<1.0
 python-multipart>=0.0.9          # required by FastAPI for UploadFile/File uploads
+gradio>=5.0                      # required for HF Spaces Gradio SDK (ZeroGPU free tier)
 
 # --- LLM (Gemini) ---
 google-genai>=0.3.0              # `from google import genai`

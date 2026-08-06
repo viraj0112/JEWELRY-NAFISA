@@ -8,8 +8,8 @@ import '../../services/ai_fill_service.dart';
 class AiFillPage extends StatefulWidget {
   const AiFillPage({super.key});
 
-  static Future<void> show(BuildContext context) {
-    return showModalBottomSheet<void>(
+  static Future<AiFillResult?> show(BuildContext context) {
+    return showModalBottomSheet<AiFillResult?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -150,6 +150,8 @@ class _AiFillPageState extends State<AiFillPage> {
       if (!mounted) return;
       setState(() => _lastResult = result);
       _toast('Filled ${result.success}/${result.total} of your products');
+      // Pop the sheet and return the result so the caller can update badges.
+      if (mounted) Navigator.of(context).pop(result);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = '$e');

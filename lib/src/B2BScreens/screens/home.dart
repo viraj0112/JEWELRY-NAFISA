@@ -12,8 +12,9 @@ import 'package:jewelry_nafisa/src/models/filter_criteria.dart';
 
 class HomePage extends StatefulWidget {
   final FilterCriteria? filters;
+  final Set<int> aiFilledIds;
 
-  const HomePage({super.key, this.filters});
+  const HomePage({super.key, this.filters, this.aiFilledIds = const {}});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -361,10 +362,12 @@ class _HomePageState extends State<HomePage> {
             itemCount: products.length,
             itemBuilder: (context, index) {
               final item = products[index];
+              final itemId = int.tryParse(item.id) ?? -1;
               return _ProductCard(
                 item: item,
                 selected: _selectedIds.contains(item.id),
                 onToggleSelected: () => _toggleSelected(item.id),
+                isAiFilled: widget.aiFilledIds.contains(itemId),
               );
             },
           ),
@@ -416,8 +419,19 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
-            title: Text(item.productTitle ?? 'Unknown Product',
-                maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(item.productTitle ?? 'Unknown Product',
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+                if (widget.aiFilledIds.contains(int.tryParse(item.id) ?? -1))
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4),
+                    child: Text('✨', style: TextStyle(fontSize: 14)),
+                  ),
+              ],
+            ),
             subtitle: Text(
               [
                 if ((item.sku ?? '').isNotEmpty) 'SKU ${item.sku}',
@@ -451,11 +465,13 @@ class _ProductCard extends StatefulWidget {
   final JewelryItem item;
   final bool selected;
   final VoidCallback? onToggleSelected;
+  final bool isAiFilled;
 
   const _ProductCard({
     required this.item,
     this.selected = false,
     this.onToggleSelected,
+    this.isAiFilled = false,
   });
 
   @override
@@ -545,6 +561,7 @@ class _ProductCardState extends State<_ProductCard> {
     final bool showOverlay = _isHovered || _isTapped;
 
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
@@ -607,19 +624,31 @@ class _ProductCardState extends State<_ProductCard> {
                         Positioned(
                           top: 6,
                           left: 6,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: SizedBox(
-                              width: 32,
-                              height: 32,
-                              child: Checkbox(
-                                value: widget.selected,
-                                activeColor: Colors.teal,
-                                onChanged: (_) =>
-                                    widget.onToggleSelected!.call(),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: GestureDetector(
+                              // opaque + IgnorePointer on the Checkbox:
+                              // the Checkbox is purely visual; this detector
+                              // handles the actual tap and wins the arena
+                              // against the outer card GestureDetector.
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => widget.onToggleSelected!.call(),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.9),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: SizedBox(
+                                  width: 36,
+                                  height: 36,
+                                  child: IgnorePointer(
+                                    child: Checkbox(
+                                      value: widget.selected,
+                                      activeColor: Colors.teal,
+                                      onChanged: (_) {},
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -695,6 +724,49 @@ class _ProductCardState extends State<_ProductCard> {
                                     color: Colors.white,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                      // ✨ AI Filled Badge (Bottom Left of image area)
+                      if (widget.isAiFilled)
+                        Positioned(
+                          bottom: 8,
+                          left: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF6366F1), // indigo
+                                  Color(0xFF8B5CF6), // violet
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.purple.withOpacity(0.3),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('✨', style: TextStyle(fontSize: 10)),
+                                SizedBox(width: 3),
+                                Text(
+                                  'AI Filled',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.3,
                                   ),
                                 ),
                               ],

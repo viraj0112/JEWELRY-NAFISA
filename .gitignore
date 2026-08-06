@@ -86,6 +86,9 @@ app.*.map.json
 /android/local.properties
 
 *.md
+# ...except the HF Space config: its YAML frontmatter *is* the deployment
+# config, so the Space fails to build without it.
+!DatabasePrefill/README.md
 docs/
 aws/
 
@@ -95,7 +98,7 @@ test/
 __pycache__/
 .venv/
 .venv310/
-# DatabasePrefill/
+DatabasePrefill/
 *.csv
 implementation_plan_database
 LEARNING_NOTES.md

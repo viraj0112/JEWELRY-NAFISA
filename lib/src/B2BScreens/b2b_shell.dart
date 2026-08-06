@@ -28,6 +28,9 @@ class _B2BShellState extends State<B2BShell> {
   // Filter State
   FilterCriteria _filters = FilterCriteria();
 
+  // AI-filled product IDs (session-scoped, cleared on reload)
+  Set<int> _aiFilledIds = {};
+
   // Temporary state for the bottom sheet (to apply only on button press)
   FilterCriteria _tempFilters = FilterCriteria();
 
@@ -100,7 +103,14 @@ class _B2BShellState extends State<B2BShell> {
           IconButton(
             tooltip: 'AI Fill My Products',
             icon: const Icon(Icons.auto_awesome, color: Colors.teal),
-            onPressed: () => AiFillPage.show(context),
+            onPressed: () async {
+              final result = await AiFillPage.show(context);
+              if (result != null && result.filledIds.isNotEmpty && mounted) {
+                setState(() {
+                  _aiFilledIds = {..._aiFilledIds, ...result.filledIds};
+                });
+              }
+            },
           ),
         ],
         title: isMobile
@@ -142,8 +152,8 @@ class _B2BShellState extends State<B2BShell> {
         ],
       ),
       body: <Widget>[
-        // _filters must be passed down - the home grid applies them per item.
-        HomePage(filters: _filters),
+        // _filters and _aiFilledIds must be passed down.
+        HomePage(filters: _filters, aiFilledIds: _aiFilledIds),
         const SizedBox.shrink(),
         InsightsPage(),
         NotificationsPage(),
