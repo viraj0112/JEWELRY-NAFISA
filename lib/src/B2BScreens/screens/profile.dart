@@ -101,34 +101,41 @@ class _ProfilePageState extends State<ProfilePage> {
 
       final userId = user.id;
 
-      // Use CountOption.exact to avoid the 1000-row limit for just counting
+      // Use select('id') to avoid count() TypeErrors in the Dart client
       int productsCount = 0;
       if (_profileType == 'manufacturer') {
-        productsCount = await _supabase
+        final list = await _supabase
             .from('manufacturerproducts')
-            .count(CountOption.exact)
-            .eq('user_id', userId);
+            .select('id')
+            .eq('user_id', userId)
+            .limit(100000);
+        productsCount = (list as List).length;
       } else {
-        productsCount = await _supabase
+        final list = await _supabase
             .from('designerproducts')
-            .count(CountOption.exact)
-            .eq('user_id', userId);
+            .select('id')
+            .eq('user_id', userId)
+            .limit(100000);
+        productsCount = (list as List).length;
       }
       
       // Add pending/rejected uploads from assets
-      final assetsCount = await _supabase
+      final assetsList = await _supabase
           .from('assets')
-          .count(CountOption.exact)
-          .eq('owner_id', userId);
+          .select('id')
+          .eq('owner_id', userId)
+          .limit(100000);
       
-      productsCount += assetsCount;
+      productsCount += (assetsList as List).length;
 
       // Products — try designerproducts → manufacturerproducts → products
       if (productsCount == 0) {
-        productsCount = await _supabase
+        final list = await _supabase
             .from('products')
-            .count(CountOption.exact)
-            .eq('user_id', userId);
+            .select('id')
+            .eq('user_id', userId)
+            .limit(100000);
+        productsCount = (list as List).length;
       }
 
       if (productsCount == 0) {
@@ -156,11 +163,11 @@ class _ProfilePageState extends State<ProfilePage> {
         for (int i = 0; i < productIds.length; i += chunkSize) {
           final end = (i + chunkSize < productIds.length) ? i + chunkSize : productIds.length;
           final chunk = productIds.sublist(i, end);
-          final viewsCount = await _supabase
+          final viewsList = await _supabase
               .from('views')
-              .count(CountOption.exact)
+              .select('id')
               .inFilter('item_uid', chunk);
-          totalViews += viewsCount;
+          totalViews += (viewsList as List).length;
         }
       }
 
