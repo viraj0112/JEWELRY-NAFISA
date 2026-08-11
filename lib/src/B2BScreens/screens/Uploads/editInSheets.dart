@@ -96,8 +96,22 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
       var query =
           _supabase.from(widget.tableName).select('*').eq('user_id', _userId);
       if (widget.selectedIds.isNotEmpty) {
-        final ids =
-            widget.selectedIds.map((e) => int.tryParse(e) ?? e).toList();
+        final ids = <int>[];
+        for (final e in widget.selectedIds) {
+          final id = int.tryParse(e);
+          if (id == null) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text(
+                    'Cannot export pending or rejected products. Please select only approved products from your live catalog.'),
+                backgroundColor: Colors.red,
+              ));
+              setState(() => _exporting = false);
+            }
+            return;
+          }
+          ids.add(id);
+        }
         query = query.inFilter('id', ids);
       }
       final rows = await query.order('created_at', ascending: false);

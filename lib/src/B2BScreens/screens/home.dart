@@ -566,6 +566,7 @@ class _ProductCardState extends State<_ProductCard> {
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
         onTap: () {
+          widget.onToggleSelected?.call();
           setState(() => _isTapped = !_isTapped);
         },
         child: Container(
@@ -626,63 +627,38 @@ class _ProductCardState extends State<_ProductCard> {
                           left: 6,
                           child: MouseRegion(
                             cursor: SystemMouseCursors.click,
-                            child: GestureDetector(
-                              // opaque + IgnorePointer on the Checkbox:
-                              // the Checkbox is purely visual; this detector
-                              // handles the actual tap and wins the arena
-                              // against the outer card GestureDetector.
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () => widget.onToggleSelected!.call(),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.9),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: SizedBox(
-                                  width: 36,
-                                  height: 36,
-                                  child: IgnorePointer(
-                                    child: Checkbox(
-                                      value: widget.selected,
-                                      activeColor: Colors.teal,
-                                      onChanged: (_) {},
-                                    ),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 2,
                                   ),
+                                ],
+                              ),
+                              child: SizedBox(
+                                width: 36,
+                                height: 36,
+                                child: Checkbox(
+                                  value: widget.selected,
+                                  activeColor: Colors.teal,
+                                  onChanged: (_) => widget.onToggleSelected?.call(),
                                 ),
                               ),
                             ),
                           ),
                         ),
 
-                      // Moderation Status Badge
+                      // Moderation Status Badge — compact pill top-right
                       if (widget.item.status == 'pending' ||
-                          widget.item.status == 'rejected')
-                        Positioned.fill(
-                          child: Container(
-                            color: Colors.black.withOpacity(
-                                widget.item.status == 'rejected' ? 0.6 : 0.4),
-                            child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: widget.item.status == 'rejected'
-                                      ? Colors.red
-                                      : Colors.orange,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  widget.item.status == 'rejected'
-                                      ? 'Rejected'
-                                      : 'In Review',
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16),
-                                ),
-                              ),
-                            ),
-                          ),
+                          widget.item.status == 'rejected' ||
+                          widget.item.status == 'approved')
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: _StatusBadge(status: widget.item.status!),
                         ),
 
                       // Trending Badge (Top Left)
@@ -1074,11 +1050,77 @@ class _ProductCardState extends State<_ProductCard> {
   }
 }
 
+// ─── Status Badge ─────────────────────────────────────────────────────────────
+/// Compact pill badge shown on product cards for moderation status.
+/// pending → amber, approved → emerald green, rejected → rose red.
+class _StatusBadge extends StatelessWidget {
+  final String status;
+  const _StatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color bg, Color fg, IconData icon, String label) = switch (status) {
+      'approved' => (
+          const Color(0xFFD1FAE5),
+          const Color(0xFF065F46),
+          Icons.check_circle_rounded,
+          'Approved',
+        ),
+      'rejected' => (
+          const Color(0xFFFFE4E6),
+          const Color(0xFF9F1239),
+          Icons.cancel_rounded,
+          'Rejected',
+        ),
+      _ => (
+          const Color(0xFFFEF3C7),
+          const Color(0xFF92400E),
+          Icons.schedule_rounded,
+          'In Review',
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: fg.withOpacity(0.3), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: fg,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
 class _InsightsBottomSheet extends StatelessWidget {
   final dynamic item; // Replace 'dynamic' with your JewelryItem model
   final List<Map<String, dynamic>> geoAnalytics;
   final bool isManufacturer;
   final bool isPremium;
+
 
   const _InsightsBottomSheet({
     super.key,

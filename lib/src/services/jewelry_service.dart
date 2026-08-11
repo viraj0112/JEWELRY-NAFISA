@@ -597,22 +597,29 @@ class JewelryService {
     if (user == null) return [];
 
     try {
-      final response = await _supabaseClient
-          .from('designerproducts')
-          .select('''
-          *,
-          users (
-            business_name,
-            address,
-            country
-          )
-        ''')
-          .eq('user_id',
-              user.id) // Security: Only fetch rows belonging to this user
-          .order('created_at', ascending: false);
-
-      // Map the response to your JewelryItem model
-      final items = response as List<Map<String, dynamic>>;
+      List<Map<String, dynamic>> items = [];
+      int offset = 0;
+      const int limit = 1000;
+      while (true) {
+        final response = await _supabaseClient
+            .from('designerproducts')
+            .select('''
+            *,
+            users (
+              business_name,
+              address,
+              country
+            )
+          ''')
+            .eq('user_id', user.id)
+            .order('created_at', ascending: false)
+            .range(offset, offset + limit - 1);
+            
+        final batch = response as List<dynamic>;
+        items.addAll(batch.cast<Map<String, dynamic>>());
+        if (batch.length < limit) break;
+        offset += limit;
+      }
 
       final itemIds = items.map((item) => item['id'].toString()).toList();
       final itemTitles = items
@@ -675,17 +682,29 @@ class JewelryService {
 
     try {
       // 1. Fetch base products
-      final response =
-          await _supabaseClient.from('manufacturerproducts').select('''
-          *,
-          users (
-            business_name,
-            address,
-            country
-          )
-        ''').eq('user_id', user.id).order('created_at', ascending: false);
-
-      final items = response as List<Map<String, dynamic>>;
+      List<Map<String, dynamic>> items = [];
+      int offset = 0;
+      const int limit = 1000;
+      while (true) {
+        final response = await _supabaseClient
+            .from('manufacturerproducts')
+            .select('''
+            *,
+            users (
+              business_name,
+              address,
+              country
+            )
+          ''')
+            .eq('user_id', user.id)
+            .order('created_at', ascending: false)
+            .range(offset, offset + limit - 1);
+            
+        final batch = response as List<dynamic>;
+        items.addAll(batch.cast<Map<String, dynamic>>());
+        if (batch.length < limit) break;
+        offset += limit;
+      }
       final pendingItems =
           await _fetchPendingAssets(user.id, 'manufacturerproducts');
 
@@ -744,17 +763,22 @@ class JewelryService {
     }
   }
 
-  Future<Map<String, int>> _fetchPinsCounts(List<String> titles) async {
+  Future<Map<String, int>> _fetchPinsCounts(List<String> itemTitles) async {
     try {
-      final response = await _supabaseClient
-          .from('pins')
-          .select('title')
-          .inFilter('title', titles);
-
       final Map<String, int> counts = {};
-      for (var pin in response as List) {
-        final title = pin['title'] as String;
-        counts[title] = (counts[title] ?? 0) + 1;
+      const int chunkSize = 200;
+      for (int i = 0; i < itemTitles.length; i += chunkSize) {
+        final end = (i + chunkSize < itemTitles.length) ? i + chunkSize : itemTitles.length;
+        final chunk = itemTitles.sublist(i, end);
+        final response = await _supabaseClient
+            .from('saved_items')
+            .select('item_title')
+            .inFilter('item_title', chunk);
+
+        for (var save in response as List) {
+          final title = save['item_title'] as String;
+          counts[title] = (counts[title] ?? 0) + 1;
+        }
       }
       return counts;
     } catch (e) {
@@ -766,15 +790,20 @@ class JewelryService {
 // Keep the other helper methods the same (they use item_id)
   Future<Map<String, int>> _fetchLikesCounts(List<String> itemIds) async {
     try {
-      final response = await _supabaseClient
-          .from('likes')
-          .select('item_id')
-          .inFilter('item_id', itemIds);
-
       final Map<String, int> counts = {};
-      for (var like in response as List) {
-        final itemId = like['item_id'] as String;
-        counts[itemId] = (counts[itemId] ?? 0) + 1;
+      const int chunkSize = 200;
+      for (int i = 0; i < itemIds.length; i += chunkSize) {
+        final end = (i + chunkSize < itemIds.length) ? i + chunkSize : itemIds.length;
+        final chunk = itemIds.sublist(i, end);
+        final response = await _supabaseClient
+            .from('likes')
+            .select('item_id')
+            .inFilter('item_id', chunk);
+
+        for (var like in response as List) {
+          final itemId = like['item_id'] as String;
+          counts[itemId] = (counts[itemId] ?? 0) + 1;
+        }
       }
       return counts;
     } catch (e) {
@@ -785,15 +814,20 @@ class JewelryService {
 
   Future<Map<String, int>> _fetchViewsCounts(List<String> itemIds) async {
     try {
-      final response = await _supabaseClient
-          .from('views')
-          .select('item_id')
-          .inFilter('item_id', itemIds);
-
       final Map<String, int> counts = {};
-      for (var view in response as List) {
-        final itemId = view['item_id'] as String;
-        counts[itemId] = (counts[itemId] ?? 0) + 1;
+      const int chunkSize = 200;
+      for (int i = 0; i < itemIds.length; i += chunkSize) {
+        final end = (i + chunkSize < itemIds.length) ? i + chunkSize : itemIds.length;
+        final chunk = itemIds.sublist(i, end);
+        final response = await _supabaseClient
+            .from('views')
+            .select('item_id')
+            .inFilter('item_id', chunk);
+
+        for (var view in response as List) {
+          final itemId = view['item_id'] as String;
+          counts[itemId] = (counts[itemId] ?? 0) + 1;
+        }
       }
       return counts;
     } catch (e) {
@@ -804,15 +838,20 @@ class JewelryService {
 
   Future<Map<String, int>> _fetchSharesCounts(List<String> itemIds) async {
     try {
-      final response = await _supabaseClient
-          .from('shares')
-          .select('item_id')
-          .inFilter('item_id', itemIds);
-
       final Map<String, int> counts = {};
-      for (var share in response as List) {
-        final itemId = share['item_id'] as String;
-        counts[itemId] = (counts[itemId] ?? 0) + 1;
+      const int chunkSize = 200;
+      for (int i = 0; i < itemIds.length; i += chunkSize) {
+        final end = (i + chunkSize < itemIds.length) ? i + chunkSize : itemIds.length;
+        final chunk = itemIds.sublist(i, end);
+        final response = await _supabaseClient
+            .from('shares')
+            .select('item_id')
+            .inFilter('item_id', chunk);
+
+        for (var share in response as List) {
+          final itemId = share['item_id'] as String;
+          counts[itemId] = (counts[itemId] ?? 0) + 1;
+        }
       }
       return counts;
     } catch (e) {

@@ -101,6 +101,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
       'Product Title',
       'Description',
       'Price',
+      'SKU',
       'Product Tags',
       'Metal Weight',
       'Metal Purity',
@@ -123,8 +124,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
       'Customizable',
       'Category',
       'Sub Category',
-      'Plain',
-      'Studded',
+      'Jewelry Type',
     ];
 
     final String csvContent = const ListToCsvConverter().convert([headers]);
@@ -276,19 +276,36 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
 
       for (int i = 1; i < fields.length; i++) {
         final row = fields[i];
-        final titleIndex = headers.indexOf('Product Title');
-        if (titleIndex == -1 || titleIndex >= row.length) {
-          debugPrint("Row $i: Missing Product Title");
+        // Check all required fields
+        final requiredFields = [
+          'Product Title',
+          'SKU',
+          'Product Type',
+          'Metal Weight (in gm)',
+          'Gender',
+          'Jewelry Type',
+          'Metal Type'
+        ];
+
+        bool missingRequired = false;
+        for (final reqField in requiredFields) {
+          final idx = headers.indexOf(reqField);
+          if (idx == -1 ||
+              idx >= row.length ||
+              row[idx].toString().trim().isEmpty) {
+            debugPrint("Row $i: Missing or empty $reqField");
+            imageWarnings.add('Row $i: Missing required field "$reqField"');
+            missingRequired = true;
+          }
+        }
+
+        if (missingRequired) {
           failCount++;
           continue;
         }
 
+        final titleIndex = headers.indexOf('Product Title');
         final title = row[titleIndex].toString().trim();
-        if (title.isEmpty) {
-          debugPrint("Row $i: Empty Product Title");
-          failCount++;
-          continue;
-        }
 
         // Find ALL matching image files (case-insensitive, natural ordering so
         // -Image2 precedes -Image10).
@@ -315,7 +332,8 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
             // inserts with Images = null, which previously reported as a fully
             // successful upload.
             debugPrint("Failed to upload image ${imageFile.name}: $e");
-            imageWarnings.add('$title: ${imageFile.name} failed to upload ($e)');
+            imageWarnings
+                .add('$title: ${imageFile.name} failed to upload ($e)');
           }
         }
 
@@ -338,8 +356,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
           return str.isEmpty ? null : str;
         }
 
-        final imagesList =
-            uploadedImageUrls.isEmpty ? null : uploadedImageUrls;
+        final imagesList = uploadedImageUrls.isEmpty ? null : uploadedImageUrls;
         // Unified schema: "Images"/"Category"/"Metal Color" are all text[].
         final Map<String, dynamic> productData = {
           'user_id': user.id, // Automatically associate with logged-in user
@@ -402,6 +419,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
         // assets.media_url only holds one image; keep the full ordered list so
         // approve-product can restore the Images text[] array intact.
         attributes['Images'] = uploadedImageUrls;
+        attributes.removeWhere((key, value) => value == null);
         assetData['attributes'] = attributes;
 
         try {
@@ -581,12 +599,13 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
                         spacing: 8,
                         runSpacing: 8,
                         children: const [
-                          _ColumnChip(
-                              "Product Title"), // Changed from Image Filename to match logic
-                          _ColumnChip("Metal Weight"),
-                          _ColumnChip("Metal Type"),
+                          _ColumnChip("Product Title"),
+                          _ColumnChip("SKU"),
                           _ColumnChip("Product Type"),
-                          _ColumnChip("Category"),
+                          _ColumnChip("Metal Weight"),
+                          _ColumnChip("Gender"),
+                          _ColumnChip("Jewelry Type"),
+                          _ColumnChip("Metal Type"),
                         ],
                       )
                     ],

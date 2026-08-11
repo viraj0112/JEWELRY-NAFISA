@@ -769,7 +769,7 @@ class _ModerationScreenState extends State<ModerationScreen> {
                       Text('Location: ${item.ownerLocation}'),
                       const SizedBox(height: 16),
                       Text(
-                          'Category: ${item.category} / Source: ${item.source}'),
+                          'Product Type: ${item.category} / Source: ${item.source}'),
                       Text('Tags: ${item.tags.join(", ")}'),
                       const SizedBox(height: 16),
                       const Text('Description:',
@@ -780,8 +780,56 @@ class _ModerationScreenState extends State<ModerationScreen> {
                       const SizedBox(height: 16),
                       const Text('Attributes:',
                           style: TextStyle(fontWeight: FontWeight.bold)),
-                      ...item.attributes.entries
-                          .map((e) => Text('${e.key}: ${e.value}')),
+                      ...(() {
+                        const _orderedKeys = [
+                          'Product Title',
+                          'SKU',
+                          'Price',
+                          'Product Type',
+                          'Gender',
+                          'Product Tags',
+                          'Sub Category',
+                          'Customizable',
+                          'Plain',
+                          'Studded',
+                          'Dimension',
+                          'Images',
+                          'Metal Type',
+                          'Metal Color',
+                          'Metal Purity',
+                          'Metal Weight',
+                          'Metal Finish',
+                          'Plating',
+                          'Enamel Work',
+                          'Enamel Weight',
+                          'Stone Type',
+                          'Stone Used',
+                          'Stone Setting',
+                          'Stone Cut',
+                          'Stone Color',
+                          'Stone Quality',
+                          'Stone Purity',
+                          'Stone Count',
+                          'Stone Weight',
+                        ];
+                        final displayedKeys = <String>{};
+                        final widgets = <Widget>[];
+                        for (final key in _orderedKeys) {
+                          displayedKeys.add(key);
+                          if (key == 'Product Type') {
+                            widgets.add(Text('$key: ${item.category}'));
+                          } else {
+                            widgets.add(Text('$key: ${item.attributes[key]}'));
+                          }
+                        }
+                        // Add any unexpected attributes at the end
+                        for (final entry in item.attributes.entries) {
+                          if (!displayedKeys.contains(entry.key)) {
+                            widgets.add(Text('${entry.key}: ${entry.value}'));
+                          }
+                        }
+                        return widgets;
+                      })(),
                       const SizedBox(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,

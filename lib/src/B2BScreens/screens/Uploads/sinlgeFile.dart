@@ -234,25 +234,15 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
 
   Future<void> _fetchProductTypes() async {
     try {
-      final responses = await Future.wait([
-        _supabase
-            .from('products')
-            .select('"Product Type"')
-            .not('Product Type', 'is', null),
-        _supabase
-            .from('designerproducts')
-            .select('"Product Type"')
-            .not('Product Type', 'is', null),
-      ]);
+      final productTypeData = await _supabase.rpc('get_distinct_product_values',
+          params: {'column_name': 'Product Type'});
 
       final Set<String> uniqueTypes = {};
-      for (var response in responses) {
-        if (response is List) {
-          for (var item in response) {
-            final type = item['Product Type']?.toString().trim();
-            if (type != null && type.isNotEmpty) {
-              uniqueTypes.add(type);
-            }
+      if (productTypeData != null && productTypeData is List) {
+        for (var item in productTypeData) {
+          final type = item?.toString().trim();
+          if (type != null && type.isNotEmpty) {
+            uniqueTypes.add(type);
           }
         }
       }
@@ -298,6 +288,7 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
         return _images.isNotEmpty;
       case 1:
         return productTitleCtrl.text.isNotEmpty &&
+            skuCtrl.text.isNotEmpty &&
             metalType != null &&
             metalPurity != null &&
             productType != null &&
@@ -332,9 +323,14 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
           _StepperHeader(step: step, steps: steps, isMobile: isMobile),
           const Divider(),
           Flexible(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(isMobile ? 16 : 24),
-              child: _content(),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(isMobile ? 16 : 32),
+                  child: _content(),
+                ),
+              ),
             ),
           ),
           _BottomNav(
@@ -389,7 +385,7 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                 number: true, hintText: 'e.g., 15000'),
 
             // --- SKU ---
-            _field('SKU', skuCtrl, hintText: 'e.g., GLD-NK-001'),
+            _field('SKU *', skuCtrl, hintText: 'e.g., GLD-NK-001'),
 
             // --- Product Tags ---
             _field('Product Tags', productTagsCtrl,
@@ -435,11 +431,11 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
 
             // --- Metal Weight ---
             _field('Metal Weight (in grams) *', metalWeightCtrl,
-                number: true, hintText: 'e.g., 45.5'),
+                number: true, hintText: 'e.g., 45.5 gm'),
 
             // --- Metal Color ---
             _field('Metal Color', metalColorCtrl,
-                hintText: 'e.g., Yellow, Rose, White'),
+                hintText: 'e.g., Yellow Gold, Rose Gold'),
 
             // --- Metal Finish ---
             _dropdown('Metal Finish', _metalFinishOptions, metalFinish,
@@ -527,8 +523,8 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Customizable',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w500, fontSize: 13)),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
                   Switch(
                     value: customizable,
                     activeThumbColor: const Color(0xFF00BFA5),
@@ -607,13 +603,16 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
             _reviewItem(
                 'Description', descCtrl.text.isEmpty ? '-' : descCtrl.text),
             const SizedBox(height: 12),
-            _reviewItem('Price', priceCtrl.text.isEmpty ? '-' : '₹${priceCtrl.text}'),
+            _reviewItem(
+                'Price', priceCtrl.text.isEmpty ? '-' : '₹${priceCtrl.text}'),
             const SizedBox(height: 12),
             _reviewItem('SKU', skuCtrl.text.isEmpty ? '-' : skuCtrl.text),
             const SizedBox(height: 12),
-            _reviewItem('Tags', productTagsCtrl.text.isEmpty ? '-' : productTagsCtrl.text),
+            _reviewItem('Tags',
+                productTagsCtrl.text.isEmpty ? '-' : productTagsCtrl.text),
             const SizedBox(height: 12),
-            _reviewItem('Sub Category', subCategoryCtrl.text.isEmpty ? '-' : subCategoryCtrl.text),
+            _reviewItem('Sub Category',
+                subCategoryCtrl.text.isEmpty ? '-' : subCategoryCtrl.text),
             const SizedBox(height: 16),
             Wrap(
               spacing: 32,
@@ -622,7 +621,8 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                 _reviewItem('Metal Type', metalType ?? '-'),
                 _reviewItem('Metal Purity', metalPurity ?? '-'),
                 _reviewItem('Product Type', productType ?? '-'),
-                _reviewItem('Metal Weight', '${metalWeightCtrl.text}g'),
+                _reviewItem('Metal Weight', 
+                    metalWeightCtrl.text.isEmpty ? '-' : (metalWeightCtrl.text.contains(RegExp(r'[a-zA-Z]')) ? metalWeightCtrl.text : '${metalWeightCtrl.text}g')),
                 _reviewItem('Metal Color',
                     metalColorCtrl.text.isEmpty ? '-' : metalColorCtrl.text),
                 _reviewItem('Metal Finish', metalFinish ?? '-'),
@@ -655,12 +655,21 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                       stoneCountCtrl.text.isEmpty ? '-' : stoneCountCtrl.text),
                   _reviewItem('Stone Color',
                       stoneColorCtrl.text.isEmpty ? '-' : stoneColorCtrl.text),
-                  _reviewItem('Stone Weight',
-                      stoneWeightCtrl.text.isEmpty ? '-' : stoneWeightCtrl.text),
-                  _reviewItem('Stone Purity',
-                      stonePurityCtrl.text.isEmpty ? '-' : stonePurityCtrl.text),
-                  _reviewItem('Stone Quality',
-                      stoneQualityCtrl.text.isEmpty ? '-' : stoneQualityCtrl.text),
+                  _reviewItem(
+                      'Stone Weight',
+                      stoneWeightCtrl.text.isEmpty
+                          ? '-'
+                          : stoneWeightCtrl.text),
+                  _reviewItem(
+                      'Stone Purity',
+                      stonePurityCtrl.text.isEmpty
+                          ? '-'
+                          : stonePurityCtrl.text),
+                  _reviewItem(
+                      'Stone Quality',
+                      stoneQualityCtrl.text.isEmpty
+                          ? '-'
+                          : stoneQualityCtrl.text),
                 ],
               ),
             ],
@@ -675,8 +684,11 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                     dimensionCtrl.text.isEmpty ? '-' : dimensionCtrl.text),
                 _reviewItem('Enamel Work',
                     enamelWorkCtrl.text.isEmpty ? '-' : enamelWorkCtrl.text),
-                _reviewItem('Enamel Weight',
-                    enamelWeightCtrl.text.isEmpty ? '-' : '${enamelWeightCtrl.text}g'),
+                _reviewItem(
+                    'Enamel Weight',
+                    enamelWeightCtrl.text.isEmpty
+                        ? '-'
+                        : (enamelWeightCtrl.text.contains(RegExp(r'[a-zA-Z]')) ? enamelWeightCtrl.text : '${enamelWeightCtrl.text}g')),
                 _reviewItem('Visibility', visibility),
               ],
             ),
@@ -772,8 +784,7 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
             return items.where((e) => e.toLowerCase().contains(q));
           },
           onSelected: onChanged,
-          fieldViewBuilder:
-              (context, controller, focusNode, onFieldSubmitted) {
+          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
             return TextFormField(
               controller: controller,
               focusNode: focusNode,
@@ -788,10 +799,11 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
               decoration: InputDecoration(
                 isDense: true,
                 hintText: hintText,
-                hintStyle:
-                    TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                 contentPadding:
                     const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                suffixIcon:
+                    const Icon(Icons.arrow_drop_down, color: Colors.grey),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide(color: Colors.grey.shade300)),
@@ -865,7 +877,7 @@ class _ProductUploadWizardState extends State<ProductUploadWizard> {
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(color: Colors.orange.shade100),
                           ),
-                          child: Text('Premium',
+                          child: Text('Coming soon',
                               style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,

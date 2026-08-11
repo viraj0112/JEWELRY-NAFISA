@@ -100,43 +100,75 @@ class _ProfilePageState extends State<ProfilePage> {
       if (user == null) return;
 
       final userId = user.id;
-      List<dynamic> productsData;
+
+      // Use CountOption.exact to avoid the 1000-row limit for just counting
+      int productsCount = 0;
       if (_profileType == 'manufacturer') {
-        productsData = await _supabase
-            .from('designerproducts')
-            .select('id')
+        productsCount = await _supabase
+            .from('manufacturerproducts')
+            .count(CountOption.exact)
             .eq('user_id', userId);
       } else {
-        productsData = await _supabase
-            .from('manufacturerproducts')
-            .select('id')
+        productsCount = await _supabase
+            .from('designerproducts')
+            .count(CountOption.exact)
             .eq('user_id', userId);
       }
-      // Products — try designerproducts → manufacturerproducts → products
+      
+      // Add pending/rejected uploads from assets
+      final assetsCount = await _supabase
+          .from('assets')
+          .count(CountOption.exact)
+          .eq('owner_id', userId);
+      
+      productsCount += assetsCount;
 
-      if (productsData.isEmpty) {
-        productsData =
-            await _supabase.from('products').select('id').eq('user_id', userId);
+      // Products — try designerproducts → manufacturerproducts → products
+      if (productsCount == 0) {
+        productsCount = await _supabase
+            .from('products')
+            .count(CountOption.exact)
+            .eq('user_id', userId);
       }
 
-      if (productsData.isEmpty) {
+      if (productsCount == 0) {
         if (mounted) setState(() => _totalProducts = 0);
         return;
       }
 
+      // For Total Credits (Views), getting all product IDs if they exceed 1000
+      // could be expensive, so we just aggregate views for this user's items 
+      // from the database side (if an RPC existed) or just do an approximation/limit.
+      // We will fetch up to 5000 ids for the views count.
+      List<dynamic> productsData = [];
+      if (_profileType == 'manufacturer') {
+        productsData = await _supabase.from('manufacturerproducts').select('id').eq('user_id', userId).limit(5000);
+      } else {
+        productsData = await _supabase.from('designerproducts').select('id').eq('user_id', userId).limit(5000);
+      }
+      
       final productIds = productsData.map((e) => e['id'].toString()).toList();
-
-      // Views = credits
-      final viewsResponse = await _supabase
-          .from('views')
-          .select('item_id')
-          .inFilter('item_id', productIds);
+      
+      int totalViews = 0;
+      if (productIds.isNotEmpty) {
+        // Chunk itemIds to avoid URI Too Long
+        const int chunkSize = 200;
+        for (int i = 0; i < productIds.length; i += chunkSize) {
+          final end = (i + chunkSize < productIds.length) ? i + chunkSize : productIds.length;
+          final chunk = productIds.sublist(i, end);
+          final viewsCount = await _supabase
+              .from('views')
+              .count(CountOption.exact)
+              .inFilter('item_uid', chunk);
+          totalViews += viewsCount;
+        }
+      }
 
       if (mounted) {
         setState(() {
-          _totalProducts = productsData.length;
-          _totalCredits = viewsResponse.length;
-          _profileViews = viewsResponse.length;
+          _totalProducts = productsCount;
+          _totalCredits = totalViews;
+          _profileViews = totalViews;
         });
       }
     } catch (e) {
