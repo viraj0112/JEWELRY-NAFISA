@@ -280,10 +280,8 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
         final requiredFields = [
           'Product Title',
           'SKU',
-          'Product Type',
           'Metal Weight',
           'Gender',
-          'Jewelry Type',
           'Metal Type'
         ];
 
@@ -297,6 +295,18 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
             imageWarnings.add('Row $i: Missing required field "$reqField"');
             missingRequired = true;
           }
+        }
+
+        // OR validation for Product Type / Jewelry Type
+        final prodTypeIdx = headers.indexOf('Product Type');
+        final jewlTypeIdx = headers.indexOf('Jewelry Type');
+        final hasProductType = prodTypeIdx != -1 && prodTypeIdx < row.length && row[prodTypeIdx].toString().trim().isNotEmpty;
+        final hasJewelryType = jewlTypeIdx != -1 && jewlTypeIdx < row.length && row[jewlTypeIdx].toString().trim().isNotEmpty;
+
+        if (!hasProductType && !hasJewelryType) {
+          debugPrint("Row $i: Missing both Product Type and Jewelry Type");
+          imageWarnings.add('Row $i: Missing required field "Product Type" or "Jewelry Type"');
+          missingRequired = true;
         }
 
         if (missingRequired) {
@@ -387,6 +397,11 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
           }
         }
 
+        // Alias Jewelry Type to Product Type if Product Type is missing
+        if (productData['Product Type'] == null && productData['Jewelry Type'] != null) {
+          productData['Product Type'] = productData['Jewelry Type'];
+        }
+
         // assets.media_url is NOT NULL, so a product whose images all failed to
         // upload cannot be submitted. Skip it with a clear reason rather than
         // letting the DB reject the insert with a raw constraint error.
@@ -416,6 +431,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
         attributes.remove('user_id');
         attributes.remove('Description');
         attributes.remove('Product Type');
+        attributes.remove('Jewelry Type');
         // assets.media_url only holds one image; keep the full ordered list so
         // approve-product can restore the Images text[] array intact.
         attributes['Images'] = uploadedImageUrls;
@@ -601,10 +617,9 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
                         children: const [
                           _ColumnChip("Product Title"),
                           _ColumnChip("SKU"),
-                          _ColumnChip("Product Type"),
+                          _ColumnChip("Product/Jewelry Type"),
                           _ColumnChip("Metal Weight"),
                           _ColumnChip("Gender"),
-                          _ColumnChip("Jewelry Type"),
                           _ColumnChip("Metal Type"),
                         ],
                       )
