@@ -53,24 +53,20 @@ class _BlurUpPlaceholderState extends State<BlurUpPlaceholder>
     return AnimatedBuilder(
       animation: _blurAnimation,
       builder: (context, child) {
-        return AnimatedOpacity(
-          opacity: _blurAnimation.value > 0.1 ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 100),
-          child: ImageFiltered(
-            imageFilter: ui.ImageFilter.blur(
-              sigmaX: _blurAnimation.value,
-              sigmaY: _blurAnimation.value,
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    widget.backgroundColor,
-                    widget.backgroundColor.withOpacity(0.6),
-                  ],
-                ),
+        return ImageFiltered(
+          imageFilter: ui.ImageFilter.blur(
+            sigmaX: _blurAnimation.value,
+            sigmaY: _blurAnimation.value,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  widget.backgroundColor,
+                  widget.backgroundColor.withOpacity(0.6),
+                ],
               ),
             ),
           ),

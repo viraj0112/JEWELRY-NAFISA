@@ -65,7 +65,7 @@ class HomeScreenState extends State<HomeScreen> {
   String _selectedMetalType = 'Gold';
   String _selectedAkdMetalType = 'All';
   String _selectedProductType = 'All';
-  String _selectedCategory = 'All';
+  List<String> _selectedCategories = [];
   String _selectedSubCategory = 'All';
   String _selectedMetalPurity = 'All';
   String? _selectedPlain;
@@ -230,7 +230,7 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> _loadAdvancedFilters() async {
     setState(() => _isLoadingAdvancedOptions = true);
     try {
-      final filters = <String, String?>{};
+      final filters = <String, dynamic>{};
       final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
       if (effectiveMetal != null) {
         filters['Metal Type'] = effectiveMetal;
@@ -238,8 +238,8 @@ class HomeScreenState extends State<HomeScreen> {
       if (_selectedProductType != 'All') {
         filters['Product Type'] = _selectedProductType;
       }
-      if (_selectedCategory != 'All') {
-        filters['Category'] = _selectedCategory;
+      if (_selectedCategories.isNotEmpty) {
+        filters['Category'] = _selectedCategories;
       }
       if (_selectedSubCategory != 'All') {
         filters['Sub Category'] = _selectedSubCategory;
@@ -424,12 +424,12 @@ class HomeScreenState extends State<HomeScreen> {
             manufacturerQuery.eq('"Product Type"', _selectedProductType);
       }
 
-      if (_selectedCategory != 'All') {
+      if (_selectedCategories.isNotEmpty) {
         // "Category" is text[]: match by array overlap with the selection.
-        productsQuery = productsQuery.overlaps('Category', [_selectedCategory]);
-        designerQuery = designerQuery.overlaps('Category', [_selectedCategory]);
+        productsQuery = productsQuery.overlaps('Category', _selectedCategories);
+        designerQuery = designerQuery.overlaps('Category', _selectedCategories);
         manufacturerQuery =
-            manufacturerQuery.overlaps('Category', [_selectedCategory]);
+            manufacturerQuery.overlaps('Category', _selectedCategories);
       }
 
       if (_selectedSubCategory != 'All') {
@@ -587,12 +587,12 @@ class HomeScreenState extends State<HomeScreen> {
         manufacturerQuery =
             manufacturerQuery.eq('"Product Type"', _selectedProductType);
       }
-      if (_selectedCategory != 'All') {
+      if (_selectedCategories.isNotEmpty) {
         // "Category" is text[]: match by array overlap with the selection.
-        productsQuery = productsQuery.overlaps('Category', [_selectedCategory]);
-        designerQuery = designerQuery.overlaps('Category', [_selectedCategory]);
+        productsQuery = productsQuery.overlaps('Category', _selectedCategories);
+        designerQuery = designerQuery.overlaps('Category', _selectedCategories);
         manufacturerQuery =
-            manufacturerQuery.overlaps('Category', [_selectedCategory]);
+            manufacturerQuery.overlaps('Category', _selectedCategories);
       }
       if (_selectedSubCategory != 'All') {
         // "products" has no "Sub Category" column; filter designer/manufacturer only.
@@ -781,9 +781,9 @@ class HomeScreenState extends State<HomeScreen> {
           designerQuery =
               designerQuery.eq('"Product Type"', _selectedProductType);
         }
-        if (_selectedCategory != 'All') {
+        if (_selectedCategories.isNotEmpty) {
           designerQuery =
-              designerQuery.overlaps('Category', [_selectedCategory]);
+              designerQuery.overlaps('Category', _selectedCategories);
         }
         if (_selectedSubCategory != 'All') {
           designerQuery =
@@ -866,9 +866,9 @@ class HomeScreenState extends State<HomeScreen> {
           manufacturerQuery =
               manufacturerQuery.eq('"Product Type"', _selectedProductType);
         }
-        if (_selectedCategory != 'All') {
+        if (_selectedCategories.isNotEmpty) {
           manufacturerQuery =
-              manufacturerQuery.overlaps('Category', [_selectedCategory]);
+              manufacturerQuery.overlaps('Category', _selectedCategories);
         }
         if (_selectedSubCategory != 'All') {
           manufacturerQuery =
@@ -1159,7 +1159,7 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedAkdMetalType = value;
       _selectedProductType = 'All';
-      _selectedCategory = 'All';
+      _selectedCategories = [];
       _selectedSubCategory = 'All';
       _selectedMetalPurity = 'All';
       _productTypeOptions = ['All'];
@@ -1189,7 +1189,7 @@ class HomeScreenState extends State<HomeScreen> {
       _selectedAkdMetalType = 'All';
       // Reset all dependent filters
       _selectedProductType = 'All';
-      _selectedCategory = 'All';
+      _selectedCategories = [];
       _selectedSubCategory = 'All';
       _selectedMetalPurity = 'All';
       // Clear options and show loading
@@ -1236,7 +1236,7 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedProductType = value;
       // Reset dependent filters
-      _selectedCategory = 'All';
+      _selectedCategories = [];
       _selectedSubCategory = 'All';
       _selectedMetalPurity = 'All';
       // Clear options and show loading
@@ -1247,7 +1247,7 @@ class HomeScreenState extends State<HomeScreen> {
     });
 
     // Build filters including Metal Type if selected
-    final filters = <String, String?>{};
+    final filters = <String, dynamic>{};
     final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
     if (effectiveMetal != null) {
       filters['Metal Type'] = effectiveMetal;
@@ -1271,12 +1271,13 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   /// Called when "Category" dropdown changes
-  Future<void> _onCategoryChanged(String? value,
-      {bool applyImmediately = true}) async {
-    if (value == null) return;
-
+  void _onCategoryChanged(String value) async {
     setState(() {
-      _selectedCategory = value;
+      if (_selectedCategories.contains(value)) {
+        _selectedCategories.remove(value);
+      } else {
+        _selectedCategories.add(value);
+      }
       // Reset dependent filter
       _selectedSubCategory = 'All';
       // Clear options and show loading
@@ -1285,18 +1286,18 @@ class HomeScreenState extends State<HomeScreen> {
     });
 
     // Fetch new options for 'Sub Category'
-    final filters = <String, String?>{};
+    final filters = <String, dynamic>{};
     final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
-    if (effectiveMetal != null) {
-      filters['Metal Type'] = effectiveMetal;
-    }
+    if (effectiveMetal != null) filters['Metal Type'] = effectiveMetal;
     if (_selectedProductType != 'All') {
       filters['Product Type'] = _selectedProductType;
     }
-    filters['Category'] = value;
+    if (_selectedCategories.isNotEmpty) {
+      filters['Category'] = _selectedCategories;
+    }
 
-    final newSubCategories = await _filterService.getDependentDistinctValues(
-        'Sub Category', filters);
+    final newSubCategories =
+        await _filterService.getDependentDistinctValues('Sub Category', filters);
 
     if (mounted) {
       setState(() {
@@ -1305,10 +1306,7 @@ class HomeScreenState extends State<HomeScreen> {
       });
     }
     _loadAdvancedFilters();
-    if (applyImmediately) {
-      // Refetch products
-      _applyFilters();
-    }
+    _applyFilters();
   }
 
   /// Called when "Sub Category" dropdown changes
@@ -1329,7 +1327,7 @@ class HomeScreenState extends State<HomeScreen> {
       _selectedMetalType = 'All';
       _selectedAkdMetalType = 'All';
       _selectedProductType = 'All';
-      _selectedCategory = 'All';
+      _selectedCategories = [];
       _selectedSubCategory = 'All';
       _selectedMetalPurity = 'All';
       _selectedPlain = null;
@@ -1453,7 +1451,7 @@ class HomeScreenState extends State<HomeScreen> {
           selectedMetalType: _selectedMetalType,
           selectedAkdMetalType: _selectedAkdMetalType,
           selectedProductType: _selectedProductType,
-          selectedCategory: _selectedCategory,
+          selectedCategories: _selectedCategories,
           selectedSubCategory: _selectedSubCategory,
           akdMetalTypeOptions: _akdMetalTypeOptions,
           productTypeOptions: _productTypeOptions,
@@ -1742,10 +1740,10 @@ class HomeScreenState extends State<HomeScreen> {
                 ? Padding(
                     key: const ValueKey('homeCategoryFilter'),
                     padding: const EdgeInsets.only(bottom: 8.0),
-                    child: _buildBubbleFilter(
+                    child: _buildMultiSelectBubbleFilter(
                       options: _categoryOptions,
-                      selectedValue: _selectedCategory,
-                      onChanged: _onCategoryChanged,
+                      selectedValues: _selectedCategories,
+                      onToggle: _onCategoryChanged,
                       isLoading: _isLoadingCategories,
                     ),
                   )
@@ -1768,7 +1766,7 @@ class HomeScreenState extends State<HomeScreen> {
           // Reset button - compact
           if (_selectedMetalType != 'All' ||
               _selectedProductType != 'All' ||
-              _selectedCategory != 'All' ||
+              _selectedCategories.isNotEmpty ||
               _selectedSubCategory != 'All' ||
               _selectedMetalPurity != 'All' ||
               _selectedPlain != null ||
@@ -1964,6 +1962,35 @@ class HomeScreenState extends State<HomeScreen> {
                 option,
                 selectedValue == option,
                 () => onChanged(option),
+              ))
+          .toList(),
+    );
+  }
+
+  Widget _buildMultiSelectBubbleFilter({
+    required List<String> options,
+    required List<String> selectedValues,
+    required ValueChanged<String> onToggle,
+    bool isLoading = false,
+  }) {
+    if (isLoading) {
+      return const SizedBox(
+        height: 32,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    final displayOptions = options.where((opt) => opt != 'All').toList();
+    if (displayOptions.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 6.0,
+      runSpacing: 6.0,
+      children: displayOptions
+          .map((option) => _buildBubbleChip(
+                option,
+                selectedValues.contains(option),
+                () => onToggle(option),
               ))
           .toList(),
     );
@@ -2343,10 +2370,6 @@ class HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   cacheKey: imageUrl,
-                  memCacheWidth: 600,
-                  memCacheHeight: 900,
-                  maxWidthDiskCache: 800,
-                  maxHeightDiskCache: 1200,
                 ),
               ),
             ),

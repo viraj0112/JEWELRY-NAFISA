@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 
@@ -30,6 +31,7 @@ class FilterService {
     }
   }
 
+
   Future<List<String>> getDistinctValues(String columnName) async {
     try {
       // "Category" is now a text[] (unified array); unnest it like Metal Color.
@@ -42,38 +44,119 @@ class FilterService {
         return await getDistinctArrayValues('Metal Color');
       }
 
+      // Use the RPC that does SELECT DISTINCT across all 3 tables in SQL.
+      // This bypasses PostgREST's row limit (default 1000 rows/request)
+      // which was causing only 1–3 Product Types to be returned despite
+      // 9+ types existing across 9 000+ rows.
       final response = await _supabase.rpc(
-        'get_distinct_product_values',
-        params: {'column_name': columnName},
+        'get_all_distinct_product_values',
+        params: {'p_column': columnName},
       );
 
       if (response is List) {
-        return response
-            .map((item) => item?.toString())
-            .where((item) => item != null && item.isNotEmpty)
+        final values = response
+            .map((item) => item?.toString().trim())
+            .where((v) => v != null && v.isNotEmpty)
             .cast<String>()
-            .toList();
-      } else {
-        debugPrint(
-            'No distinct values found for column: $columnName, unexpected response type from RPC: ${response.runtimeType}');
+            .toList()
+          ..sort();
+        debugPrint('[FilterService] getDistinctValues("$columnName") => $values');
+        return values;
+      }
+      return [];
+    } catch (e) {
+      debugPrint(
+          '[FilterService] ERROR getDistinctValues("$columnName") RPC failed: $e. '
+          'Falling back to row-fetch.');
+      // ---- FALLBACK: row-fetch (slow but works without the RPC) ----
+      try {
+        final skipProducts = columnName == 'Sub Category';
+        final columnKey =
+            columnName.contains(' ') ? '"$columnName"' : columnName;
+        final values = <String>{};
+
+        if (!skipProducts) {
+          try {
+            final res = await _supabase
+                .from('products')
+                .select(columnKey)
+                .limit(10000);
+            for (var row in res) {
+              final val = row[columnName];
+              if (val != null && val.toString().trim().isNotEmpty) {
+                values.add(val.toString().trim());
+              }
+            }
+          } catch (_) {}
+        }
+        for (final table in ['designerproducts', 'manufacturerproducts']) {
+          try {
+            final res = await _supabase
+                .from(table)
+                .select(columnKey)
+                .limit(10000);
+            for (var row in res) {
+              final val = row[columnName];
+              if (val != null && val.toString().trim().isNotEmpty) {
+                values.add(val.toString().trim());
+              }
+            }
+          } catch (_) {}
+        }
+        return values.toList()..sort();
+      } catch (e2) {
+        debugPrint('Fallback also failed for $columnName: $e2');
         return [];
       }
-    } catch (e) {
-      debugPrint('Error fetching distinct values for column $columnName: $e');
-      return [];
     }
   }
+
+
 
   /// "Category" is the unified text[] array; collect its non-blank elements.
   void _addCategoryValuesFromRow(
       Map<String, dynamic> item, Set<String> values) {
     final arr = item['Category'];
+    debugPrint('RAW CATEGORY ARR: $arr (type: ${arr.runtimeType})');
+
+    void processString(String str) {
+      if (str.isEmpty) return;
+      // If it looks like a JSON array string `["A", "B"]`, parse it manually
+      if (str.startsWith('[') && str.endsWith(']')) {
+        try {
+          final List<dynamic> parsed = jsonDecode(str);
+          for (var v in parsed) {
+            if (v != null && v.toString().trim().isNotEmpty) {
+              values.add(v.toString().trim());
+            }
+          }
+          return; // Successfully parsed as JSON array
+        } catch (_) {
+          // Fall back to just adding the string if JSON parsing fails
+        }
+      }
+
+      // If it's something like "{Diamond Earrings, Sui Dhaga Earrings}"
+      if (str.startsWith('{') && str.endsWith('}')) {
+        final inner = str.substring(1, str.length - 1);
+        final parts = inner.split(',').map((e) => e.trim());
+        for (var p in parts) {
+          if (p.isNotEmpty) values.add(p);
+        }
+        return;
+      }
+
+      values.add(str.trim());
+    }
+
     if (arr is List) {
       for (final v in arr) {
         if (v != null && v.toString().trim().isNotEmpty) {
-          values.add(v.toString());
+          processString(v.toString().trim());
         }
       }
+    } else if (arr is String) {
+      processString(arr.trim());
     }
   }
 
@@ -81,9 +164,10 @@ class FilterService {
   /// Now queries both 'products' and 'designerproducts' tables.
   /// Special handling for Category column to aggregate Category, Category1, Category2, Category3
   Future<List<String>> getDependentDistinctValues(
-      String columnName, Map<String, String?> filters) async {
-    // Check if all filters are 'All' or null
-    if (filters.values.every((v) => v == null || v == 'All')) {
+      String columnName, Map<String, dynamic> filters) async {
+    // Check if all filters are 'All' or null, or empty lists
+    if (filters.values
+        .every((v) => v == null || v == 'All' || (v is List && v.isEmpty))) {
       // If no specific filters are applied, just get all distinct values.
       return getDistinctValues(columnName);
     }
@@ -98,63 +182,58 @@ class FilterService {
     }
 
     try {
-      // 1. Start queries for both tables.
-      // **FIX: Force quotes around the column name to handle spaces.**
       final columnKey = columnName.contains(' ') ? '"$columnName"' : columnName;
-      var productsQuery = _supabase.from('products').select(columnKey);
+
+      var productsQuery = columnName == 'Sub Category'
+          ? null
+          : _supabase.from('products').select(columnKey);
       var designerQuery = _supabase.from('designerproducts').select(columnKey);
+      var manufacturerQuery =
+          _supabase.from('manufacturerproducts').select(columnKey);
 
-      // 2. Apply dependent filters to both queries
+      // 2. Apply dependent filters to all queries
       for (var filter in filters.entries) {
-        if (filter.value != null && filter.value != 'All') {
-          if (filter.key == 'Jewellery Type') {
-            if (filter.value == 'Plain') {
-              productsQuery = productsQuery.not('Plain', 'is', 'null');
-              designerQuery = designerQuery.not('Plain', 'is', 'null');
-            } else if (filter.value == 'Studded') {
-              productsQuery = productsQuery.not('Studded', 'is', 'null');
-              designerQuery = designerQuery.not('Studded', 'is', 'null');
-            }
-            continue;
-          }
-
-          // Use quotes for filter keys if they contain spaces
+        if (filter.value != null &&
+            filter.value != 'All' &&
+            !(filter.value is List && (filter.value as List).isEmpty)) {
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
-          if (filter.key == 'Metal Type' && filter.value == 'AKD') {
-            productsQuery = productsQuery.ilike(filterKey, 'AKD%');
-            designerQuery = designerQuery.ilike(filterKey, 'AKD%');
+
+          if (filter.value is List) {
+            if (productsQuery != null)
+              productsQuery =
+                  productsQuery.overlaps(filterKey, filter.value as List);
+            designerQuery =
+                designerQuery.overlaps(filterKey, filter.value as List);
+            manufacturerQuery =
+                manufacturerQuery.overlaps(filterKey, filter.value as List);
           } else {
-            productsQuery = productsQuery.eq(filterKey, filter.value!);
+            if (productsQuery != null)
+              productsQuery = productsQuery.eq(filterKey, filter.value!);
             designerQuery = designerQuery.eq(filterKey, filter.value!);
+            manufacturerQuery = manufacturerQuery.eq(filterKey, filter.value!);
           }
         }
       }
 
-      // 3. Execute both queries in parallel
-      final responses = await Future.wait([productsQuery, designerQuery]);
+      // 3. Execute all queries in parallel
+      final responses = await Future.wait([
+        if (productsQuery != null) productsQuery,
+        designerQuery,
+        manufacturerQuery,
+      ]);
 
       final Set<String> values = {};
 
-      // 4. Process products results
-      // Use the original columnName (without quotes) to access the result
-      if (responses[0] is List) {
-        values.addAll(
-          (responses[0] as List)
-              .map((item) => item[columnName]?.toString())
-              .where((item) => item != null && item.isNotEmpty)
-              .cast<String>(),
-        );
-      }
-
-      // 5. Process designerproducts results
-      if (responses[1] is List) {
-        values.addAll(
-          (responses[1] as List)
-              .map((item) => item[columnName]?.toString())
-              .where((item) => item != null && item.isNotEmpty)
-              .cast<String>(),
-        );
+      for (var response in responses) {
+        if (response is List) {
+          values.addAll(
+            (response as List)
+                .map((item) => item[columnName]?.toString())
+                .where((item) => item != null && item.isNotEmpty)
+                .cast<String>(),
+          );
+        }
       }
 
       return values.toList();
@@ -166,65 +245,72 @@ class FilterService {
   }
 
   Future<List<String>> getDependentDistinctArrayValues(
-      String columnName, Map<String, String?> filters) async {
+      String columnName, Map<String, dynamic> filters) async {
     // If no specific filters are applied, just get all distinct array values.
-    if (filters.values.every((v) => v == null || v == 'All')) {
+    if (filters.values
+        .every((v) => v == null || v == 'All' || (v is List && v.isEmpty))) {
       return getDistinctArrayValues(columnName);
     }
 
     try {
       final columnKey = columnName.contains(' ') ? '"$columnName"' : columnName;
-      var productsQuery = _supabase.from('products').select(columnKey);
+      var productsQuery = columnName == 'Sub Category'
+          ? null
+          : _supabase.from('products').select(columnKey);
       var designerQuery = _supabase.from('designerproducts').select(columnKey);
+      var manufacturerQuery =
+          _supabase.from('manufacturerproducts').select(columnKey);
+
+      // 1. Unnest arrays logic in Dart
+      void addValuesFromRow(Map<String, dynamic> item, Set<String> values) {
+        final val = item[columnName];
+        if (val is List) {
+          for (var item in val) {
+            if (item != null && item.toString().trim().isNotEmpty) {
+              values.add(item.toString().trim());
+            }
+          }
+        } else if (val is String && val.trim().isNotEmpty) {
+          values.add(val.trim());
+        }
+      }
 
       for (var filter in filters.entries) {
-        if (filter.value != null && filter.value != 'All') {
-          if (filter.key == 'Jewellery Type') {
-            if (filter.value == 'Plain') {
-              productsQuery = productsQuery.not('Plain', 'is', 'null');
-              designerQuery = designerQuery.not('Plain', 'is', 'null');
-            } else if (filter.value == 'Studded') {
-              productsQuery = productsQuery.not('Studded', 'is', 'null');
-              designerQuery = designerQuery.not('Studded', 'is', 'null');
-            }
-            continue;
-          }
-
+        if (filter.value != null &&
+            filter.value != 'All' &&
+            !(filter.value is List && (filter.value as List).isEmpty)) {
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
-          if (filter.key == 'Metal Type' && filter.value == 'AKD') {
-            productsQuery = productsQuery.ilike(filterKey, 'AKD%');
-            designerQuery = designerQuery.ilike(filterKey, 'AKD%');
+
+          if (filter.value is List) {
+            if (productsQuery != null)
+              productsQuery =
+                  productsQuery.overlaps(filterKey, filter.value as List);
+            designerQuery =
+                designerQuery.overlaps(filterKey, filter.value as List);
+            manufacturerQuery =
+                manufacturerQuery.overlaps(filterKey, filter.value as List);
           } else {
-            productsQuery = productsQuery.eq(filterKey, filter.value!);
+            if (productsQuery != null)
+              productsQuery = productsQuery.eq(filterKey, filter.value!);
             designerQuery = designerQuery.eq(filterKey, filter.value!);
+            manufacturerQuery = manufacturerQuery.eq(filterKey, filter.value!);
           }
         }
       }
 
-      final responses = await Future.wait([productsQuery, designerQuery]);
-      final Set<String> values = {};
+      final responses = await Future.wait([
+        if (productsQuery != null) productsQuery.limit(5000),
+        designerQuery.limit(5000),
+        manufacturerQuery.limit(5000),
+      ]);
 
-      void processResponse(dynamic response) {
-        if (response is List) {
-          for (var row in response) {
-            final val = row[columnName];
-            if (val is List) {
-              for (var item in val) {
-                if (item != null && item.toString().trim().isNotEmpty) {
-                  values.add(item.toString().trim());
-                }
-              }
-            } else if (val is String && val.trim().isNotEmpty) {
-               // Sometimes array columns might come as strings if they are formatted weirdly
-               values.add(val.trim());
-            }
-          }
+      final values = <String>{};
+      for (var response in responses) {
+        for (var row in response) {
+          addValuesFromRow(row, values);
         }
       }
-
-      processResponse(responses[0]);
-      processResponse(responses[1]);
 
       return values.toList()..sort();
     } catch (e) {
@@ -237,10 +323,8 @@ class FilterService {
   /// Fetches distinct category values from Category, Category1, Category2, Category3 columns
   /// based on other filters, across 'products', 'designerproducts', and 'manufacturerproducts' tables
   Future<List<String>> _getDependentDistinctCategoryValues(
-      Map<String, String?> filters) async {
+      Map<String, dynamic> filters) async {
     try {
-      // 1. Start queries for all three tables. "Category" is the unified
-      // text[] array (Phase-3-renamed from category_arr).
       var productsQuery = _supabase.from('products').select('"Category"');
       var designerQuery =
           _supabase.from('designerproducts').select('"Category"');
@@ -251,11 +335,20 @@ class FilterService {
       for (var filter in filters.entries) {
         if (filter.value != null &&
             filter.value != 'All' &&
+            !(filter.value is List && (filter.value as List).isEmpty) &&
             filter.key != 'Category') {
           // Use quotes for filter keys if they contain spaces
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
-          if (filter.key == 'Metal Type' && filter.value == 'AKD') {
+
+          if (filter.value is List) {
+            productsQuery =
+                productsQuery.overlaps(filterKey, filter.value as List);
+            designerQuery =
+                designerQuery.overlaps(filterKey, filter.value as List);
+            manufacturerQuery =
+                manufacturerQuery.overlaps(filterKey, filter.value as List);
+          } else if (filter.key == 'Metal Type' && filter.value == 'AKD') {
             productsQuery = productsQuery.ilike(filterKey, 'AKD%');
             designerQuery = designerQuery.ilike(filterKey, 'AKD%');
             manufacturerQuery = manufacturerQuery.ilike(filterKey, 'AKD%');
@@ -273,8 +366,7 @@ class FilterService {
 
       final Set<String> values = {};
 
-      // 4-6. Process all three tables' results (prefers category_arr, falls
-      // back to legacy Category/Category1/2/3 — see _addCategoryValuesFromRow).
+      // 4-6. Process all three tables' results
       for (final response in responses) {
         if (response is List) {
           for (var item in response) {
@@ -325,10 +417,10 @@ class FilterService {
   /// only the products matching the current filter selection, mirroring the
   /// dependent-fetch pattern used for Metal Color / Stone Cut / etc.
   Future<List<double>> getWeightRange(String columnName,
-      {bool isArray = false, Map<String, String?> filters = const {}}) async {
+      {bool isArray = false, Map<String, dynamic> filters = const {}}) async {
     try {
-      final hasActiveFilters =
-          filters.values.any((v) => v != null && v != 'All');
+      final hasActiveFilters = filters.values
+          .any((v) => v != null && v != 'All' && !(v is List && v.isEmpty));
       List<String> rawValues = hasActiveFilters
           ? (isArray
               ? await getDependentDistinctArrayValues(columnName, filters)

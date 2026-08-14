@@ -12,7 +12,7 @@ class FloatingFilterConfig {
   final String selectedMetalType;
   final String selectedAkdMetalType;
   final String selectedProductType;
-  final String selectedCategory;
+  final List<String> selectedCategories;
   final String selectedSubCategory;
 
   // ── Available options (loaded by parent, dependent on hierarchy) ──────────
@@ -62,8 +62,7 @@ class FloatingFilterConfig {
       onAkdMetalTypeChanged;
   final Future<void> Function(String?, {bool applyImmediately})
       onProductTypeChanged;
-  final Future<void> Function(String?, {bool applyImmediately})
-      onCategoryChanged;
+  final void Function(String) onCategoryChanged;
   final void Function(String?, {bool applyImmediately}) onSubCategoryChanged;
 
   // ── Callbacks for Advanced Filters (do not trigger immediate fetch) ────────
@@ -86,7 +85,7 @@ class FloatingFilterConfig {
     required this.selectedMetalType,
     this.selectedAkdMetalType = 'All',
     this.selectedProductType = 'All',
-    this.selectedCategory = 'All',
+    this.selectedCategories = const [],
     this.selectedSubCategory = 'All',
     this.akdMetalTypeOptions = const ['All'],
     this.productTypeOptions = const ['All'],
@@ -146,7 +145,7 @@ class FloatingFilterConfig {
   bool get hasActiveFilters =>
       selectedMetalType != 'All' ||
       selectedProductType != 'All' ||
-      selectedCategory != 'All' ||
+      selectedCategories.isNotEmpty ||
       selectedSubCategory != 'All' ||
       selectedJewelleryType != null ||
       selectedMetalColors.isNotEmpty ||
@@ -164,7 +163,7 @@ class FloatingFilterConfig {
     int n = 0;
     if (selectedMetalType != 'All') n++;
     if (selectedProductType != 'All') n++;
-    if (selectedCategory != 'All') n++;
+    if (selectedCategories.isNotEmpty) n += selectedCategories.length;
     if (selectedSubCategory != 'All') n++;
     if (selectedJewelleryType != null) n++;
     if (selectedMetalColors.isNotEmpty) n++;

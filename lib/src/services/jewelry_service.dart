@@ -575,13 +575,37 @@ class JewelryService {
 
   Future<List<String>> getInitialSearchIdeas({int limit = 15}) async {
     try {
-      final response = await _supabaseClient.rpc(
-        'get_initial_search_ideas',
-        params: {'limit_count': limit},
-      ) as List<dynamic>;
+      // The RPC 'get_initial_search_ideas' references a 'Theme' column that
+      // doesn't exist. Instead, fetch distinct Product Types as search ideas.
+      final futures = await Future.wait([
+        _supabaseClient
+            .from('products')
+            .select('"Product Type"')
+            .not('"Product Type"', 'is', null)
+            .limit(1000),
+        _supabaseClient
+            .from('designerproducts')
+            .select('"Product Type"')
+            .not('"Product Type"', 'is', null)
+            .limit(1000),
+        _supabaseClient
+            .from('manufacturerproducts')
+            .select('"Product Type"')
+            .not('"Product Type"', 'is', null)
+            .limit(1000),
+      ]);
 
-      // The RPC returns a list of text, so cast directly
-      return response.map((item) => item.toString()).toList();
+      final ideas = <String>{};
+      for (var res in futures) {
+        for (var row in res) {
+          final val = row['Product Type'] as String?;
+          if (val != null && val.trim().isNotEmpty) {
+            ideas.add(val.trim());
+          }
+        }
+      }
+      final sorted = ideas.toList()..sort();
+      return sorted.take(limit).toList();
     } catch (e) {
       debugPrint('Error fetching search ideas: $e');
       // Return a fallback list on error

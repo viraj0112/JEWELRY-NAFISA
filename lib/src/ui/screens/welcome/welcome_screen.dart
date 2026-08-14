@@ -41,13 +41,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   String _selectedAkdMetalType = 'All';
   String _selectedProductType = 'All';
   List<String> _availableProductTypes = ['All'];
-  String _selectedCategory = 'All';
+  List<String> _selectedCategories = [];
+  String _selectedSubCategory = 'All';
   List<String> _availableCategories = ['All'];
+  List<String> _availableSubCategories = ['All'];
 
   List<String> _akdMetalTypeOptions = ['All'];
   bool _isLoadingAkdMetalTypes = false;
   bool _isLoadingProductTypes = false;
   bool _isLoadingCategories = false;
+  bool _isLoadingSubCategories = false;
 
   final Set<String> _itemsBeingLiked = {};
   RealtimeChannel? _likesChannel;
@@ -131,7 +134,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Future<void> _loadAdvancedFilters() async {
     setState(() => _isLoadingAdvancedOptions = true);
     try {
-      final filters = <String, String?>{};
+      final filters = <String, dynamic>{};
       final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
       if (effectiveMetal != null) {
         filters['Metal Type'] = effectiveMetal;
@@ -139,8 +142,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       if (_selectedProductType != 'All') {
         filters['Product Type'] = _selectedProductType;
       }
-      if (_selectedCategory != 'All') {
-        filters['Category'] = _selectedCategory;
+      if (_selectedCategories.isNotEmpty) {
+        filters['Category'] = _selectedCategories;
       }
       if (_selectedJewelleryType != null) {
         filters['Jewellery Type'] = _selectedJewelleryType;
@@ -321,12 +324,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             manufacturerQuery.eq('"Product Type"', _selectedProductType);
       }
 
-      if (_selectedCategory != 'All') {
-        // "Category" is text[]: array-overlap with the single selected value.
-        final c = _selectedCategory.trim();
-        productsQuery = productsQuery.overlaps('Category', [c]);
-        designerQuery = designerQuery.overlaps('Category', [c]);
-        manufacturerQuery = manufacturerQuery.overlaps('Category', [c]);
+      if (_selectedCategories.isNotEmpty) {
+        // "Category" is text[]: array-overlap with the selected values.
+        productsQuery = productsQuery.overlaps('Category', _selectedCategories);
+        designerQuery = designerQuery.overlaps('Category', _selectedCategories);
+        manufacturerQuery = manufacturerQuery.overlaps('Category', _selectedCategories);
+      }
+
+      if (_selectedSubCategory != 'All') {
+        designerQuery =
+            designerQuery.eq('"Sub Category"', _selectedSubCategory);
+        manufacturerQuery =
+            manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
       }
 
       if (_selectedMetalColors.isNotEmpty) {
@@ -476,9 +485,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           designerQuery =
               designerQuery.eq('"Product Type"', _selectedProductType);
         }
-        if (_selectedCategory != 'All') {
-          final c = _selectedCategory.trim();
-          designerQuery = designerQuery.overlaps('Category', [c]);
+        if (_selectedCategories.isNotEmpty) {
+          designerQuery = designerQuery.overlaps('Category', _selectedCategories);
         }
 
         designerData = await designerQuery
@@ -503,9 +511,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           manufacturerQuery =
               manufacturerQuery.eq('"Product Type"', _selectedProductType);
         }
-        if (_selectedCategory != 'All') {
-          final c = _selectedCategory.trim();
-          manufacturerQuery = manufacturerQuery.overlaps('Category', [c]);
+        if (_selectedCategories.isNotEmpty) {
+          manufacturerQuery = manufacturerQuery.overlaps('Category', _selectedCategories);
         }
 
         manufacturerData = await manufacturerQuery
@@ -631,7 +638,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     setState(() {
       _selectedAkdMetalType = value;
       _selectedProductType = 'All';
-      _selectedCategory = 'All';
+      _selectedCategories = [];
       _availableProductTypes = ['All'];
       _availableCategories = ['All'];
     });
@@ -650,7 +657,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       _selectedAkdMetalType = 'All';
       _selectedProductType = 'All';
       _availableProductTypes = ['All'];
-      _selectedCategory = 'All';
+      _selectedCategories = [];
       _availableCategories = ['All'];
     });
     _displayedCount = _initialItems;
@@ -667,57 +674,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   Future<void> _fetchProductTypes(String metalType) async {
     try {
-      final effectiveMetal = _effectiveMetalTypeForFilters(metalType)?.trim();
-      if (effectiveMetal == null) {
-        setState(() => _availableProductTypes = ['All']);
-        return;
-      }
-
-      debugPrint('Fetching Product Types for $effectiveMetal...');
-
-      final productsQuery = _supabase.from('products').select('"Product Type"');
-      final productsTypes = await (effectiveMetal == 'AKD'
-              ? productsQuery.ilike('"Metal Type"', 'AKD%')
-              : productsQuery.eq('"Metal Type"', effectiveMetal))
-          .then((data) => (data as List)
-              .map((item) => item['Product Type'])
-              .whereType<String>()
-              .where((t) => t.isNotEmpty)
-              .toSet());
-
-      final designerQuery =
-          _supabase.from('designerproducts').select('"Product Type"');
-      final designerTypes = await (effectiveMetal == 'AKD'
-              ? designerQuery.ilike('"Metal Type"', 'AKD%')
-              : designerQuery.eq('"Metal Type"', effectiveMetal))
-          .then((data) => (data as List)
-              .map((item) => item['Product Type'])
-              .whereType<String>()
-              .where((t) => t.isNotEmpty)
-              .toSet());
-
-      final manufacturerQuery =
-          _supabase.from('manufacturerproducts').select('"Product Type"');
-      final manufacturerTypes = await (effectiveMetal == 'AKD'
-              ? manufacturerQuery.ilike('"Metal Type"', 'AKD%')
-              : manufacturerQuery.eq('"Metal Type"', effectiveMetal))
-          .then((data) => (data as List)
-              .map((item) => item['Product Type'])
-              .whereType<String>()
-              .where((t) => t.isNotEmpty)
-              .toSet());
-
-      final allTypes = <String>{
-        'All',
-        ...productsTypes,
-        ...designerTypes,
-        ...manufacturerTypes
-      }.toList();
-      allTypes.sort();
-
-      debugPrint('Available Product Types: $allTypes');
-
-      setState(() => _availableProductTypes = allTypes);
+      // The user wants the Welcome screen Product Types to match the exact expansive list 
+      // shown on the Home screen initially, which ignores the metal filter.
+      final allTypes = await _filterService.getDistinctValues('Product Type');
+      if (mounted) setState(() => _availableProductTypes = ['All', ...allTypes]);
     } catch (e) {
       debugPrint('Error fetching product types: $e');
     }
@@ -728,46 +688,44 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     required String productType,
   }) async {
     try {
-      final effectiveMetal = _effectiveMetalTypeForFilters(metalType)?.trim();
-      if (effectiveMetal == null || productType == 'All') {
-        if (!mounted) return;
-        setState(() => _availableCategories = ['All']);
+      if (productType == 'All') {
+        if (mounted) setState(() => _availableCategories = ['All']);
         return;
       }
 
-      // "Category" is the unified text[] array (Phase-3 rename of category_arr).
-      const selectColumns = '"Category"';
+      final filters = <String, dynamic>{'Product Type': productType};
+      final effectiveMetal = _effectiveMetalTypeForFilters(metalType)?.trim();
+      if (effectiveMetal != null) filters['Metal Type'] = effectiveMetal;
 
-      Future<Set<String>> fetchFrom(String table) async {
-        final query = _supabase.from(table).select(selectColumns);
-        final data = await (effectiveMetal == 'AKD'
-                ? query.ilike('"Metal Type"', 'AKD%')
-                : query.eq('"Metal Type"', effectiveMetal))
-            .eq('"Product Type"', productType);
-
-        final out = <String>{};
-        for (final row in (data as List)) {
-          final m = row as Map<String, dynamic>;
-          final arr = m['Category'];
-          if (arr is List) {
-            for (final v in arr) {
-              final s = v?.toString().trim();
-              if (s != null && s.isNotEmpty) out.add(s);
-            }
-          }
-        }
-        return out;
-      }
-
-      final a = await fetchFrom('products');
-      final b = await fetchFrom('designerproducts');
-      final c = await fetchFrom('manufacturerproducts');
-
-      final all = <String>{'All', ...a, ...b, ...c}.toList()..sort();
-      if (!mounted) return;
-      setState(() => _availableCategories = all);
+      final allCats = await _filterService.getDependentDistinctValues('Category', filters);
+      if (mounted) setState(() => _availableCategories = ['All', ...allCats]);
     } catch (e) {
       debugPrint('Error fetching categories: $e');
+    }
+  }
+
+  Future<void> _fetchSubCategories({
+    required String metalType,
+    required String productType,
+    required String category,
+  }) async {
+    try {
+      if (category == 'All') {
+        if (mounted) setState(() => _availableSubCategories = ['All']);
+        return;
+      }
+
+      final filters = <String, dynamic>{
+        'Product Type': productType,
+        'Category': category,
+      };
+      final effectiveMetal = _effectiveMetalTypeForFilters(metalType)?.trim();
+      if (effectiveMetal != null) filters['Metal Type'] = effectiveMetal;
+
+      final allSubs = await _filterService.getDependentDistinctValues('Sub Category', filters);
+      if (mounted) setState(() => _availableSubCategories = ['All', ...allSubs]);
+    } catch (e) {
+      debugPrint('Error fetching sub categories: $e');
     }
   }
 
@@ -864,8 +822,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     if (value == null) return;
     setState(() {
       _selectedProductType = value;
-      _selectedCategory = 'All';
+      _selectedCategories = [];
       _availableCategories = ['All'];
+      _selectedSubCategory = 'All';
+      _availableSubCategories = ['All'];
       _isLoadingCategories = true;
     });
     _displayedCount = _initialItems;
@@ -878,17 +838,45 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     if (applyImmediately) await _loadProducts();
   }
 
-  Future<void> _onCategoryChanged(String? value,
-      {bool applyImmediately = true}) async {
+  void _onCategoryChanged(String value) async {
+    setState(() {
+      if (_selectedCategories.contains(value)) {
+        _selectedCategories.remove(value);
+      } else {
+        _selectedCategories.add(value);
+      }
+      _selectedSubCategory = 'All';
+      _availableSubCategories = ['All'];
+      _isLoadingSubCategories = true;
+    });
+    _displayedCount = _initialItems;
+
+    // Fetch new options for 'Sub Category'
+    final filters = <String, dynamic>{};
+    final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
+    if (effectiveMetal != null) filters['Metal Type'] = effectiveMetal;
+    if (_selectedProductType != 'All') filters['Product Type'] = _selectedProductType;
+    if (_selectedCategories.isNotEmpty) filters['Category'] = _selectedCategories;
+
+    final newSubCategories = await _filterService.getDependentDistinctValues('Sub Category', filters);
+    
+    if (mounted) {
+      setState(() {
+        _availableSubCategories = ['All', ...newSubCategories];
+        _isLoadingSubCategories = false;
+      });
+    }
+
+    _loadAdvancedFilters();
+    await _loadProducts();
+  }
+
+  void _onSubCategoryChanged(String? value, {bool applyImmediately = true}) async {
     if (value == null) return;
-    setState(() => _selectedCategory = value);
+    setState(() => _selectedSubCategory = value);
     _displayedCount = _initialItems;
     _loadAdvancedFilters();
     if (applyImmediately) await _loadProducts();
-  }
-
-  void _onSubCategoryChanged(String? value, {bool applyImmediately = true}) {
-    // Welcome screen does not have sub-category; no-op.
   }
 
   @override
@@ -1004,16 +992,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       selectedMetalType: _selectedMetalType,
       selectedAkdMetalType: _selectedAkdMetalType,
       selectedProductType: _selectedProductType,
-      selectedCategory: _selectedCategory,
-      selectedSubCategory: 'All',
+      selectedCategories: _selectedCategories,
+      selectedSubCategory: _selectedSubCategory,
       akdMetalTypeOptions: _akdMetalTypeOptions,
       productTypeOptions: _availableProductTypes,
       categoryOptions: _availableCategories,
-      subCategoryOptions: const ['All'],
+      subCategoryOptions: _availableSubCategories,
       isLoadingAkdMetalTypes: _isLoadingAkdMetalTypes,
       isLoadingProductTypes: _isLoadingProductTypes,
       isLoadingCategories: _isLoadingCategories,
-      isLoadingSubCategories: false,
+      isLoadingSubCategories: _isLoadingSubCategories,
       onMetalTypeChanged: _onMetalTypeChanged,
       onAkdMetalTypeChanged: _onAkdMetalTypeChanged,
       onProductTypeChanged: _onProductTypeChanged,
@@ -1223,8 +1211,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       _selectedMetalType = 'Gold';
       _selectedProductType = 'All';
       _availableProductTypes = ['All'];
-      _selectedCategory = 'All';
+      _selectedCategories = [];
       _availableCategories = ['All'];
+      _selectedSubCategory = 'All';
+      _availableSubCategories = ['All'];
     });
     _displayedCount = _initialItems;
     _fetchProductTypes(_selectedMetalType);
@@ -1318,16 +1308,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           selectedValue: _selectedProductType,
                           onChanged: (value) {
                             if (value != null) {
-                              setState(() {
-                                _selectedProductType = value;
-                                _selectedCategory = 'All';
-                                _availableCategories = ['All'];
-                              });
-                              _fetchCategories(
-                                metalType: _selectedMetalType,
-                                productType: value,
-                              );
-                              _loadProducts();
+                              _onProductTypeChanged(value);
                             }
                           },
                         ),
@@ -1354,22 +1335,50 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ? Padding(
                     key: const ValueKey('categoryBubbles'),
                     padding: const EdgeInsets.only(top: 8.0),
-                    child: _buildBubbleFilter(
+                    child: _buildMultiSelectBubbleFilter(
                       options: _availableCategories,
-                      selectedValue: _selectedCategory,
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _selectedCategory = value);
-                          _loadProducts();
-                        }
-                      },
+                      selectedValues: _selectedCategories,
+                      onToggle: _onCategoryChanged,
                     ),
                   )
                 : const SizedBox.shrink(key: ValueKey('categoryBubblesEmpty')),
           ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            transitionBuilder: (child, animation) {
+              final offsetAnimation = Tween<Offset>(
+                begin: const Offset(0, -0.08),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                  parent: animation, curve: Curves.easeOutCubic));
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: offsetAnimation, child: child),
+              );
+            },
+            child: _selectedMetalType != 'All' &&
+                    _selectedProductType != 'All' &&
+                    _selectedCategories.isNotEmpty &&
+                    _availableSubCategories.length > 1
+                ? Padding(
+                    key: const ValueKey('subCategoryBubbles'),
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: _buildBubbleFilter(
+                      options: _availableSubCategories,
+                      selectedValue: _selectedSubCategory,
+                      onChanged: (value) {
+                        if (value != null) {
+                          _onSubCategoryChanged(value);
+                        }
+                      },
+                    ),
+                  )
+                : const SizedBox.shrink(key: ValueKey('subCategoryBubblesEmpty')),
+          ),
           if (_selectedMetalType != 'Gold' ||
               _selectedProductType != 'All' ||
-              _selectedCategory != 'All')
+              _selectedCategories.isNotEmpty ||
+              _selectedSubCategory != 'All')
             Padding(
               padding: const EdgeInsets.only(top: 6.0),
               child: _buildResetButton(),
@@ -1481,6 +1490,36 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildMultiSelectBubbleFilter({
+    required List<String> options,
+    required List<String> selectedValues,
+    required ValueChanged<String> onToggle,
+    bool isLoading = false,
+  }) {
+    if (isLoading) {
+      return const SizedBox(
+        height: 32,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    final displayOptions = options.where((opt) => opt != 'All').toList();
+    if (displayOptions.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 6.0,
+      runSpacing: 6.0,
+      children: displayOptions
+          .map((option) => _buildBubbleChip(
+                option,
+                selectedValues.contains(option),
+                () => onToggle(option),
+              ))
+          .toList(),
     );
   }
 

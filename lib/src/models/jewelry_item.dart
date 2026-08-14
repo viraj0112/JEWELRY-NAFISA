@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 class JewelryItem {
@@ -125,13 +126,26 @@ class JewelryItem {
     // (images_arr = array, Image/Images still the old columns), and
     // post-Phase-3 (Images IS the renamed array; images_arr no longer exists
     // as a key, old Image/Images columns are dropped).
-    final imgList = json['images_arr'] is List
+    List? imgList = json['images_arr'] is List
         ? json['images_arr'] as List
         : json['Image'] is List
             ? json['Image'] as List
             : json['Images'] is List
                 ? json['Images'] as List
                 : (json['images'] is List ? json['images'] as List : null);
+
+    // If it's still null, try parsing from a JSON string.
+    if (imgList == null) {
+      for (final key in ['images_arr', 'Images', 'Image', 'image', 'image_url']) {
+        final val = json[key];
+        if (val is String && val.startsWith('[') && val.endsWith(']')) {
+          try {
+            imgList = jsonDecode(val) as List;
+            break;
+          } catch (_) {}
+        }
+      }
+    }
 
     return JewelryItem(
       id: json['id']?.toString() ?? '',
@@ -288,8 +302,19 @@ class JewelryItem {
   /// them - used for legacy "Image"/"Images" fallback keys that may now hold
   /// a text[] (post-Phase-3) instead of the scalar string they used to be.
   static String? _parseImageString(dynamic value) {
-    if (value == null || value is List) return null;
-    return _parseString(value);
+    if (value == null) return null;
+    if (value is List) return _parseString(value.firstOrNull);
+    
+    final str = _parseString(value);
+    if (str != null && str.startsWith('[') && str.endsWith(']')) {
+      try {
+        final List decoded = jsonDecode(str);
+        if (decoded.isNotEmpty) return _parseString(decoded.first);
+      } catch (_) {
+        // Fallthrough on parse error
+      }
+    }
+    return str;
   }
 
   static double? _parseDouble(dynamic value) {

@@ -386,24 +386,34 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
 
   // ── Product Type distribution (single magnitude hue, direct count labels) ──
   Widget _buildProductTypeCard() {
-    final totals = <String, int>{};
-    for (final row in _typeRows) {
-      if (!_productTypeInScope(row.productType)) continue;
-      if (!_categorySelected(row.category)) continue;
-      totals[row.productType] = (totals[row.productType] ?? 0) + row.count;
-    }
-    final entries = totals.entries.toList()
+    // The fixed RPC returns one row per Product Type with category='All'
+    // and the exact product count (each product counted once, not once per category).
+    // We simply display those counts directly, sorted by volume.
+    final entries = _typeRows
+        .where((r) => _productTypeInScope(r.productType))
+        .map((r) => MapEntry(r.productType, r.count))
+        .toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    final maxCount =
-        entries.isEmpty ? 1 : entries.map((e) => e.value).reduce((a, b) => a > b ? a : b);
+
+    // De-duplicate in case old RPC data still has multiple category rows
+    final deduped = <String, int>{};
+    for (final e in entries) {
+      deduped[e.key] = (deduped[e.key] ?? 0) + e.value;
+    }
+    final dedupedEntries = deduped.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final maxCount = dedupedEntries.isEmpty
+        ? 1
+        : dedupedEntries.map((e) => e.value).reduce((a, b) => a > b ? a : b);
 
     return _card(
       title: 'By Product Type',
       subtitle: _scopeSubtitle(),
-      child: entries.isEmpty
+      child: dedupedEntries.isEmpty
           ? const _EmptyNote()
           : Column(
-              children: entries
+              children: dedupedEntries
                   .take(14)
                   .map((e) => _barRow(
                         label: e.key,
@@ -415,6 +425,7 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
             ),
     );
   }
+
 
   // ── Plain vs Studded per category (2 fixed hues + legend) ──
   Widget _buildPlainStuddedCard() {

@@ -606,8 +606,14 @@ class _BulkUploadTabState extends State<BulkUploadTab> {
           if (attributes.containsKey('Description')) {
             assetData['description'] = attributes['Description'];
           }
-          if (attributes.containsKey('Product Type')) {
-            assetData['category'] = attributes['Product Type'];
+          // Support alternate namings for Product Type
+          final prodType = attributes['Product Type'] ??
+              attributes['Jewelry Type'] ??
+              attributes['Jewellery Type'] ??
+              attributes['category'];
+          if (prodType != null) {
+            assetData['category'] = prodType;
+            attributes['Product Type'] = prodType; // Normalize
           }
           if (attributes.containsKey('Product Tags')) {
             assetData['tags'] = attributes['Product Tags'];
