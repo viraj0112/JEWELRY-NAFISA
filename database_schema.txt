@@ -37,9 +37,6 @@ CREATE TABLE public.users (
   CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
   CONSTRAINT users_referred_by_fkey FOREIGN KEY (referred_by) REFERENCES public.users(id)
 );
--- Duplicate-registration guard (migration 20260729121000):
-CREATE UNIQUE INDEX users_email_lower_unique ON public.users (lower(email)) WHERE email IS NOT NULL;
--- public.email_is_registered(text) -> jsonb {exists, confirmed} : signup pre-flight check.
 CREATE TABLE public.pins (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   owner_id uuid NOT NULL,
@@ -53,7 +50,6 @@ CREATE TABLE public.pins (
   section_id uuid,
   embedding USER-DEFINED,
   CONSTRAINT pins_pkey PRIMARY KEY (id),
-  CONSTRAINT pins_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.users(id),
   CONSTRAINT pins_section_id_fkey FOREIGN KEY (section_id) REFERENCES public.board_sections(id)
 );
 CREATE TABLE public.boards (
@@ -456,43 +452,30 @@ CREATE TABLE public.b2b_sync_history (
 );
 CREATE TABLE public.api_credentials (
   user_id uuid NOT NULL,
-  x_api_key text UNIQUE,              -- DEPRECATED plaintext (legacy rows only)
-  x_api_key_hash text UNIQUE,         -- sha256(master key), hex; used for lookup
-  x_api_key_enc text,                 -- AES-256-GCM 'v1.<iv>.<ct>' of the master key
-  key_prefix text,                    -- display only, e.g. 'dgn_4452abeb'
-  expires_at timestamp with time zone,-- master-key TTL; NULL = never expires
-  llm_api_key text,                   -- DEPRECATED plaintext (legacy rows only)
-  llm_api_key_enc text,               -- AES-256-GCM 'v1.<iv>.<ct>' of the user's LLM key
-  llm_key_hint text,                  -- last 4 chars, for the UI
+  x_api_key text UNIQUE,
+  llm_api_key text,
   llm_model text,
   is_active boolean NOT NULL DEFAULT true,
-  last_used_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  x_api_key_hash text,
+  x_api_key_enc text,
+  key_prefix text,
+  expires_at timestamp with time zone,
+  llm_api_key_enc text,
+  llm_key_hint text,
+  last_used_at timestamp with time zone,
   CONSTRAINT api_credentials_pkey PRIMARY KEY (user_id),
   CONSTRAINT api_credentials_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
--- Column-level GRANTs: the `authenticated` role may SELECT only
--- (user_id, llm_model, llm_key_hint, is_active, key_prefix, expires_at,
---  last_used_at, created_at, updated_at) and UPDATE only (llm_model).
--- All secret columns are service_role-only. See migration 20260729120000.
--- SECURITY DEFINER view (security_invoker = false): it is the privilege bridge
--- that lets `authenticated` read the non-secret columns without table-level
--- SELECT on api_credentials. Access control is the WHERE clause, which mirrors
--- the cred_select_own / cred_admin_all RLS policies. See migration 20260730140000.
-CREATE VIEW public.api_credential_status AS -- adds is_expired / is_usable
-  SELECT user_id, key_prefix, llm_model, llm_key_hint, is_active, expires_at,
-         last_used_at, created_at, is_expired, is_usable
-  FROM public.api_credentials
-  WHERE user_id = auth.uid() OR public.is_admin();
 CREATE TABLE public.llm_settings (
   id integer NOT NULL DEFAULT 1 CHECK (id = 1),
-  global_llm_api_key text,            -- DEPRECATED plaintext
-  global_llm_api_key_enc text,        -- AES-256-GCM 'v1.<iv>.<ct>'
-  global_llm_key_hint text,
+  global_llm_api_key text,
   default_model text NOT NULL DEFAULT 'gemini-2.5-pro'::text,
   updated_by uuid,
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  global_llm_api_key_enc text,
+  global_llm_key_hint text,
   CONSTRAINT llm_settings_pkey PRIMARY KEY (id),
   CONSTRAINT llm_settings_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id)
 );

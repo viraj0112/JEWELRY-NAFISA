@@ -281,7 +281,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
           'Product Title',
           'SKU',
           'Product Type',
-          'Metal Weight (in gm)',
+          'Metal Weight',
           'Gender',
           'Jewelry Type',
           'Metal Type'
