@@ -85,6 +85,9 @@ app.*.map.json
 /android/app/release
 /android/local.properties
 
+
+backup_before_phase3_.sql
+backup_before_phase3_20260713_201925.sql
 *.md
 # ...except the HF Space config: its YAML frontmatter *is* the deployment
 # config, so the Space fails to build without it.

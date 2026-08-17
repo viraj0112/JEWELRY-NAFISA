@@ -20,10 +20,14 @@ class CatalogAnalyticsDashboard extends StatefulWidget {
       _CatalogAnalyticsDashboardState();
 }
 
-class _TypeCount {
-  _TypeCount(this.category, this.productType, this.count);
-  final String category;
+class _HierarchyCount {
+  _HierarchyCount(this.sourceTable, this.productType, this.category,
+      this.subCategory, this.count);
+
+  final String sourceTable;
   final String productType;
+  final String category;
+  final String subCategory;
   final int count;
 }
 
@@ -52,10 +56,13 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
   // 'all' means no product-type narrowing.
   String _productTypeFilter = 'all';
   final Set<String> _selectedCategories = {};
+  final Set<String> _selectedSubCategories = {};
+  int _hierarchyPage = 0;
+  static const int _hierarchyPageSize = 10;
   bool _loading = true;
   String? _error;
-  List<_TypeCount> _typeRows = [];
   List<_PlainStudded> _psRows = [];
+  List<_HierarchyCount> _hierarchyRows = [];
 
   @override
   void initState() {
@@ -70,19 +77,12 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
     });
     try {
       final results = await Future.wait([
-        _supabase.rpc('product_type_counts_by_category',
-            params: {'p_table_filter': _tableFilter}),
         _supabase.rpc('plain_studded_counts_by_category',
             params: {'p_table_filter': _tableFilter}),
+        _supabase.rpc('catalog_hierarchy_counts',
+            params: {'p_table_filter': _tableFilter}),
       ]);
-      final typeRows = (results[0] as List)
-          .map((r) => _TypeCount(
-                (r['category'] ?? 'Unknown').toString(),
-                (r['product_type'] ?? '(unspecified)').toString(),
-                (r['item_count'] as num?)?.toInt() ?? 0,
-              ))
-          .toList();
-      final psRows = (results[1] as List)
+      final psRows = (results[0] as List)
           .map((r) => _PlainStudded(
                 (r['category'] ?? 'Unknown').toString(),
                 (r['plain_count'] as num?)?.toInt() ?? 0,
@@ -90,18 +90,30 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
                 (r['total_count'] as num?)?.toInt() ?? 0,
               ))
           .toList();
+      final hierarchyRows = (results[1] as List)
+          .map((r) => _HierarchyCount(
+                (r['source_table'] ?? '').toString(),
+                (r['product_type'] ?? '(unspecified)').toString(),
+                (r['category'] ?? 'Uncategorized').toString(),
+                (r['sub_category'] ?? 'Uncategorized').toString(),
+                (r['item_count'] as num?)?.toInt() ?? 0,
+              ))
+          .toList();
       if (!mounted) return;
       setState(() {
-        _typeRows = typeRows;
         _psRows = psRows;
+        _hierarchyRows = hierarchyRows;
         // Drop a product-type selection that no longer exists in the new scope.
         if (_productTypeFilter != 'all' &&
-            !typeRows.any((r) => r.productType == _productTypeFilter)) {
+            !hierarchyRows.any((r) => r.productType == _productTypeFilter)) {
           _productTypeFilter = 'all';
         }
         // Drop category selections that no longer exist under the new scope.
         _selectedCategories
             .removeWhere((c) => !_categoriesInScope().contains(c));
+        _selectedSubCategories
+            .removeWhere((c) => !_subCategoriesInScope().contains(c));
+        _hierarchyPage = 0;
         _loading = false;
       });
     } catch (e) {
@@ -116,7 +128,11 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
   // Product types available under the current table scope, ranked by volume.
   List<String> _productTypesInScope() {
     final totals = <String, int>{};
-    for (final r in _typeRows) {
+    for (final r in _hierarchyRows) {
+      if (_selectedCategories.isNotEmpty &&
+          !_selectedCategories.contains(r.category)) {
+        continue;
+      }
       totals[r.productType] = (totals[r.productType] ?? 0) + r.count;
     }
     final types = totals.keys.toList()
@@ -127,13 +143,22 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
   // Categories visible under the current Table → Product Type scope. When a
   // product type is selected, only categories that co-occur with it remain.
   Set<String> _categoriesInScope() {
-    if (_productTypeFilter == 'all') {
-      return _psRows.map((r) => r.category).toSet();
-    }
-    return _typeRows
-        .where((r) => r.productType == _productTypeFilter)
+    return _hierarchyRows
+        .where((r) => _productTypeInScope(r.productType))
         .map((r) => r.category)
         .toSet();
+  }
+
+  Set<String> _subCategoriesInScope() {
+    final rows = _hierarchyRows.where((r) =>
+        _productTypeInScope(r.productType) && _categorySelected(r.category));
+    return rows.map((r) => r.subCategory).toSet();
+  }
+
+  bool _subCategorySelected(String subCategory) {
+    if (!_subCategoriesInScope().contains(subCategory)) return false;
+    return _selectedSubCategories.isEmpty ||
+        _selectedSubCategories.contains(subCategory);
   }
 
   // A category counts as selected only if it's in the current product-type
@@ -179,6 +204,10 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
             _buildProductTypePills(),
             const SizedBox(height: 12),
             _buildCategoryChips(),
+            const SizedBox(height: 12),
+            _buildSubCategoryChips(),
+            const SizedBox(height: 20),
+            _buildHierarchyTable(),
             const SizedBox(height: 20),
             LayoutBuilder(builder: (context, constraints) {
               final narrow = constraints.maxWidth < 900;
@@ -301,6 +330,9 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
                   // belong to it — drop the ones now out of scope.
                   _selectedCategories
                       .removeWhere((c) => !_categoriesInScope().contains(c));
+                  _selectedSubCategories
+                      .removeWhere((c) => !_subCategoriesInScope().contains(c));
+                  _hierarchyPage = 0;
                 });
               },
               selectedColor: const Color(0xFF0A4F3F),
@@ -310,8 +342,8 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
                 color: active ? Colors.white : _mutedInk,
               ),
               showCheckmark: false,
-              side: BorderSide(
-                  color: active ? const Color(0xFF0A4F3F) : _border),
+              side:
+                  BorderSide(color: active ? const Color(0xFF0A4F3F) : _border),
               backgroundColor: _surface,
             );
           }).toList(),
@@ -323,8 +355,9 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
   Widget _buildCategoryChips() {
     final categories = _categoriesInScope().toList()
       ..sort((a, b) {
-        int total(String c) =>
-            _psRows.where((r) => r.category == c).fold(0, (s, r) => s + r.total);
+        int total(String c) => _hierarchyRows
+            .where((r) => r.category == c)
+            .fold(0, (s, r) => s + r.count);
         return total(b).compareTo(total(a));
       });
     if (categories.isEmpty) return const SizedBox.shrink();
@@ -346,7 +379,11 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
             ),
             if (_selectedCategories.isNotEmpty)
               TextButton(
-                onPressed: () => setState(_selectedCategories.clear),
+                onPressed: () => setState(() {
+                  _selectedCategories.clear();
+                  _selectedSubCategories.clear();
+                  _hierarchyPage = 0;
+                }),
                 child: const Text('Clear', style: TextStyle(fontSize: 12)),
               ),
           ],
@@ -366,6 +403,154 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
                 } else {
                   _selectedCategories.remove(c);
                 }
+                _selectedSubCategories
+                    .removeWhere((s) => !_subCategoriesInScope().contains(s));
+                _hierarchyPage = 0;
+              }),
+              selectedColor: const Color(0xFFE7F2ED),
+              checkmarkColor: const Color(0xFF0A4F3F),
+              labelStyle: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: selected ? const Color(0xFF0A4F3F) : _mutedInk,
+              ),
+              side: BorderSide(
+                  color: selected ? const Color(0xFF0A4F3F) : _border),
+              backgroundColor: _surface,
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHierarchyTable() {
+    final rows = _hierarchyRows
+        .where((r) =>
+            _productTypeInScope(r.productType) &&
+            _categorySelected(r.category) &&
+            _subCategorySelected(r.subCategory))
+        .toList()
+      ..sort((a, b) {
+        final category = a.category.compareTo(b.category);
+        if (category != 0) return category;
+        final subCategory = a.subCategory.compareTo(b.subCategory);
+        if (subCategory != 0) return subCategory;
+        return a.productType.compareTo(b.productType);
+      });
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    final pageCount = (rows.length / _hierarchyPageSize).ceil();
+    final page = _hierarchyPage.clamp(0, pageCount - 1);
+    final pageRows = rows
+        .skip(page * _hierarchyPageSize)
+        .take(_hierarchyPageSize)
+        .toList();
+
+    final subCategories = _subCategoriesInScope().toList()..sort();
+    return _card(
+      title: 'Products Breakdown',
+      subtitle:
+          'Product type → category → subcategory · ${subCategories.length} subcategories',
+      child: Column(
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowColor:
+                  const WidgetStatePropertyAll(Color(0xFFF1F6F3)),
+              columns: const [
+                DataColumn(label: Text('Catalog')),
+                DataColumn(label: Text('Product Type')),
+                DataColumn(label: Text('Category')),
+                DataColumn(label: Text('Sub Category')),
+                DataColumn(label: Text('Products'), numeric: true),
+              ],
+              rows: pageRows
+                  .map((r) => DataRow(cells: [
+                        DataCell(Text(r.sourceTable)),
+                        DataCell(Text(r.productType)),
+                        DataCell(Text(r.category)),
+                        DataCell(Text(r.subCategory)),
+                        DataCell(Text(r.count.toString())),
+                      ]))
+                  .toList(),
+            ),
+          ),
+          if (pageCount > 1) ...[
+            const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  tooltip: 'Previous page',
+                  onPressed: page == 0
+                      ? null
+                      : () => setState(() => _hierarchyPage = page - 1),
+                  icon: const Icon(Icons.chevron_left),
+                ),
+                Text('${page + 1} of $pageCount',
+                    style: const TextStyle(fontSize: 12, color: _mutedInk)),
+                IconButton(
+                  tooltip: 'Next page',
+                  onPressed: page >= pageCount - 1
+                      ? null
+                      : () => setState(() => _hierarchyPage = page + 1),
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubCategoryChips() {
+    final subCategories = _subCategoriesInScope().toList()..sort();
+    if (subCategories.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('Sub Categories',
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700, color: _ink)),
+            const SizedBox(width: 8),
+            Text(
+              _selectedSubCategories.isEmpty
+                  ? 'all included'
+                  : '${_selectedSubCategories.length} selected',
+              style: const TextStyle(fontSize: 12, color: _mutedInk),
+            ),
+            if (_selectedSubCategories.isNotEmpty)
+              TextButton(
+                onPressed: () => setState(() {
+                  _selectedSubCategories.clear();
+                  _hierarchyPage = 0;
+                }),
+                child: const Text('Clear', style: TextStyle(fontSize: 12)),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: subCategories.map((subCategory) {
+            final selected = _selectedSubCategories.contains(subCategory);
+            return FilterChip(
+              label: Text(subCategory),
+              selected: selected,
+              onSelected: (value) => setState(() {
+                if (value) {
+                  _selectedSubCategories.add(subCategory);
+                } else {
+                  _selectedSubCategories.remove(subCategory);
+                }
+                _hierarchyPage = 0;
               }),
               selectedColor: const Color(0xFFE7F2ED),
               checkmarkColor: const Color(0xFF0A4F3F),
@@ -389,16 +574,12 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
     // The fixed RPC returns one row per Product Type with category='All'
     // and the exact product count (each product counted once, not once per category).
     // We simply display those counts directly, sorted by volume.
-    final entries = _typeRows
-        .where((r) => _productTypeInScope(r.productType))
-        .map((r) => MapEntry(r.productType, r.count))
-        .toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    // De-duplicate in case old RPC data still has multiple category rows
     final deduped = <String, int>{};
-    for (final e in entries) {
-      deduped[e.key] = (deduped[e.key] ?? 0) + e.value;
+    for (final row in _hierarchyRows) {
+      if (_productTypeInScope(row.productType) &&
+          _categorySelected(row.category)) {
+        deduped[row.productType] = (deduped[row.productType] ?? 0) + row.count;
+      }
     }
     final dedupedEntries = deduped.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
@@ -425,7 +606,6 @@ class _CatalogAnalyticsDashboardState extends State<CatalogAnalyticsDashboard> {
             ),
     );
   }
-
 
   // ── Plain vs Studded per category (2 fixed hues + legend) ──
   Widget _buildPlainStuddedCard() {
@@ -649,8 +829,7 @@ class _Legend extends StatelessWidget {
             ),
             const SizedBox(width: 5),
             Text(label,
-                style:
-                    const TextStyle(fontSize: 11, color: Color(0xFF61726C))),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF61726C))),
           ],
         );
     return Row(
@@ -745,8 +924,8 @@ class _TopProductsByRegionCardState extends State<TopProductsByRegionCard> {
       source = _data.byStateProduct[_selectedState] ?? const {};
     }
     final entries = source.entries.toList()
-      ..sort((a, b) =>
-          (b.value[_metric] ?? 0).compareTo(a.value[_metric] ?? 0));
+      ..sort(
+          (a, b) => (b.value[_metric] ?? 0).compareTo(a.value[_metric] ?? 0));
     return entries.where((e) => (e.value[_metric] ?? 0) > 0).take(10).toList();
   }
 
@@ -880,8 +1059,8 @@ class _TopProductsByRegionCardState extends State<TopProductsByRegionCard> {
         items: [
           const DropdownMenuItem<String?>(
               value: null, child: Text('All regions')),
-          ...states.map(
-              (s) => DropdownMenuItem<String?>(value: s, child: Text(s))),
+          ...states
+              .map((s) => DropdownMenuItem<String?>(value: s, child: Text(s))),
         ],
         onChanged: (v) {
           setState(() => _selectedState = v);
@@ -970,8 +1149,8 @@ class _TopProductsByRegionCardState extends State<TopProductsByRegionCard> {
                     width: 36,
                     height: 36,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                        width: 36, height: 36, color: _border))
+                    errorBuilder: (_, __, ___) =>
+                        Container(width: 36, height: 36, color: _border))
                 : Container(width: 36, height: 36, color: _border),
           ),
           const SizedBox(width: 10),

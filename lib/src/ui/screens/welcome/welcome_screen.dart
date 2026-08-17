@@ -157,8 +157,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         _filterService.getDependentDistinctArrayValues('Stone Purity', filters),
         _filterService.getDependentDistinctArrayValues(
             'Stone Setting', filters),
-        _filterService.getDependentDistinctArrayValues(
-            'Product Tags', filters),
+        _filterService.getDependentDistinctArrayValues('Product Tags', filters),
         // Phase 1 added a real "Metal Weight" column; read it directly instead
         // of the old "Net Weight" approximation. Both weight ranges narrow to
         // the currently selected Product Type/Category/Metal Type etc.
@@ -284,7 +283,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       // "products" has no "Sub Category" column (only designer/manufacturer do).
       const productsSelectColumns =
           'id, "Product Title", "Images", "Description", "Product Type", '
-          '"Category", '
+          '"Category", "Sub Category", '
           '"Metal Type", "Metal Purity", Plain, Studded, "Price", '
           '"Metal Color"';
       const selectColumns =
@@ -328,10 +327,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         // "Category" is text[]: array-overlap with the selected values.
         productsQuery = productsQuery.overlaps('Category', _selectedCategories);
         designerQuery = designerQuery.overlaps('Category', _selectedCategories);
-        manufacturerQuery = manufacturerQuery.overlaps('Category', _selectedCategories);
+        manufacturerQuery =
+            manufacturerQuery.overlaps('Category', _selectedCategories);
       }
 
       if (_selectedSubCategory != 'All') {
+        productsQuery =
+            productsQuery.eq('"Sub Category"', _selectedSubCategory);
         designerQuery =
             designerQuery.eq('"Sub Category"', _selectedSubCategory);
         manufacturerQuery =
@@ -346,8 +348,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             productsQuery.overlaps('Metal Color', _selectedMetalColors);
         designerQuery =
             designerQuery.overlaps('Metal Color', _selectedMetalColors);
-        manufacturerQuery = manufacturerQuery.overlaps(
-            'Metal Color', _selectedMetalColors);
+        manufacturerQuery =
+            manufacturerQuery.overlaps('Metal Color', _selectedMetalColors);
       }
 
       if (_selectedFeaturedTags.isNotEmpty) {
@@ -355,8 +357,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             productsQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
         designerQuery =
             designerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
-        manufacturerQuery = manufacturerQuery.overlaps(
-            '"Product Tags"', _selectedFeaturedTags);
+        manufacturerQuery =
+            manufacturerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
       }
 
       productsQuery = productsQuery.order('id', ascending: false).range(0, 199);
@@ -486,7 +488,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               designerQuery.eq('"Product Type"', _selectedProductType);
         }
         if (_selectedCategories.isNotEmpty) {
-          designerQuery = designerQuery.overlaps('Category', _selectedCategories);
+          designerQuery =
+              designerQuery.overlaps('Category', _selectedCategories);
         }
 
         designerData = await designerQuery
@@ -512,7 +515,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               manufacturerQuery.eq('"Product Type"', _selectedProductType);
         }
         if (_selectedCategories.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.overlaps('Category', _selectedCategories);
+          manufacturerQuery =
+              manufacturerQuery.overlaps('Category', _selectedCategories);
         }
 
         manufacturerData = await manufacturerQuery
@@ -674,10 +678,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   Future<void> _fetchProductTypes(String metalType) async {
     try {
-      // The user wants the Welcome screen Product Types to match the exact expansive list 
+      // The user wants the Welcome screen Product Types to match the exact expansive list
       // shown on the Home screen initially, which ignores the metal filter.
       final allTypes = await _filterService.getDistinctValues('Product Type');
-      if (mounted) setState(() => _availableProductTypes = ['All', ...allTypes]);
+      if (mounted)
+        setState(() => _availableProductTypes = ['All', ...allTypes]);
     } catch (e) {
       debugPrint('Error fetching product types: $e');
     }
@@ -697,8 +702,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       final effectiveMetal = _effectiveMetalTypeForFilters(metalType)?.trim();
       if (effectiveMetal != null) filters['Metal Type'] = effectiveMetal;
 
-      final allCats = await _filterService.getDependentDistinctValues('Category', filters);
-      if (mounted) setState(() => _availableCategories = ['All', ...allCats]);
+      final allCats =
+          await _filterService.getDependentDistinctValues('Category', filters);
+      if (mounted) {
+        setState(() {
+          _availableCategories = ['All', ...allCats];
+          _availableSubCategories = ['All'];
+        });
+      }
     } catch (e) {
       debugPrint('Error fetching categories: $e');
     }
@@ -722,8 +733,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       final effectiveMetal = _effectiveMetalTypeForFilters(metalType)?.trim();
       if (effectiveMetal != null) filters['Metal Type'] = effectiveMetal;
 
-      final allSubs = await _filterService.getDependentDistinctValues('Sub Category', filters);
-      if (mounted) setState(() => _availableSubCategories = ['All', ...allSubs]);
+      final allSubs = await _filterService.getDependentDistinctValues(
+          'Sub Category', filters);
+      if (mounted)
+        setState(() => _availableSubCategories = ['All', ...allSubs]);
     } catch (e) {
       debugPrint('Error fetching sub categories: $e');
     }
@@ -810,7 +823,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       );
       return;
     }
-    
+
     // Use ShareUtils to download the image and share the link + image properly
     ShareUtils.shareJewelryItem(context, item, _supabase);
   }
@@ -855,11 +868,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     final filters = <String, dynamic>{};
     final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
     if (effectiveMetal != null) filters['Metal Type'] = effectiveMetal;
-    if (_selectedProductType != 'All') filters['Product Type'] = _selectedProductType;
-    if (_selectedCategories.isNotEmpty) filters['Category'] = _selectedCategories;
+    if (_selectedProductType != 'All')
+      filters['Product Type'] = _selectedProductType;
+    if (_selectedCategories.isNotEmpty)
+      filters['Category'] = _selectedCategories;
 
-    final newSubCategories = await _filterService.getDependentDistinctValues('Sub Category', filters);
-    
+    final newSubCategories = await _filterService.getDependentDistinctValues(
+        'Sub Category', filters);
+
     if (mounted) {
       setState(() {
         _availableSubCategories = ['All', ...newSubCategories];
@@ -871,7 +887,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     await _loadProducts();
   }
 
-  void _onSubCategoryChanged(String? value, {bool applyImmediately = true}) async {
+  void _onSubCategoryChanged(String? value,
+      {bool applyImmediately = true}) async {
     if (value == null) return;
     setState(() => _selectedSubCategory = value);
     _displayedCount = _initialItems;
@@ -916,8 +933,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: const [
-          Icon(Icons.build_circle_outlined,
-              size: 18, color: Color(0xFF8A6D00)),
+          Icon(Icons.build_circle_outlined, size: 18, color: Color(0xFF8A6D00)),
           SizedBox(width: 8),
           Flexible(
             child: Text(
@@ -1373,7 +1389,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       },
                     ),
                   )
-                : const SizedBox.shrink(key: ValueKey('subCategoryBubblesEmpty')),
+                : const SizedBox.shrink(
+                    key: ValueKey('subCategoryBubblesEmpty')),
           ),
           if (_selectedMetalType != 'Gold' ||
               _selectedProductType != 'All' ||

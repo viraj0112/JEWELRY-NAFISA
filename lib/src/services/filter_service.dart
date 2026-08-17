@@ -31,7 +31,6 @@ class FilterService {
     }
   }
 
-
   Future<List<String>> getDistinctValues(String columnName) async {
     try {
       // "Category" is now a text[] (unified array); unnest it like Metal Color.
@@ -60,7 +59,8 @@ class FilterService {
             .cast<String>()
             .toList()
           ..sort();
-        debugPrint('[FilterService] getDistinctValues("$columnName") => $values');
+        debugPrint(
+            '[FilterService] getDistinctValues("$columnName") => $values');
         return values;
       }
       return [];
@@ -70,31 +70,24 @@ class FilterService {
           'Falling back to row-fetch.');
       // ---- FALLBACK: row-fetch (slow but works without the RPC) ----
       try {
-        final skipProducts = columnName == 'Sub Category';
         final columnKey =
             columnName.contains(' ') ? '"$columnName"' : columnName;
         final values = <String>{};
 
-        if (!skipProducts) {
-          try {
-            final res = await _supabase
-                .from('products')
-                .select(columnKey)
-                .limit(10000);
-            for (var row in res) {
-              final val = row[columnName];
-              if (val != null && val.toString().trim().isNotEmpty) {
-                values.add(val.toString().trim());
-              }
+        try {
+          final res =
+              await _supabase.from('products').select(columnKey).limit(10000);
+          for (var row in res) {
+            final val = row[columnName];
+            if (val != null && val.toString().trim().isNotEmpty) {
+              values.add(val.toString().trim());
             }
-          } catch (_) {}
-        }
+          }
+        } catch (_) {}
         for (final table in ['designerproducts', 'manufacturerproducts']) {
           try {
-            final res = await _supabase
-                .from(table)
-                .select(columnKey)
-                .limit(10000);
+            final res =
+                await _supabase.from(table).select(columnKey).limit(10000);
             for (var row in res) {
               final val = row[columnName];
               if (val != null && val.toString().trim().isNotEmpty) {
@@ -111,13 +104,11 @@ class FilterService {
     }
   }
 
-
-
   /// "Category" is the unified text[] array; collect its non-blank elements.
   void _addCategoryValuesFromRow(
       Map<String, dynamic> item, Set<String> values) {
     final arr = item['Category'];
-    debugPrint('RAW CATEGORY ARR: $arr (type: ${arr.runtimeType})');
+    // debugPrint('RAW CATEGORY ARR: $arr (type: ${arr.runtimeType})');
 
     void processString(String str) {
       if (str.isEmpty) return;
@@ -184,9 +175,7 @@ class FilterService {
     try {
       final columnKey = columnName.contains(' ') ? '"$columnName"' : columnName;
 
-      var productsQuery = columnName == 'Sub Category'
-          ? null
-          : _supabase.from('products').select(columnKey);
+      var productsQuery = _supabase.from('products').select(columnKey);
       var designerQuery = _supabase.from('designerproducts').select(columnKey);
       var manufacturerQuery =
           _supabase.from('manufacturerproducts').select(columnKey);
@@ -200,16 +189,14 @@ class FilterService {
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
 
           if (filter.value is List) {
-            if (productsQuery != null)
-              productsQuery =
-                  productsQuery.overlaps(filterKey, filter.value as List);
+            productsQuery =
+                productsQuery.overlaps(filterKey, filter.value as List);
             designerQuery =
                 designerQuery.overlaps(filterKey, filter.value as List);
             manufacturerQuery =
                 manufacturerQuery.overlaps(filterKey, filter.value as List);
           } else {
-            if (productsQuery != null)
-              productsQuery = productsQuery.eq(filterKey, filter.value!);
+            productsQuery = productsQuery.eq(filterKey, filter.value!);
             designerQuery = designerQuery.eq(filterKey, filter.value!);
             manufacturerQuery = manufacturerQuery.eq(filterKey, filter.value!);
           }
@@ -218,7 +205,7 @@ class FilterService {
 
       // 3. Execute all queries in parallel
       final responses = await Future.wait([
-        if (productsQuery != null) productsQuery,
+        productsQuery,
         designerQuery,
         manufacturerQuery,
       ]);
@@ -254,9 +241,7 @@ class FilterService {
 
     try {
       final columnKey = columnName.contains(' ') ? '"$columnName"' : columnName;
-      var productsQuery = columnName == 'Sub Category'
-          ? null
-          : _supabase.from('products').select(columnKey);
+      var productsQuery = _supabase.from('products').select(columnKey);
       var designerQuery = _supabase.from('designerproducts').select(columnKey);
       var manufacturerQuery =
           _supabase.from('manufacturerproducts').select(columnKey);
@@ -283,16 +268,14 @@ class FilterService {
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
 
           if (filter.value is List) {
-            if (productsQuery != null)
-              productsQuery =
-                  productsQuery.overlaps(filterKey, filter.value as List);
+            productsQuery =
+                productsQuery.overlaps(filterKey, filter.value as List);
             designerQuery =
                 designerQuery.overlaps(filterKey, filter.value as List);
             manufacturerQuery =
                 manufacturerQuery.overlaps(filterKey, filter.value as List);
           } else {
-            if (productsQuery != null)
-              productsQuery = productsQuery.eq(filterKey, filter.value!);
+            productsQuery = productsQuery.eq(filterKey, filter.value!);
             designerQuery = designerQuery.eq(filterKey, filter.value!);
             manufacturerQuery = manufacturerQuery.eq(filterKey, filter.value!);
           }
@@ -300,7 +283,7 @@ class FilterService {
       }
 
       final responses = await Future.wait([
-        if (productsQuery != null) productsQuery.limit(5000),
+        productsQuery.limit(5000),
         designerQuery.limit(5000),
         manufacturerQuery.limit(5000),
       ]);

@@ -254,7 +254,8 @@ class HomeScreenState extends State<HomeScreen> {
         _filterService.getDependentDistinctArrayValues('Stone Cut', filters),
         _filterService.getDependentDistinctArrayValues('Stone Type', filters),
         _filterService.getDependentDistinctArrayValues('Stone Purity', filters),
-        _filterService.getDependentDistinctArrayValues('Stone Setting', filters),
+        _filterService.getDependentDistinctArrayValues(
+            'Stone Setting', filters),
         _filterService.getDependentDistinctArrayValues('Product Tags', filters),
         // Phase 1 added a real "Metal Weight" column (backfilled from "Gold Weight"),
         // so the Metal Weight slider now reads it directly instead of the old
@@ -379,10 +380,9 @@ class HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      // "products" has no "Sub Category" column (only designer/manufacturer do).
       const productsSelectColumns =
           'id, "Product Title", "Images", "Description", "Product Type", '
-          '"Category", '
+          '"Category", "Sub Category", '
           '"Metal Type", "Metal Purity", Plain, Studded, "Price", '
           '"Metal Color"';
       const selectColumns =
@@ -433,7 +433,8 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       if (_selectedSubCategory != 'All') {
-        // "products" has no "Sub Category" column; filter designer/manufacturer only.
+        productsQuery =
+            productsQuery.eq('"Sub Category"', _selectedSubCategory);
         designerQuery =
             designerQuery.eq('"Sub Category"', _selectedSubCategory);
         manufacturerQuery =
@@ -642,43 +643,62 @@ class HomeScreenState extends State<HomeScreen> {
             productsQuery.overlaps('Metal Color', _selectedMetalColors);
         designerQuery =
             designerQuery.overlaps('Metal Color', _selectedMetalColors);
-        manufacturerQuery = manufacturerQuery.overlaps(
-            'Metal Color', _selectedMetalColors);
+        manufacturerQuery =
+            manufacturerQuery.overlaps('Metal Color', _selectedMetalColors);
       }
       if (_selectedMetalPurities.isNotEmpty) {
-        productsQuery = productsQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
-        designerQuery = designerQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
-        manufacturerQuery = manufacturerQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
+        productsQuery =
+            productsQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
+        designerQuery =
+            designerQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
+        manufacturerQuery = manufacturerQuery.inFilter(
+            '"Metal Purity"', _selectedMetalPurities);
       }
       if (_isEnamelWorkChecked) {
         productsQuery = productsQuery.not('"Enamel Work"', 'is', 'null');
         designerQuery = designerQuery.not('"Enamel Work"', 'is', 'null');
-        manufacturerQuery = manufacturerQuery.not('"Enamel Work"', 'is', 'null');
+        manufacturerQuery =
+            manufacturerQuery.not('"Enamel Work"', 'is', 'null');
       }
       if (_selectedStoneShapes.isNotEmpty) {
-        productsQuery = productsQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
-        designerQuery = designerQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
-        manufacturerQuery = manufacturerQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
+        productsQuery =
+            productsQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
+        designerQuery =
+            designerQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
+        manufacturerQuery =
+            manufacturerQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
       }
       if (_selectedStoneTypes.isNotEmpty) {
-        productsQuery = productsQuery.overlaps('"Stone Type"', _selectedStoneTypes);
-        designerQuery = designerQuery.overlaps('"Stone Type"', _selectedStoneTypes);
-        manufacturerQuery = manufacturerQuery.overlaps('"Stone Type"', _selectedStoneTypes);
+        productsQuery =
+            productsQuery.overlaps('"Stone Type"', _selectedStoneTypes);
+        designerQuery =
+            designerQuery.overlaps('"Stone Type"', _selectedStoneTypes);
+        manufacturerQuery =
+            manufacturerQuery.overlaps('"Stone Type"', _selectedStoneTypes);
       }
       if (_selectedStoneQualities.isNotEmpty) {
-        productsQuery = productsQuery.overlaps('"Stone Purity"', _selectedStoneQualities);
-        designerQuery = designerQuery.overlaps('"Stone Purity"', _selectedStoneQualities);
-        manufacturerQuery = manufacturerQuery.overlaps('"Stone Purity"', _selectedStoneQualities);
+        productsQuery =
+            productsQuery.overlaps('"Stone Purity"', _selectedStoneQualities);
+        designerQuery =
+            designerQuery.overlaps('"Stone Purity"', _selectedStoneQualities);
+        manufacturerQuery = manufacturerQuery.overlaps(
+            '"Stone Purity"', _selectedStoneQualities);
       }
       if (_selectedStoneSettings.isNotEmpty) {
-        productsQuery = productsQuery.overlaps('"Stone Setting"', _selectedStoneSettings);
-        designerQuery = designerQuery.overlaps('"Stone Setting"', _selectedStoneSettings);
-        manufacturerQuery = manufacturerQuery.overlaps('"Stone Setting"', _selectedStoneSettings);
+        productsQuery =
+            productsQuery.overlaps('"Stone Setting"', _selectedStoneSettings);
+        designerQuery =
+            designerQuery.overlaps('"Stone Setting"', _selectedStoneSettings);
+        manufacturerQuery = manufacturerQuery.overlaps(
+            '"Stone Setting"', _selectedStoneSettings);
       }
       if (_selectedFeaturedTags.isNotEmpty) {
-        productsQuery = productsQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
-        designerQuery = designerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
-        manufacturerQuery = manufacturerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
+        productsQuery =
+            productsQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
+        designerQuery =
+            designerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
+        manufacturerQuery =
+            manufacturerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
       }
 
       // OPTIMIZED: Use pagination instead of loading all products
@@ -895,8 +915,8 @@ class HomeScreenState extends State<HomeScreen> {
         }
 
         if (_selectedMetalColors.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.overlaps(
-              'Metal Color', _selectedMetalColors);
+          manufacturerQuery =
+              manufacturerQuery.overlaps('Metal Color', _selectedMetalColors);
         }
         if (_selectedMetalPurities.isNotEmpty) {
           manufacturerQuery = manufacturerQuery.inFilter(
@@ -1260,7 +1280,9 @@ class HomeScreenState extends State<HomeScreen> {
     if (mounted) {
       setState(() {
         _categoryOptions = ['All', ...newCategories];
+        _subCategoryOptions = ['All'];
         _isLoadingCategories = false;
+        _isLoadingSubCategories = false;
       });
     }
     _loadAdvancedFilters();
@@ -1296,8 +1318,8 @@ class HomeScreenState extends State<HomeScreen> {
       filters['Category'] = _selectedCategories;
     }
 
-    final newSubCategories =
-        await _filterService.getDependentDistinctValues('Sub Category', filters);
+    final newSubCategories = await _filterService.getDependentDistinctValues(
+        'Sub Category', filters);
 
     if (mounted) {
       setState(() {
@@ -1420,7 +1442,7 @@ class HomeScreenState extends State<HomeScreen> {
       );
       return;
     }
-    
+
     // Use ShareUtils to download the image and share the link + image properly
     ShareUtils.shareJewelryItem(context, item, _supabase);
   }
@@ -1752,7 +1774,7 @@ class HomeScreenState extends State<HomeScreen> {
           ),
 
           // Sub Category Filter - Bubble chips
-          if (_subCategoryOptions.length > 1)
+          if (_selectedCategories.isNotEmpty && _subCategoryOptions.length > 1)
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: _buildBubbleFilter(
