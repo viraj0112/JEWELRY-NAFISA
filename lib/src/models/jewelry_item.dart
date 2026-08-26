@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import '../utils/array_value_utils.dart';
 
 class JewelryItem {
   /// Integer primary key – kept for internal DB joins only. Never expose in URLs.
@@ -136,7 +137,13 @@ class JewelryItem {
 
     // If it's still null, try parsing from a JSON string.
     if (imgList == null) {
-      for (final key in ['images_arr', 'Images', 'Image', 'image', 'image_url']) {
+      for (final key in [
+        'images_arr',
+        'Images',
+        'Image',
+        'image',
+        'image_url'
+      ]) {
         final val = json[key];
         if (val is String && val.startsWith('[') && val.endsWith(']')) {
           try {
@@ -285,8 +292,8 @@ class JewelryItem {
     if (arr != null) return _parseString(arr.firstOrNull);
     // Neither key is an array (pre-Phase-1 world, or both genuinely absent):
     // legacyKey is safe to read as a scalar here.
-    return _parseString(
-        json[legacyKey] ?? (legacyCamelKey != null ? json[legacyCamelKey] : null));
+    return _parseString(json[legacyKey] ??
+        (legacyCamelKey != null ? json[legacyCamelKey] : null));
   }
 
   static String? _parseString(dynamic value) {
@@ -304,7 +311,7 @@ class JewelryItem {
   static String? _parseImageString(dynamic value) {
     if (value == null) return null;
     if (value is List) return _parseString(value.firstOrNull);
-    
+
     final str = _parseString(value);
     if (str != null && str.startsWith('[') && str.endsWith(']')) {
       try {
@@ -325,21 +332,6 @@ class JewelryItem {
   }
 
   static List<String>? _parseList(dynamic value) {
-    if (value == null) return null;
-    if (value is List) {
-      final list = value
-          .map((e) => e.toString().trim())
-          .where((e) => !_isFakeEmptyValue(e.toLowerCase()))
-          .toList();
-      return list.isEmpty ? null : list;
-    }
-    if (value is String) {
-      final str = value.trim();
-      if (_isFakeEmptyValue(str.toLowerCase())) {
-        return null;
-      }
-      return [str];
-    }
-    return null;
+    return ArrayValueUtils.parse(value);
   }
 }

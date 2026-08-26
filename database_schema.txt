@@ -277,6 +277,7 @@ CREATE TABLE public.products (
   created_at timestamp with time zone DEFAULT now(),
   Stone Quality ARRAY,
   Enamel Weight text,
+  Sub Category text,
   CONSTRAINT products_pkey PRIMARY KEY (id),
   CONSTRAINT products_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );

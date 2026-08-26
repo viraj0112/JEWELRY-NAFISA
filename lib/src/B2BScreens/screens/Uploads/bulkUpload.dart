@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:csv/csv.dart';
 import 'package:universal_html/html.dart' as html;
+import '../../../utils/array_value_utils.dart';
 import '../../../utils/product_image_matcher.dart';
 
 class BulkUploadUploadCard extends StatelessWidget {
@@ -300,12 +301,17 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
         // OR validation for Product Type / Jewelry Type
         final prodTypeIdx = headers.indexOf('Product Type');
         final jewlTypeIdx = headers.indexOf('Jewelry Type');
-        final hasProductType = prodTypeIdx != -1 && prodTypeIdx < row.length && row[prodTypeIdx].toString().trim().isNotEmpty;
-        final hasJewelryType = jewlTypeIdx != -1 && jewlTypeIdx < row.length && row[jewlTypeIdx].toString().trim().isNotEmpty;
+        final hasProductType = prodTypeIdx != -1 &&
+            prodTypeIdx < row.length &&
+            row[prodTypeIdx].toString().trim().isNotEmpty;
+        final hasJewelryType = jewlTypeIdx != -1 &&
+            jewlTypeIdx < row.length &&
+            row[jewlTypeIdx].toString().trim().isNotEmpty;
 
         if (!hasProductType && !hasJewelryType) {
           debugPrint("Row $i: Missing both Product Type and Jewelry Type");
-          imageWarnings.add('Row $i: Missing required field "Product Type" or "Jewelry Type"');
+          imageWarnings.add(
+              'Row $i: Missing required field "Product Type" or "Jewelry Type"');
           missingRequired = true;
         }
 
@@ -348,16 +354,7 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
         }
 
         List<String>? parseArrayValue(dynamic value) {
-          if (value == null) return null;
-          if (value is String) {
-            if (value.isEmpty) return null;
-            return value
-                .split(',')
-                .map((t) => t.trim())
-                .where((t) => t.isNotEmpty)
-                .toList();
-          }
-          return [value.toString()];
+          return ArrayValueUtils.parse(value);
         }
 
         String? getStringValue(dynamic value) {
@@ -398,7 +395,8 @@ class _BulkUploadWizardState extends State<BulkUploadWizard> {
         }
 
         // Alias Jewelry Type to Product Type if Product Type is missing
-        if (productData['Product Type'] == null && productData['Jewelry Type'] != null) {
+        if (productData['Product Type'] == null &&
+            productData['Jewelry Type'] != null) {
           productData['Product Type'] = productData['Jewelry Type'];
         }
 

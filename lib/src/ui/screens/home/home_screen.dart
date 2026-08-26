@@ -256,7 +256,7 @@ class HomeScreenState extends State<HomeScreen> {
         _filterService.getDependentDistinctArrayValues('Stone Purity', filters),
         _filterService.getDependentDistinctArrayValues(
             'Stone Setting', filters),
-        _filterService.getDependentDistinctArrayValues('Product Tags', filters),
+        _filterService.getFeaturedTags(filters),
         // Phase 1 added a real "Metal Weight" column (backfilled from "Gold Weight"),
         // so the Metal Weight slider now reads it directly instead of the old
         // "Net Weight" approximation. Both weight ranges narrow to whatever
@@ -1065,7 +1065,7 @@ class HomeScreenState extends State<HomeScreen> {
         final query = _supabase.from('products').select('"Product Type"');
         final productsTypes = (metalType == 'AKD'
             ? await query.ilike('"Metal Type"', 'AKD%')
-            : await query.eq('"Metal Type"', metalType)) as List;
+            : await query.ilike('"Metal Type"', '%$metalType%')) as List;
 
         for (var item in productsTypes) {
           final productType = item['Product Type'] as String?;
@@ -1082,7 +1082,7 @@ class HomeScreenState extends State<HomeScreen> {
             _supabase.from('designerproducts').select('"Product Type"');
         final designerTypes = (metalType == 'AKD'
             ? await query.ilike('"Metal Type"', 'AKD%')
-            : await query.eq('"Metal Type"', metalType)) as List;
+            : await query.ilike('"Metal Type"', '%$metalType%')) as List;
 
         for (var item in designerTypes) {
           final productType = item['Product Type'] as String?;
@@ -1099,7 +1099,7 @@ class HomeScreenState extends State<HomeScreen> {
             _supabase.from('manufacturerproducts').select('"Product Type"');
         final manufacturerTypes = (metalType == 'AKD'
             ? await query.ilike('"Metal Type"', 'AKD%')
-            : await query.eq('"Metal Type"', metalType)) as List;
+            : await query.ilike('"Metal Type"', '%$metalType%')) as List;
 
         for (var item in manufacturerTypes) {
           final productType = item['Product Type'] as String?;
@@ -1344,7 +1344,7 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _resetFilters() {
+  Future<void> _resetFilters() async {
     setState(() {
       _selectedMetalType = 'All';
       _selectedAkdMetalType = 'All';
@@ -1372,8 +1372,10 @@ class HomeScreenState extends State<HomeScreen> {
       _categoryOptions = ['All'];
       _subCategoryOptions = ['All'];
     });
-    _loadAdvancedFilters();
-    _applyFilters();
+    await Future.wait([
+      _loadAdvancedFilters(),
+      _applyFilters(),
+    ]);
   }
 
   Future<void> _likeItem(JewelryItem item) async {
@@ -1471,6 +1473,8 @@ class HomeScreenState extends State<HomeScreen> {
       body: FloatingFilterOverlay(
         config: FloatingFilterConfig(
           selectedMetalType: _selectedMetalType,
+          metalTypeOptions:
+              ['All', ..._metalTypeOptions, 'Instant'].toSet().toList(),
           selectedAkdMetalType: _selectedAkdMetalType,
           selectedProductType: _selectedProductType,
           selectedCategories: _selectedCategories,

@@ -1,34 +1,159 @@
-import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
+import '../utils/array_value_utils.dart';
 
 class FilterService {
   final _supabase = Supabase.instance.client;
+  static const _pageSize = 1000;
+
+  static const _placeholderValues = {
+    '',
+    'null',
+    'none',
+    'n/a',
+    'na',
+    'not applicable',
+    'no stone',
+    'no stones',
+  };
+
+  static const _descriptorWords = {
+    'antique',
+    'asymmetrical',
+    'bold',
+    'bridal',
+    'bright',
+    'classic',
+    'celestial',
+    'contemporary',
+    'delicate',
+    'dual',
+    'elegant',
+    'festive',
+    'floral',
+    'geometric',
+    'glamorous',
+    'intricate',
+    'luxurious',
+    'modern',
+    'minimal',
+    'ornate',
+    'romantic',
+    'royal',
+    'simple',
+    'sleek',
+    'sparkling',
+    'statement',
+    'traditional',
+    'unique',
+    'vintage',
+    'white',
+    'black',
+    'blue',
+    'green',
+    'pink',
+    'purple',
+    'red',
+    'yellow',
+    'rose',
+    'multicolor',
+    'two-tone',
+    'openwork',
+  };
+
+  static const _nonDescriptorWords = {
+    'bangle',
+    'bangles',
+    'bracelet',
+    'bracelets',
+    'brooch',
+    'chain',
+    'chains',
+    'charm',
+    'earring',
+    'earrings',
+    'jewelry',
+    'jewellery',
+    'necklace',
+    'necklaces',
+    'pendant',
+    'pendants',
+    'ring',
+    'rings',
+    'set',
+    'stone',
+    'stones',
+    'diamond',
+    'diamonds',
+    'cz',
+    'moissanite',
+    'sapphire',
+    'onyx',
+    'gold',
+    'silver',
+    'platinum',
+    'gift',
+    'gifts',
+    'wear',
+    'wedding',
+    'women',
+    'woman',
+    'men',
+    'man',
+    'design',
+    'designer',
+    'fashion',
+    'enamel',
+    'bamboo',
+    'american',
+  };
 
   Future<List<String>> getDistinctArrayValues(String columnName) async {
     try {
-      // Call the NEW function you just created in the Supabase SQL Editor
-      final response = await _supabase.rpc(
-        'get_distinct_unnested_values',
-        params: {'column_name': columnName},
-      );
-
-      if (response is List) {
-        return response
-            .map((item) => item?.toString())
-            .where((item) => item != null && item.isNotEmpty)
-            .cast<String>()
-            .toList();
-      } else {
-        debugPrint(
-            'No distinct array values found for column: $columnName, unexpected response type from RPC: ${response.runtimeType}');
-        return [];
+      final values = <String>{};
+      for (final table in [
+        'products',
+        'designerproducts',
+        'manufacturerproducts'
+      ]) {
+        final columnKey =
+            columnName.contains(' ') ? '"$columnName"' : columnName;
+        final rows = await _supabase.from(table).select(columnKey).limit(10000);
+        for (final row in rows) {
+          for (final value
+              in ArrayValueUtils.parse(row[columnName]) ?? const []) {
+            if (!_placeholderValues.contains(value.toLowerCase())) {
+              values.add(value);
+            }
+          }
+        }
       }
+      return values.toList()..sort();
     } catch (e) {
       debugPrint(
           'Error fetching distinct array values for column $columnName: $e');
       return [];
     }
+  }
+
+  Future<List<String>> getFeaturedTags(Map<String, dynamic> filters) async {
+    final tags = await getDependentDistinctArrayValues('Product Tags', filters);
+    final unique = <String, String>{};
+    for (final tag in tags) {
+      final normalized = tag.trim().toLowerCase();
+      if (normalized.isEmpty) continue;
+      final words = normalized
+          .split(RegExp(r'[^a-z0-9-]+'))
+          .where((word) => word.isNotEmpty)
+          .toList();
+      if (words.isEmpty ||
+          words.any(_nonDescriptorWords.contains) ||
+          !words.any(_descriptorWords.contains)) {
+        continue;
+      }
+      unique.putIfAbsent(normalized, () => tag.trim());
+    }
+    return unique.values.toList()..sort();
   }
 
   Future<List<String>> getDistinctValues(String columnName) async {
@@ -41,6 +166,26 @@ class FilterService {
       // array-unnesting path instead of the scalar RPC.
       if (columnName == 'Metal Color') {
         return await getDistinctArrayValues('Metal Color');
+      }
+      if (columnName == 'Sub Category') {
+        final values = <String>{};
+        for (final table in [
+          'products',
+          'designerproducts',
+          'manufacturerproducts'
+        ]) {
+          final rows =
+              await _supabase.from(table).select('"Sub Category"').limit(10000);
+          for (final row in rows) {
+            for (final value
+                in ArrayValueUtils.parse(row['Sub Category']) ?? const []) {
+              if (!_placeholderValues.contains(value.toLowerCase())) {
+                values.add(value);
+              }
+            }
+          }
+        }
+        return values.toList()..sort();
       }
 
       // Use the RPC that does SELECT DISTINCT across all 3 tables in SQL.
@@ -107,48 +252,71 @@ class FilterService {
   /// "Category" is the unified text[] array; collect its non-blank elements.
   void _addCategoryValuesFromRow(
       Map<String, dynamic> item, Set<String> values) {
-    final arr = item['Category'];
-    // debugPrint('RAW CATEGORY ARR: $arr (type: ${arr.runtimeType})');
+    values.addAll(ArrayValueUtils.parse(item['Category']) ?? const []);
+  }
 
-    void processString(String str) {
-      if (str.isEmpty) return;
-      // If it looks like a JSON array string `["A", "B"]`, parse it manually
-      if (str.startsWith('[') && str.endsWith(']')) {
-        try {
-          final List<dynamic> parsed = jsonDecode(str);
-          for (var v in parsed) {
-            if (v != null && v.toString().trim().isNotEmpty) {
-              values.add(v.toString().trim());
-            }
+  Future<List<dynamic>> _fetchPaged(
+    String table,
+    String columns,
+    dynamic Function(dynamic) applyFilters,
+  ) async {
+    final rows = <dynamic>[];
+    for (var offset = 0;; offset += _pageSize) {
+      dynamic query = _supabase.from(table).select(columns);
+      query = applyFilters(query);
+      final page =
+          await query.range(offset, offset + _pageSize - 1) as List<dynamic>;
+      rows.addAll(page);
+      if (page.length < _pageSize) break;
+    }
+    return rows;
+  }
+
+  Future<List<String>> _getDependentDistinctPagedValues(
+      String columnName, Map<String, dynamic> filters) async {
+    dynamic applyFilters(dynamic query) {
+      for (final filter in filters.entries) {
+        if (filter.value == null ||
+            filter.value == 'All' ||
+            (filter.value is List && (filter.value as List).isEmpty)) {
+          continue;
+        }
+        if (filter.key == 'Jewellery Type') {
+          query = query.not(
+              filter.value == 'Plain' ? 'Plain' : 'Studded', 'is', 'null');
+          continue;
+        }
+        final filterKey =
+            filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
+        if (filter.value is List) {
+          query = query.overlaps(filterKey, filter.value as List);
+        } else if (filter.key == 'Metal Type') {
+          final metal = filter.value.toString().trim();
+          query = query.ilike(filterKey, metal == 'AKD' ? 'AKD%' : '%$metal%');
+        } else {
+          query = query.eq(filterKey, filter.value);
+        }
+      }
+      return query;
+    }
+
+    final responses = await Future.wait([
+      _fetchPaged('products', '"$columnName"', applyFilters),
+      _fetchPaged('designerproducts', '"$columnName"', applyFilters),
+      _fetchPaged('manufacturerproducts', '"$columnName"', applyFilters),
+    ]);
+    final values = <String>{};
+    for (final response in responses) {
+      for (final row in response) {
+        for (final value
+            in ArrayValueUtils.parse(row[columnName]) ?? const []) {
+          if (!_placeholderValues.contains(value.toLowerCase())) {
+            values.add(value);
           }
-          return; // Successfully parsed as JSON array
-        } catch (_) {
-          // Fall back to just adding the string if JSON parsing fails
         }
       }
-
-      // If it's something like "{Diamond Earrings, Sui Dhaga Earrings}"
-      if (str.startsWith('{') && str.endsWith('}')) {
-        final inner = str.substring(1, str.length - 1);
-        final parts = inner.split(',').map((e) => e.trim());
-        for (var p in parts) {
-          if (p.isNotEmpty) values.add(p);
-        }
-        return;
-      }
-
-      values.add(str.trim());
     }
-
-    if (arr is List) {
-      for (final v in arr) {
-        if (v != null && v.toString().trim().isNotEmpty) {
-          processString(v.toString().trim());
-        }
-      }
-    } else if (arr is String) {
-      processString(arr.trim());
-    }
+    return values.toList()..sort();
   }
 
   /// **FIXED:** Fetches distinct values for a column based on other filters.
@@ -166,6 +334,12 @@ class FilterService {
     // Special handling for Category to aggregate all category columns
     if (columnName == 'Category') {
       return await _getDependentDistinctCategoryValues(filters);
+    }
+    if (columnName == 'Sub Category') {
+      return await _getDependentDistinctPagedValues(columnName, filters);
+    }
+    if (columnName == 'Product Type') {
+      return await _getDependentDistinctPagedValues(columnName, filters);
     }
     // Metal Color is now unified into metal_color_arr (text[]).
     if (columnName == 'Metal Color') {
@@ -185,6 +359,13 @@ class FilterService {
         if (filter.value != null &&
             filter.value != 'All' &&
             !(filter.value is List && (filter.value as List).isEmpty)) {
+          if (filter.key == 'Jewellery Type') {
+            final column = filter.value == 'Plain' ? 'Plain' : 'Studded';
+            productsQuery = productsQuery.not(column, 'is', 'null');
+            designerQuery = designerQuery.not(column, 'is', 'null');
+            manufacturerQuery = manufacturerQuery.not(column, 'is', 'null');
+            continue;
+          }
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
 
@@ -196,9 +377,18 @@ class FilterService {
             manufacturerQuery =
                 manufacturerQuery.overlaps(filterKey, filter.value as List);
           } else {
-            productsQuery = productsQuery.eq(filterKey, filter.value!);
-            designerQuery = designerQuery.eq(filterKey, filter.value!);
-            manufacturerQuery = manufacturerQuery.eq(filterKey, filter.value!);
+            if (filter.key == 'Metal Type') {
+              final metal = filter.value.toString().trim();
+              productsQuery = productsQuery.ilike(filterKey, '%$metal%');
+              designerQuery = designerQuery.ilike(filterKey, '%$metal%');
+              manufacturerQuery =
+                  manufacturerQuery.ilike(filterKey, '%$metal%');
+            } else {
+              productsQuery = productsQuery.eq(filterKey, filter.value!);
+              designerQuery = designerQuery.eq(filterKey, filter.value!);
+              manufacturerQuery =
+                  manufacturerQuery.eq(filterKey, filter.value!);
+            }
           }
         }
       }
@@ -210,16 +400,16 @@ class FilterService {
         manufacturerQuery,
       ]);
 
-      final Set<String> values = {};
+      final values = <String>{};
 
       for (var response in responses) {
-        if (response is List) {
-          values.addAll(
-            (response as List)
-                .map((item) => item[columnName]?.toString())
-                .where((item) => item != null && item.isNotEmpty)
-                .cast<String>(),
-          );
+        for (final item in response) {
+          for (final value
+              in ArrayValueUtils.parse(item[columnName]) ?? const []) {
+            if (!_placeholderValues.contains(value.toLowerCase())) {
+              values.add(value);
+            }
+          }
         }
       }
 
@@ -249,14 +439,10 @@ class FilterService {
       // 1. Unnest arrays logic in Dart
       void addValuesFromRow(Map<String, dynamic> item, Set<String> values) {
         final val = item[columnName];
-        if (val is List) {
-          for (var item in val) {
-            if (item != null && item.toString().trim().isNotEmpty) {
-              values.add(item.toString().trim());
-            }
+        for (final value in ArrayValueUtils.parse(val) ?? const []) {
+          if (!_placeholderValues.contains(value.toLowerCase())) {
+            values.add(value);
           }
-        } else if (val is String && val.trim().isNotEmpty) {
-          values.add(val.trim());
         }
       }
 
@@ -264,6 +450,13 @@ class FilterService {
         if (filter.value != null &&
             filter.value != 'All' &&
             !(filter.value is List && (filter.value as List).isEmpty)) {
+          if (filter.key == 'Jewellery Type') {
+            final column = filter.value == 'Plain' ? 'Plain' : 'Studded';
+            productsQuery = productsQuery.not(column, 'is', 'null');
+            designerQuery = designerQuery.not(column, 'is', 'null');
+            manufacturerQuery = manufacturerQuery.not(column, 'is', 'null');
+            continue;
+          }
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
 
@@ -275,9 +468,18 @@ class FilterService {
             manufacturerQuery =
                 manufacturerQuery.overlaps(filterKey, filter.value as List);
           } else {
-            productsQuery = productsQuery.eq(filterKey, filter.value!);
-            designerQuery = designerQuery.eq(filterKey, filter.value!);
-            manufacturerQuery = manufacturerQuery.eq(filterKey, filter.value!);
+            if (filter.key == 'Metal Type') {
+              final metal = filter.value.toString().trim();
+              productsQuery = productsQuery.ilike(filterKey, '%$metal%');
+              designerQuery = designerQuery.ilike(filterKey, '%$metal%');
+              manufacturerQuery =
+                  manufacturerQuery.ilike(filterKey, '%$metal%');
+            } else {
+              productsQuery = productsQuery.eq(filterKey, filter.value!);
+              designerQuery = designerQuery.eq(filterKey, filter.value!);
+              manufacturerQuery =
+                  manufacturerQuery.eq(filterKey, filter.value!);
+            }
           }
         }
       }
@@ -308,53 +510,46 @@ class FilterService {
   Future<List<String>> _getDependentDistinctCategoryValues(
       Map<String, dynamic> filters) async {
     try {
-      var productsQuery = _supabase.from('products').select('"Category"');
-      var designerQuery =
-          _supabase.from('designerproducts').select('"Category"');
-      var manufacturerQuery =
-          _supabase.from('manufacturerproducts').select('"Category"');
-
-      // 2. Apply dependent filters to all three queries (excluding Category filter itself)
-      for (var filter in filters.entries) {
-        if (filter.value != null &&
-            filter.value != 'All' &&
-            !(filter.value is List && (filter.value as List).isEmpty) &&
-            filter.key != 'Category') {
-          // Use quotes for filter keys if they contain spaces
+      dynamic applyFilters(dynamic query) {
+        for (final filter in filters.entries) {
+          if (filter.value == null ||
+              filter.value == 'All' ||
+              (filter.value is List && (filter.value as List).isEmpty) ||
+              filter.key == 'Category') {
+            continue;
+          }
+          if (filter.key == 'Jewellery Type') {
+            query = query.not(
+                filter.value == 'Plain' ? 'Plain' : 'Studded', 'is', 'null');
+            continue;
+          }
           final filterKey =
               filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
-
           if (filter.value is List) {
-            productsQuery =
-                productsQuery.overlaps(filterKey, filter.value as List);
-            designerQuery =
-                designerQuery.overlaps(filterKey, filter.value as List);
-            manufacturerQuery =
-                manufacturerQuery.overlaps(filterKey, filter.value as List);
-          } else if (filter.key == 'Metal Type' && filter.value == 'AKD') {
-            productsQuery = productsQuery.ilike(filterKey, 'AKD%');
-            designerQuery = designerQuery.ilike(filterKey, 'AKD%');
-            manufacturerQuery = manufacturerQuery.ilike(filterKey, 'AKD%');
+            query = query.overlaps(filterKey, filter.value as List);
+          } else if (filter.key == 'Metal Type') {
+            final metal = filter.value.toString().trim();
+            query =
+                query.ilike(filterKey, metal == 'AKD' ? 'AKD%' : '%$metal%');
           } else {
-            productsQuery = productsQuery.eq(filterKey, filter.value!);
-            designerQuery = designerQuery.eq(filterKey, filter.value!);
-            manufacturerQuery = manufacturerQuery.eq(filterKey, filter.value!);
+            query = query.eq(filterKey, filter.value);
           }
         }
+        return query;
       }
 
-      // 3. Execute all three queries in parallel
-      final responses =
-          await Future.wait([productsQuery, designerQuery, manufacturerQuery]);
+      final responses = await Future.wait([
+        _fetchPaged('products', '"Category"', applyFilters),
+        _fetchPaged('designerproducts', '"Category"', applyFilters),
+        _fetchPaged('manufacturerproducts', '"Category"', applyFilters),
+      ]);
 
       final Set<String> values = {};
 
       // 4-6. Process all three tables' results
       for (final response in responses) {
-        if (response is List) {
-          for (var item in response) {
-            _addCategoryValuesFromRow(item, values);
-          }
+        for (final item in response) {
+          _addCategoryValuesFromRow(item, values);
         }
       }
 

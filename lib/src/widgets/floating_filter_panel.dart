@@ -10,6 +10,7 @@ import 'package:jewelry_nafisa/src/widgets/glowing_logo.dart';
 class FloatingFilterConfig {
   // ── Current selections ────────────────────────────────────────────────────
   final String selectedMetalType;
+  final List<String> metalTypeOptions;
   final String selectedAkdMetalType;
   final String selectedProductType;
   final List<String> selectedCategories;
@@ -79,10 +80,17 @@ class FloatingFilterConfig {
   final void Function(List<String>) onFeaturedTagsChanged;
 
   final VoidCallback onApplySelection;
-  final VoidCallback onResetFilters;
+  final Future<void> Function() onResetFilters;
 
   const FloatingFilterConfig({
     required this.selectedMetalType,
+    this.metalTypeOptions = const [
+      'All',
+      'Gold',
+      'Silver',
+      'Platinum',
+      'Instant'
+    ],
     this.selectedAkdMetalType = 'All',
     this.selectedProductType = 'All',
     this.selectedCategories = const [],
@@ -486,6 +494,7 @@ class _FloatingFilterPanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildHierarchyFilters(context),
                     // ── Advanced Filters ───────────────────────────────────────────
                     _buildAdvancedFilters(context),
 
@@ -498,6 +507,90 @@ class _FloatingFilterPanel extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildHierarchyFilters(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        _buildSectionLabel(Icons.account_tree_outlined, 'CATALOG HIERARCHY'),
+        const SizedBox(height: 8),
+        _buildAccordion(
+          title: 'Metal Type',
+          activeCount: config.selectedMetalType == 'All' ? 0 : 1,
+          children: [
+            _buildSingleSelectWrap(
+              options: config.metalTypeOptions,
+              selected: config.selectedMetalType,
+              onChanged: (value) => config.onMetalTypeChanged(value),
+            ),
+          ],
+        ),
+        if (config.selectedMetalType == 'Instant' &&
+            config.akdMetalTypeOptions.length > 1)
+          _buildAccordion(
+            title: 'Instant Metal',
+            activeCount: config.selectedAkdMetalType == 'All' ? 0 : 1,
+            children: [
+              _buildSingleSelectWrap(
+                options: config.akdMetalTypeOptions,
+                selected: config.selectedAkdMetalType,
+                onChanged: (value) => config.onAkdMetalTypeChanged(value),
+              ),
+            ],
+          ),
+        if (config.selectedMetalType != 'All' &&
+            config.productTypeOptions.length > 1)
+          _buildAccordion(
+            title: 'Product Type',
+            activeCount: config.selectedProductType == 'All' ? 0 : 1,
+            children: [
+              _buildSingleSelectWrap(
+                options: config.productTypeOptions,
+                selected: config.selectedProductType,
+                onChanged: (value) => config.onProductTypeChanged(value),
+              ),
+            ],
+          ),
+        if (config.selectedProductType != 'All' &&
+            config.categoryOptions.length > 1)
+          _buildAccordion(
+            title: 'Category',
+            activeCount: config.selectedCategories.length,
+            children: [
+              _buildMultiSelectWrap(
+                options: config.categoryOptions
+                    .where((option) => option != 'All')
+                    .toList(),
+                selections: config.selectedCategories,
+                onChanged: (values) {
+                  final previous = config.selectedCategories.toSet();
+                  final changed = values.where((v) => v != 'All').toSet();
+                  for (final value in {...previous, ...changed}) {
+                    if (previous.contains(value) != changed.contains(value)) {
+                      config.onCategoryChanged(value);
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
+        if (config.selectedCategories.isNotEmpty &&
+            config.subCategoryOptions.length > 1)
+          _buildAccordion(
+            title: 'Subcategory',
+            activeCount: config.selectedSubCategory == 'All' ? 0 : 1,
+            children: [
+              _buildSingleSelectWrap(
+                options: config.subCategoryOptions,
+                selected: config.selectedSubCategory,
+                onChanged: (value) => config.onSubCategoryChanged(value),
+              ),
+            ],
+          ),
+      ],
     );
   }
 
@@ -603,8 +696,7 @@ class _FloatingFilterPanel extends StatelessWidget {
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: () {
-              config.onResetFilters();
-              onClose();
+              config.onResetFilters().whenComplete(onClose);
             },
             icon: const Icon(Icons.close, size: 13),
             label: const Text(
@@ -850,18 +942,7 @@ class _FloatingFilterPanel extends StatelessWidget {
           ),
         ],
 
-        // 11. Featured
-        _buildAccordion(
-          title: 'Featured',
-          activeCount: config.selectedFeaturedTags.length,
-          children: [
-            _buildMultiSelectWrap(
-              options: config.availableFeaturedTags,
-              selections: config.selectedFeaturedTags,
-              onChanged: config.onFeaturedTagsChanged,
-            ),
-          ],
-        ),
+        // Featured is intentionally disabled until tag quality is reliable.
       ],
     );
   }
@@ -922,6 +1003,7 @@ class _FloatingFilterPanel extends StatelessWidget {
       return const Text('No options',
           style: TextStyle(fontSize: 12, color: Colors.grey));
     }
+
     return Wrap(
       spacing: 6,
       runSpacing: 8,
@@ -938,6 +1020,30 @@ class _FloatingFilterPanel extends StatelessWidget {
               newSelections.add(option);
             }
             onChanged(newSelections);
+          },
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildSingleSelectWrap({
+    required List<String> options,
+    required String selected,
+    required void Function(String) onChanged,
+  }) {
+    if (options.isEmpty) {
+      return const Text('No options',
+          style: TextStyle(fontSize: 12, color: Colors.grey));
+    }
+    return Wrap(
+      spacing: 6,
+      runSpacing: 8,
+      children: options.map((option) {
+        return _FilterChip(
+          label: option,
+          isSelected: selected == option,
+          onTap: () {
+            if (selected != option) onChanged(option);
           },
         );
       }).toList(),

@@ -157,7 +157,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         _filterService.getDependentDistinctArrayValues('Stone Purity', filters),
         _filterService.getDependentDistinctArrayValues(
             'Stone Setting', filters),
-        _filterService.getDependentDistinctArrayValues('Product Tags', filters),
+        _filterService.getFeaturedTags(filters),
         // Phase 1 added a real "Metal Weight" column; read it directly instead
         // of the old "Net Weight" approximation. Both weight ranges narrow to
         // the currently selected Product Type/Category/Metal Type etc.
@@ -1006,6 +1006,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   FloatingFilterConfig _buildFilterConfig() {
     return FloatingFilterConfig(
       selectedMetalType: _selectedMetalType,
+      metalTypeOptions: const ['All', 'Gold', 'Silver', 'Instant'],
       selectedAkdMetalType: _selectedAkdMetalType,
       selectedProductType: _selectedProductType,
       selectedCategories: _selectedCategories,
@@ -1222,7 +1223,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  void _resetFilters() {
+  Future<void> _resetFilters() async {
     setState(() {
       _selectedMetalType = 'Gold';
       _selectedProductType = 'All';
@@ -1233,8 +1234,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       _availableSubCategories = ['All'];
     });
     _displayedCount = _initialItems;
-    _fetchProductTypes(_selectedMetalType);
-    _loadProducts();
+    await Future.wait([
+      _fetchProductTypes(_selectedMetalType),
+      _loadProducts(),
+    ]);
   }
 
   Widget _buildFilterBar() {

@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universal_html/html.dart' as html;
+import '../../../utils/array_value_utils.dart';
 
 /// "Edit in Sheets" bulk workflow for the B2B catalog:
 ///   Export  - column-selectable CSV download of the user's products
@@ -141,8 +142,7 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Export failed: $e'),
-            backgroundColor: Colors.red));
+            content: Text('Export failed: $e'), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -153,7 +153,7 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
     // "Images"/"Category"/"Metal Color" are text[] arrays; others scalar.
     final value = row[column];
     if (value == null) return '';
-    if (value is List) return value.map((e) => '$e').join(' | ');
+    if (value is List) return jsonEncode(value);
     return '$value';
   }
 
@@ -187,7 +187,10 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
 
     final headers =
         parsed.first.map((h) => h.toString().trim()).toList(growable: false);
-    final rows = parsed.skip(1).where((r) => r.any((c) => '$c'.trim().isNotEmpty)).toList();
+    final rows = parsed
+        .skip(1)
+        .where((r) => r.any((c) => '$c'.trim().isNotEmpty))
+        .toList();
 
     setState(() {
       _fileName = file.name;
@@ -207,8 +210,8 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
         .toList();
 
     if (!_csvHeaders.contains('SKU')) {
-      issues.add(_RowIssue(
-          1, 'Missing required "SKU" column — SKU is the overwrite match key.'));
+      issues.add(_RowIssue(1,
+          'Missing required "SKU" column — SKU is the overwrite match key.'));
       _issues = issues;
       return;
     }
@@ -219,8 +222,7 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
     for (var i = 0; i < _csvRows.length; i++) {
       final sheetRow = i + 2; // +1 for header, +1 for 1-based
       final row = _csvRows[i];
-      final sku =
-          skuIndex < row.length ? '${row[skuIndex]}'.trim() : '';
+      final sku = skuIndex < row.length ? '${row[skuIndex]}'.trim() : '';
       if (sku.isEmpty) {
         issues.add(_RowIssue(sheetRow, 'Empty SKU — row will be skipped.'));
         continue;
@@ -233,11 +235,12 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
         issues.add(_RowIssue(sheetRow,
             'Row has more cells than the header — extra cells are ignored.'));
       }
-      final title =
-          titleIndex >= 0 && titleIndex < row.length ? '${row[titleIndex]}'.trim() : '';
+      final title = titleIndex >= 0 && titleIndex < row.length
+          ? '${row[titleIndex]}'.trim()
+          : '';
       if (title.isEmpty && titleIndex >= 0) {
-        issues.add(_RowIssue(
-            sheetRow, 'Empty Product Title for SKU "$sku" (allowed, but check it).'));
+        issues.add(_RowIssue(sheetRow,
+            'Empty Product Title for SKU "$sku" (allowed, but check it).'));
       }
     }
     _issues = issues;
@@ -247,15 +250,7 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
       _csvHeaders.isNotEmpty && !_csvHeaders.contains('SKU');
 
   List<String>? _splitList(String raw) {
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) return null;
-    final sep = trimmed.contains('|') ? '|' : ',';
-    final parts = trimmed
-        .split(sep)
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-    return parts.isEmpty ? null : parts;
+    return ArrayValueUtils.parse(raw);
   }
 
   /// Builds the column->value map for one CSV row, containing ONLY columns
@@ -505,8 +500,8 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
               const SizedBox(width: 12),
               if (_csvRows.isNotEmpty)
                 Text('${_csvRows.length} data row(s)',
-                    style: TextStyle(
-                        fontSize: 12.5, color: Colors.grey.shade700)),
+                    style:
+                        TextStyle(fontSize: 12.5, color: Colors.grey.shade700)),
             ],
           ),
           if (_ignoredHeaders.isNotEmpty) ...[
@@ -574,10 +569,9 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
           ),
           const SizedBox(height: 8),
           FilledButton.icon(
-            onPressed:
-                (_csvRows.isEmpty || _hasBlockingIssue || _syncing)
-                    ? null
-                    : _syncProducts,
+            onPressed: (_csvRows.isEmpty || _hasBlockingIssue || _syncing)
+                ? null
+                : _syncProducts,
             style: FilledButton.styleFrom(backgroundColor: _teal),
             icon: _syncing
                 ? const SizedBox(
@@ -676,9 +670,8 @@ class _SyncHistoryTabState extends State<_SyncHistoryTab> {
                 (r['failed_count'] ?? 0) > 0
                     ? Icons.warning_amber_rounded
                     : Icons.check_circle_outline,
-                color: (r['failed_count'] ?? 0) > 0
-                    ? Colors.orange
-                    : Colors.teal,
+                color:
+                    (r['failed_count'] ?? 0) > 0 ? Colors.orange : Colors.teal,
               ),
               title: Text('${r['file_name'] ?? 'unknown.csv'}',
                   style: const TextStyle(
@@ -690,7 +683,10 @@ class _SyncHistoryTabState extends State<_SyncHistoryTab> {
                 style: const TextStyle(fontSize: 12),
               ),
               trailing: Text(
-                '${r['created_at'] ?? ''}'.split('.').first.replaceAll('T', ' '),
+                '${r['created_at'] ?? ''}'
+                    .split('.')
+                    .first
+                    .replaceAll('T', ' '),
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
               ),
             );
