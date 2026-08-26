@@ -94,28 +94,7 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
   Future<void> _exportCsv() async {
     setState(() => _exporting = true);
     try {
-      var query =
-          _supabase.from(widget.tableName).select('*').eq('user_id', _userId);
-      if (widget.selectedIds.isNotEmpty) {
-        final ids = <int>[];
-        for (final e in widget.selectedIds) {
-          final id = int.tryParse(e);
-          if (id == null) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text(
-                    'Cannot export pending or rejected products. Please select only approved products from your live catalog.'),
-                backgroundColor: Colors.red,
-              ));
-              setState(() => _exporting = false);
-            }
-            return;
-          }
-          ids.add(id);
-        }
-        query = query.inFilter('id', ids);
-      }
-      final rows = await query.order('created_at', ascending: false);
+      final rows = await _fetchExportRows();
 
       final columns =
           _allColumns.where((c) => _exportColumns.contains(c)).toList();
@@ -147,6 +126,50 @@ class _EditInSheetsDialogState extends State<EditInSheetsDialog> {
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchExportRows() async {
+    final selectedIds = <int>[];
+    for (final value in widget.selectedIds) {
+      final id = int.tryParse(value);
+      if (id == null) {
+        throw StateError(
+            'Cannot export pending or rejected products. Please select only approved products from your live catalog.');
+      }
+      selectedIds.add(id);
+    }
+
+    // PostgREST encodes an IN filter in the URL. Split large selections into
+    // bounded requests so exporting thousands of products does not produce a
+    // 400 Bad Request from an oversized URL.
+    if (selectedIds.isNotEmpty) {
+      final rows = <Map<String, dynamic>>[];
+      for (var start = 0; start < selectedIds.length; start += 500) {
+        final end = (start + 500).clamp(0, selectedIds.length);
+        final page = await _supabase
+            .from(widget.tableName)
+            .select('*')
+            .eq('user_id', _userId)
+            .inFilter('id', selectedIds.sublist(start, end))
+            .order('created_at', ascending: false)
+            .range(0, 499);
+        rows.addAll(List<Map<String, dynamic>>.from(page));
+      }
+      return rows;
+    }
+
+    final rows = <Map<String, dynamic>>[];
+    for (var offset = 0;; offset += 1000) {
+      final page = await _supabase
+          .from(widget.tableName)
+          .select('*')
+          .eq('user_id', _userId)
+          .order('created_at', ascending: false)
+          .range(offset, offset + 999);
+      rows.addAll(List<Map<String, dynamic>>.from(page));
+      if (page.length < 1000) break;
+    }
+    return rows;
   }
 
   String _cellForExport(Map<String, dynamic> row, String column) {
