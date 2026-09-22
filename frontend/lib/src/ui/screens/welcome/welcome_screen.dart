@@ -1,0 +1,2177 @@
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
+import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+import 'package:jewelry_nafisa/src/utils/share_utils.dart';
+import 'package:jewelry_nafisa/src/utils/image_url_resolver.dart';
+import 'package:jewelry_nafisa/src/utils/product_type_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:jewelry_nafisa/src/widgets/login_required_dialog.dart';
+import 'package:go_router/go_router.dart';
+import 'package:jewelry_nafisa/src/ui/screens/info_dialog.dart';
+import 'package:jewelry_nafisa/src/widgets/floating_filter_panel.dart';
+import 'package:jewelry_nafisa/src/widgets/glowing_logo.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+
+import 'package:jewelry_nafisa/src/services/filter_service.dart';
+import 'package:jewelry_nafisa/src/B2BScreens/b2b_theme.dart';
+import 'package:jewelry_nafisa/src/widgets/hover_lift.dart';
+import 'package:jewelry_nafisa/src/widgets/brand_empty_state.dart';
+
+class WelcomeScreen extends StatefulWidget {
+  const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  final _supabase = Supabase.instance.client;
+  final List<JewelryItem> _products = [];
+  final List<JewelryItem> _allProducts = [];
+  late ScrollController _scrollController;
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  int _displayedCount = 100;
+  static const int _initialItems = 100;
+  static const int _itemsPerPage = 25;
+  String _selectedMetalType = 'Gold';
+  String _selectedAkdMetalType = 'All';
+  String _selectedProductType = 'All';
+  List<String> _availableProductTypes = ['All'];
+  List<String> _selectedCategories = [];
+  String _selectedSubCategory = 'All';
+  List<String> _availableCategories = ['All'];
+  List<String> _availableSubCategories = ['All'];
+
+  List<String> _akdMetalTypeOptions = ['All'];
+  bool _isLoadingAkdMetalTypes = false;
+  final bool _isLoadingProductTypes = false;
+  bool _isLoadingCategories = false;
+  bool _isLoadingSubCategories = false;
+
+  final Set<String> _itemsBeingLiked = {};
+  RealtimeChannel? _likesChannel;
+
+  String _displayMetalType(String value) {
+    return value.replaceFirst(RegExp(r'^AKD-', caseSensitive: false), '');
+  }
+
+  // --- Advanced Filter Options ---
+  List<String> _availableMetalColors = [];
+  List<String> _availableMetalPurities = [];
+  List<String> _availableStoneShapes = [];
+  List<String> _availableStoneTypes = [];
+  List<String> _availableStoneQualities = [];
+  List<String> _availableStoneSettings = [];
+  List<String> _availableFeaturedTags = [];
+
+  List<double> _metalWeightBounds = [0.0, 100.0];
+  List<double> _stoneWeightBounds = [0.0, 100.0];
+
+  bool _isLoadingAdvancedOptions = false;
+
+  // --- Advanced Filter State Selections ---
+  String? _selectedJewelleryType;
+  List<String> _selectedMetalColors = [];
+  List<String> _selectedMetalPurities = [];
+  bool _isEnamelWorkChecked = false;
+  List<String> _selectedStoneShapes = [];
+  List<String> _selectedStoneTypes = [];
+  List<String> _selectedStoneQualities = [];
+  List<String> _selectedStoneSettings = [];
+  List<String> _selectedFeaturedTags = [];
+  List<double>? _currentMetalWeightRange;
+  List<double>? _currentStoneWeightRange;
+
+  // --- Advanced Filter Callbacks ---
+  void _onJewelleryTypeChanged(String? val) {
+    setState(() => _selectedJewelleryType = val);
+  }
+
+  void _onMetalWeightChanged(List<double> val) {
+    setState(() => _currentMetalWeightRange = val);
+  }
+
+  void _onMetalColorsChanged(List<String> val) {
+    setState(() => _selectedMetalColors = val);
+  }
+
+  void _onMetalPuritiesChanged(List<String> val) {
+    setState(() => _selectedMetalPurities = val);
+  }
+
+  void _onEnamelWorkChanged(bool val) {
+    setState(() => _isEnamelWorkChecked = val);
+  }
+
+  void _onStoneWeightChanged(List<double> val) {
+    setState(() => _currentStoneWeightRange = val);
+  }
+
+  void _onStoneShapesChanged(List<String> val) {
+    setState(() => _selectedStoneShapes = val);
+  }
+
+  void _onStoneTypesChanged(List<String> val) {
+    setState(() => _selectedStoneTypes = val);
+  }
+
+  void _onStoneQualitiesChanged(List<String> val) {
+    setState(() => _selectedStoneQualities = val);
+  }
+
+  void _onStoneSettingsChanged(List<String> val) {
+    setState(() => _selectedStoneSettings = val);
+  }
+
+  void _onFeaturedTagsChanged(List<String> val) {
+    setState(() => _selectedFeaturedTags = val);
+  }
+
+  Future<void> _loadAdvancedFilters() async {
+    setState(() => _isLoadingAdvancedOptions = true);
+    try {
+      final filters = <String, dynamic>{};
+      final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
+      if (effectiveMetal != null) {
+        filters['Metal Type'] = effectiveMetal;
+      }
+      if (_selectedProductType != 'All') {
+        filters['Product Type'] = _selectedProductType;
+      }
+      if (_selectedCategories.isNotEmpty) {
+        filters['Category'] = _selectedCategories;
+      }
+      if (_selectedJewelleryType != null) {
+        filters['Jewellery Type'] = _selectedJewelleryType;
+      }
+
+      final futures = await Future.wait([
+        _filterService.getDependentDistinctValues('Metal Color', filters),
+        _filterService.getDependentDistinctValues('Metal Purity', filters),
+        _filterService.getDependentDistinctArrayValues('Stone Cut', filters),
+        _filterService.getDependentDistinctArrayValues('Stone Type', filters),
+        _filterService.getDependentDistinctArrayValues('Stone Purity', filters),
+        _filterService.getDependentDistinctArrayValues(
+            'Stone Setting', filters),
+        _filterService.getFeaturedTags(filters),
+        // Phase 1 added a real "Metal Weight" column; read it directly instead
+        // of the old "Net Weight" approximation. Both weight ranges narrow to
+        // the currently selected Product Type/Category/Metal Type etc.
+        _filterService.getWeightRange('Metal Weight', filters: filters),
+        _filterService.getWeightRange('Stone Weight',
+            isArray: true, filters: filters),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _availableMetalColors = futures[0] as List<String>;
+          _availableMetalPurities = futures[1] as List<String>;
+          _availableStoneShapes = futures[2] as List<String>;
+          _availableStoneTypes = futures[3] as List<String>;
+          _availableStoneQualities = futures[4] as List<String>;
+          _availableStoneSettings = futures[5] as List<String>;
+          _availableFeaturedTags = futures[6] as List<String>;
+          _metalWeightBounds = futures[7] as List<double>;
+          _stoneWeightBounds = futures[8] as List<double>;
+          _isLoadingAdvancedOptions = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading advanced filters: $e');
+      if (mounted) setState(() => _isLoadingAdvancedOptions = false);
+    }
+  }
+
+  final FilterService _filterService = FilterService();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+    _loadProducts();
+    _fetchProductTypes(_selectedMetalType);
+    _loadAdvancedFilters();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const InfoDialog(),
+      );
+    });
+    _setupLikesListener();
+  }
+
+  void _setupLikesListener() {
+    _likesChannel = _supabase.channel('public:likes_channel_welcome')
+      ..onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'products',
+          callback: _handleProductUpdate)
+      ..onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'designerproducts',
+          callback: _handleProductUpdate)
+      ..onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'manufacturerproducts',
+          callback: _handleProductUpdate)
+      ..subscribe();
+  }
+
+  void _handleProductUpdate(PostgresChangePayload payload) {
+    if (!mounted) return;
+    final newRecord = payload.newRecord;
+    final id = newRecord['id'].toString();
+    final newLikes = newRecord['likes'];
+
+    if (newLikes != null && newLikes is int) {
+      final index = _products.indexWhere((p) => p.id == id);
+      if (index != -1 && _products[index].likes != newLikes) {
+        setState(() {
+          _products[index].likes = newLikes;
+        });
+      }
+      final allIndex = _allProducts.indexWhere((p) => p.id == id);
+      if (allIndex != -1 && _allProducts[allIndex].likes != newLikes) {
+        _allProducts[allIndex].likes = newLikes;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _likesChannel?.unsubscribe();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 500 &&
+        !_isLoadingMore &&
+        _displayedCount < _allProducts.length) {
+      _loadMoreProducts();
+    }
+  }
+
+  Future<void> _loadMoreProducts() async {
+    if (_isLoadingMore || _displayedCount >= _allProducts.length) return;
+
+    setState(() => _isLoadingMore = true);
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    setState(() {
+      _displayedCount =
+          (_displayedCount + _itemsPerPage).clamp(0, _allProducts.length);
+      _products
+        ..clear()
+        ..addAll(_allProducts.take(_displayedCount));
+      _isLoadingMore = false;
+    });
+  }
+
+  Future<List<JewelryItem>> _fetchFilteredProducts() async {
+    try {
+      // "products" has no "Sub Category" column (only designer/manufacturer do).
+      const productsSelectColumns =
+          'id, "Product Title", "Images", "Description", "Product Type", '
+          '"Category", "Sub Category", '
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price", '
+          '"Metal Color"';
+      const selectColumns =
+          'id, "Product Title", "Images", "Description", "Product Type", '
+          '"Category", "Sub Category", '
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price", '
+          '"Metal Color"';
+
+      const designerSelectColumns = '$selectColumns, created_at';
+
+      // Handle "Instant" (AKD*) separately
+      if (_selectedMetalType == 'Instant') {
+        return await _fetchInHouseProducts();
+      }
+
+      dynamic productsQuery =
+          _supabase.from('products').select(productsSelectColumns);
+      dynamic designerQuery =
+          _supabase.from('designerproducts').select(designerSelectColumns);
+      dynamic manufacturerQuery =
+          _supabase.from('manufacturerproducts').select(designerSelectColumns);
+
+      if (_selectedMetalType != 'All') {
+        final metal = _selectedMetalType.trim();
+        // Use ilike() for case-insensitive pattern matching
+        productsQuery = productsQuery.ilike('"Metal Type"', '%$metal%');
+        designerQuery = designerQuery.ilike('"Metal Type"', '%$metal%');
+        manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', '%$metal%');
+      }
+
+      if (_selectedProductType != 'All') {
+        productsQuery =
+            productsQuery.eq('"Product Type"', _selectedProductType);
+        designerQuery =
+            designerQuery.eq('"Product Type"', _selectedProductType);
+        manufacturerQuery =
+            manufacturerQuery.eq('"Product Type"', _selectedProductType);
+      }
+
+      if (_selectedCategories.isNotEmpty) {
+        // "Category" is text[]: array-overlap with the selected values.
+        productsQuery = productsQuery.overlaps('Category', _selectedCategories);
+        designerQuery = designerQuery.overlaps('Category', _selectedCategories);
+        manufacturerQuery =
+            manufacturerQuery.overlaps('Category', _selectedCategories);
+      }
+
+      if (_selectedSubCategory != 'All') {
+        productsQuery =
+            productsQuery.eq('"Sub Category"', _selectedSubCategory);
+        designerQuery =
+            designerQuery.eq('"Sub Category"', _selectedSubCategory);
+        manufacturerQuery =
+            manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
+      }
+
+      if (_selectedMetalColors.isNotEmpty) {
+        // OR/overlap semantics against the unified "Metal Color" (text[]):
+        // matches if the product has ANY of the selected colors, so 2-tone
+        // products match on either of their colors.
+        productsQuery =
+            productsQuery.overlaps('Metal Color', _selectedMetalColors);
+        designerQuery =
+            designerQuery.overlaps('Metal Color', _selectedMetalColors);
+        manufacturerQuery =
+            manufacturerQuery.overlaps('Metal Color', _selectedMetalColors);
+      }
+
+      if (_selectedFeaturedTags.isNotEmpty) {
+        productsQuery =
+            productsQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
+        designerQuery =
+            designerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
+        manufacturerQuery =
+            manufacturerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
+      }
+
+      productsQuery = productsQuery.order('id', ascending: false).range(0, 199);
+      designerQuery =
+          designerQuery.order('created_at', ascending: false).range(0, 199);
+      manufacturerQuery =
+          manufacturerQuery.order('created_at', ascending: false).range(0, 199);
+
+      // Execute queries individually to catch errors per table
+      List<dynamic> productsData = [];
+      List<dynamic> designerProductsData = [];
+      List<dynamic> manufacturerProductsData = [];
+
+      try {
+        productsData = await productsQuery;
+        debugPrint('✓ Products table: ${productsData.length} items fetched');
+      } catch (e) {
+        debugPrint('✗ Products table error: $e');
+      }
+
+      try {
+        designerProductsData = await designerQuery;
+        debugPrint(
+            '✓ Designer products table: ${designerProductsData.length} items fetched');
+      } catch (e) {
+        debugPrint('✗ Designer products table error: $e');
+      }
+
+      try {
+        manufacturerProductsData = await manufacturerQuery;
+        debugPrint(
+            '✓ Manufacturer products table: ${manufacturerProductsData.length} items fetched');
+      } catch (e) {
+        debugPrint('✗ Manufacturer products table error: $e');
+      }
+
+      final List<JewelryItem> allItems = [];
+
+      allItems.addAll(
+        productsData.map(
+            (item) => JewelryItem.fromJson(item as Map<String, dynamic>)),
+      );
+    
+      allItems.addAll(
+        designerProductsData.map((item) {
+          final map = item as Map<String, dynamic>;
+          map['is_designer_product'] = true;
+          return JewelryItem.fromJson(map);
+        }),
+      );
+    
+      allItems.addAll(
+        manufacturerProductsData.map((item) {
+          final map = item as Map<String, dynamic>;
+          map['is_manufacturer_product'] = true;
+          return JewelryItem.fromJson(map);
+        }),
+      );
+    
+      debugPrint('Total items before dedup: ${allItems.length}');
+
+      // Commented out: Remove duplicates by image + table source combination
+      // This keeps the same image if it comes from different tables
+      // final uniqueProducts = <JewelryItem>[];
+      // final Set<String> seenCombinations = {};
+      //
+      // for (var product in allItems) {
+      //   // Use image + table source as unique key instead of just image
+      //   final key = '${product.image}-${product.isDesignerProduct}-${product.isManufacturerProduct}';
+      //   if (!seenCombinations.contains(key)) {
+      //     seenCombinations.add(key);
+      //     uniqueProducts.add(product);
+      //   }
+      // }
+      // uniqueProducts.shuffle();
+
+      // Show only single image per product (no duplicates)
+      final uniqueProducts = <JewelryItem>[];
+      final Set<String> seenImages = {};
+
+      for (var product in allItems) {
+        if (!seenImages.contains(product.image)) {
+          seenImages.add(product.image);
+          uniqueProducts.add(product);
+        }
+      }
+      uniqueProducts.shuffle();
+
+      debugPrint('Total unique items: ${uniqueProducts.length}');
+      return uniqueProducts;
+    } catch (e) {
+      debugPrint('Error loading images from Supabase: $e');
+      return [];
+    }
+  }
+
+  Future<List<JewelryItem>> _fetchInHouseProducts() async {
+    try {
+      const selectColumns =
+          'id, "Product Title", "Images", "Description", "Product Type", '
+          '"Category", "Sub Category", '
+          '"Metal Type", "Metal Purity", Plain, Studded, "Price", created_at, '
+          '"Metal Color"';
+
+      List<dynamic> designerData = [];
+      List<dynamic> manufacturerData = [];
+
+      try {
+        var designerQuery =
+            _supabase.from('designerproducts').select(selectColumns);
+
+        if (_selectedAkdMetalType != 'All') {
+          designerQuery =
+              designerQuery.eq('"Metal Type"', _selectedAkdMetalType);
+        } else {
+          designerQuery = designerQuery.ilike('"Metal Type"', 'AKD%');
+        }
+
+        if (_selectedProductType != 'All') {
+          designerQuery =
+              designerQuery.eq('"Product Type"', _selectedProductType);
+        }
+        if (_selectedCategories.isNotEmpty) {
+          designerQuery =
+              designerQuery.overlaps('Category', _selectedCategories);
+        }
+
+        designerData = await designerQuery
+            .order('created_at', ascending: false)
+            .range(0, 199);
+      } catch (e) {
+        debugPrint('Error loading in-house designer: $e');
+      }
+
+      try {
+        var manufacturerQuery =
+            _supabase.from('manufacturerproducts').select(selectColumns);
+
+        if (_selectedAkdMetalType != 'All') {
+          manufacturerQuery =
+              manufacturerQuery.eq('"Metal Type"', _selectedAkdMetalType);
+        } else {
+          manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', 'AKD%');
+        }
+
+        if (_selectedProductType != 'All') {
+          manufacturerQuery =
+              manufacturerQuery.eq('"Product Type"', _selectedProductType);
+        }
+        if (_selectedCategories.isNotEmpty) {
+          manufacturerQuery =
+              manufacturerQuery.overlaps('Category', _selectedCategories);
+        }
+
+        manufacturerData = await manufacturerQuery
+            .order('created_at', ascending: false)
+            .range(0, 199);
+      } catch (e) {
+        debugPrint('Error loading in-house manufacturer: $e');
+      }
+
+      final List<JewelryItem> allItems = [];
+
+      allItems.addAll(
+        designerData.map((item) {
+          final map = item as Map<String, dynamic>;
+          map['is_designer_product'] = true;
+          return JewelryItem.fromJson(map);
+        }),
+      );
+    
+      allItems.addAll(
+        manufacturerData.map((item) {
+          final map = item as Map<String, dynamic>;
+          map['is_manufacturer_product'] = true;
+          return JewelryItem.fromJson(map);
+        }),
+      );
+    
+      allItems.shuffle();
+      return allItems;
+    } catch (e) {
+      debugPrint('Error loading Instant: $e');
+      return [];
+    }
+  }
+
+  Future<void> _loadProducts() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+
+    final products = await _fetchFilteredProducts();
+    if (!mounted) return;
+
+    setState(() {
+      _allProducts
+        ..clear()
+        ..addAll(products);
+      _displayedCount = _initialItems.clamp(0, products.length);
+      _products
+        ..clear()
+        ..addAll(products.take(_displayedCount));
+      _isLoading = false;
+    });
+  }
+
+  String? _effectiveMetalTypeForFilters(String metalType) {
+    if (metalType == 'Instant') {
+      if (_selectedAkdMetalType != 'All') {
+        return _selectedAkdMetalType;
+      }
+      return 'AKD';
+    }
+    if (metalType == 'All') return null;
+    return metalType;
+  }
+
+  Future<void> _loadAkdMetalTypes() async {
+    setState(() {
+      _isLoadingAkdMetalTypes = true;
+      _akdMetalTypeOptions = ['All'];
+    });
+    try {
+      final Set<String> akdTypes = {};
+
+      final designerRes = await _supabase
+          .from('designerproducts')
+          .select('"Metal Type"')
+          .ilike('"Metal Type"', 'AKD-%');
+      for (var row in designerRes) {
+        final val = row['Metal Type'] as String?;
+        if (val != null && val.isNotEmpty) {
+          akdTypes.add(val);
+        }
+      }
+    
+      final manufacturerRes = await _supabase
+          .from('manufacturerproducts')
+          .select('"Metal Type"')
+          .ilike('"Metal Type"', 'AKD-%');
+      for (var row in manufacturerRes) {
+        final val = row['Metal Type'] as String?;
+        if (val != null && val.isNotEmpty) {
+          akdTypes.add(val);
+        }
+      }
+    
+      final List<String> fetched = akdTypes.toList()..sort();
+
+      if (mounted) {
+        setState(() {
+          _akdMetalTypeOptions = ['All', ...fetched];
+          _isLoadingAkdMetalTypes = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading AKD metal types: $e');
+      if (mounted) {
+        setState(() => _isLoadingAkdMetalTypes = false);
+      }
+    }
+  }
+
+  Future<void> _onAkdMetalTypeChanged(String? value,
+      {bool applyImmediately = true}) async {
+    if (value == null) return;
+    setState(() {
+      _selectedAkdMetalType = value;
+      _selectedProductType = 'All';
+      _selectedCategories = [];
+      _availableProductTypes = ['All'];
+      _availableCategories = ['All'];
+    });
+
+    final effectiveMetal = _effectiveMetalTypeForFilters('Instant');
+    if (effectiveMetal != null) {
+      await _fetchProductTypes(effectiveMetal);
+    }
+    if (applyImmediately) await _loadProducts();
+  }
+
+  Future<void> _onMetalTypeChanged(String value,
+      {bool applyImmediately = true}) async {
+    setState(() {
+      _selectedMetalType = value;
+      _selectedAkdMetalType = 'All';
+      _selectedProductType = 'All';
+      _availableProductTypes = ['All'];
+      _selectedCategories = [];
+      _availableCategories = ['All'];
+    });
+    _displayedCount = _initialItems;
+
+    if (value == 'Instant') {
+      await _loadAkdMetalTypes();
+    }
+
+    if (value != 'All') {
+      await _fetchProductTypes(value);
+    }
+    await _loadProducts();
+  }
+
+  Future<void> _fetchProductTypes(String metalType) async {
+    try {
+      // The user wants the Welcome screen Product Types to match the exact expansive list
+      // shown on the Home screen initially, which ignores the metal filter.
+      final allTypes = await _filterService.getDistinctValues('Product Type');
+      if (mounted) {
+        setState(() => _availableProductTypes = ['All', ...allTypes]);
+      }
+    } catch (e) {
+      debugPrint('Error fetching product types: $e');
+    }
+  }
+
+  Future<void> _fetchCategories({
+    required String metalType,
+    required String productType,
+  }) async {
+    try {
+      if (productType == 'All') {
+        if (mounted) setState(() => _availableCategories = ['All']);
+        return;
+      }
+
+      final filters = <String, dynamic>{'Product Type': productType};
+      final effectiveMetal = _effectiveMetalTypeForFilters(metalType)?.trim();
+      if (effectiveMetal != null) filters['Metal Type'] = effectiveMetal;
+
+      final allCats =
+          await _filterService.getDependentDistinctValues('Category', filters);
+      if (mounted) {
+        setState(() {
+          _availableCategories = ['All', ...allCats];
+          _availableSubCategories = ['All'];
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching categories: $e');
+    }
+  }
+
+  Future<void> _fetchSubCategories({
+    required String metalType,
+    required String productType,
+    required String category,
+  }) async {
+    try {
+      if (category == 'All') {
+        if (mounted) setState(() => _availableSubCategories = ['All']);
+        return;
+      }
+
+      final filters = <String, dynamic>{
+        'Product Type': productType,
+        'Category': category,
+      };
+      final effectiveMetal = _effectiveMetalTypeForFilters(metalType)?.trim();
+      if (effectiveMetal != null) filters['Metal Type'] = effectiveMetal;
+
+      final allSubs = await _filterService.getDependentDistinctValues(
+          'Sub Category', filters);
+      if (mounted) {
+        setState(() => _availableSubCategories = ['All', ...allSubs]);
+      }
+    } catch (e) {
+      debugPrint('Error fetching sub categories: $e');
+    }
+  }
+
+  void _navigateToLogin() {
+    context.push('/login');
+  }
+
+  void _navigateToRegister() {
+    context.push('/signup');
+  }
+
+  Future<void> _likeItem(JewelryItem item) async {
+    if (_itemsBeingLiked.contains(item.id)) return;
+
+    setState(() {
+      _itemsBeingLiked.add(item.id);
+    });
+
+    try {
+      final uid = _supabase.auth.currentUser?.id;
+      final prefs = await SharedPreferences.getInstance();
+      String? sessionId = prefs.getString('anonymous_session_id');
+      if (sessionId == null) {
+        sessionId = const Uuid().v4();
+        await prefs.setString('anonymous_session_id', sessionId);
+      }
+
+      final isNowLiked = !item.isFavorite; // It's a toggle
+
+      // Determine table
+      String itemTable = 'products';
+      if (item.isDesignerProduct) {
+        itemTable = 'designerproducts';
+      } else if (item.isManufacturerProduct) {
+        itemTable = 'manufacturerproducts';
+      }
+
+      // Call the RPC
+      final newLikesCount = await _supabase.rpc('toggle_product_like', params: {
+        'p_item_id': item.id,
+        'p_item_table': itemTable,
+        'p_user_id': uid,
+        'p_session_id': sessionId,
+      });
+
+      if (mounted) {
+        final productIndex = _products.indexWhere((i) => i.id == item.id);
+        if (productIndex != -1) {
+          setState(() {
+            _products[productIndex].isFavorite = isNowLiked;
+            if (newLikesCount is int) {
+              _products[productIndex].likes = newLikesCount;
+            }
+          });
+        }
+        final allIndex = _allProducts.indexWhere((i) => i.id == item.id);
+        if (allIndex != -1) {
+          _allProducts[allIndex].isFavorite = isNowLiked;
+          if (newLikesCount is int) {
+            _allProducts[allIndex].likes = newLikesCount;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error toggling like on welcome screen: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not update like status.")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _itemsBeingLiked.remove(item.id));
+      }
+    }
+  }
+
+  void _shareItem(JewelryItem item) {
+    if (_supabase.auth.currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to share items.")),
+      );
+      return;
+    }
+
+    // Use ShareUtils to download the image and share the link + image properly
+    ShareUtils.shareJewelryItem(context, item, _supabase);
+  }
+
+  // ── Proper product-type / category callbacks for the floating panel ────────
+
+  Future<void> _onProductTypeChanged(String? value,
+      {bool applyImmediately = true}) async {
+    if (value == null) return;
+    setState(() {
+      _selectedProductType = value;
+      _selectedCategories = [];
+      _availableCategories = ['All'];
+      _selectedSubCategory = 'All';
+      _availableSubCategories = ['All'];
+      _isLoadingCategories = true;
+    });
+    _displayedCount = _initialItems;
+    await _fetchCategories(
+      metalType: _selectedMetalType,
+      productType: value,
+    );
+    if (mounted) setState(() => _isLoadingCategories = false);
+    _loadAdvancedFilters();
+    if (applyImmediately) await _loadProducts();
+  }
+
+  void _onCategoryChanged(String value) async {
+    setState(() {
+      if (_selectedCategories.contains(value)) {
+        _selectedCategories.remove(value);
+      } else {
+        _selectedCategories.add(value);
+      }
+      _selectedSubCategory = 'All';
+      _availableSubCategories = ['All'];
+      _isLoadingSubCategories = true;
+    });
+    _displayedCount = _initialItems;
+
+    // Fetch new options for 'Sub Category'
+    final filters = <String, dynamic>{};
+    final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
+    if (effectiveMetal != null) filters['Metal Type'] = effectiveMetal;
+    if (_selectedProductType != 'All') {
+      filters['Product Type'] = _selectedProductType;
+    }
+    if (_selectedCategories.isNotEmpty) {
+      filters['Category'] = _selectedCategories;
+    }
+
+    final newSubCategories = await _filterService.getDependentDistinctValues(
+        'Sub Category', filters);
+
+    if (mounted) {
+      setState(() {
+        _availableSubCategories = ['All', ...newSubCategories];
+        _isLoadingSubCategories = false;
+      });
+    }
+
+    _loadAdvancedFilters();
+    await _loadProducts();
+  }
+
+  void _onSubCategoryChanged(String? value,
+      {bool applyImmediately = true}) async {
+    if (value == null) return;
+    setState(() => _selectedSubCategory = value);
+    _displayedCount = _initialItems;
+    _loadAdvancedFilters();
+    if (applyImmediately) await _loadProducts();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Classic emerald & gold look, shared with the B2B workspace.
+    return Theme(
+      data: B2BTheme.build(Theme.of(context)),
+      child: PopScope(
+      canPop: true,
+      child: Scaffold(
+        body: _isLoading
+            ? const Center(child: GlowingLogo(size: 80))
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 700;
+                  return isWide ? _buildWideLayout() : _buildNarrowLayout();
+                },
+              ),
+      ),
+    ));
+  }
+
+  /// Maintenance banner that auto-shows only within the announced window and
+  /// disappears on its own afterwards. Window is defined in IST (UTC+5:30);
+  /// we compare in UTC so it's correct regardless of the device's timezone.
+  Widget _buildMaintenanceBanner() {
+    // 21:00 IST == 15:30 UTC. Window: 11 Jul 2026 -> 14 Jul 2026.
+    final startUtc = DateTime.utc(2026, 7, 11, 15, 30);
+    final endUtc = DateTime.utc(2026, 7, 14, 15, 30);
+    final nowUtc = DateTime.now().toUtc();
+
+    if (nowUtc.isBefore(startUtc) || nowUtc.isAfter(endUtc)) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFFF3CD),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.build_circle_outlined, size: 18, color: Color(0xFF8A6D00)),
+          SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'Site is under maintenance from 21:00 11-07-2026 IST to 21:00 14-07-2026',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: Color(0xFF8A6D00),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWideLayout() {
+    final filterConfig = _buildFilterConfig();
+    return Scaffold(
+      backgroundColor: B2BColors.canvas,
+      body: SafeArea(
+        bottom: false,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                children: [
+                  _buildAppBar(),
+                  _buildMaintenanceBanner(),
+                  _buildFilterBar(),
+                  Expanded(
+                    child: FloatingFilterOverlay(
+                      config: filterConfig,
+                      child: _products.isEmpty
+                          ? const BrandEmptyState(
+                              title: 'New designs coming soon',
+                              message: 'Our designers are adding pieces - check back shortly.',
+                            )
+                          : _buildImageGrid(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNarrowLayout() {
+    final filterConfig = _buildFilterConfig();
+    return Scaffold(
+      backgroundColor: B2BColors.canvas,
+      appBar: _buildAppBar(),
+      body: Column(
+        children: [
+          _buildMaintenanceBanner(),
+          _buildFilterBar(),
+          Expanded(
+            child: FloatingFilterOverlay(
+              config: filterConfig,
+              child: _products.isEmpty
+                  ? const BrandEmptyState(
+                              title: 'New designs coming soon',
+                              message: 'Our designers are adding pieces - check back shortly.',
+                            )
+                  : _buildImageGrid(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  FloatingFilterConfig _buildFilterConfig() {
+    return FloatingFilterConfig(
+      selectedMetalType: _selectedMetalType,
+      metalTypeOptions: const ['All', 'Gold', 'Silver', 'Instant'],
+      selectedAkdMetalType: _selectedAkdMetalType,
+      selectedProductType: _selectedProductType,
+      selectedCategories: _selectedCategories,
+      selectedSubCategory: _selectedSubCategory,
+      akdMetalTypeOptions: _akdMetalTypeOptions,
+      productTypeOptions: _availableProductTypes,
+      categoryOptions: _availableCategories,
+      subCategoryOptions: _availableSubCategories,
+      isLoadingAkdMetalTypes: _isLoadingAkdMetalTypes,
+      isLoadingProductTypes: _isLoadingProductTypes,
+      isLoadingCategories: _isLoadingCategories,
+      isLoadingSubCategories: _isLoadingSubCategories,
+      onMetalTypeChanged: _onMetalTypeChanged,
+      onAkdMetalTypeChanged: _onAkdMetalTypeChanged,
+      onProductTypeChanged: _onProductTypeChanged,
+      onCategoryChanged: _onCategoryChanged,
+      onSubCategoryChanged: _onSubCategoryChanged,
+      onApplySelection: _loadProducts,
+      availableMetalColors: _availableMetalColors,
+      availableMetalPurities: _availableMetalPurities,
+      availableStoneShapes: _availableStoneShapes,
+      availableStoneTypes: _availableStoneTypes,
+      availableStoneQualities: _availableStoneQualities,
+      availableStoneSettings: _availableStoneSettings,
+      availableFeaturedTags: _availableFeaturedTags,
+      metalWeightBounds: _metalWeightBounds,
+      stoneWeightBounds: _stoneWeightBounds,
+      selectedJewelleryType: _selectedJewelleryType,
+      selectedMetalColors: _selectedMetalColors,
+      selectedMetalPurities: _selectedMetalPurities,
+      isEnamelWorkChecked: _isEnamelWorkChecked,
+      selectedStoneShapes: _selectedStoneShapes,
+      selectedStoneTypes: _selectedStoneTypes,
+      selectedStoneQualities: _selectedStoneQualities,
+      selectedStoneSettings: _selectedStoneSettings,
+      selectedFeaturedTags: _selectedFeaturedTags,
+      currentMetalWeightRange: _currentMetalWeightRange,
+      currentStoneWeightRange: _currentStoneWeightRange,
+      isLoadingAdvancedOptions: _isLoadingAdvancedOptions,
+      onJewelleryTypeChanged: _onJewelleryTypeChanged,
+      onMetalWeightChanged: _onMetalWeightChanged,
+      onMetalColorsChanged: _onMetalColorsChanged,
+      onMetalPuritiesChanged: _onMetalPuritiesChanged,
+      onEnamelWorkChanged: _onEnamelWorkChanged,
+      onStoneWeightChanged: _onStoneWeightChanged,
+      onStoneShapesChanged: _onStoneShapesChanged,
+      onStoneTypesChanged: _onStoneTypesChanged,
+      onStoneQualitiesChanged: _onStoneQualitiesChanged,
+      onStoneSettingsChanged: _onStoneSettingsChanged,
+      onFeaturedTagsChanged: _onFeaturedTagsChanged,
+      onResetFilters: _resetFilters,
+    );
+  }
+
+  Widget _buildNavigationRail() {
+    final theme = Theme.of(context);
+
+    return NavigationRail(
+      selectedIndex: 0,
+      onDestinationSelected: (index) => _navigateToLogin(),
+      labelType: NavigationRailLabelType.all,
+      useIndicator: true,
+      indicatorColor: Colors.transparent,
+      selectedLabelTextStyle: theme.textTheme.titleMedium?.copyWith(
+        color: theme.colorScheme.primary,
+        fontWeight: FontWeight.bold,
+      ),
+      unselectedLabelTextStyle: theme.textTheme.titleMedium?.copyWith(
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+      ),
+      leading: const Padding(
+        padding: EdgeInsets.only(top: 8.0, bottom: 52.0),
+        child: CircleAvatar(
+          radius: 18,
+          backgroundColor: B2BColors.gold,
+          child: Text(
+            'G',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+      selectedIconTheme: IconThemeData(color: theme.colorScheme.primary),
+      unselectedIconTheme: IconThemeData(
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+      ),
+      destinations: const [
+        NavigationRailDestination(
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home),
+          label: Text('Home'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.search_outlined),
+          selectedIcon: Icon(Icons.search),
+          label: Text('Search'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.add_box_outlined),
+          selectedIcon: Icon(Icons.add_box_rounded),
+          label: Text('Boards'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.notifications_outlined),
+          selectedIcon: Icon(Icons.notifications),
+          label: Text('Updates'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.person_outline),
+          selectedIcon: Icon(Icons.person),
+          label: Text('Profile'),
+        ),
+      ],
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      automaticallyImplyLeading: false,
+      titleSpacing: 16.0,
+      elevation: 0,
+      toolbarHeight: 64,
+      backgroundColor: B2BColors.primaryDeep,
+      foregroundColor: Colors.white,
+      shape: Border(
+          bottom: BorderSide(color: B2BColors.gold.withValues(alpha: 0.55))),
+      title: Row(
+        children: [
+          Image.asset(
+            'assets/icons/DDlogo.png',
+            height: 32,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: _buildSearchBar(Theme.of(context))),
+        ],
+      ),
+      actions: [
+        _buildGuestMenu(context),
+        const SizedBox(width: 12),
+      ],
+    );
+  }
+
+  Widget _buildSearchBar(ThemeData theme) {
+    return InkWell(
+      onTap: () {
+        showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (_) => const LoginRequiredDialog(),
+        );
+      },
+      borderRadius: BorderRadius.circular(30.0),
+      autofocus: true,
+      hoverColor: Colors.white.withValues(alpha: 0.06),
+      child: Container(
+        height: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(30.0),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        alignment: Alignment.centerLeft,
+        child: Row(
+          children: [
+            Icon(
+              Icons.search_rounded,
+              size: 20,
+              color: Colors.white.withValues(alpha: 0.75),
+            ),
+            const SizedBox(width: 10.0),
+            Text(
+              'Search for designs',
+              style: B2BText.sans(
+                size: 14.5,
+                color: Colors.white.withValues(alpha: 0.75),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuestMenu(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width > 700) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextButton(
+            onPressed: _navigateToLogin,
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+            child: const Text('Sign in'),
+          ),
+          const SizedBox(width: 6),
+          FilledButton(
+            onPressed: _navigateToRegister,
+            style: FilledButton.styleFrom(
+              backgroundColor: B2BColors.gold,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            child: const Text('Join'),
+          ),
+        ],
+      );
+    }
+    return PopupMenuButton<String>(
+      tooltip: 'Menu',
+      position: PopupMenuPosition.under,
+      onSelected: (value) {
+        if (value == 'login') {
+          _navigateToLogin();
+        } else if (value == 'register') {
+          _navigateToRegister();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: B2BColors.gold, width: 1.5),
+        ),
+        child: const CircleAvatar(
+          radius: 16,
+          backgroundColor: Colors.white24,
+          child: Icon(Icons.person_outline_rounded,
+              size: 18, color: Colors.white),
+        ),
+      ),
+      itemBuilder: (BuildContext context) => const <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(value: 'login', child: Text('Sign in')),
+        PopupMenuItem<String>(value: 'register', child: Text('Join Dagina.Design')),
+      ],
+    );
+  }
+
+  Future<void> _resetFilters() async {
+    setState(() {
+      _selectedMetalType = 'Gold';
+      _selectedProductType = 'All';
+      _availableProductTypes = ['All'];
+      _selectedCategories = [];
+      _availableCategories = ['All'];
+      _selectedSubCategory = 'All';
+      _availableSubCategories = ['All'];
+    });
+    _displayedCount = _initialItems;
+    await Future.wait([
+      _fetchProductTypes(_selectedMetalType),
+      _loadProducts(),
+    ]);
+  }
+
+  Widget _buildFilterBar() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: Text(
+              'Choose Your Style',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: B2BColors.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_selectedMetalType != 'Instant') ...[
+                  _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
+                  const SizedBox(width: 6.0),
+                  _buildMetalTypeButton(
+                      'Silver', _selectedMetalType == 'Silver'),
+                  const SizedBox(width: 6.0),
+                ],
+                _buildMetalTypeButton(
+                    'Instant', _selectedMetalType == 'Instant'),
+              ],
+            ),
+          ),
+          if (_selectedMetalType == 'Instant')
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 6.0),
+                      child: Text(
+                        'Select Metal',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: B2BColors.inkSoft,
+                        ),
+                      ),
+                    ),
+                    _buildBubbleFilter(
+                      options: _akdMetalTypeOptions,
+                      selectedValue: _selectedAkdMetalType,
+                      onChanged: _onAkdMetalTypeChanged,
+                      isLoading: _isLoadingAkdMetalTypes,
+                      labelBuilder: _displayMetalType,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            transitionBuilder: (child, animation) {
+              final offsetAnimation = Tween<Offset>(
+                begin: const Offset(0, -0.08),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                  parent: animation, curve: Curves.easeOutCubic));
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: offsetAnimation, child: child),
+              );
+            },
+            child:
+                _selectedMetalType != 'All' && _availableProductTypes.length > 1
+                    ? Padding(
+                        key: const ValueKey('productTypeBubbles'),
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: _buildBubbleFilter(
+                          options: _availableProductTypes,
+                          selectedValue: _selectedProductType,
+                          onChanged: (value) {
+                            if (value != null) {
+                              _onProductTypeChanged(value);
+                            }
+                          },
+                        ),
+                      )
+                    : const SizedBox.shrink(
+                        key: ValueKey('productTypeBubblesEmpty')),
+          ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            transitionBuilder: (child, animation) {
+              final offsetAnimation = Tween<Offset>(
+                begin: const Offset(0, -0.08),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                  parent: animation, curve: Curves.easeOutCubic));
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: offsetAnimation, child: child),
+              );
+            },
+            child: _selectedMetalType != 'All' &&
+                    _selectedProductType != 'All' &&
+                    _availableCategories.length > 1
+                ? Padding(
+                    key: const ValueKey('categoryBubbles'),
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: _buildMultiSelectBubbleFilter(
+                      options: _availableCategories,
+                      selectedValues: _selectedCategories,
+                      onToggle: _onCategoryChanged,
+                    ),
+                  )
+                : const SizedBox.shrink(key: ValueKey('categoryBubblesEmpty')),
+          ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            transitionBuilder: (child, animation) {
+              final offsetAnimation = Tween<Offset>(
+                begin: const Offset(0, -0.08),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                  parent: animation, curve: Curves.easeOutCubic));
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: offsetAnimation, child: child),
+              );
+            },
+            child: _selectedMetalType != 'All' &&
+                    _selectedProductType != 'All' &&
+                    _selectedCategories.isNotEmpty &&
+                    _availableSubCategories.length > 1
+                ? Padding(
+                    key: const ValueKey('subCategoryBubbles'),
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: _buildBubbleFilter(
+                      options: _availableSubCategories,
+                      selectedValue: _selectedSubCategory,
+                      onChanged: (value) {
+                        if (value != null) {
+                          _onSubCategoryChanged(value);
+                        }
+                      },
+                    ),
+                  )
+                : const SizedBox.shrink(
+                    key: ValueKey('subCategoryBubblesEmpty')),
+          ),
+          if (_selectedMetalType != 'Gold' ||
+              _selectedProductType != 'All' ||
+              _selectedCategories.isNotEmpty ||
+              _selectedSubCategory != 'All')
+            Padding(
+              padding: const EdgeInsets.only(top: 6.0),
+              child: _buildResetButton(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResetButton() {
+    return OutlinedButton.icon(
+      onPressed: _resetFilters,
+      icon: const Icon(Icons.clear, size: 12),
+      label: const Text(
+        'Back To Menu',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: B2BColors.inkSoft,
+        side: const BorderSide(color: B2BColors.border, width: 1.5),
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+        minimumSize: const Size(0, 28),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedOvalDropdown({
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Center(
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.96, end: 1.0),
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+        builder: (context, scale, child) {
+          return Transform.scale(scale: scale, child: child);
+        },
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            height: 50,
+            padding: const EdgeInsets.symmetric(horizontal: 18.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: B2BColors.border, width: 1.2),
+              borderRadius: BorderRadius.circular(28.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: value,
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: B2BColors.inkSoft,
+                  size: 20,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: B2BColors.ink,
+                  fontWeight: FontWeight.w500,
+                ),
+                selectedItemBuilder: (BuildContext context) {
+                  return items.map<Widget>((String item) {
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _displayMetalType(item),
+                        style: const TextStyle(
+                          color: B2BColors.ink,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }).toList();
+                },
+                items: items
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item,
+                        child: Text(
+                          _displayMetalType(item),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMultiSelectBubbleFilter({
+    required List<String> options,
+    required List<String> selectedValues,
+    required ValueChanged<String> onToggle,
+    bool isLoading = false,
+  }) {
+    if (isLoading) {
+      return const SizedBox(
+        height: 32,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    final displayOptions = options.where((opt) => opt != 'All').toList();
+    if (displayOptions.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 6.0,
+      runSpacing: 6.0,
+      children: displayOptions
+          .map((option) => _buildBubbleChip(
+                option,
+                selectedValues.contains(option),
+                () => onToggle(option),
+              ))
+          .toList(),
+    );
+  }
+
+  Widget _buildBubbleFilter({
+    required List<String> options,
+    required String selectedValue,
+    required ValueChanged<String?> onChanged,
+    bool isLoading = false,
+    String Function(String value)? labelBuilder,
+  }) {
+    if (isLoading) {
+      return const SizedBox(
+        height: 32,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    // Filter out 'All' from display
+    final displayOptions = options.where((opt) => opt != 'All').toList();
+
+    if (displayOptions.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 6.0,
+      runSpacing: 6.0,
+      children: displayOptions
+          .map((option) => _buildBubbleChip(
+                labelBuilder?.call(option) ?? option,
+                selectedValue == option,
+                () => onChanged(option),
+              ))
+          .toList(),
+    );
+  }
+
+  Widget _buildBubbleChip(String label, bool isSelected, VoidCallback onTap) {
+    // Shared lookup (see utils/product_type_icons.dart); null means the chip
+    // renders without an icon.
+    final iconPath = productTypeIconAsset(label);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 6.0),
+          decoration: BoxDecoration(
+            color: isSelected ? B2BColors.primary : Colors.white,
+            borderRadius: BorderRadius.circular(16.0),
+            border: Border.all(
+              color: isSelected
+                  ? B2BColors.primary
+                  : B2BColors.border,
+              width: 1,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: B2BColors.primary.withValues(alpha: 0.18),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (iconPath != null) ...[
+                // Small optimized PNG icons (extracted + downscaled from the
+                // original heavy SVGs; gold strokes on a transparent
+                // background, ~1-2KB each).
+                Image.asset(
+                  iconPath,
+                  width: 18,
+                  height: 18,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : B2BColors.inkSoft,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetalTypeButton(String metalType, bool isSelected) {
+    Color textColor;
+    BoxDecoration decoration;
+
+    if (isSelected) {
+      textColor = Colors.white;
+      switch (metalType) {
+        case 'Gold':
+          decoration = BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFD9BC85), B2BColors.gold],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18.0),
+            boxShadow: [
+              BoxShadow(
+                color: B2BColors.gold.withValues(alpha: 0.3),
+                blurRadius: 3,
+                offset: const Offset(0, 1.5),
+              ),
+            ],
+          );
+          break;
+        case 'Silver':
+          decoration = BoxDecoration(
+            color: const Color(0xFFB8B8B8),
+            borderRadius: BorderRadius.circular(18.0),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFB8B8B8).withValues(alpha: 0.25),
+                blurRadius: 3,
+                offset: const Offset(0, 1.5),
+              ),
+            ],
+          );
+          break;
+        case 'Instant':
+          // Return special animated widget for Instant
+          return _buildInstantButton();
+        default:
+          decoration = BoxDecoration(
+            color: const Color(0xFF9E9E9E),
+            borderRadius: BorderRadius.circular(18.0),
+          );
+      }
+    } else {
+      textColor = B2BColors.inkSoft;
+      decoration = BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18.0),
+        border: Border.all(
+          color: B2BColors.border,
+          width: 1,
+        ),
+      );
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          if (isSelected) {
+            _onMetalTypeChanged('All');
+          } else {
+            _onMetalTypeChanged(metalType);
+          }
+        },
+        borderRadius: BorderRadius.circular(18.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 18.0),
+          decoration: decoration,
+          child: Text(
+            metalType == 'Instant' ? 'Get it' : metalType,
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstantButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          _onMetalTypeChanged('Instant');
+        },
+        borderRadius: BorderRadius.circular(18.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 18.0),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [B2BColors.primaryDeep, B2BColors.primary, B2BColors.primaryDeep],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18.0),
+            boxShadow: [
+              BoxShadow(
+                color: B2BColors.primary.withValues(alpha: 0.4),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.hardEdge,
+            children: [
+              // Glowing stars animation
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: _GlowingStarsAnimation(),
+                ),
+              ),
+              // Text on top
+              Text(
+                'Get it',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  shadows: [
+                    Shadow(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageGrid() {
+    return CustomScrollView(
+      controller: _scrollController,
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
+          sliver: SliverMasonryGrid.count(
+            crossAxisCount:
+                (MediaQuery.of(context).size.width / 200).floor().clamp(2, 8),
+            childCount: _products.length,
+            itemBuilder: (context, index) {
+              final item = _products[index];
+              return _buildImageCard(context, item);
+            },
+            mainAxisSpacing: 14.0,
+            crossAxisSpacing: 14.0,
+          ),
+        ),
+        if (_isLoadingMore)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(
+                child: GlowingLogo(size: 40),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildImageCard(BuildContext context, JewelryItem item) {
+    final imageUrl = resolveImageUrl(item.image);
+
+    // Skip rendering cards with missing image URLs
+    if (imageUrl.isEmpty) {
+      return Card(
+        clipBehavior: Clip.antiAlias,
+        child: AspectRatio(
+          aspectRatio: item.aspectRatio,
+          child: Container(
+            color: B2BColors.border,
+            child: const Center(
+              child: Icon(Icons.image_not_supported, color: B2BColors.faint),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // shareItem moved to _shareItem class method
+
+    String formatCount(int? count) {
+      final c = count ?? 0;
+      if (c == 0) return '0';
+      if (c >= 1000000) return '${(c / 1000000).toStringAsFixed(1)}M';
+      if (c >= 1000) return '${(c / 1000).toStringAsFixed(1)}K';
+      return c.toString();
+    }
+
+    return GestureDetector(
+      onTap: () {
+        final isDesigner = item.isDesignerProduct;
+        final isManufacturer = item.isManufacturerProduct;
+        context.push(
+            '/product/${item.uid ?? item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
+      },
+      child: HoverLift(
+        radius: 18,
+        restShadow: B2BShadows.soft,
+        hoverShadow: B2BShadows.lifted,
+        builder: (context, hovered) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: B2BColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(18)),
+              child: AspectRatio(
+                aspectRatio: item.aspectRatio,
+                child: AnimatedScale(
+                  scale: hovered ? 1.04 : 1.0,
+                  duration: const Duration(milliseconds: 450),
+                  curve: Curves.easeOutCubic,
+                  child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => createBlurUpPlaceholder(),
+                  errorWidget: (context, url, error) => Container(
+                    color:
+                        Theme.of(context).colorScheme.surface.withValues(alpha: 0.1),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.image_not_supported,
+                            color: B2BColors.faint),
+                        SizedBox(height: 8),
+                        Text(
+                          'Failed to load',
+                          style:
+                              TextStyle(color: B2BColors.faint, fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  fadeInDuration: const Duration(milliseconds: 300),
+                  fadeOutDuration: const Duration(milliseconds: 300),
+                  memCacheHeight: 400,
+                  memCacheWidth: 400,
+                  maxHeightDiskCache: 400,
+                  maxWidthDiskCache: 400,
+                  cacheKey: imageUrl,
+                )),
+              ),
+            ),
+            // Action bar
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10.0, vertical: 9.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _ActionButton(
+                    icon: Icon(
+                      item.isFavorite
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      color: item.isFavorite
+                          ? const Color(0xFFE53935)
+                          : B2BColors.muted,
+                      size: 16,
+                    ),
+                    label: formatCount(item.likes),
+                    active: item.isFavorite,
+                    onTap: () => _likeItem(item),
+                  ),
+                  const Spacer(),
+                  _ActionButton(
+                    icon: const Icon(Icons.ios_share_rounded,
+                        color: B2BColors.muted, size: 16),
+                    onTap: () => _shareItem(item),
+                  ),
+                  const SizedBox(width: 6),
+                  _ActionButton(
+                    icon: const Icon(Icons.bookmark_border_rounded,
+                        color: B2BColors.muted, size: 16),
+                    onTap: _navigateToLogin,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      )),
+    );
+  }
+}
+
+/// Compact, pill-shaped action button for product cards
+class _ActionButton extends StatelessWidget {
+  final Widget icon;
+  final String? label;
+  final VoidCallback? onTap;
+  final bool active;
+
+  const _ActionButton({
+    required this.icon,
+    required this.onTap,
+    this.label,
+    this.active = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 9.0, vertical: 5.0),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFFFF0F0) : B2BColors.surfaceAlt,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? const Color(0xFFFFCDD2) : B2BColors.border,
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            icon,
+            if (label != null) ...[
+              const SizedBox(width: 4),
+              Text(
+                label!,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: active
+                      ? const Color(0xFFE53935)
+                      : B2BColors.muted,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Animated glowing stars widget for Instant button
+class _GlowingStarsAnimation extends StatefulWidget {
+  const _GlowingStarsAnimation();
+
+  @override
+  State<_GlowingStarsAnimation> createState() => _GlowingStarsAnimationState();
+}
+
+class _GlowingStarsAnimationState extends State<_GlowingStarsAnimation>
+    with TickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<_Star> _stars = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    )..repeat();
+
+    // Generate random stars
+    final random = Random();
+    for (int i = 0; i < 5; i++) {
+      _stars.add(
+        _Star(
+          x: random.nextDouble(),
+          y: random.nextDouble(),
+          size: random.nextDouble() * 2 + 1,
+          delay: random.nextDouble() * 3,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return SizedBox.expand(
+          child: CustomPaint(
+            painter: _StarsPainter(
+              animation: _controller.value,
+              stars: _stars,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _Star {
+  final double x;
+  final double y;
+  final double size;
+  final double delay;
+
+  _Star({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.delay,
+  });
+}
+
+class _StarsPainter extends CustomPainter {
+  final double animation;
+  final List<_Star> stars;
+
+  _StarsPainter({
+    required this.animation,
+    required this.stars,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final star in stars) {
+      // Calculate animation progress for this star
+      double progress = (animation + star.delay / 3) % 1.0;
+
+      // Opacity animation (fade in and out)
+      double opacity = (sin(progress * pi * 2) + 1) / 2;
+
+      // Position with slight movement
+      double offsetX = sin(progress * pi * 2) * 5;
+      double offsetY = cos(progress * pi * 2) * 5;
+
+      final paint = Paint()
+        ..color = Colors.white.withValues(alpha: opacity * 0.8)
+        ..style = PaintingStyle.fill;
+
+      // Draw star
+      _drawStar(
+        canvas,
+        Offset(
+          star.x * size.width + offsetX,
+          star.y * size.height + offsetY,
+        ),
+        star.size,
+        paint,
+      );
+
+      // Draw glow
+      final glowPaint = Paint()
+        ..color = const Color(0xFF4CAF50).withValues(alpha: opacity * 0.4)
+        ..style = PaintingStyle.fill;
+
+      canvas.drawCircle(
+        Offset(
+          star.x * size.width + offsetX,
+          star.y * size.height + offsetY,
+        ),
+        star.size * 2,
+        glowPaint,
+      );
+    }
+  }
+
+  void _drawStar(Canvas canvas, Offset center, double size, Paint paint) {
+    final path = Path();
+    const numPoints = 5;
+    const innerRadius = 0.4;
+
+    for (int i = 0; i < numPoints * 2; i++) {
+      final angle = (i * pi) / numPoints - pi / 2;
+      final radius = i.isEven ? size : size * innerRadius;
+      final x = center.dx + radius * cos(angle);
+      final y = center.dy + radius * sin(angle);
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_StarsPainter oldDelegate) => true;
+}

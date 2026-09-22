@@ -5,9 +5,9 @@
 .env.local
 .env.production
 # Android Firebase Config (Optional: Uncomment if open-sourcing)
-android/app/google-services.json
+frontend/android/app/google-services.json
 # iOS Firebase Config (Optional: Uncomment if open-sourcing)
-ios/Runner/GoogleService-Info.plist
+frontend/ios/Runner/GoogleService-Info.plist
 
 # -----------------------
 # Miscellaneous
@@ -48,6 +48,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+frontend/build/
 
 # -----------------------
 # Supabase & Database
@@ -80,10 +81,10 @@ app.*.symbols
 app.*.map.json
 
 # Android Studio artifacts
-/android/app/debug
-/android/app/profile
-/android/app/release
-/android/local.properties
+/frontend/android/app/debug
+/frontend/android/app/profile
+/frontend/android/app/release
+/frontend/android/local.properties
 
 
 backup_before_phase3_.sql
@@ -91,7 +92,7 @@ backup_before_phase3_20260713_201925.sql
 *.md
 # ...except the HF Space config: its YAML frontmatter *is* the deployment
 # config, so the Space fails to build without it.
-!DatabasePrefill/README.md
+!backend/DatabasePrefill/README.md
 docs/
 aws/
 
@@ -110,11 +111,11 @@ DEPLOYMENT_PLAN_PHASE2.md
 
 # Local DB scratch / dumps (not for the repo)
 prod_schema.sql
-supabase/prod_integrity_check.sql
-supabase/seed_test_user.sql
-supabase/seed_test_products.sql
-supabase/load_designer_rich_products.sql
-supabase/load_rich_products.sql
-supabase/pull_rich_products.sql
-supabase/check_bracket_metal_color.sql
-supabase/verify_bracket_fix.sql
+backend/supabase/prod_integrity_check.sql
+backend/supabase/seed_test_user.sql
+backend/supabase/seed_test_products.sql
+backend/supabase/load_designer_rich_products.sql
+backend/supabase/load_rich_products.sql
+backend/supabase/pull_rich_products.sql
+backend/supabase/check_bracket_metal_color.sql
+backend/supabase/verify_bracket_fix.sql
