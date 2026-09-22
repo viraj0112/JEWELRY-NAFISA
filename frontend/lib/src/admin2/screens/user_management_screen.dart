@@ -16,7 +16,8 @@ enum _UserTypeFilter {
   all('All Users'),
   designers('Designers'),
   manufacturers('Manufacturers'),
-  customers('Customers');
+  customers('Customers'),
+  admins('Admins');
 
   const _UserTypeFilter(this.label);
   final String label;
@@ -24,6 +25,7 @@ enum _UserTypeFilter {
 
 enum _UserSort {
   lastActivity('Last Activity'),
+  newest('Newest Joined'),
   highestCredit('Highest Credit'),
   nameAZ('Name (A-Z)'),
   highestViews('Most Views'),
@@ -33,6 +35,13 @@ enum _UserSort {
   const _UserSort(this.label);
   final String label;
 }
+
+// Shared palette for this screen.
+const _ink = Color(0xFF1F312C);
+const _muted = Color(0xFF5D6D67);
+const _accent = Color(0xFF0A4F3F);
+const _border = Color(0xFFE0E6E3);
+const _panel = Color(0xFFF6F9F7);
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({
@@ -57,55 +66,103 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   _UserTypeFilter _userTypeFilter = _UserTypeFilter.all;
   _UserSort _userSort = _UserSort.lastActivity;
-  DateTime? _startDateFilter;
-  DateTime? _endDateFilter;
+  // Filters on the account's join date (users.created_at).
+  DateTimeRange? _joinedRange;
 
   // Engagement filters
   int _minViews = 0;
   int _minLikes = 0;
   int _minShares = 0;
 
+  // Only designer / manufacturer accounts still awaiting a decision.
+  bool _pendingOnly = false;
+
   bool _creatingAccount = false;
   final Set<String> _selectedUserIds = {};
+
+  static const int _pageSize = 25;
+  int _page = 0;
+
+  @override
+  void didUpdateWidget(covariant UserManagementScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A new search (typed in the admin top bar) starts from the first page.
+    if (oldWidget.searchQuery != widget.searchQuery) _page = 0;
+  }
+
+  /// Applies a filter change and jumps back to the first page.
+  void _updateFilters(VoidCallback change) {
+    setState(() {
+      change();
+      _page = 0;
+    });
+  }
+
+  bool get _hasActiveFilters =>
+      _userTypeFilter != _UserTypeFilter.all ||
+      _joinedRange != null ||
+      _minViews > 0 ||
+      _minLikes > 0 ||
+      _minShares > 0 ||
+      _pendingOnly;
+
+  void _resetFilters() => _updateFilters(() {
+        _userTypeFilter = _UserTypeFilter.all;
+        _joinedRange = null;
+        _minViews = 0;
+        _minLikes = 0;
+        _minShares = 0;
+        _pendingOnly = false;
+      });
+
+  // Every filter except the user type; the type tabs show counts over this.
+  bool _matchesNonTypeFilters(UserLedgerRow row, String query) {
+    if (_pendingOnly && !_needsApproval(row)) return false;
+    if (row.totalViews < _minViews) return false;
+    if (row.totalLikes < _minLikes) return false;
+    if (row.totalShares < _minShares) return false;
+
+    final range = _joinedRange;
+    if (range != null) {
+      final joined = row.createdAt?.toLocal();
+      if (joined == null) return false;
+      final d = DateTime(joined.year, joined.month, joined.day);
+      final start =
+          DateTime(range.start.year, range.start.month, range.start.day);
+      final end = DateTime(range.end.year, range.end.month, range.end.day);
+      if (d.isBefore(start) || d.isAfter(end)) return false;
+    }
+
+    if (query.isEmpty) return true;
+    return row.name.toLowerCase().contains(query) ||
+        row.email.toLowerCase().contains(query) ||
+        row.phone.toLowerCase().contains(query) ||
+        row.role.toLowerCase().contains(query);
+  }
+
+  DateTime _activityOf(UserLedgerRow row) =>
+      row.lastActivityAt ??
+      row.createdAt ??
+      DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
   Widget build(BuildContext context) {
     final query = widget.searchQuery.trim().toLowerCase();
-    var filtered = widget.rows.where((row) {
-      if (!_matchesUserFilter(row, _userTypeFilter)) return false;
-
-      // Engagement Filters
-      if (row.totalViews < _minViews) return false;
-      if (row.totalLikes < _minLikes) return false;
-      if (row.totalShares < _minShares) return false;
-
-      if (_startDateFilter != null || _endDateFilter != null) {
-        final joined = row.createdAt;
-        if (joined == null) return false;
-        final d = DateTime(joined.year, joined.month, joined.day);
-
-        if (_startDateFilter != null) {
-          final start = DateTime(_startDateFilter!.year,
-              _startDateFilter!.month, _startDateFilter!.day);
-          if (d.isBefore(start)) return false;
-        }
-
-        if (_endDateFilter != null) {
-          final end = DateTime(
-              _endDateFilter!.year, _endDateFilter!.month, _endDateFilter!.day);
-          if (d.isAfter(end)) return false;
-        }
-      }
-
-      if (query.isEmpty) return true;
-      return row.name.toLowerCase().contains(query) ||
-          row.email.toLowerCase().contains(query) ||
-          row.role.toLowerCase().contains(query);
-    }).toList();
+    final base =
+        widget.rows.where((row) => _matchesNonTypeFilters(row, query)).toList();
+    final typeCounts = <_UserTypeFilter, int>{
+      _UserTypeFilter.all: base.length,
+      for (final t in _UserTypeFilter.values.skip(1))
+        t: base.where((r) => _userRoleType(r) == t).length,
+    };
+    final filtered =
+        base.where((row) => _matchesUserFilter(row, _userTypeFilter)).toList();
 
     filtered.sort((a, b) {
       switch (_userSort) {
         case _UserSort.lastActivity:
+          return _activityOf(b).compareTo(_activityOf(a));
+        case _UserSort.newest:
           final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
           final bd = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
           return bd.compareTo(ad);
@@ -122,6 +179,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       }
     });
 
+    final pageCount =
+        filtered.isEmpty ? 1 : (filtered.length / _pageSize).ceil();
+    final page = _page.clamp(0, pageCount - 1);
+    final pageRows = filtered.skip(page * _pageSize).take(_pageSize).toList();
+
+    final visibleIds = filtered.map((r) => r.id).toSet();
+    final selectedVisible = _selectedUserIds.where(visibleIds.contains).length;
+
     final totalCreditExposure = filtered.fold<int>(
       0,
       (sum, row) => sum + row.creditsRemaining,
@@ -131,259 +196,65 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             _userRoleType(row) == _UserTypeFilter.manufacturers &&
             row.approvalStatus.toLowerCase() == 'approved')
         .length;
-    final pendingApprovals = filtered
-        .where((row) => row.approvalStatus.toLowerCase() != 'approved')
-        .length;
+    final pendingApprovals = filtered.where(_needsApproval).length;
     final isCompact = MediaQuery.of(context).size.width < 900;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _PageTitle(
-          title: 'User & Credit Ledger',
-          subtitle:
-              'Oversee financial relationships with artisans, suppliers, and VIP clients.',
+        _buildHeader(),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          child: _selectedUserIds.isEmpty
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: _buildSelectionBar(selectedVisible),
+                ),
         ),
-        if (_selectedUserIds.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F1ED),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFCCE0D8)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle,
-                    color: Color(0xFF1B7A59), size: 18),
-                const SizedBox(width: 10),
-                Text(
-                  '${_selectedUserIds.length} users selected',
-                  style: const TextStyle(
-                    color: Color(0xFF0A4F3F),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => setState(() => _selectedUserIds.clear()),
-                  child: const Text('Clear Selection'),
-                ),
-              ],
-            ),
+        const SizedBox(height: 18),
+        _buildStatCards(
+          totalCreditExposure: totalCreditExposure,
+          accounts: filtered.length,
+          activeManufacturers: activeManufacturers,
+          pendingApprovals: pendingApprovals,
+        ),
+        const SizedBox(height: 18),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _border),
           ),
-        ],
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          alignment: WrapAlignment.start,
-          children: [
-            OutlinedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Sync started for Google Sheets')),
-                );
-              },
-              icon: const Icon(Icons.grid_view_rounded),
-              label: const Text('Sync Google Sheets'),
-            ),
-            FilledButton.icon(
-              onPressed: _creatingAccount ? null : _showCreateAccountDialog,
-              icon: const Icon(Icons.person_add_alt_1),
-              label: const Text('New Account'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 1100
-                ? 3
-                : constraints.maxWidth >= 700
-                    ? 2
-                    : 1;
-            return GridView.count(
-              crossAxisCount: columns,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: columns == 1 ? 2.5 : 2.0,
-              children: [
-                _LedgerStatCard(
-                  label: 'Total Credit Exposure',
-                  value: _formatCredits(totalCreditExposure),
-                  hint: '${filtered.length} accounts tracked',
-                  accentColor: const Color(0xFF1B7A59),
-                  icon: Icons.trending_up,
-                ),
-                _LedgerStatCard(
-                  label: 'Active Manufacturers',
-                  value: '$activeManufacturers',
-                  hint: 'Verified manufacturing accounts',
-                  accentColor: const Color(0xFF0A4F3F),
-                  icon: Icons.factory_outlined,
-                ),
-                _LedgerStatCard(
-                  label: 'Pending Approvals',
-                  value: '$pendingApprovals',
-                  hint: pendingApprovals > 0
-                      ? 'Action required'
-                      : 'No pending actions',
-                  accentColor: const Color(0xFF9D6A00),
-                  icon: Icons.schedule,
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _UserTypeFilter.values
-                      .map(
-                        (filter) => ChoiceChip(
-                          label: Text(filter.label.toUpperCase()),
-                          selected: _userTypeFilter == filter,
-                          onSelected: (_) =>
-                              setState(() => _userTypeFilter = filter),
-                        ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.filter_list,
-                        size: 18, color: Color(0xFF5D6D67)),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Sort by:',
-                      style: TextStyle(
-                        color: Color(0xFF5D6D67),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    DropdownButton<_UserSort>(
-                      value: _userSort,
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() => _userSort = value);
-                      },
-                      items: _UserSort.values
-                          .map(
-                            (sort) => DropdownMenuItem<_UserSort>(
-                              value: sort,
-                              child: Text(sort.label),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                    const SizedBox(width: 16),
-                    InputChip(
-                      avatar: const Icon(Icons.calendar_today, size: 16),
-                      label: Text(_startDateFilter == null
-                          ? 'From'
-                          : 'From: ${widget.dateFormat.format(_startDateFilter!)}'),
-                      onPressed: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _startDateFilter ?? DateTime.now(),
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime.now(),
-                        );
-                        if (picked != null) {
-                          setState(() => _startDateFilter = picked);
-                        }
-                      },
-                      onDeleted: _startDateFilter == null
-                          ? null
-                          : () {
-                              setState(() => _startDateFilter = null);
-                            },
-                    ),
-                    const SizedBox(width: 8),
-                    InputChip(
-                      avatar: const Icon(Icons.event, size: 16),
-                      label: Text(_endDateFilter == null
-                          ? 'To'
-                          : 'To: ${widget.dateFormat.format(_endDateFilter!)}'),
-                      onPressed: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _endDateFilter ?? DateTime.now(),
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime.now(),
-                        );
-                        if (picked != null) {
-                          setState(() => _endDateFilter = picked);
-                        }
-                      },
-                      onDeleted: _endDateFilter == null
-                          ? null
-                          : () {
-                              setState(() => _endDateFilter = null);
-                            },
-                    ),
-                    const SizedBox(width: 12),
-                    _EngagementThresholdChip(
-                      label: 'Min Views',
-                      value: _minViews,
-                      onChanged: (v) => setState(() => _minViews = v),
-                    ),
-                    const SizedBox(width: 8),
-                    _EngagementThresholdChip(
-                      label: 'Min Likes',
-                      value: _minLikes,
-                      onChanged: (v) => setState(() => _minLikes = v),
-                    ),
-                    const SizedBox(width: 8),
-                    _EngagementThresholdChip(
-                      label: 'Min Shares',
-                      value: _minShares,
-                      onChanged: (v) => setState(() => _minShares = v),
-                    ),
-                    if (MediaQuery.of(context).size.width >= 1000) ...[
-                      const Spacer(),
-                      Text(
-                        'Showing ${filtered.length} of ${widget.rows.length} accounts',
-                        style: const TextStyle(
-                          color: Color(0xFF5D6D67),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (MediaQuery.of(context).size.width < 1000) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'Showing ${filtered.length} of ${widget.rows.length} accounts',
-                    style: const TextStyle(
-                      color: Color(0xFF5D6D67),
-                      fontWeight: FontWeight.w600,
-                    ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: _buildTypeTabs(typeCounts),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                child: _buildToolbar(filtered.length),
+              ),
+              const Divider(height: 1, color: _border),
+              if (filtered.isEmpty)
+                _buildEmptyState()
+              else if (!isCompact)
+                _buildUserLedgerTable(pageRows)
+              else
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
+                  child: Column(
+                    children: pageRows.map(_buildUserLedgerMobileTile).toList(),
                   ),
-                ],
-                const SizedBox(height: 12),
-                if (!isCompact) ...[
-                  _buildUserLedgerTable(filtered),
-                ] else ...[
-                  ...filtered.take(25).map(_buildUserLedgerMobileTile),
-                ],
+                ),
+              if (filtered.isNotEmpty) ...[
+                const Divider(height: 1, color: _border),
+                _buildPager(page, pageCount, filtered.length, pageRows.length),
               ],
-            ),
+            ],
           ),
         ),
         const SizedBox(height: 18),
@@ -402,12 +273,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ],
               );
             }
-            return Row(
-              children: [
-                Expanded(flex: 2, child: insightCard),
-                const SizedBox(width: 12),
-                Expanded(child: syncCard),
-              ],
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(flex: 2, child: insightCard),
+                  const SizedBox(width: 12),
+                  Expanded(child: syncCard),
+                ],
+              ),
             );
           },
         ),
@@ -415,7 +289,420 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
+  Widget _buildHeader() {
+    final actions = Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Sync started for Google Sheets')),
+            );
+          },
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _accent,
+            side: const BorderSide(color: _border),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          icon: const Icon(Icons.grid_view_rounded, size: 18),
+          label: const Text('Sync Google Sheets'),
+        ),
+        FilledButton.icon(
+          onPressed: _creatingAccount ? null : _showCreateAccountDialog,
+          style: FilledButton.styleFrom(
+            backgroundColor: _accent,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+          icon: _creatingAccount
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                )
+              : const Icon(Icons.person_add_alt_1, size: 18),
+          label: const Text('New Account'),
+        ),
+      ],
+    );
+    const title = _PageTitle(
+      title: 'User & Credit Ledger',
+      subtitle:
+          'Oversee financial relationships with artisans, suppliers, and VIP clients.',
+    );
+    return LayoutBuilder(builder: (context, constraints) {
+      if (constraints.maxWidth < 760) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [title, const SizedBox(height: 14), actions],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          const Expanded(child: title),
+          const SizedBox(width: 16),
+          actions,
+        ],
+      );
+    });
+  }
+
+  Widget _buildSelectionBar(int selectedVisible) {
+    final hidden = _selectedUserIds.length - selectedVisible;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F1ED),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFCCE0D8)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, color: Color(0xFF1B7A59), size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              hidden > 0
+                  ? '${_selectedUserIds.length} users selected · $hidden hidden by filters'
+                  : '${_selectedUserIds.length} users selected',
+              style: const TextStyle(
+                color: _accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => setState(() => _selectedUserIds.clear()),
+            child: const Text('Clear selection'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCards({
+    required int totalCreditExposure,
+    required int accounts,
+    required int activeManufacturers,
+    required int pendingApprovals,
+  }) {
+    final cards = [
+      _LedgerStatCard(
+        label: 'Total Credit Exposure',
+        value: _formatCredits(totalCreditExposure),
+        hint: '$accounts accounts tracked',
+        accentColor: const Color(0xFF1B7A59),
+        icon: Icons.trending_up,
+      ),
+      _LedgerStatCard(
+        label: 'Active Manufacturers',
+        value: '$activeManufacturers',
+        hint: 'Verified manufacturing accounts',
+        accentColor: _accent,
+        icon: Icons.factory_outlined,
+      ),
+      _LedgerStatCard(
+        label: 'Pending Approvals',
+        value: '$pendingApprovals',
+        hint: pendingApprovals > 0
+            ? 'Designer & manufacturer accounts awaiting review'
+            : 'No pending actions',
+        accentColor: const Color(0xFF9D6A00),
+        icon: Icons.schedule,
+        onTap: pendingApprovals > 0 || _pendingOnly
+            ? () => _updateFilters(() => _pendingOnly = !_pendingOnly)
+            : null,
+        active: _pendingOnly,
+      ),
+    ];
+    return LayoutBuilder(builder: (context, constraints) {
+      final columns = constraints.maxWidth >= 1000
+          ? 3
+          : constraints.maxWidth >= 640
+              ? 2
+              : 1;
+      const gap = 12.0;
+      final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: [for (final c in cards) SizedBox(width: width, child: c)],
+      );
+    });
+  }
+
+  Widget _buildTypeTabs(Map<_UserTypeFilter, int> counts) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: _panel,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: _UserTypeFilter.values.map((filter) {
+            final active = _userTypeFilter == filter;
+            final count = counts[filter] ?? 0;
+            return MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () => _updateFilters(() => _userTypeFilter = filter),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: active ? _accent : Colors.transparent,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        filter.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: active ? Colors.white : _muted,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: active
+                              ? Colors.white.withValues(alpha: 0.18)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(999),
+                          border: active ? null : Border.all(color: _border),
+                        ),
+                        child: Text(
+                          _creditsFormat.format(count),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: active ? Colors.white : _muted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolbar(int shown) {
+    final range = _joinedRange;
+    final rangeLabel = range == null
+        ? 'Joined: any time'
+        : 'Joined: ${widget.dateFormat.format(range.start)} – ${widget.dateFormat.format(range.end)}';
+
+    final controls = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _ToolbarMenu<_UserSort>(
+          icon: Icons.swap_vert_rounded,
+          label: 'Sort: ${_userSort.label}',
+          value: _userSort,
+          values: _UserSort.values,
+          labelOf: (s) => s.label,
+          onSelected: (s) => _updateFilters(() => _userSort = s),
+        ),
+        _FilterPill(
+          icon: Icons.pending_actions_outlined,
+          label: 'Pending approval',
+          active: _pendingOnly,
+          onTap: () => _updateFilters(() => _pendingOnly = !_pendingOnly),
+          onClear: _pendingOnly
+              ? () => _updateFilters(() => _pendingOnly = false)
+              : null,
+        ),
+        _FilterPill(
+          icon: Icons.calendar_month_outlined,
+          label: rangeLabel,
+          active: range != null,
+          onTap: _pickJoinedRange,
+          onClear: range == null
+              ? null
+              : () => _updateFilters(() => _joinedRange = null),
+        ),
+        _EngagementThresholdChip(
+          label: 'Min Views',
+          value: _minViews,
+          onChanged: (v) => _updateFilters(() => _minViews = v),
+        ),
+        _EngagementThresholdChip(
+          label: 'Min Likes',
+          value: _minLikes,
+          onChanged: (v) => _updateFilters(() => _minLikes = v),
+        ),
+        _EngagementThresholdChip(
+          label: 'Min Shares',
+          value: _minShares,
+          onChanged: (v) => _updateFilters(() => _minShares = v),
+        ),
+        if (_hasActiveFilters)
+          TextButton.icon(
+            onPressed: _resetFilters,
+            style: TextButton.styleFrom(foregroundColor: _muted),
+            icon: const Icon(Icons.restart_alt_rounded, size: 18),
+            label: const Text('Reset filters'),
+          ),
+      ],
+    );
+
+    final count = Text(
+      'Showing ${_creditsFormat.format(shown)} of ${_creditsFormat.format(widget.rows.length)} accounts',
+      style: const TextStyle(
+        color: _muted,
+        fontSize: 12.5,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+
+    return LayoutBuilder(builder: (context, constraints) {
+      if (constraints.maxWidth < 1000) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [controls, const SizedBox(height: 10), count],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(child: controls),
+          const SizedBox(width: 12),
+          count,
+        ],
+      );
+    });
+  }
+
+  Future<void> _pickJoinedRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year, now.month, now.day),
+      initialDateRange: _joinedRange,
+      helpText: 'Filter by join date',
+      saveText: 'Apply',
+    );
+    if (picked != null) _updateFilters(() => _joinedRange = picked);
+  }
+
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 16),
+      child: Center(
+        child: Column(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: const BoxDecoration(
+                color: _panel,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.person_search_outlined,
+                  color: _muted, size: 26),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'No accounts match these filters',
+              style: TextStyle(fontWeight: FontWeight.w700, color: _ink),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.searchQuery.trim().isEmpty
+                  ? 'Try widening the date range or lowering the engagement minimums.'
+                  : 'Nothing matches “${widget.searchQuery.trim()}” with the current filters.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _muted, fontSize: 12.5),
+            ),
+            if (_hasActiveFilters) ...[
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: _resetFilters,
+                child: const Text('Reset filters'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPager(int page, int pageCount, int total, int onPage) {
+    final start = page * _pageSize + 1;
+    final end = page * _pageSize + onPage;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '$start–$end of ${_creditsFormat.format(total)}',
+              style: const TextStyle(color: _muted, fontSize: 12.5),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Previous page',
+            onPressed:
+                page == 0 ? null : () => setState(() => _page = page - 1),
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          Text(
+            'Page ${page + 1} of $pageCount',
+            style: const TextStyle(
+                color: _ink, fontSize: 12.5, fontWeight: FontWeight.w600),
+          ),
+          IconButton(
+            tooltip: 'Next page',
+            onPressed: page >= pageCount - 1
+                ? null
+                : () => setState(() => _page = page + 1),
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _toggleSelected(String id, bool? value) {
+    setState(() {
+      if (value == true) {
+        _selectedUserIds.add(id);
+      } else {
+        _selectedUserIds.remove(id);
+      }
+    });
+  }
+
   Widget _buildUserLedgerTable(List<UserLedgerRow> rows) {
+    final pageIds = rows.map((r) => r.id).toList();
+    final selectedOnPage = pageIds.where(_selectedUserIds.contains).length;
+    final bool? headerValue = selectedOnPage == 0
+        ? false
+        : selectedOnPage == pageIds.length
+            ? true
+            : null;
+    const numStyle = TextStyle(color: Color(0xFF5E6F68));
+
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
@@ -424,96 +711,79 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             constraints: BoxConstraints(minWidth: constraints.maxWidth),
             child: DataTable(
               showCheckboxColumn: false,
-              headingRowHeight: 56,
-              dataRowMinHeight: 48,
+              headingRowHeight: 46,
+              dataRowMinHeight: 58,
               dataRowMaxHeight: 72,
+              horizontalMargin: 16,
+              columnSpacing: 24,
+              dividerThickness: 0.6,
+              headingRowColor: const WidgetStatePropertyAll(_panel),
+              headingTextStyle: const TextStyle(
+                fontSize: 11.5,
+                letterSpacing: 0.5,
+                fontWeight: FontWeight.w700,
+                color: _muted,
+              ),
               columns: [
                 DataColumn(
                   label: Checkbox(
-                    value: rows.isNotEmpty &&
-                        _selectedUserIds.length >= rows.take(25).length &&
-                        rows
-                            .take(25)
-                            .every((r) => _selectedUserIds.contains(r.id)),
-                    onChanged: (val) {
+                    tristate: true,
+                    value: headerValue,
+                    activeColor: _accent,
+                    onChanged: (_) {
                       setState(() {
-                        if (val == true) {
-                          _selectedUserIds
-                              .addAll(rows.take(25).map((r) => r.id));
+                        if (headerValue == true) {
+                          _selectedUserIds.removeAll(pageIds);
                         } else {
-                          _selectedUserIds
-                              .removeAll(rows.take(25).map((r) => r.id));
+                          _selectedUserIds.addAll(pageIds);
                         }
                       });
                     },
                   ),
                 ),
-                const DataColumn(label: Text('User Name')),
-                const DataColumn(label: Text('Type')),
-                const DataColumn(label: Text('Credit Balance')),
-                const DataColumn(label: Text('Documents')),
-                const DataColumn(label: Text('Views')),
-                const DataColumn(label: Text('Likes')),
-                const DataColumn(label: Text('Shares')),
-                const DataColumn(label: Text('Last Activity')),
-                const DataColumn(label: Text('Actions')),
+                const DataColumn(label: Text('USER')),
+                const DataColumn(label: Text('TYPE')),
+                const DataColumn(label: Text('CREDITS'), numeric: true),
+                const DataColumn(label: Text('DOCUMENTS')),
+                const DataColumn(label: Text('VIEWS'), numeric: true),
+                const DataColumn(label: Text('LIKES'), numeric: true),
+                const DataColumn(label: Text('SHARES'), numeric: true),
+                const DataColumn(label: Text('LAST ACTIVITY')),
+                const DataColumn(label: Text('ACTIONS')),
               ],
               rows: rows
-                  .take(25)
                   .map(
                     (row) => DataRow(
                       selected: _selectedUserIds.contains(row.id),
-                      onSelectChanged: (val) {
-                        setState(() {
-                          if (val == true) {
-                            _selectedUserIds.add(row.id);
-                          } else {
-                            _selectedUserIds.remove(row.id);
-                          }
-                        });
-                      },
+                      color: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return const Color(0xFFEFF6F2);
+                        }
+                        if (states.contains(WidgetState.hovered)) {
+                          return const Color(0xFFF7FAF8);
+                        }
+                        return null;
+                      }),
+                      onSelectChanged: (val) => _toggleSelected(row.id, val),
                       cells: [
                         DataCell(
                           Checkbox(
                             value: _selectedUserIds.contains(row.id),
-                            onChanged: (val) {
-                              setState(() {
-                                if (val == true) {
-                                  _selectedUserIds.add(row.id);
-                                } else {
-                                  _selectedUserIds.remove(row.id);
-                                }
-                              });
-                            },
+                            activeColor: _accent,
+                            onChanged: (val) => _toggleSelected(row.id, val),
                           ),
                         ),
-                        DataCell(
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                row.name,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700),
-                              ),
-                              Text(
-                                row.email,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF61706A),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        DataCell(_UserTypeBadge(role: row.role)),
+                        DataCell(_UserIdentity(row: row)),
+                        DataCell(_UserTypeBadge(
+                          role: row.role,
+                          pending: _needsApproval(row),
+                        )),
                         DataCell(
                           Text(
-                            _formatCredits(row.creditsRemaining),
+                            _creditsFormat.format(row.creditsRemaining),
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF0A4F3F),
+                              color: _accent,
                             ),
                           ),
                         ),
@@ -521,92 +791,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           row: row,
                           onOpen: () => _showDocumentsDialog(row),
                         )),
-                        DataCell(
-                          Text(
-                            row.totalViews.toString(),
-                            style: const TextStyle(color: Color(0xFF5E6F68)),
-                          ),
-                        ),
-                        DataCell(
-                          Text(
-                            row.totalLikes.toString(),
-                            style: const TextStyle(color: Color(0xFF5E6F68)),
-                          ),
-                        ),
-                        DataCell(
-                          Text(
-                            row.totalShares.toString(),
-                            style: const TextStyle(color: Color(0xFF5E6F68)),
-                          ),
-                        ),
+                        DataCell(Text(_creditsFormat.format(row.totalViews),
+                            style: numStyle)),
+                        DataCell(Text(_creditsFormat.format(row.totalLikes),
+                            style: numStyle)),
+                        DataCell(Text(_creditsFormat.format(row.totalShares),
+                            style: numStyle)),
                         DataCell(
                           Text(
                             _formatLastActivity(
                               row.lastActivityAt ?? row.createdAt,
                             ),
-                            style: const TextStyle(color: Color(0xFF5E6F68)),
+                            style: numStyle,
                           ),
                         ),
-                        DataCell(
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 6,
-                            children: [
-                              if (_needsApproval(row)) ...[
-                                InkWell(
-                                  onTap: () => _onUpdateApproval(
-                                    row,
-                                    approve: true,
-                                  ),
-                                  child: const Text(
-                                    'Approve',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12,
-                                      color: Color(0xFF006435),
-                                    ),
-                                  ),
-                                ),
-                                InkWell(
-                                  onTap: () => _onUpdateApproval(
-                                    row,
-                                    approve: false,
-                                  ),
-                                  child: const Text(
-                                    'Reject',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12,
-                                      color: Color(0xFF9D241B),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              InkWell(
-                                onTap: () => _onAdjustCredits(row),
-                                child: const Text(
-                                  'Adjust Credits',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12,
-                                    color: Color(0xFF7A6200),
-                                  ),
-                                ),
-                              ),
-                              InkWell(
-                                onTap: () => _onViewLedger(row),
-                                child: const Text(
-                                  'View Ledger',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12,
-                                    color: Color(0xFF495A53),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        DataCell(_buildRowActions(row)),
                       ],
                     ),
                   )
@@ -618,65 +817,98 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
+  Widget _buildRowActions(UserLedgerRow row) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_needsApproval(row)) ...[
+          FilledButton(
+            onPressed: () => _onUpdateApproval(row, approve: true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF006435),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              textStyle:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+            child: const Text('Approve'),
+          ),
+          const SizedBox(width: 6),
+          TextButton(
+            onPressed: () => _onUpdateApproval(row, approve: false),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF9D241B),
+              visualDensity: VisualDensity.compact,
+              textStyle:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+            child: const Text('Reject'),
+          ),
+          const SizedBox(width: 4),
+        ],
+        IconButton(
+          tooltip: 'Adjust credits',
+          visualDensity: VisualDensity.compact,
+          onPressed: () => _onAdjustCredits(row),
+          icon: const Icon(Icons.account_balance_wallet_outlined,
+              size: 19, color: Color(0xFF7A6200)),
+        ),
+        IconButton(
+          tooltip: 'View ledger',
+          visualDensity: VisualDensity.compact,
+          onPressed: () => _onViewLedger(row),
+          icon: const Icon(Icons.receipt_long_outlined,
+              size: 19, color: Color(0xFF495A53)),
+        ),
+      ],
+    );
+  }
+
   Widget _buildUserLedgerMobileTile(UserLedgerRow row) {
-    return Container(
+    final selected = _selectedUserIds.contains(row.id);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8E5)),
+        color: selected ? const Color(0xFFEFF6F2) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color:
+                selected ? const Color(0xFFBBD7CA) : const Color(0xFFE2E8E5)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Checkbox(
-            value: _selectedUserIds.contains(row.id),
-            onChanged: (val) {
-              setState(() {
-                if (val == true) {
-                  _selectedUserIds.add(row.id);
-                } else {
-                  _selectedUserIds.remove(row.id);
-                }
-              });
-            },
+            value: selected,
+            activeColor: _accent,
+            onChanged: (val) => _toggleSelected(row.id, val),
           ),
           const SizedBox(width: 4),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  row.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF153F34),
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  row.email,
-                  style:
-                      const TextStyle(color: Color(0xFF61706A), fontSize: 12),
-                ),
-                const SizedBox(height: 8),
                 Row(
                   children: [
-                    _UserTypeBadge(role: row.role),
-                    const Spacer(),
+                    Expanded(child: _UserIdentity(row: row)),
+                    const SizedBox(width: 8),
+                    _UserTypeBadge(
+                        role: row.role, pending: _needsApproval(row)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
                     Text(
                       _formatCredits(row.creditsRemaining),
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0A4F3F),
+                        color: _accent,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
+                    const Spacer(),
                     _EngagementStat(
                         icon: Icons.visibility_outlined, value: row.totalViews),
                     const SizedBox(width: 12),
@@ -687,49 +919,26 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         icon: Icons.share_outlined, value: row.totalShares),
                   ],
                 ),
-                const SizedBox(height: 10),
-                _DocumentsCell(
-                  row: row,
-                  onOpen: () => _showDocumentsDialog(row),
-                ),
                 const SizedBox(height: 8),
-                Text(
-                  'Activity: ${_formatLastActivity(row.lastActivityAt ?? row.createdAt)}',
-                  style:
-                      const TextStyle(color: Color(0xFF5E6F68), fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                Row(
                   children: [
-                    if (_needsApproval(row)) ...[
-                      FilledButton.icon(
-                        onPressed: () => _onUpdateApproval(
-                          row,
-                          approve: true,
-                        ),
-                        icon: const Icon(Icons.check, size: 16),
-                        label: const Text('Approve'),
+                    Expanded(
+                      child: _DocumentsCell(
+                        row: row,
+                        onOpen: () => _showDocumentsDialog(row),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: () => _onUpdateApproval(
-                          row,
-                          approve: false,
-                        ),
-                        icon: const Icon(Icons.close, size: 16),
-                        label: const Text('Reject'),
-                      ),
-                    ],
-                    OutlinedButton(
-                      onPressed: () => _onAdjustCredits(row),
-                      child: const Text('Adjust Credits'),
                     ),
-                    OutlinedButton(
-                      onPressed: () => _onViewLedger(row),
-                      child: const Text('View Ledger'),
+                    Text(
+                      _formatLastActivity(row.lastActivityAt ?? row.createdAt),
+                      style: const TextStyle(
+                          color: Color(0xFF5E6F68), fontSize: 12),
                     ),
                   ],
+                ),
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _buildRowActions(row),
                 ),
               ],
             ),
@@ -743,46 +952,50 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     int totalCreditExposure,
     List<UserLedgerRow> filteredRows,
   ) {
+    final selectedInView =
+        filteredRows.where((r) => _selectedUserIds.contains(r.id)).length;
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF032E26),
-        borderRadius: BorderRadius.circular(14),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF032E26), Color(0xFF0A4F3F)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
       ),
-      padding: const EdgeInsets.all(18),
-      child: Row(
+      padding: const EdgeInsets.all(20),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'The Ledger Insights',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFE9D08F),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Current tracked exposure is ${_formatCredits(totalCreditExposure)}. '
-                  'Review high-balance accounts before the next appraisal cycle.',
-                  style: const TextStyle(color: Color(0xFFD2DDD8)),
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFE9C869),
-                    foregroundColor: const Color(0xFF2F2B1F),
-                  ),
-                  onPressed: () => _downloadFilteredCsv(filteredRows),
-                  child: Text(_selectedUserIds.isEmpty
-                      ? 'Download All (Filtered)'
-                      : 'Download Selected (${_selectedUserIds.length})'),
-                ),
-              ],
+          const Text(
+            'The Ledger Insights',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFE9D08F),
             ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Current tracked exposure is ${_formatCredits(totalCreditExposure)} '
+            'across ${filteredRows.length} accounts. '
+            'Review high-balance accounts before the next appraisal cycle.',
+            style: const TextStyle(color: Color(0xFFD2DDD8), height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFE9C869),
+              foregroundColor: const Color(0xFF2F2B1F),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            onPressed: filteredRows.isEmpty
+                ? null
+                : () => _downloadFilteredCsv(filteredRows),
+            icon: const Icon(Icons.download_rounded, size: 18),
+            label: Text(selectedInView == 0
+                ? 'Download all (${filteredRows.length} filtered)'
+                : 'Download selected ($selectedInView)'),
           ),
         ],
       ),
@@ -793,39 +1006,54 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE0E6E3)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border),
       ),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.stars, color: Color(0xFF9D6A00)),
-              SizedBox(width: 8),
-              Text(
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF4DF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.stars_rounded,
+                    color: Color(0xFF9D6A00), size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text(
                 'Sync Status',
-                style: TextStyle(fontWeight: FontWeight.w700),
+                style: TextStyle(fontWeight: FontWeight.w700, color: _ink),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             '$activeManufacturers verified manufacturers detected.',
             style: const TextStyle(color: Color(0xFF5E6F68)),
           ),
           const SizedBox(height: 12),
-          const Divider(),
+          const Divider(color: _border),
           const SizedBox(height: 8),
-          const Text(
-            'Cloud Connected',
-            style: TextStyle(
-              fontSize: 12,
-              letterSpacing: 0.8,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF7A8A84),
-            ),
+          const Row(
+            children: [
+              Icon(Icons.circle, size: 8, color: Color(0xFF1B7A59)),
+              SizedBox(width: 6),
+              Text(
+                'CLOUD CONNECTED',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  letterSpacing: 0.8,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF7A8A84),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -840,8 +1068,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     _showLedgerDialog(row);
   }
 
+  // Only business accounts go through approval; customers and admins keep the
+  // column's default 'pending' value but never need a decision.
   bool _needsApproval(UserLedgerRow row) {
-    return row.approvalStatus.toLowerCase() != 'approved';
+    final type = _userRoleType(row);
+    if (type != _UserTypeFilter.designers &&
+        type != _UserTypeFilter.manufacturers) {
+      return false;
+    }
+    return row.approvalStatus.toLowerCase() == 'pending';
   }
 
   Future<void> _onUpdateApproval(
@@ -884,6 +1119,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   _UserTypeFilter _userRoleType(UserLedgerRow row) {
     final role = row.role.toLowerCase();
+    if (role.contains('admin')) return _UserTypeFilter.admins;
     if (role.contains('designer')) return _UserTypeFilter.designers;
     if (role.contains('manufacturer') || role.contains('supplier')) {
       return _UserTypeFilter.manufacturers;
@@ -895,6 +1131,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     if (date == null) return '-';
     final now = DateTime.now();
     final diff = now.difference(date);
+    if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
     if (diff.inHours < 24) return '${diff.inHours} hours ago';
     if (diff.inHours < 48) {
@@ -1242,6 +1479,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       ['User Management Ledger Report'],
       ['Generated At', exportDate],
       ['Filter', _userTypeFilter.label],
+      [
+        'Joined',
+        _joinedRange == null
+            ? 'Any time'
+            : '${widget.dateFormat.format(_joinedRange!.start)} - ${widget.dateFormat.format(_joinedRange!.end)}'
+      ],
+      ['Pending Approval Only', _pendingOnly ? 'Yes' : 'No'],
+      ['Min Views / Likes / Shares', '$_minViews / $_minLikes / $_minShares'],
       ['Sort', _userSort.label],
       [
         'Search Query',
@@ -1517,7 +1762,7 @@ class _PageTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final titleFontSize = screenWidth < 600 ? 28.0 : 40.0;
+    final titleFontSize = screenWidth < 600 ? 26.0 : 34.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1525,8 +1770,9 @@ class _PageTitle extends StatelessWidget {
           title,
           style: TextStyle(
             fontSize: titleFontSize,
+            height: 1.15,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF1F312C),
+            color: _ink,
           ),
         ),
         const SizedBox(height: 6),
@@ -1539,13 +1785,15 @@ class _PageTitle extends StatelessWidget {
   }
 }
 
-class _LedgerStatCard extends StatelessWidget {
+class _LedgerStatCard extends StatefulWidget {
   const _LedgerStatCard({
     required this.label,
     required this.value,
     required this.hint,
     required this.accentColor,
     required this.icon,
+    this.onTap,
+    this.active = false,
   });
 
   final String label;
@@ -1554,54 +1802,388 @@ class _LedgerStatCard extends StatelessWidget {
   final Color accentColor;
   final IconData icon;
 
+  /// When set the card acts as a filter toggle.
+  final VoidCallback? onTap;
+  final bool active;
+
+  @override
+  State<_LedgerStatCard> createState() => _LedgerStatCardState();
+}
+
+class _LedgerStatCardState extends State<_LedgerStatCard> {
+  bool _hovered = false;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E6E3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.7,
-              color: Color(0xFF6D7D77),
+    final accent = widget.accentColor;
+    final interactive = widget.onTap != null;
+    final highlighted = widget.active || (interactive && _hovered);
+    return MouseRegion(
+      cursor: interactive ? SystemMouseCursors.click : MouseCursor.defer,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 132,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color:
+                widget.active ? accent.withValues(alpha: 0.06) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: highlighted ? accent.withValues(alpha: 0.45) : _border,
             ),
+            boxShadow: [
+              if (_hovered && interactive)
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.08),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.w700,
-              color: accentColor,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 16, color: accentColor),
-              const SizedBox(width: 6),
-              Expanded(
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.label.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.7,
+                        color: Color(0xFF6D7D77),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(widget.icon, size: 17, color: accent),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
                 child: Text(
-                  hint,
+                  widget.value,
                   style: TextStyle(
-                    fontSize: 12,
-                    color: accentColor.withValues(alpha: 0.9),
+                    fontSize: 28,
+                    height: 1.1,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
                   ),
                 ),
               ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.hint,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: _muted),
+                    ),
+                  ),
+                  if (interactive)
+                    Text(
+                      widget.active ? 'Filtering ✓' : 'Filter →',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: accent,
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+/// Avatar initial + name + email.
+class _UserIdentity extends StatelessWidget {
+  const _UserIdentity({required this.row});
+
+  final UserLedgerRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = row.name.trim().isEmpty ? row.email : row.name;
+    final initial = name.isEmpty ? '?' : name[0].toUpperCase();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CircleAvatar(
+          radius: 17,
+          backgroundColor: const Color(0xFFE8F1ED),
+          child: Text(
+            initial,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: _accent,
+              fontSize: 13,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, color: _ink),
+              ),
+              if (row.email.isNotEmpty && row.email != name)
+                Text(
+                  row.email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF61706A)),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Rounded toolbar pill used for every filter control, so they share one look.
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+    this.onClear,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = active ? _accent : _muted;
+    return Material(
+      color: active ? const Color(0xFFE8F1ED) : Colors.white,
+      shape: StadiumBorder(
+        side: BorderSide(color: active ? const Color(0xFF9CC5B3) : _border),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const StadiumBorder(),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(12, 8, onClear == null ? 14 : 6, 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: fg),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: fg,
+                ),
+              ),
+              if (onClear != null) ...[
+                const SizedBox(width: 2),
+                InkWell(
+                  onTap: onClear,
+                  customBorder: const CircleBorder(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Icon(Icons.close_rounded, size: 15, color: fg),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A [_FilterPill] that opens a single-choice menu.
+class _ToolbarMenu<T> extends StatelessWidget {
+  const _ToolbarMenu({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.values,
+    required this.labelOf,
+    required this.onSelected,
+  });
+
+  final IconData icon;
+  final String label;
+  final T value;
+  final List<T> values;
+  final String Function(T) labelOf;
+  final ValueChanged<T> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<T>(
+      tooltip: 'Sort accounts',
+      position: PopupMenuPosition.under,
+      initialValue: value,
+      onSelected: onSelected,
+      itemBuilder: (context) => values
+          .map((v) => PopupMenuItem<T>(
+                value: v,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 22,
+                      child: v == value
+                          ? const Icon(Icons.check_rounded,
+                              size: 16, color: _accent)
+                          : null,
+                    ),
+                    Text(labelOf(v)),
+                  ],
+                ),
+              ))
+          .toList(),
+      child: IgnorePointer(
+        child: _FilterPill(
+          icon: icon,
+          label: label,
+          active: false,
+          onTap: () {},
+        ),
+      ),
+    );
+  }
+}
+
+class _UserTypeBadge extends StatelessWidget {
+  const _UserTypeBadge({required this.role, this.pending = false});
+
+  final String role;
+
+  /// B2B account still awaiting approval.
+  final bool pending;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = role.toLowerCase();
+    late final Color fg;
+    late final Color bg;
+    late final Color border;
+    late final String label;
+
+    if (normalized.contains('designer')) {
+      fg = const Color(0xFF255EBA);
+      bg = const Color(0xFFEAF1FF);
+      border = const Color(0xFFCEE0FF);
+      label = 'Designer';
+    } else if (normalized.contains('manufacturer') ||
+        normalized.contains('supplier')) {
+      fg = const Color(0xFF8A5A00);
+      bg = const Color(0xFFFFF4DF);
+      border = const Color(0xFFF9DFB1);
+      label = 'Manufacturer';
+    } else if (normalized.contains('admin')) {
+      fg = const Color(0xFF5B3FA8);
+      bg = const Color(0xFFF1ECFF);
+      border = const Color(0xFFDCD0FA);
+      label = 'Admin';
+    } else {
+      fg = const Color(0xFF1B7A59);
+      bg = const Color(0xFFE8F7F1);
+      border = const Color(0xFFCAE9DD);
+      label = 'Customer';
+    }
+
+    Widget pill(String text, Color fg, Color bg, Color border) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: border),
+          ),
+          child: Text(
+            text.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: fg,
+              letterSpacing: 0.4,
+            ),
+          ),
+        );
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        pill(label, fg, bg, border),
+        if (pending) ...[
+          const SizedBox(width: 6),
+          pill('Pending', const Color(0xFF9D6A00), const Color(0xFFFFF8E6),
+              const Color(0xFFF3DDA6)),
+        ],
+      ],
+    );
+  }
+}
+
+class _EngagementThresholdChip extends StatelessWidget {
+  final String label;
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  const _EngagementThresholdChip({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _FilterPill(
+      icon: value > 0 ? Icons.filter_alt : Icons.filter_alt_outlined,
+      label: value > 0 ? '$label: $value+' : label,
+      active: value > 0,
+      onTap: () async {
+        final result = await showDialog<int>(
+          context: context,
+          builder: (context) => _ThresholdDialog(
+            label: label,
+            initialValue: value,
+          ),
+        );
+        if (result != null) onChanged(result);
+      },
+      onClear: value > 0 ? () => onChanged(0) : null,
     );
   }
 }
@@ -1652,7 +2234,9 @@ class _DocumentsCell extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              pending > 0 ? Icons.pending_actions : Icons.folder_shared_outlined,
+              pending > 0
+                  ? Icons.pending_actions
+                  : Icons.folder_shared_outlined,
               size: 16,
               color: color,
             ),
@@ -1669,57 +2253,6 @@ class _DocumentsCell extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _UserTypeBadge extends StatelessWidget {
-  const _UserTypeBadge({required this.role});
-
-  final String role;
-
-  @override
-  Widget build(BuildContext context) {
-    final normalized = role.toLowerCase();
-    late final Color fg;
-    late final Color bg;
-    late final Color border;
-    late final String label;
-
-    if (normalized.contains('designer')) {
-      fg = const Color(0xFF255EBA);
-      bg = const Color(0xFFEAF1FF);
-      border = const Color(0xFFCEE0FF);
-      label = 'Designer';
-    } else if (normalized.contains('manufacturer') ||
-        normalized.contains('supplier')) {
-      fg = const Color(0xFF8A5A00);
-      bg = const Color(0xFFFFF4DF);
-      border = const Color(0xFFF9DFB1);
-      label = 'Manufacturer';
-    } else {
-      fg = const Color(0xFF1B7A59);
-      bg = const Color(0xFFE8F7F1);
-      border = const Color(0xFFCAE9DD);
-      label = 'Customer';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: border),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: fg,
-          letterSpacing: 0.4,
         ),
       ),
     );
@@ -1752,44 +2285,6 @@ class _EngagementStat extends StatelessWidget {
   }
 }
 
-class _EngagementThresholdChip extends StatelessWidget {
-  final String label;
-  final int value;
-  final ValueChanged<int> onChanged;
-
-  const _EngagementThresholdChip({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InputChip(
-      avatar: Icon(
-        value > 0 ? Icons.filter_alt : Icons.filter_alt_outlined,
-        size: 16,
-        color: value > 0 ? const Color(0xFF0A4F3F) : null,
-      ),
-      label: Text(value > 0 ? '$label: $value+' : label),
-      selected: value > 0,
-      onPressed: () async {
-        final result = await showDialog<int>(
-          context: context,
-          builder: (context) => _ThresholdDialog(
-            label: label,
-            initialValue: value,
-          ),
-        );
-        if (result != null) {
-          onChanged(result);
-        }
-      },
-      onDeleted: value > 0 ? () => onChanged(0) : null,
-    );
-  }
-}
-
 class _ThresholdDialog extends StatefulWidget {
   final String label;
   final int initialValue;
@@ -1812,12 +2307,19 @@ class _ThresholdDialogState extends State<_ThresholdDialog> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text('Filter by ${widget.label}'),
       content: TextField(
         controller: _controller,
         keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         autofocus: true,
         decoration: InputDecoration(
           labelText: 'Minimum ${widget.label}',
@@ -1832,7 +2334,8 @@ class _ThresholdDialogState extends State<_ThresholdDialog> {
         ),
         ElevatedButton(
           onPressed: () {
-            final val = int.tryParse(_controller.text) ?? 0;
+            final val =
+                (int.tryParse(_controller.text.trim()) ?? 0).clamp(0, 1 << 31);
             Navigator.pop(context, val);
           },
           child: const Text('Apply'),

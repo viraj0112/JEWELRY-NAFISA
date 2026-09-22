@@ -7,6 +7,7 @@ import 'package:jewelry_nafisa/src/models/manufacturer_profile.dart';
 import 'package:jewelry_nafisa/src/widgets/edit_business_profile_dialog.dart';
 import 'page_template.dart';
 import 'package:jewelry_nafisa/src/B2BScreens/b2b_theme.dart';
+import 'package:jewelry_nafisa/src/utils/handbook.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -345,6 +346,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     case 'refresh':
                       setState(() => _isLoading = true);
                       await _fetchAll();
+                    case 'handbook':
+                      await openHandbook(context);
                     case 'signout':
                       await _signOut();
                   }
@@ -370,6 +373,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     item('password', Icons.lock_reset_rounded,
                         hasPassword ? 'Reset password' : 'Set a password'),
                     item('refresh', Icons.refresh_rounded, 'Refresh stats'),
+                    item('handbook', Icons.menu_book_outlined,
+                        'Help & Handbook'),
                     const PopupMenuDivider(),
                     item('signout', Icons.logout_rounded, 'Sign out',
                         color: B2BColors.danger),

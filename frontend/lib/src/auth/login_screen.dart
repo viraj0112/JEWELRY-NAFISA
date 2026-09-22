@@ -467,6 +467,9 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  // Phone OTP login is still under development. Set to true to re-enable it.
+  static const bool _phoneAuthEnabled = false;
+
   // ── Phone OTP option ──────────────────────────────────────────────────────
   Widget _buildPhoneOption() {
     return Column(
@@ -511,46 +514,104 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
         const SizedBox(height: 16),
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const PhoneAuthScreen(isLoginMode: true),
-              ),
-            );
-          },
-          child: Container(
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [_Brand.forestGreen, Color(0xFF1A3A18)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: _Brand.forestGreen.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+        if (!_phoneAuthEnabled)
+          _buildPhoneComingSoonButton()
+        else
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PhoneAuthScreen(isLoginMode: true),
                 ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                'Continue with Phone Number',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+              );
+            },
+            child: Container(
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [_Brand.forestGreen, Color(0xFF1A3A18)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: _Brand.forestGreen.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  'Continue with Phone Number',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
         const SizedBox(height: 8),
       ],
+    );
+  }
+
+  Widget _buildPhoneComingSoonButton() {
+    return Semantics(
+      button: true,
+      enabled: false,
+      label: 'Continue with Phone Number. Coming Soon, under development',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.forbidden,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Center(
+                child: Text(
+                  'Continue with Phone Number',
+                  style: GoogleFonts.inter(
+                    color: Colors.grey.shade500,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: -10,
+              right: 18,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF4D6),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0xFFE9C46A)),
+                ),
+                child: Text(
+                  'Coming Soon, under development',
+                  style: GoogleFonts.inter(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF7A5A00),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

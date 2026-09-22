@@ -18,6 +18,7 @@ import 'user_management_screen.dart';
 import 'quote_tracking_screen.dart';
 import 'teams_screen.dart';
 import 'ai_fill_screen.dart';
+import '../../utils/handbook.dart';
 
 enum _AdminView {
   dashboard('Dashboard'),
@@ -1498,6 +1499,17 @@ class _Sidebar extends StatelessWidget {
               compact: !isDesktop,
               onTap: () => onSelect(view),
             ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Divider(height: 1, color: Colors.white24),
+          ),
+          // Opens the static role handbook (web/handbook.html) in a new tab.
+          _SidebarItem(
+            label: 'Handbook ↗',
+            selected: false,
+            compact: !isDesktop,
+            onTap: () => openHandbook(context),
           ),
           const Spacer(),
           Padding(

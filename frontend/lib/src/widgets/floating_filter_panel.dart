@@ -215,7 +215,6 @@ class _FloatingFilterOverlayState extends State<FloatingFilterOverlay>
   late AnimationController _slideController;
   late CurvedAnimation _curvedSlide;
   late AnimationController _backdropController;
-  late Animation<double> _backdropAnimation;
 
   static const Color _green = B2BColors.primaryDeep;
 
@@ -234,10 +233,6 @@ class _FloatingFilterOverlayState extends State<FloatingFilterOverlay>
     _backdropController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
-    );
-    _backdropAnimation = CurvedAnimation(
-      parent: _backdropController,
-      curve: Curves.easeOut,
     );
   }
 
@@ -278,13 +273,13 @@ class _FloatingFilterOverlayState extends State<FloatingFilterOverlay>
       children: [
         widget.child,
 
-        // Backdrop
+        // Invisible tap-to-close layer; the catalogue stays fully visible
+        // behind the panel (the panel's own shadow separates it).
         if (_isPanelOpen)
-          FadeTransition(
-            opacity: _backdropAnimation,
+          Positioned.fill(
             child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: _closePanel,
-              child: Container(color: B2BColors.muted),
             ),
           ),
 

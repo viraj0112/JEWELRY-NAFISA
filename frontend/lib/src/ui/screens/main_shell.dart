@@ -14,6 +14,7 @@ import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/utils/app_update_checker.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:jewelry_nafisa/src/utils/handbook.dart';
 
 class MainShell extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -457,6 +458,9 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
               MaterialPageRoute(builder: (context) => const ProfileScreen()),
             );
             break;
+          case 'handbook':
+            openHandbook(context);
+            break;
           case 'logout':
             _signOut();
             break;
@@ -600,6 +604,29 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
                 const SizedBox(width: 12),
                 Text(
                   'My Profile',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF111111),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          PopupMenuItem<String>(
+            value: 'handbook',
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.menu_book_outlined,
+                  size: 20,
+                  color: Color(0xFF006435),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Help & Handbook',
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,

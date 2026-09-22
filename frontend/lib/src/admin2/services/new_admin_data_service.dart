@@ -577,15 +577,28 @@ class NewAdminDataService {
     return path.isEmpty ? null : Uri.decodeComponent(path);
   }
 
-  Future<List<UserLedgerRow>> fetchUserLedger({int limit = 100}) async {
-    List<Map<String, dynamic>> rows = [];
+  /// Loads every user (paged past PostgREST's 1000-row cap) so the admin
+  /// filters, counts and CSV export operate on the full user base rather than
+  /// just the newest page. Pass [limit] to cap the result explicitly.
+  Future<List<UserLedgerRow>> fetchUserLedger({int? limit}) async {
+    const pageSize = 1000;
+    final rows = <Map<String, dynamic>>[];
     try {
-      rows = await _client
-          .from('users')
-          .select(
-              'id,full_name,username,business_name,email,phone,role,is_member,credits_remaining,approval_status,last_credit_refresh,created_at,last_activity_at')
-          .order('created_at', ascending: false)
-          .limit(limit);
+      while (limit == null || rows.length < limit) {
+        final from = rows.length;
+        final to = limit == null
+            ? from + pageSize - 1
+            : math.min(from + pageSize, limit) - 1;
+        final page = await _client
+            .from('users')
+            .select(
+                'id,full_name,username,business_name,email,phone,role,is_member,credits_remaining,approval_status,last_credit_refresh,created_at,last_activity_at')
+            .order('created_at', ascending: false)
+            .order('id')
+            .range(from, to);
+        rows.addAll(page);
+        if (page.length < to - from + 1) break;
+      }
     } catch (e) {
       throw Exception('users query failed: $e');
     }
