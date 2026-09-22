@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Everything each of the four account types on Dagina.Design can do, and the exact route to doing it — members, designers, manufacturers and admins, plus a support playbook.">
+<meta name="theme-color" content="#F6F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1512" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="favicon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Dagina Role Handbook">
+<meta property="og:description" content="Role-by-role feature and support guide for Dagina.Design.">
+<meta name="twitter:card" content="summary">
+<script>
+  try {
+    var t = localStorage.getItem('dagina-theme');
+    if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
+<style>
+  /* base reset */
+  *, *::before, *::after { box-sizing: border-box }
+  html { -webkit-text-size-adjust: 100% }
+  :root { color-scheme: light dark }
+  :root[data-theme="dark"] { color-scheme: dark }
+  :root[data-theme="light"] { color-scheme: light }
+  body { margin: 0 }
+  img, svg, video { max-width: 100% }
+  [hidden] { display: none !important }
+</style>
+<title>Dagina Role Handbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,600;6..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+
+<style>
+  :root{
+    --paper:#F6F8F7;
+    --surface:#FFFFFF;
+    --sunk:#EDF1EF;
+    --ink:#0E1C18;
+    --body:#31423C;
+    --muted:#63756E;
+    --rule:#D7E0DC;
+    --rule-soft:#E6ECEA;
+
+    --accent:#00695C;
+    --accent-soft:#E2EFEC;
+
+    --member:#A8553F;
+    --member-soft:#F6E9E4;
+    --designer:#00695C;
+    --designer-soft:#E2EFEC;
+    --maker:#41607C;
+    --maker-soft:#E5EBF1;
+    --admin:#8E6B1F;
+    --admin-soft:#F4EDDD;
+
+    --ok:#1E7A55;
+    --warn:#B3761B;
+    --crit:#A33A32;
+
+    --shadow:0 1px 2px rgba(14,28,24,.05), 0 8px 24px -16px rgba(14,28,24,.28);
+
+    --display:"Bodoni Moda", "Didot", Georgia, serif;
+    --sans:"IBM Plex Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0D1512;
+      --surface:#141E1A;
+      --sunk:#101916;
+      --ink:#E8EEEB;
+      --body:#BAC8C3;
+      --muted:#8A9C96;
+      --rule:#25332E;
+      --rule-soft:#1D2925;
+
+      --accent:#5BBFAC;
+      --accent-soft:#122C27;
+
+      --member:#D98B71;
+      --member-soft:#2B1C16;
+      --designer:#5BBFAC;
+      --designer-soft:#122C27;
+      --maker:#8BAACB;
+      --maker-soft:#16212B;
+      --admin:#D2AC5C;
+      --admin-soft:#272012;
+
+      --ok:#54B98C;
+      --warn:#DBA755;
+      --crit:#E0776C;
+
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0D1512;
+    --surface:#141E1A;
+    --sunk:#101916;
+    --ink:#E8EEEB;
+    --body:#BAC8C3;
+    --muted:#8A9C96;
+    --rule:#25332E;
+    --rule-soft:#1D2925;
+
+    --accent:#5BBFAC;
+    --accent-soft:#122C27;
+
+    --member:#D98B71;
+    --member-soft:#2B1C16;
+    --designer:#5BBFAC;
+    --designer-soft:#122C27;
+    --maker:#8BAACB;
+    --maker-soft:#16212B;
+    --admin:#D2AC5C;
+    --admin-soft:#272012;
+
+    --ok:#54B98C;
+    --warn:#DBA755;
+    --crit:#E0776C;
+
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+
+  *{box-sizing:border-box}
+
+  body{
+    background:var(--paper);
+    color:var(--body);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding-inline:20px;
+    padding-block:0 72px;
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead{
+    padding-block:52px 34px;
+    border-bottom:1px solid var(--rule);
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    font-weight:500;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:0 0 18px;
+  }
+  h1{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:clamp(40px, 8vw, 74px);
+    line-height:1.02;
+    letter-spacing:-.015em;
+    color:var(--ink);
+    margin:0 0 20px;
+    text-wrap:balance;
+  }
+  .standfirst{
+    font-size:clamp(17px,2.4vw,19px);
+    line-height:1.58;
+    max-width:62ch;
+    color:var(--body);
+    margin:0;
+  }
+  .standfirst strong{color:var(--ink);font-weight:600}
+  .meta-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 26px;
+    margin-top:26px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  .meta-row span{white-space:nowrap}
+
+  /* ---------- role switcher ---------- */
+  .switcher{
+    position:sticky;
+    top:0;
+    z-index:40;
+    background:color-mix(in srgb, var(--paper) 92%, transparent);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--rule);
+    margin-inline:-20px;
+    padding-inline:20px;
+  }
+  .switcher-inner{
+    max-width:1180px;
+    margin:0 auto;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+    padding-block:11px;
+  }
+  .switch-label{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-right:6px;
+  }
+  .chip{
+    font-family:var(--sans);
+    font-size:13.5px;
+    font-weight:600;
+    color:var(--body);
+    background:var(--surface);
+    border:1px solid var(--rule);
+    border-radius:999px;
+    padding:5px 14px 5px 11px;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    line-height:1.5;
+    transition:border-color .14s, color .14s, background .14s;
+  }
+  .chip:hover{border-color:var(--muted)}
+  .chip .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--c,var(--muted));
+    flex:none;
+  }
+  .chip[aria-pressed="true"]{
+    color:var(--surface);
+    background:var(--c,var(--ink));
+    border-color:var(--c,var(--ink));
+  }
+  .chip[aria-pressed="true"] .dot{background:var(--surface);opacity:.75}
+  .chip:focus-visible, a:focus-visible, button:focus-visible, summary:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+  }
+
+  /* ---------- generic section ---------- */
+  section{padding-block:56px 0}
+  .sec-head{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    margin-bottom:8px;
+  }
+  .sec-num{
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:.1em;
+    color:var(--muted);
+    flex:none;
+  }
+  h2{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:clamp(27px,4.4vw,38px);
+    line-height:1.14;
+    letter-spacing:-.01em;
+    color:var(--ink);
+    margin:0;
+    text-wrap:balance;
+  }
+  .sec-intro{max-width:66ch;margin:0 0 30px;color:var(--muted);font-size:15.5px}
+
+  /* ---------- lifecycle diagram ---------- */
+  .diagram-scroll{
+    overflow-x:auto;
+    border:1px solid var(--rule);
+    border-radius:4px;
+    background:var(--surface);
+    padding:22px 18px;
+    box-shadow:var(--shadow);
+  }
+  .diagram-scroll svg{display:block;min-width:660px;width:100%;height:auto;max-width:100%}
+  .dg-node{font-family:var(--sans);font-size:14px;font-weight:600;fill:var(--ink)}
+  .dg-role{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+  .dg-note{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
+
+  /* ---------- matrix table ---------- */
+  .table-scroll{overflow-x:auto;border:1px solid var(--rule);border-radius:4px;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;min-width:620px;font-size:14.5px}
+  th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+  thead th{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.11em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:500;
+    background:var(--sunk);
+    border-bottom:1px solid var(--rule);
+    white-space:nowrap;
+  }
+  tbody tr:last-child td{border-bottom:none}
+  td:first-child{color:var(--ink);font-weight:500;width:34%}
+  .mk{font-family:var(--mono);font-size:12px;font-weight:500;white-space:nowrap}
+  .mk.yes{color:var(--ok)}
+  .mk.cond{color:var(--warn)}
+  .mk.no{color:var(--muted);opacity:.65}
+
+  /* ---------- role plates ---------- */
+  .plate{
+    --c:var(--accent);
+    --c-soft:var(--accent-soft);
+    padding-block:56px 0;
+    scroll-margin-top:64px;
+  }
+  body[data-filter="member"] .plate:not([data-role="member"]),
+  body[data-filter="designer"] .plate:not([data-role="designer"]),
+  body[data-filter="manufacturer"] .plate:not([data-role="manufacturer"]),
+  body[data-filter="admin"] .plate:not([data-role="admin"]){display:none}
+
+  .plate[data-role="member"]{--c:var(--member);--c-soft:var(--member-soft)}
+  .plate[data-role="designer"]{--c:var(--designer);--c-soft:var(--designer-soft)}
+  .plate[data-role="manufacturer"]{--c:var(--maker);--c-soft:var(--maker-soft)}
+  .plate[data-role="admin"]{--c:var(--admin);--c-soft:var(--admin-soft)}
+
+  .hallmark{
+    border-top:3px solid var(--c);
+    background:var(--surface);
+    border-radius:0 0 4px 4px;
+    padding:26px 28px 24px;
+    box-shadow:var(--shadow);
+  }
+  .hallmark-top{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:baseline;
+    gap:10px 16px;
+    margin-bottom:14px;
+  }
+  .hallmark h2{font-size:clamp(28px,4.6vw,40px);margin:0}
+  .stamp{
+    font-family:var(--mono);
+    font-size:10.5px;
+    font-weight:600;
+    letter-spacing:.13em;
+    text-transform:uppercase;
+    color:var(--c);
+    background:var(--c-soft);
+    border-radius:3px;
+    padding:4px 9px;
+    white-space:nowrap;
+  }
+  .hallmark p{margin:0;max-width:66ch}
+  .facts{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:1px;
+    background:var(--rule-soft);
+    border:1px solid var(--rule-soft);
+    margin-top:22px;
+    border-radius:3px;
+    overflow:hidden;
+  }
+  .fact{background:var(--surface);padding:13px 16px}
+  .fact dt{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:0 0 4px;
+  }
+  .fact dd{margin:0;font-size:14px;color:var(--ink);line-height:1.45}
+
+  /* ---------- task cards ---------- */
+  .group-title{
+    font-family:var(--mono);
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.15em;
+    text-transform:uppercase;
+    color:var(--c);
+    margin:44px 0 16px;
+    padding-bottom:8px;
+    border-bottom:1px solid var(--rule);
+  }
+  .tasks{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(310px,1fr))}
+  .task{
+    background:var(--surface);
+    border:1px solid var(--rule);
+    border-radius:4px;
+    padding:20px 22px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .task h3{
+    font-family:var(--sans);
+    font-size:16.5px;
+    font-weight:600;
+    color:var(--ink);
+    margin:0;
+    line-height:1.32;
+    text-wrap:balance;
+  }
+  .where{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--muted);
+    line-height:1.5;
+    padding-left:11px;
+    border-left:2px solid var(--c-soft);
+  }
+  .task p{margin:0;font-size:14.5px;line-height:1.56}
+  .task ol{margin:0;padding-left:20px;font-size:14.5px;line-height:1.55;display:grid;gap:5px}
+  .task ol li::marker{font-family:var(--mono);font-size:12px;color:var(--c)}
+  .task ul{margin:0;padding-left:18px;font-size:14.5px;line-height:1.55;display:grid;gap:5px}
+  .task ul li::marker{color:var(--c)}
+  .snag{
+    font-size:13.5px;
+    line-height:1.5;
+    color:var(--muted);
+    border-top:1px dashed var(--rule);
+    padding-top:11px;
+    margin-top:auto;
+  }
+  .snag b{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:.11em;
+    text-transform:uppercase;
+    color:var(--warn);
+    display:block;
+    margin-bottom:3px;
+    font-weight:600;
+  }
+  code{
+    font-family:var(--mono);
+    font-size:.87em;
+    background:var(--sunk);
+    border:1px solid var(--rule-soft);
+    border-radius:3px;
+    padding:1px 5px;
+    color:var(--ink);
+    white-space:nowrap;
+  }
+
+  /* ---------- playbook ---------- */
+  .playbook{display:grid;gap:10px;margin-top:8px}
+  details.ticket{
+    background:var(--surface);
+    border:1px solid var(--rule);
+    border-left:3px solid var(--sev,var(--muted));
+    border-radius:3px;
+  }
+  details.ticket[data-sev="high"]{--sev:var(--crit)}
+  details.ticket[data-sev="med"]{--sev:var(--warn)}
+  details.ticket[data-sev="low"]{--sev:var(--ok)}
+  summary{
+    cursor:pointer;
+    padding:14px 20px;
+    font-weight:600;
+    color:var(--ink);
+    font-size:15.5px;
+    list-style:none;
+    display:flex;
+    gap:12px;
+    align-items:baseline;
+  }
+  summary::-webkit-details-marker{display:none}
+  summary::before{
+    content:"+";
+    font-family:var(--mono);
+    color:var(--muted);
+    font-weight:400;
+    flex:none;
+  }
+  details[open] summary::before{content:"–"}
+  .who{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-left:auto;
+    flex:none;
+    white-space:nowrap;
+  }
+  .ticket-body{padding:0 20px 18px 45px;display:grid;gap:10px;font-size:14.5px}
+  .ticket-body p{margin:0}
+  .ticket-body .lbl{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:.11em;
+    text-transform:uppercase;
+    color:var(--muted);
+    display:block;
+    margin-bottom:2px;
+  }
+
+  /* ---------- glossary ---------- */
+  .glossary{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:0 36px;
+  }
+  .gl{padding:14px 0;border-bottom:1px solid var(--rule-soft)}
+  .gl dt{
+    font-family:var(--mono);
+    font-size:13px;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:3px;
+  }
+  .gl dd{margin:0;font-size:14px;line-height:1.5;color:var(--muted)}
+
+  footer{
+    margin-top:64px;
+    padding-top:22px;
+    border-top:1px solid var(--rule);
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:.05em;
+    color:var(--muted);
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 28px;
+  }
+
+  @media (max-width:640px){
+    .hallmark{padding:22px 18px 20px}
+    .ticket-body{padding-left:20px}
+    section, .plate{padding-block:42px 0}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important;animation:none!important;scroll-behavior:auto!important}
+  }
+  html{scroll-behavior:smooth}
+</style>
+<style>
+  /* theme toggle */
+  .theme-toggle{
+    margin-left:auto;
+    font-family:var(--mono);
+    font-size:11px;
+    font-weight:500;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--muted);
+    background:transparent;
+    border:1px solid var(--rule);
+    border-radius:999px;
+    padding:5px 13px;
+    cursor:pointer;
+    line-height:1.5;
+    transition:color .14s, border-color .14s;
+  }
+  .theme-toggle:hover{color:var(--ink);border-color:var(--muted)}
+  @media (max-width:620px){ .theme-toggle{margin-left:0} }
+
+  /* print: force the light token set and open every collapsed ticket */
+  @media print{
+    :root, :root[data-theme="dark"], :root[data-theme="light"]{
+      --paper:#FFFFFF; --surface:#FFFFFF; --sunk:#F2F5F4;
+      --ink:#0E1C18; --body:#31423C; --muted:#5A6B65;
+      --rule:#C9D4D0; --rule-soft:#E0E7E4;
+      --accent:#00695C; --accent-soft:#E2EFEC;
+      --member:#A8553F; --member-soft:#F6E9E4;
+      --designer:#00695C; --designer-soft:#E2EFEC;
+      --maker:#41607C; --maker-soft:#E5EBF1;
+      --admin:#8E6B1F; --admin-soft:#F4EDDD;
+      --ok:#1E7A55; --warn:#B3761B; --crit:#A33A32;
+      --shadow:none;
+    }
+    .switcher{display:none}
+    .plate{display:block !important}
+    details.ticket .ticket-body{display:grid !important}
+    details.ticket:not([open]) > *:not(summary){display:block}
+    summary::before{content:"" !important}
+    .task, .hallmark, details.ticket, .gl{break-inside:avoid}
+    section, .plate{break-before:auto}
+    .diagram-scroll svg{min-width:0}
+    .diagram-scroll{overflow:visible}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Dagina.Design · Working handbook · Rev. September 2026</p>
+    <h1>Dagina Role Handbook</h1>
+    <p class="standfirst">Everything each of the four account types on Dagina can do, and the exact route to doing it. Your role is set on your account record and decides which app you land in after sign-in — <strong>members</strong> browse and request quotes, <strong>designers</strong> and <strong>manufacturers</strong> run their own catalogue, and <strong>admins</strong> operate the platform behind all three.</p>
+    <div class="meta-row">
+      <span>4 roles</span>
+      <span>Web · iOS · Android</span>
+      <span>Support playbook incl.</span>
+    </div>
+  </header>
+
+  <nav class="switcher" aria-label="Filter handbook by role">
+    <div class="switcher-inner">
+      <span class="switch-label">Show</span>
+      <button class="chip" type="button" data-set="all" aria-pressed="true" style="--c:var(--ink)"><span class="dot"></span>All roles</button>
+      <button class="chip" type="button" data-set="member" aria-pressed="false" style="--c:var(--member)"><span class="dot"></span>Member</button>
+      <button class="chip" type="button" data-set="designer" aria-pressed="false" style="--c:var(--designer)"><span class="dot"></span>Designer</button>
+      <button class="chip" type="button" data-set="manufacturer" aria-pressed="false" style="--c:var(--maker)"><span class="dot"></span>Manufacturer</button>
+      <button class="chip" type="button" data-set="admin" aria-pressed="false" style="--c:var(--admin)"><span class="dot"></span>Admin</button>
+      <button class="theme-toggle" type="button" id="theme-toggle">Dark</button>
+    </div>
+  </nav>
+
+  <!-- ============ LIFECYCLE ============ -->
+  <section id="lifecycle">
+    <div class="sec-head"><span class="sec-num">MAP</span><h2>How a design travels</h2></div>
+    <p class="sec-intro">Every role touches the same object at a different stage. A piece is uploaded by a seller, cleared by an admin, discovered by a member, and comes back to the seller as a quote. Knowing where a piece currently sits answers most support questions on its own.</p>
+
+    <div class="diagram-scroll">
+      <svg viewBox="0 0 900 292" role="img" aria-label="Lifecycle: a seller uploads a piece, an admin clears it in the moderation queue, it publishes to the catalogue, a member finds it in the feed, spends credits to reveal specifications, submits a quote request, an admin works it on the quote desk, and the seller is notified.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+          </marker>
+        </defs>
+
+        <!-- Row 1 -->
+        <g>
+          <rect x="20" y="42" width="180" height="62" rx="3" fill="var(--designer-soft)" stroke="var(--designer)" stroke-width="1.5"></rect>
+          <text class="dg-role" x="34" y="62" fill="var(--designer)">Seller</text>
+          <text class="dg-node" x="34" y="83">Upload piece</text>
+          <text class="dg-note" x="34" y="98">single · bulk CSV</text>
+
+          <rect x="240" y="42" width="180" height="62" rx="3" fill="var(--admin-soft)" stroke="var(--admin)" stroke-width="1.5"></rect>
+          <text class="dg-role" x="254" y="62" fill="var(--admin)">Admin</text>
+          <text class="dg-node" x="254" y="83">Moderation queue</text>
+          <text class="dg-note" x="254" y="98">approve / reject</text>
+
+          <rect x="460" y="42" width="180" height="62" rx="3" fill="var(--sunk)" stroke="var(--rule)" stroke-width="1.5"></rect>
+          <text class="dg-role" x="474" y="62" fill="var(--muted)">System</text>
+          <text class="dg-node" x="474" y="83">Published catalogue</text>
+          <text class="dg-note" x="474" y="98">live, searchable</text>
+
+          <rect x="680" y="42" width="180" height="62" rx="3" fill="var(--member-soft)" stroke="var(--member)" stroke-width="1.5"></rect>
+          <text class="dg-role" x="694" y="62" fill="var(--member)">Member</text>
+          <text class="dg-node" x="694" y="83">Finds it in feed</text>
+          <text class="dg-note" x="694" y="98">likes · saves · shares</text>
+        </g>
+
+        <!-- Row 1 arrows -->
+        <g stroke="var(--muted)" stroke-width="1.5" fill="none" color="var(--muted)">
+          <line x1="202" y1="73" x2="234" y2="73" marker-end="url(#ah)"></line>
+          <line x1="422" y1="73" x2="454" y2="73" marker-end="url(#ah)"></line>
+          <line x1="642" y1="73" x2="674" y2="73" marker-end="url(#ah)"></line>
+          <path d="M770,106 L770,140" marker-end="url(#ah)"></path>
+        </g>
+
+        <!-- Row 2 -->
+        <g>
+          <rect x="680" y="160" width="180" height="62" rx="3" fill="var(--member-soft)" stroke="var(--member)" stroke-width="1.5"></rect>
+          <text class="dg-role" x="694" y="180" fill="var(--member)">Member</text>
+          <text class="dg-node" x="694" y="201">Spends credits</text>
+          <text class="dg-note" x="694" y="216">full specs revealed</text>
+
+          <rect x="460" y="160" width="180" height="62" rx="3" fill="var(--member-soft)" stroke="var(--member)" stroke-width="1.5"></rect>
+          <text class="dg-role" x="474" y="180" fill="var(--member)">Member</text>
+          <text class="dg-node" x="474" y="201">Quote request</text>
+          <text class="dg-note" x="474" y="216">metal + stone spec</text>
+
+          <rect x="240" y="160" width="180" height="62" rx="3" fill="var(--admin-soft)" stroke="var(--admin)" stroke-width="1.5"></rect>
+          <text class="dg-role" x="254" y="180" fill="var(--admin)">Admin</text>
+          <text class="dg-node" x="254" y="201">Quote desk</text>
+          <text class="dg-note" x="254" y="216">pending → closed</text>
+
+          <rect x="20" y="160" width="180" height="62" rx="3" fill="var(--designer-soft)" stroke="var(--designer)" stroke-width="1.5"></rect>
+          <text class="dg-role" x="34" y="180" fill="var(--designer)">Seller</text>
+          <text class="dg-node" x="34" y="201">Notified &amp; insights</text>
+          <text class="dg-note" x="34" y="216">views · saves · demand</text>
+        </g>
+
+        <!-- Row 2 arrows (right to left) -->
+        <g stroke="var(--muted)" stroke-width="1.5" fill="none" color="var(--muted)">
+          <line x1="674" y1="191" x2="642" y2="191" marker-end="url(#ah)"></line>
+          <line x1="454" y1="191" x2="422" y2="191" marker-end="url(#ah)"></line>
+          <line x1="234" y1="191" x2="202" y2="191" marker-end="url(#ah)"></line>
+          <path d="M110,158 L110,140 L110,140" stroke-dasharray="4 4" marker-end="url(#ah)"></path>
+        </g>
+        <text class="dg-note" x="124" y="146" fill="var(--muted)">seller uploads more of what sells</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ============ MATRIX ============ -->
+  <section id="matrix">
+    <div class="sec-head"><span class="sec-num">REF</span><h2>Who can do what</h2></div>
+    <p class="sec-intro">The fast answer when someone asks whether a screen is missing or simply not theirs. <span class="mk cond">Conditional</span> means the capability exists but is gated — by approval, by plan, or by a setting an admin controls.</p>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Capability</th>
+            <th scope="col">Member</th>
+            <th scope="col">Designer</th>
+            <th scope="col">Manufacturer</th>
+            <th scope="col">Admin</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Browse catalogue, like, save to boards</td>
+            <td><span class="mk yes">Yes</span></td><td><span class="mk no">—</span></td><td><span class="mk no">—</span></td><td><span class="mk yes">Yes</span></td>
+          </tr>
+          <tr>
+            <td>Reveal full specs (spends credits)</td>
+            <td><span class="mk yes">Yes</span></td><td><span class="mk no">—</span></td><td><span class="mk no">—</span></td><td><span class="mk no">—</span></td>
+          </tr>
+          <tr>
+            <td>Submit a quote request</td>
+            <td><span class="mk yes">Yes</span></td><td><span class="mk no">—</span></td><td><span class="mk no">—</span></td><td><span class="mk no">—</span></td>
+          </tr>
+          <tr>
+            <td>Upload products to the catalogue</td>
+            <td><span class="mk no">—</span></td><td><span class="mk cond">After approval</span></td><td><span class="mk cond">After approval</span></td><td><span class="mk yes">Yes</span></td>
+          </tr>
+          <tr>
+            <td>Bulk CSV upload &amp; Edit in Sheets</td>
+            <td><span class="mk no">—</span></td><td><span class="mk yes">Yes</span></td><td><span class="mk yes">Yes</span></td><td><span class="mk yes">Yes</span></td>
+          </tr>
+          <tr>
+            <td>AI Fill product attributes</td>
+            <td><span class="mk no">—</span></td><td><span class="mk cond">Key required</span></td><td><span class="mk cond">Key required</span></td><td><span class="mk yes">Any table</span></td>
+          </tr>
+          <tr>
+            <td>Engagement insights on own products</td>
+            <td><span class="mk no">—</span></td><td><span class="mk yes">Yes</span></td><td><span class="mk yes">Yes</span></td><td><span class="mk yes">Platform-wide</span></td>
+          </tr>
+          <tr>
+            <td>Geographic demand analytics</td>
+            <td><span class="mk no">—</span></td><td><span class="mk cond">Premium only</span></td><td><span class="mk yes">Always</span></td><td><span class="mk yes">Yes</span></td>
+          </tr>
+          <tr>
+            <td>Approve or reject submissions</td>
+            <td><span class="mk no">—</span></td><td><span class="mk no">—</span></td><td><span class="mk no">—</span></td><td><span class="mk yes">Yes</span></td>
+          </tr>
+          <tr>
+            <td>Set credit allowances &amp; deduction rate</td>
+            <td><span class="mk no">—</span></td><td><span class="mk no">—</span></td><td><span class="mk no">—</span></td><td><span class="mk yes">Yes</span></td>
+          </tr>
+          <tr>
+            <td>Issue, rotate or revoke API keys</td>
+            <td><span class="mk no">—</span></td><td><span class="mk no">—</span></td><td><span class="mk no">—</span></td><td><span class="mk yes">Yes</span></td>
+          </tr>
+          <tr>
+            <td>Broadcast notifications</td>
+            <td><span class="mk no">—</span></td><td><span class="mk no">—</span></td><td><span class="mk no">—</span></td><td><span class="mk yes">Yes</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ MEMBER ============ -->
+  <article class="plate" data-role="member" id="member">
+    <div class="hallmark">
+      <div class="hallmark-top">
+        <h2>Member</h2>
+        <span class="stamp">Copper · Consumer app</span>
+      </div>
+      <p>The person shopping for a piece. You browse the catalogue, collect what you like onto boards, spend credits to unlock a piece's full metal-and-stone specification, and send a quote request to have it made.</p>
+      <dl class="facts">
+        <div class="fact"><dt>How you get this role</dt><dd>Any ordinary sign-up — email, phone or Google. It is the default.</dd></div>
+        <div class="fact"><dt>Where you land</dt><dd>Home feed, with Boards, Search, Notifications and Info along the bottom.</dd></div>
+        <div class="fact"><dt>Your currency</dt><dd>Credits, refreshed monthly. Members get a larger monthly allowance than non-members.</dd></div>
+        <div class="fact"><dt>Approval needed</dt><dd>None. You can browse immediately.</dd></div>
+      </dl>
+    </div>
+
+    <h3 class="group-title">Getting set up</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Create your account</h3>
+        <p class="where">Welcome screen → Continue with Email / Continue with Phone / Google</p>
+        <ol>
+          <li>Pick a sign-in method. Email needs a password and a confirmation click in your inbox; phone sends you a one-time code.</li>
+          <li>Confirm your address or code. Until you do, your account cannot sign in.</li>
+          <li>You land on the home feed straight away — no waiting for review.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>Sign-up says the address is already registered: that account exists but may never have been confirmed. Use <em>Log in</em> and request a fresh confirmation mail rather than signing up again.</p>
+      </div>
+
+      <div class="task">
+        <h3>Finish your taste profile</h3>
+        <p class="where">Appears on its own about 45 seconds after you first reach the home feed</p>
+        <p>Five short steps that tune your feed: location and PIN code, gender, age, the occasions you shop for, and your jewellery categories.</p>
+        <ol>
+          <li>Answer each screen — you can change every answer later from your profile.</li>
+          <li>Your progress is saved after each step, so leaving halfway resumes where you stopped.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>It never appeared: it only runs for members who have not finished setup, and it waits 45 seconds on purpose so you can look around first.</p>
+      </div>
+
+      <div class="task">
+        <h3>Invite friends for credits</h3>
+        <p class="where">Profile → Referrals</p>
+        <ol>
+          <li>Copy your referral code from the referral card.</li>
+          <li>Share it. When someone signs up with it, both of you are awarded credits.</li>
+          <li>Your referral history lists who joined and how many credits each invite earned.</li>
+        </ol>
+      </div>
+    </div>
+
+    <h3 class="group-title">Finding pieces</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Filter the feed by metal</h3>
+        <p class="where">Home → the metal row above the grid</p>
+        <p>The row switches the whole feed between metal types. <strong>Get it</strong> is the ready-to-buy catalogue — pieces you can order immediately rather than have made.</p>
+        <ol>
+          <li>Tap a metal to switch the feed.</li>
+          <li>With <strong>Get it</strong> selected, a second row appears for the specific ready-stock ranges.</li>
+          <li>Tap the same metal again, or use Reset, to clear it.</li>
+        </ol>
+      </div>
+
+      <div class="task">
+        <h3>Narrow by specification</h3>
+        <p class="where">Home → Filters panel</p>
+        <p>Filter on the attributes a jeweller actually cares about: jewellery type, metal weight range, metal colour and purity, enamel work, stone weight, shape, type, quality and setting, plus featured tags.</p>
+        <ol>
+          <li>Open the filter panel and set the attributes you want.</li>
+          <li>Apply. The grid reloads against your selection.</li>
+          <li>Reset clears everything back to the open catalogue.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>An empty grid usually means the combination is too narrow — clear the stone filters first, since those apply only to studded pieces.</p>
+      </div>
+
+      <div class="task">
+        <h3>Search by words or by photo</h3>
+        <p class="where">Search tab</p>
+        <ol>
+          <li>Type a design, category or style into the search bar for text results.</li>
+          <li>Or tap <strong>Search by Image</strong> and choose Camera or Gallery to find visually similar pieces.</li>
+          <li>Recent searches are kept so you can jump back to one.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>Image search fails on very dark, blurred or heavily cropped photos. Re-shoot the piece square-on against a plain background.</p>
+      </div>
+    </div>
+
+    <h3 class="group-title">Collecting and sharing</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Save to a board</h3>
+        <p class="where">Any product card or detail page → bookmark icon</p>
+        <ol>
+          <li>Tap the bookmark on a piece.</li>
+          <li>Choose an existing board, or create one on the spot.</li>
+          <li>Mark a board <strong>secret</strong> while creating it to keep it private.</li>
+        </ol>
+      </div>
+      <div class="task">
+        <h3>Manage your boards</h3>
+        <p class="where">Boards tab</p>
+        <ul>
+          <li>Open a board to see everything saved in it.</li>
+          <li>Rename a board or switch its secret setting at any time.</li>
+          <li>Deleting a board removes the board, not the pieces from the catalogue.</li>
+        </ul>
+      </div>
+      <div class="task">
+        <h3>Like and share</h3>
+        <p class="where">Product card, or the detail page header</p>
+        <p>Likes are counted live and feed the demand signals sellers see. Share sends a direct link to the piece that opens without the recipient needing an account.</p>
+      </div>
+    </div>
+
+    <h3 class="group-title">Quotes and credits</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Reveal a piece's full specification</h3>
+        <p class="where">Product detail → Get details</p>
+        <p>Full metal purity, weights, stone details and dimensions are hidden until you unlock them. Unlocking costs credits — the exact number is set by the platform, commonly 5 per piece.</p>
+        <ol>
+          <li>Open the piece and tap <strong>Get details</strong>.</li>
+          <li>Confirm the credit spend. The specification table and any additional images unlock immediately.</li>
+          <li>Once unlocked, that piece stays unlocked for you.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>At 80% of your allowance spent you get a warning dialog. At zero, unlocking is blocked until your monthly refresh — or until you upgrade your membership.</p>
+      </div>
+
+      <div class="task">
+        <h3>Request a quote</h3>
+        <p class="where">Product detail → Get Quote</p>
+        <ol>
+          <li>Tap <strong>Get Quote</strong> on an unlocked piece.</li>
+          <li>Adjust the specification you want quoted — metal type, purity, colour, finish and weight, and for studded pieces the stone type, cut, colour, count, purity, weight and setting.</li>
+          <li>Add a phone number if your profile has none, plus any notes.</li>
+          <li>Submit. It reaches the quote desk and you are contacted with pricing.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>Submission fails on a piece you have not unlocked — the quote carries the full specification, so reveal the details first.</p>
+      </div>
+
+      <div class="task">
+        <h3>Track your quotes</h3>
+        <p class="where">Profile → View Detail History</p>
+        <p>Shows every quote you have raised, with totals for how many are still valid and how many have expired.</p>
+      </div>
+
+      <div class="task">
+        <h3>Upgrade your membership</h3>
+        <p class="where">Profile → Membership</p>
+        <p>Membership raises your monthly credit allowance, so you can unlock more pieces between refreshes.</p>
+        <ol>
+          <li>Open the membership card in your profile.</li>
+          <li>Choose a plan and complete checkout.</li>
+          <li>Your new allowance applies from the next credit refresh.</li>
+        </ol>
+      </div>
+    </div>
+  </article>
+
+  <!-- ============ DESIGNER ============ -->
+  <article class="plate" data-role="designer" id="designer">
+    <div class="hallmark">
+      <div class="hallmark-top">
+        <h2>Designer</h2>
+        <span class="stamp">Patina · Business app</span>
+      </div>
+      <p>A 3D designer, sketch artist or independent studio selling designs through Dagina. You run your own catalogue: upload pieces, watch what members engage with, and answer the demand you see. Everything you upload passes moderation before it goes live.</p>
+      <dl class="facts">
+        <div class="fact"><dt>How you get this role</dt><dd>Business sign-up with type <em>3D Designer</em>, <em>Sketch Artist</em> or <em>Other</em>.</dd></div>
+        <div class="fact"><dt>Approval needed</dt><dd>Yes — documents reviewed within 2–3 business days.</dd></div>
+        <div class="fact"><dt>Where you land</dt><dd>Business app: Home, Upload, Insights, Notifications, Profile.</dd></div>
+        <div class="fact"><dt>Plan gating</dt><dd>Geographic demand analytics require Premium.</dd></div>
+      </dl>
+    </div>
+
+    <h3 class="group-title">Joining and approval</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Apply for a business account</h3>
+        <p class="where">Sign-up → “Are you a designer?”</p>
+        <ol>
+          <li>Enter your email and password.</li>
+          <li>Add your business or full name, business type, phone, address and GST number if you have one.</li>
+          <li>Upload two documents: a <strong>portfolio or work file</strong> showing samples of your work, and your <strong>business card</strong>.</li>
+          <li>Submit, then confirm your email address. Your application goes to review.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>Both documents are required — the form will not submit with one missing. If the address is already registered you are told before anything uploads.</p>
+      </div>
+
+      <div class="task">
+        <h3>While you wait for approval</h3>
+        <p class="where">Pending approval screen, shown at sign-in</p>
+        <p>Your account exists and your documents are filed, but the catalogue tools stay locked until an admin approves you. Reviews take 2–3 business days.</p>
+        <p class="snag"><b>If it goes wrong</b>Still pending after three working days: ask support to check <em>Moderation → Verification Requests</em>. Documents uploaded before you confirmed your email sit in a separate holding area and are still visible to reviewers.</p>
+      </div>
+    </div>
+
+    <h3 class="group-title">Building your catalogue</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Upload one piece</h3>
+        <p class="where">Upload → Single product</p>
+        <p>A guided wizard covering the full specification sheet.</p>
+        <ol>
+          <li>Add images, then the basics: title, description, price, SKU, tags and sub-category.</li>
+          <li>Set the metal: type, purity (the options change with the metal), weight, colour, finish and plating.</li>
+          <li>Choose product type and gender. Product type suggestions come from existing values — you can type a new one.</li>
+          <li>Set jewellery type. Choosing <strong>Studded</strong> opens the stone fields: type, used, setting, cut, count, colour, weight, purity and quality.</li>
+          <li>Add dimensions, enamel work and weight, and whether the piece is customisable.</li>
+          <li>Review the summary and submit. The piece enters moderation.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>Switching away from Studded clears the stone fields by design — set jewellery type before filling them in.</p>
+      </div>
+
+      <div class="task">
+        <h3>Upload in bulk</h3>
+        <p class="where">Upload → Bulk upload</p>
+        <ol>
+          <li>Download the sample CSV. Its headers match the catalogue exactly — keep them.</li>
+          <li>Fill one row per piece. Every row needs either a <strong>Product Type</strong> or a <strong>Jewelry Type</strong>.</li>
+          <li>Name image files after the row's SKU, numbering extra shots as <code>-Image2</code>, <code>-Image3</code> and so on. Matching ignores case and orders numerically, so <code>-Image2</code> stays ahead of <code>-Image10</code>.</li>
+          <li>Pick the CSV, then select all the image files together.</li>
+          <li>Submit. The result tells you how many rows went through and names any that were skipped, with the reason.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>A row whose images all failed to upload is skipped rather than published without pictures. Re-check those filenames against the SKU and upload just those rows again.</p>
+      </div>
+
+      <div class="task">
+        <h3>Edit your catalogue in a spreadsheet</h3>
+        <p class="where">Home → select products → Edit in Sheets</p>
+        <p>A full round trip: export, edit anywhere, sync back. <strong>SKU is the match key.</strong></p>
+        <ol>
+          <li><strong>Export</strong> — choose your columns and download. Select products on the grid first to export only those, or export everything.</li>
+          <li>Edit in any spreadsheet. Multi-value columns use <code>a | b | c</code>.</li>
+          <li><strong>Import</strong> — pick the edited file. It is checked before anything is written and every problem row is listed with its sheet row number.</li>
+          <li><strong>Sync</strong> — rows whose SKU already exists overwrite that product. Unknown SKUs are added as new products only if you enable <em>Publish new products</em>.</li>
+          <li>The <strong>History</strong> tab records each sync.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>Only columns present in your file are written — deleting a column leaves that data untouched, but clearing a cell does clear the value.</p>
+      </div>
+
+      <div class="task">
+        <h3>Fill gaps with AI</h3>
+        <p class="where">Top bar → sparkle icon → AI Fill My Products</p>
+        <p>Completes empty attribute columns on your own products by reading their images. It never touches anyone else's catalogue.</p>
+        <ol>
+          <li>Optionally save your own provider key and preferred model — it is encrypted and never shown back to you. Leave the key blank to keep the one already saved, or remove it to fall back to the platform key.</li>
+          <li>Choose how many rows to process.</li>
+          <li>Run it. You get a filled-versus-total count, and the pieces it touched are flagged on your grid.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>“No API key assigned yet” means an admin has not issued you a key. Ask support — you cannot issue one yourself.</p>
+      </div>
+
+      <div class="task">
+        <h3>Find and remove pieces</h3>
+        <p class="where">Home → search bar, Filters, and the grid toolbar</p>
+        <ul>
+          <li>Search across SKU, title, product type and category.</li>
+          <li>Filter by product type, category, metal type and demand level — the chips only ever show values that exist in <em>your</em> catalogue.</li>
+          <li>Switch between grid and list.</li>
+          <li>Select pieces and delete. Deletion removes the images and the engagement history too, and cannot be undone.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="group-title">Watching demand</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Read your insights</h3>
+        <p class="where">Insights tab</p>
+        <ul>
+          <li>Headline counts for views, likes, shares and saves across your catalogue.</li>
+          <li>Top-performing products ranked by engagement.</li>
+          <li>Recent activity as it happens.</li>
+        </ul>
+        <p class="snag"><b>If it goes wrong</b>Counts look flat on a new piece: engagement only starts accruing once moderation clears it and it appears in the member feed.</p>
+      </div>
+
+      <div class="task">
+        <h3>Per-piece insights</h3>
+        <p class="where">Home → any product card → insights</p>
+        <p>Opens that piece's own numbers, its demand level, and where in the country the interest is coming from.</p>
+      </div>
+
+      <div class="task">
+        <h3>Unlock geographic demand</h3>
+        <p class="where">Insights → the locked map card, or Profile → Upgrade</p>
+        <p>Region-level demand is a Premium feature for designers. Free accounts see the card with the map obscured.</p>
+        <ol>
+          <li>Open the upgrade banner from your profile or the locked card.</li>
+          <li>Complete the upgrade. The map unlocks across Insights and the per-piece sheets.</li>
+        </ol>
+      </div>
+    </div>
+
+    <h3 class="group-title">Staying on top of it</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Check what cleared moderation</h3>
+        <p class="where">Notifications → Approvals tab</p>
+        <p>Every piece you have submitted with its current state — <strong>pending</strong>, <strong>approved</strong> or <strong>rejected</strong>, newest first. The same badges appear on your product cards.</p>
+        <p class="snag"><b>If it goes wrong</b>Approved but not visible in the member catalogue: report it. Approval publishes the piece into the live catalogue, so an approved piece that never appears means the publish step failed and an admin needs to re-run it.</p>
+      </div>
+      <div class="task">
+        <h3>Activity and alerts</h3>
+        <p class="where">Notifications → Activity tab</p>
+        <p>Moderation outcomes, milestones and platform announcements. <strong>Mark all as read</strong> clears the badge.</p>
+      </div>
+      <div class="task">
+        <h3>Your business profile</h3>
+        <p class="where">Profile tab</p>
+        <ul>
+          <li>Business name, type and contact details, with your account badge — Premium or Free.</li>
+          <li>Headline metrics for your catalogue.</li>
+          <li>Account settings, and sign out.</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <!-- ============ MANUFACTURER ============ -->
+  <article class="plate" data-role="manufacturer" id="manufacturer">
+    <div class="hallmark">
+      <div class="hallmark-top">
+        <h2>Manufacturer</h2>
+        <span class="stamp">Steel · Business app</span>
+      </div>
+      <p>A manufacturing house listing production-ready pieces. You use the same business app as designers, with the same upload, spreadsheet, AI-fill and insight tools — but your catalogue is kept separate, and demand analytics are open to you by default.</p>
+      <dl class="facts">
+        <div class="fact"><dt>How you get this role</dt><dd>Business sign-up with type <em>Manufacturer</em>.</dd></div>
+        <div class="fact"><dt>Approval needed</dt><dd>Yes — same 2–3 business day document review.</dd></div>
+        <div class="fact"><dt>Your catalogue</dt><dd>Held separately from the designer catalogue. Filters and exports only ever cover your own pieces.</dd></div>
+        <div class="fact"><dt>Plan gating</dt><dd>None. Geographic analytics are always unlocked; there is no premium tier.</dd></div>
+      </dl>
+    </div>
+
+    <h3 class="group-title">What differs from a designer account</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Everything in the Designer section applies</h3>
+        <p class="where">Switch the handbook to <strong>Designer</strong> for the full task-by-task detail</p>
+        <p>Applying, uploading singly or in bulk, Edit in Sheets, AI Fill, search and filters, deletion, insights, approvals and profile all work identically. The three differences below are the whole of it.</p>
+      </div>
+      <div class="task">
+        <h3>Geographic analytics are always on</h3>
+        <p class="where">Insights tab, and each product's insight sheet</p>
+        <p>Region-level demand is open to every manufacturer account. There is no locked card and no upgrade path, because manufacturers have no premium tier — the upgrade banner and premium badge simply do not appear for you.</p>
+      </div>
+      <div class="task">
+        <h3>A separate catalogue</h3>
+        <p class="where">Everywhere your products are listed</p>
+        <p>Manufacturer pieces live in their own catalogue, distinct from designer pieces. The app works this out from your profile, so your grid, filter chips, exports, AI fills and approval list are automatically scoped to your own stock.</p>
+        <p class="snag"><b>If it goes wrong</b>If an account somehow holds both a designer and a manufacturer profile, the manufacturer one wins and your manufacturer catalogue is what loads. Flag it to support so the duplicate can be cleared.</p>
+      </div>
+      <div class="task">
+        <h3>Quotes reach you as demand, not as a desk</h3>
+        <p class="where">Insights &amp; Notifications</p>
+        <p>Member quote requests are worked by the admin quote desk. What comes back to you is the signal: engagement counts, demand levels and the regions asking. Use them to decide what to list next.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ============ ADMIN ============ -->
+  <article class="plate" data-role="admin" id="admin">
+    <div class="hallmark">
+      <div class="hallmark-top">
+        <h2>Admin</h2>
+        <span class="stamp">Brass · Operations console</span>
+      </div>
+      <p>You run the platform. You decide which businesses get in, which pieces reach the catalogue, what a credit is worth, who holds an API key, and what every member and seller is told. Nine sections, reachable from the sidebar.</p>
+      <dl class="facts">
+        <div class="fact"><dt>How you get this role</dt><dd>Granted directly on the account record. There is no self-service route.</dd></div>
+        <div class="fact"><dt>Where you land</dt><dd>The admin console — Dashboard first.</dd></div>
+        <div class="fact"><dt>Sections</dt><dd>Dashboard · Moderation · User Management · Quote Tracking · Teams · Analytics · Inventory · AI Data Fill · Settings</dd></div>
+        <div class="fact"><dt>Blast radius</dt><dd>Credit and broadcast changes apply to every account at once. Read twice before saving.</dd></div>
+      </dl>
+    </div>
+
+    <h3 class="group-title">Daily queue work</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Clear the moderation queue</h3>
+        <p class="where">Moderation → Pending Submissions</p>
+        <p>Everything designers and manufacturers submit waits here. <strong>Approving publishes the piece into the live catalogue and notifies its owner; rejecting notifies them too.</strong></p>
+        <ol>
+          <li>Review the submission — images, title, description, category and attributes.</li>
+          <li>Approve or reject it. Select several and use the bulk action to clear a batch.</li>
+          <li>Narrow the queue by source catalogue or by uploader email or business name when you are chasing a specific seller.</li>
+          <li>Past decisions stay in the <strong>Archive</strong> tab.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>If publishing the approved piece into the catalogue fails, you will see an error — do not treat the approval as done. The seller's Approvals tab will say approved while the piece is missing from the catalogue, which is exactly the report to escalate.</p>
+      </div>
+
+      <div class="task">
+        <h3>Vet business applications</h3>
+        <p class="where">Moderation → Verification Requests</p>
+        <ol>
+          <li>Open a pending applicant and read their portfolio or work file and their business card.</li>
+          <li>Approve to release the business app to them, or reject.</li>
+          <li>Approved sellers move straight from the pending screen into the business app on their next sign-in.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>No documents listed: applicants who have not yet confirmed their email have their files in a pre-confirmation holding area. User Management pulls from there as well, so check the applicant's documents there before rejecting for “no documents”.</p>
+      </div>
+
+      <div class="task">
+        <h3>Work the quote desk</h3>
+        <p class="where">Quote Tracking</p>
+        <p>Every member quote request, with the full metal and stone specification they asked to be priced. Headline figures cover total quotes, active pending, response rate and closures this month.</p>
+        <ol>
+          <li>Filter by <strong>All</strong>, <strong>Pending</strong>, <strong>Responded</strong> or <strong>Closed</strong>.</li>
+          <li>Open a quote to read the specification and jump to the live product page.</li>
+          <li>Move it to Responded or Closed. Select several to update a batch at once.</li>
+          <li>Send the member a notification when you have pricing for them.</li>
+        </ol>
+      </div>
+    </div>
+
+    <h3 class="group-title">Accounts and credits</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Run the user and credit ledger</h3>
+        <p class="where">User Management</p>
+        <p>Every account with its credit position, topped by total credit exposure, active manufacturer count and pending approvals.</p>
+        <ul>
+          <li>Filter the ledger, including by minimum views, likes or shares.</li>
+          <li>Approve or reject a business account without leaving the ledger.</li>
+          <li>Adjust an individual's credits, and open their full ledger history.</li>
+          <li>Open a user's registration documents. Those links are deliberately time-limited, so a copied link stops working — reopen from here.</li>
+          <li>Export the filtered ledger to CSV, or create an account manually.</li>
+        </ul>
+      </div>
+
+      <div class="task">
+        <h3>Set what a credit is worth</h3>
+        <p class="where">Settings → credit controls</p>
+        <p>Three numbers govern the whole member economy.</p>
+        <ol>
+          <li><strong>Tier 1 — Member:</strong> monthly credits for paying members.</li>
+          <li><strong>Tier 2 — Non-members:</strong> monthly credits for everyone else.</li>
+          <li><strong>Credit deduction per click:</strong> what revealing one piece costs. Commonly 5.</li>
+          <li>Save. Both allowances are applied to existing accounts as well as future refreshes.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>“Permission denied by database policy” means the settings keys are not writable by your admin role — that is a configuration fix, not a retry.</p>
+      </div>
+
+      <div class="task">
+        <h3>Broadcast a notification</h3>
+        <p class="where">Settings → broadcast</p>
+        <ol>
+          <li>Choose the audience: all users, manufacturers, verified gemologists, or new onboardings.</li>
+          <li>Or search by username, email or phone and target specific people.</li>
+          <li>Write the subject and body.</li>
+          <li>Set delivery — immediate or scheduled — and the urgency level.</li>
+          <li>Send. The count of recipients is reported back, and the action is written to the admin ledger.</li>
+        </ol>
+      </div>
+    </div>
+
+    <h3 class="group-title">Catalogue and keys</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Manage in-house inventory</h3>
+        <p class="where">Inventory</p>
+        <ul>
+          <li>Add a piece by hand.</li>
+          <li>Run the bulk wizard: a CSV manifest plus the matching image files.</li>
+          <li>Export the current inventory to CSV.</li>
+          <li>Open the activity log for the full history of catalogue changes.</li>
+        </ul>
+      </div>
+
+      <div class="task">
+        <h3>Issue and control API keys</h3>
+        <p class="where">AI Data Fill</p>
+        <p>Sellers cannot use AI Fill until you issue them a key. <strong>A generated key is shown once and never again</strong> — only a hash and an encrypted copy are stored.</p>
+        <ol>
+          <li>Pick the designer or manufacturer and choose how long the key should live.</li>
+          <li>Generate it, then copy it out of the one-time dialog and deliver it to them.</li>
+          <li><strong>Rotate</strong> to replace a key with a fresh one and a new lifetime — do this when one is lost.</li>
+          <li><strong>Revoke</strong> to cut a key off immediately. Their fills stop working at once.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>A seller who has lost their key cannot be told what it was. Rotate it and send the new one.</p>
+      </div>
+
+      <div class="task">
+        <h3>Run fills across any catalogue</h3>
+        <p class="where">AI Data Fill → run</p>
+        <p>Unlike a seller, you are not scoped to one catalogue. Set the model and options, choose the row count, and run. The usage card tracks consumption.</p>
+      </div>
+    </div>
+
+    <h3 class="group-title">Reading the platform</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Dashboard</h3>
+        <p class="where">Dashboard</p>
+        <p>The opening view: platform-wide counts, the live curation feed, the appraisal queue, market pulse and the metal breakdown. Switch the metal chart between views, and export the overview as a report.</p>
+      </div>
+      <div class="task">
+        <h3>Analytics</h3>
+        <p class="where">Analytics</p>
+        <p>Daily trends over the last 30 days, engagement trends, behaviour insights and credit consumption, plus geographic engagement and catalogue-gap signals — where trending demand is outrunning stock.</p>
+      </div>
+      <div class="task">
+        <h3>Teams</h3>
+        <p class="where">Teams</p>
+        <p>Artisan workload, capacity and onboarding across your creator base, broken out by 3D designers, sketch artists and manufacturers.</p>
+      </div>
+      <div class="task">
+        <h3>Refresh and search</h3>
+        <p class="where">Console top bar</p>
+        <p>Search filters the Dashboard, Moderation and User Management views. The refresh button reloads only the section you are in, so a slow queue does not force a full reload.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ============ PLAYBOOK ============ -->
+  <section id="playbook">
+    <div class="sec-head"><span class="sec-num">SUPPORT</span><h2>The reports you will actually get</h2></div>
+    <p class="sec-intro">Twelve tickets that account for most of the queue, with the cause and the fix. The stripe marks how urgent the report is: red needs escalation, amber needs action, green is working as designed and just needs explaining.</p>
+
+    <div class="playbook">
+
+      <details class="ticket" data-sev="high">
+        <summary>“My product was approved but it isn't in the catalogue”<span class="who">Designer · Manufacturer</span></summary>
+        <div class="ticket-body">
+          <p><span class="lbl">Cause</span>Approval does two things: it marks the submission approved and it publishes the piece into the live catalogue. If the second step fails, the seller sees “approved” while members see nothing.</p>
+          <p><span class="lbl">Fix</span>Admin: confirm the piece is genuinely missing from the live catalogue, then re-run the approval from <em>Moderation → Archive</em> and watch for an error. Escalate if it fails again — this is a real defect, not a stale cache.</p>
+        </div>
+      </details>
+
+      <details class="ticket" data-sev="high">
+        <summary>“My uploaded pieces never show in Get it”<span class="who">Designer · Manufacturer</span></summary>
+        <div class="ticket-body">
+          <p><span class="lbl">Cause</span>Ready-stock pieces are identified by a prefix on the Metal Type value. Strip or rewrite that prefix in a CSV and the piece silently drops out of the Get it catalogue while staying in the general feed.</p>
+          <p><span class="lbl">Fix</span>Export the affected rows through Edit in Sheets, restore the Metal Type exactly as the sample CSV shows it, and sync back. Never hand-edit that column to “tidy it up”.</p>
+        </div>
+      </details>
+
+      <details class="ticket" data-sev="med">
+        <summary>“I'm still stuck on the pending approval screen”<span class="who">Designer · Manufacturer</span></summary>
+        <div class="ticket-body">
+          <p><span class="lbl">Cause</span>The account is created but not yet approved. Review is 2–3 business days; past that, it is usually sitting unworked in the queue.</p>
+          <p><span class="lbl">Fix</span>Admin: find them in <em>Moderation → Verification Requests</em> or the User Management ledger and approve or reject. They enter the business app on their next sign-in.</p>
+        </div>
+      </details>
+
+      <details class="ticket" data-sev="med">
+        <summary>“This applicant has no documents attached”<span class="who">Admin</span></summary>
+        <div class="ticket-body">
+          <p><span class="lbl">Cause</span>Documents uploaded during sign-up are held separately until the applicant confirms their email — which is precisely the state an applicant sitting in pending approval is usually in.</p>
+          <p><span class="lbl">Fix</span>Check the same user in User Management, which also reads the pre-confirmation holding area. Only reject for missing documents if both places are empty.</p>
+        </div>
+      </details>
+
+      <details class="ticket" data-sev="med">
+        <summary>“Bulk upload said fewer rows went through than I sent”<span class="who">Designer · Manufacturer</span></summary>
+        <div class="ticket-body">
+          <p><span class="lbl">Cause</span>Two rules skip rows: a missing required field — including having neither Product Type nor Jewelry Type — and images that failed to upload. A piece with no usable image is skipped rather than published blank.</p>
+          <p><span class="lbl">Fix</span>The result names each skipped row and why. Fix those rows, check the image filenames match the SKU, and re-upload just them.</p>
+        </div>
+      </details>
+
+      <details class="ticket" data-sev="med">
+        <summary>“Edit in Sheets wiped out my data”<span class="who">Designer · Manufacturer</span></summary>
+        <div class="ticket-body">
+          <p><span class="lbl">Cause</span>Sync overwrites every column present in the file, matching on SKU. A column left in the sheet but blanked is written as blank. A column removed from the sheet entirely is left untouched.</p>
+          <p><span class="lbl">Fix</span>Re-export, restore the values, and sync again. Advise sellers to delete columns they are not editing rather than clearing their cells.</p>
+        </div>
+      </details>
+
+      <details class="ticket" data-sev="med">
+        <summary>“AI Fill says no API key is assigned”<span class="who">Designer · Manufacturer</span></summary>
+        <div class="ticket-body">
+          <p><span class="lbl">Cause</span>No key has been issued to that account. Saving a personal provider key is not the same thing — the platform key must exist first.</p>
+          <p><span class="lbl">Fix</span>Admin: issue one from <em>AI Data Fill</em>, copy it from the one-time dialog and send it to the seller. If they lost an existing key, rotate rather than re-issue.</p>
+        </div>
+      </details>
+
+      <details class="ticket" data-sev="med">
+        <summary>“The document link you sent me has stopped working”<span class="who">Admin</span></summary>
+        <div class="ticket-body">
+          <p><span class="lbl">Cause</span>Registration document links expire on purpose, so a copied link never becomes a permanent handle on someone's business papers.</p>
+          <p><span class="lbl">Fix</span>Reopen the document from User Management, which mints a fresh link. Do not paste these links into shared channels or tickets.</p>
+        </div>
+      </details>
+
+      <details class="ticket" data-sev="low">
+        <summary>“My credits dropped by five, not one”<span class="who">Member</span></summary>
+        <div class="ticket-body">
+          <p><span class="lbl">Cause</span>Working as designed. The cost of revealing one piece is a platform setting, commonly 5 credits.</p>
+          <p><span class="lbl">Fix</span>Explain the rate and the monthly refresh. If a member needs more headroom, membership raises the allowance. Admins can adjust an individual's balance from the ledger.</p>
+        </div>
+      </details>
+
+      <details class="ticket" data-sev="low">
+        <summary>“The demand map is locked”<span class="who">Designer</span></summary>
+        <div class="ticket-body">
+          <p><span class="lbl">Cause</span>Geographic analytics are a Premium feature for designers. Manufacturers always have them.</p>
+          <p><span class="lbl">Fix</span>Point the designer at the upgrade banner in their profile. If a manufacturer reports this, it is a real bug — escalate.</p>
+        </div>
+      </details>
+
+      <details class="ticket" data-sev="low">
+        <summary>“I never got the setup questions”<span class="who">Member</span></summary>
+        <div class="ticket-body">
+          <p><span class="lbl">Cause</span>The taste profile appears about 45 seconds after first reaching the home feed, and only for members who have not completed it. Business and admin accounts never see it.</p>
+          <p><span class="lbl">Fix</span>Ask them to stay on the home feed for a minute. Answers can also be changed from the profile at any time.</p>
+        </div>
+      </details>
+
+      <details class="ticket" data-sev="low">
+        <summary>“Sign-up says my email is already registered”<span class="who">Member · Designer · Manufacturer</span></summary>
+        <div class="ticket-body">
+          <p><span class="lbl">Cause</span>An account exists on that address — often one created earlier and never confirmed.</p>
+          <p><span class="lbl">Fix</span>Send them to Log in and have the confirmation mail resent, or use password reset. Creating a second account on the same address is blocked, and for business applications the check runs before any documents upload.</p>
+        </div>
+      </details>
+
+    </div>
+  </section>
+
+  <!-- ============ GLOSSARY ============ -->
+  <section id="glossary">
+    <div class="sec-head"><span class="sec-num">TERMS</span><h2>Words used precisely</h2></div>
+    <p class="sec-intro">Terms that mean something specific here and are easy to misread in a ticket.</p>
+    <dl class="glossary">
+      <div class="gl"><dt>Credits</dt><dd>What a member spends to reveal a piece's full specification. Allowance refreshes monthly; the per-reveal cost is an admin setting.</dd></div>
+      <div class="gl"><dt>Get it</dt><dd>The ready-to-buy catalogue — pieces available now rather than made to order. Identified by a prefix on Metal Type that must not be edited away.</dd></div>
+      <div class="gl"><dt>Moderation status</dt><dd>Every submitted piece is <em>pending</em>, <em>approved</em> or <em>rejected</em>. Shown as a badge on the seller's product cards and in their Approvals tab.</dd></div>
+      <div class="gl"><dt>SKU</dt><dd>The seller's own code for a piece. It is the match key for bulk image naming and for every Edit in Sheets sync.</dd></div>
+      <div class="gl"><dt>Edit in Sheets</dt><dd>Export catalogue to CSV, edit anywhere, sync back. Present columns overwrite; absent columns are left alone.</dd></div>
+      <div class="gl"><dt>AI Fill</dt><dd>Completing empty product attributes from the piece's images. Sellers are scoped to their own catalogue; admins are not.</dd></div>
+      <div class="gl"><dt>Master key</dt><dd>The API key an admin issues to a seller so AI Fill will run. Displayed once at generation, then only rotatable or revocable.</dd></div>
+      <div class="gl"><dt>Verification request</dt><dd>A business applicant awaiting document review. Distinct from a product submission awaiting moderation.</dd></div>
+      <div class="gl"><dt>Studded vs plain</dt><dd>Whether a piece carries stones. Studded opens the stone specification fields; switching back clears them.</dd></div>
+      <div class="gl"><dt>Demand level</dt><dd>A High / Medium / Rising banding on a seller's pieces, derived from member engagement.</dd></div>
+      <div class="gl"><dt>Secret board</dt><dd>A member's private collection. Saving to one is invisible to everyone else.</dd></div>
+      <div class="gl"><dt>Quote request</dt><dd>A member's priced-piece enquiry carrying the exact metal and stone specification. Worked by admins on the quote desk.</dd></div>
+    </dl>
+  </section>
+
+  <footer>
+    <span>Dagina.Design working handbook</span>
+    <span>Four roles · Member · Designer · Manufacturer · Admin</span>
+    <span>Rev. September 2026</span>
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        var role = chip.getAttribute('data-set');
+        chips.forEach(function (c) {
+          c.setAttribute('aria-pressed', String(c === chip));
+        });
+        document.body.setAttribute('data-filter', role);
+        if (role !== 'all') {
+          var plate = document.getElementById(role);
+          if (plate) {
+            var top = plate.getBoundingClientRect().top + window.scrollY - 64;
+            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+          }
+        }
+      });
+    });
+    document.body.setAttribute('data-filter', 'all');
+  })();
+</script>
+<script>
+  (function () {
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    function current() {
+      var stamped = document.documentElement.getAttribute('data-theme');
+      if (stamped === 'dark' || stamped === 'light') return stamped;
+      return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    }
+    function sync() {
+      var isDark = current() === 'dark';
+      btn.textContent = isDark ? 'Light' : 'Dark';
+      btn.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+    }
+    sync();
+    btn.addEventListener('click', function () {
+      var next = current() === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('dagina-theme', next); } catch (e) {}
+      sync();
+    });
+  })();
+</script>
+</body>
+</html>

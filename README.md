@@ -1,3 +1,38 @@
+# Dagina (Nafia project)
+
+## Project layout
+
+```
+frontend/                 Flutter app (web, Android, iOS, desktop)
+  lib/ assets/ test/      app source, assets, tests
+  scripts/                one-off helper scripts (icon optimizer, map injector)
+  scratch/                ad-hoc Dart test snippets
+backend/
+  supabase/               Postgres migrations, seeds, Edge Functions (Deno)
+  DatabasePrefill/        FastAPI AI-fill service (Hugging Face Space)
+  ai-image-search/        FastAPI + CLIP image search (Hugging Face Space, Docker)
+  aws/                    DINOv2 embedding Lambda + API Gateway config
+  scripts/                backend maintenance scripts (populate_embeddings.py)
+  database/               schema references and SQL dumps/backups
+  data/                   CSV data sets
+docs/                     design docs, plans, notes
+netlify.toml              web deploy (builds from frontend/)
+.env, .env.local          shared secrets (not committed)
+```
+
+## Running things
+
+| What | Command (from repo root) |
+|---|---|
+| Flutter app | `cd frontend && flutter run` |
+| Flutter web build | `cd frontend && flutter build web` |
+| Supabase CLI (migrations, functions) | `cd backend && supabase <command>` (or `supabase --workdir backend <command>`) |
+| DatabasePrefill API | `cd backend/DatabasePrefill && uvicorn main:app --port 7860 --reload` |
+| AI image search | `cd backend/ai-image-search && uvicorn main:app --port 7860` |
+| Lambda deploy | `cd backend/aws/lambda/dinov2-embedding && ./deploy.sh` |
+
+---
+
 # Supabase CLI
 
 [![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)

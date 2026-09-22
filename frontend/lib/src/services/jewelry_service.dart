@@ -1,0 +1,1257 @@
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/jewelry_item.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class JewelryService {
+  final SupabaseClient _supabaseClient;
+
+  static const String _baseUrl =
+      'https://dagina-ai-image-search.hf.space/search';
+  JewelryService(this._supabaseClient);
+
+  Future<List<JewelryItem>> getProducts(
+      {int limit = 50, int offset = 0}) async {
+    try {
+      // `limit`/`offset` are in feed items, spread across the three catalog
+      // tables. Each table is paged by the SAME page index so a given page is
+      // reproducible.
+      //
+      // Previously each table got the full `limit` at the caller's raw offset
+      // and the merged result was shuffled, which meant a request for 50
+      // returned up to 150, and reshuffling on every fetch made later pages
+      // repeat items while others never appeared at all.
+      //
+      // `.limit()` is also gone: postgrest's `.range()` already emits both
+      // `offset` and `limit`, and its param builder appends rather than
+      // replaces, so having both produced a duplicate `limit` in the URL.
+      final perTable = (limit / 3).ceil();
+      final pageIndex = limit > 0 ? offset ~/ limit : 0;
+      final tableOffset = pageIndex * perTable;
+      final tableEnd = tableOffset + perTable - 1;
+
+      // Order by `id` rather than `created_at`: it is present and unique on
+      // every row in all three tables, so paging can't skip or repeat rows the
+      // way an unstable or nullable sort key would.
+      final responses = await Future.wait([
+        _supabaseClient
+            .from('products')
+            .select()
+            .order('id', ascending: false)
+            .range(tableOffset, tableEnd),
+        _supabaseClient
+            .from('designerproducts')
+            .select()
+            .order('id', ascending: false)
+            .range(tableOffset, tableEnd),
+        _supabaseClient
+            .from('manufacturerproducts')
+            .select()
+            .order('id', ascending: false)
+            .range(tableOffset, tableEnd)
+      ]);
+
+      final List<dynamic> productsData = responses[0] as List<dynamic>;
+      final List<dynamic> designerProductsData = responses[1] as List<dynamic>;
+      final List<dynamic> manufacturerProductsData =
+          responses[2] as List<dynamic>;
+
+      final List<JewelryItem> productItems = productsData
+          .map((json) => JewelryItem.fromJson(
+              json as Map<String, dynamic>)) // <-- SET FLAG
+          .toList();
+
+      final List<JewelryItem> designerProductItems =
+          designerProductsData.map((json) {
+        final map = json as Map<String, dynamic>;
+        map['is_designer_product'] = true;
+        return JewelryItem.fromJson(map);
+      }) // <-- SET FLAG
+              .toList();
+      final List<JewelryItem> manufacturerProductItems =
+          manufacturerProductsData.map((json) {
+        final map = json as Map<String, dynamic>;
+        map['is_manufacturer_product'] = true;
+        return JewelryItem.fromJson(map);
+      }) // <-- SET FLAG
+              .toList();
+
+      // Round-robin the three sources instead of shuffling. This still mixes
+      // scraped, designer and manufacturer items through the feed, but it is
+      // deterministic - so paging forward never re-serves an item it already
+      // showed, which random shuffling did on every fetch.
+      final allProducts = <JewelryItem>[];
+      final sources = [productItems, designerProductItems, manufacturerProductItems];
+      final longest =
+          sources.fold<int>(0, (m, s) => s.length > m ? s.length : m);
+      for (var i = 0; i < longest; i++) {
+        for (final source in sources) {
+          if (i < source.length) allProducts.add(source[i]);
+        }
+      }
+
+      return allProducts;
+    } catch (e) {
+      debugPrint('Error fetching products: $e');
+      return [];
+    }
+  }
+
+  Future<List<JewelryItem>> searchProducts(String query) async {
+    if (query.isEmpty) return [];
+
+    try {
+      final List<JewelryItem> results = [];
+
+      // 1. Call full text search RPC for products and designerproducts
+      try {
+        final rpcResponse = await _supabaseClient.rpc(
+          'search_products_fts',
+          params: {
+            'search_query': query,
+            'limit_count': 50,
+          },
+        );
+
+        if (rpcResponse is List) {
+          results.addAll(rpcResponse.map((json) {
+            final map = json as Map<String, dynamic>;
+            return JewelryItem.fromJson(map);
+          }));
+        }
+      } catch (e) {
+        debugPrint('Error with RPC search_products_fts: $e');
+      }
+
+      // 2. Query manufacturerproducts directly to search for matching items
+      // (as it is not included in the database RPC function)
+      try {
+        final manufacturerResponse = await _supabaseClient
+            .from('manufacturerproducts')
+            .select('''
+              id,
+              "Product Title",
+              "Images",
+              "Description",
+              "Product Type",
+              "Category",
+              "Sub Category",
+              "Metal Type",
+              "Metal Purity",
+              Plain,
+              Studded,
+              "Price",
+              "Metal Color"
+            ''')
+            // "Category" is now text[]; match it with array containment via
+            // cs (contains) is exact, so fall back to text-search on the
+            // scalar columns and let category matching happen in the RPC path.
+            .or('Product Title.ilike.%$query%,'
+                'Description.ilike.%$query%,'
+                'Product Type.ilike.%$query%,'
+                'Sub Category.ilike.%$query%')
+            .limit(50);
+
+        results.addAll(manufacturerResponse.map((json) {
+          final map = json;
+          map['is_designer_product'] = false;
+          map['is_manufacturer_product'] = true;
+          return JewelryItem.fromJson(map);
+        }));
+            } catch (e) {
+        debugPrint('Error searching manufacturerproducts: $e');
+      }
+
+      // 3. Sort combined results by relevance to match FTS scoring
+      // - Title matches first (1)
+      // - Product Type matches second (2)
+      // - Category matches third (3)
+      // - Others (4)
+      results.sort((a, b) {
+        int getRelevance(JewelryItem item) {
+          final title = item.productTitle.toLowerCase();
+          final type = (item.productType ?? '').toLowerCase();
+          final q = query.toLowerCase();
+          if (title.contains(q)) return 1;
+          if (type.contains(q)) return 2;
+          if ((item.category?.toLowerCase().contains(q) ?? false) ||
+              (item.category1?.toLowerCase().contains(q) ?? false) ||
+              (item.category2?.toLowerCase().contains(q) ?? false) ||
+              (item.category3?.toLowerCase().contains(q) ?? false)) {
+            return 3;
+          }
+          return 4;
+        }
+
+        final relA = getRelevance(a);
+        final relB = getRelevance(b);
+        if (relA != relB) {
+          return relA.compareTo(relB);
+        }
+        return a.productTitle.compareTo(b.productTitle);
+      });
+
+      return results.take(50).toList();
+    } catch (e) {
+      debugPrint('Error searching products: $e');
+      return [];
+    }
+  }
+
+  // --- NEW TRENDING METHOD ---
+  Future<List<JewelryItem>> getTrendingProducts({int limit = 20}) async {
+    try {
+      // Call the new SQL function created in step 1
+      final response = await _supabaseClient.rpc(
+        'get_trending_products_v2', // Name of the SQL function
+        params: {'limit_count': limit}, // Parameter for the function
+      );
+
+      if (response is List) {
+        // The RPC returns JSON, so we parse it directly
+        return response.map((json) {
+          final map = json as Map<String, dynamic>;
+          // Correctly set source flags based on the 'source' field returned by the RPC.
+          // IMPORTANT: Never blindly default to is_designer_product=true — that causes
+          // products from the 'products' table to be fetched from 'designerproducts',
+          // which returns the wrong product (different item with same numeric ID).
+          if (map['is_designer_product'] == null &&
+              map['is_manufacturer_product'] == null) {
+            final source = map['source']?.toString();
+            if (source == 'designerproducts') {
+              map['is_designer_product'] = true;
+              map['is_manufacturer_product'] = false;
+            } else if (source == 'manufacturerproducts') {
+              map['is_designer_product'] = false;
+              map['is_manufacturer_product'] = true;
+            } else {
+              // Source is 'products' or unknown — treat as a regular product
+              map['is_designer_product'] = false;
+              map['is_manufacturer_product'] = false;
+            }
+          }
+          return JewelryItem.fromJson(map);
+        }).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching trending products: $e');
+      return []; // Return empty list on error
+    }
+  }
+  // --- END NEW TRENDING METHOD ---
+
+  static Future<List<dynamic>> searchByImage(
+    Uint8List imageBytes, {
+    SupabaseClient? supabaseClient,
+  }) async {
+    // Upload to Supabase bucket if client is provided
+    if (supabaseClient != null) {
+      try {
+        // Get the authenticated user
+        final user = supabaseClient.auth.currentUser;
+        if (user != null) {
+          // Generate a unique filename with user ID
+          final userId = user.id;
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          final fileName = 'private/search_queries/$userId/$timestamp.jpg';
+
+          await supabaseClient.storage.from('search-images').uploadBinary(
+                fileName,
+                imageBytes,
+                fileOptions: const FileOptions(contentType: 'image/jpeg'),
+              );
+          debugPrint('Image saved to Supabase: $fileName');
+        } else {
+          debugPrint('User not authenticated, skipping image upload');
+        }
+      } catch (e) {
+        debugPrint('Error uploading image to Supabase: $e');
+        // Continue with search even if upload fails
+      }
+    }
+
+    // Proceed with image search
+    final uri = Uri.parse(_baseUrl);
+
+    final request = http.MultipartRequest('POST', uri);
+
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file', // MUST match FastAPI UploadFile param
+        imageBytes,
+        filename: 'query.jpg',
+        contentType: http.MediaType('image', 'jpeg'),
+      ),
+    );
+
+    final streamedResponse = await request.send();
+    final responseBody = await streamedResponse.stream.bytesToString();
+
+    if (streamedResponse.statusCode != 200) {
+      throw Exception(
+        "FastAPI error ${streamedResponse.statusCode}: $responseBody",
+      );
+    }
+
+    return jsonDecode(responseBody) as List<dynamic>;
+  }
+
+  Future<List<JewelryItem>> fetchSimilarItems({
+    required String currentItemId,
+    required bool isDesigner, // Need to know which table to query
+    bool isManufacturer = false,
+    String? metalType,
+    String? productType,
+    String? category,
+    String? subCategory,
+    // Full set of the viewed item's categories (from category_arr), used for
+    // array-overlap matching so a product with ANY shared category counts as
+    // "more like this" - not just an exact single-value AND chain.
+    List<String> categories = const [],
+    int limit = 10,
+  }) async {
+    // Check if at least ONE relevant field has a value (be more lenient)
+    if ((productType == null || productType.isEmpty) &&
+        (category == null || category.isEmpty) &&
+        (subCategory == null || subCategory.isEmpty) &&
+        categories.isEmpty) {
+      debugPrint(
+          'Similar items: All filter fields are empty, cannot find similar products');
+      return [];
+    }
+
+    try {
+      final normalizedMetalType = metalType?.toLowerCase().trim() ?? '';
+      final isInstantProduct = normalizedMetalType.startsWith('akd');
+
+      // Instant products should fetch "More Like This" using Product Type + Category.
+      // We intentionally avoid over-constraining with sub-category/category1/2/3 exact ANDs.
+      if (isInstantProduct) {
+        Future<List<dynamic>> fetchInstantFrom(String table) async {
+          dynamic query = _supabaseClient.from(table).select('''
+                id,
+                "Product Title",
+                "Images",
+                "Description",
+                "Product Type",
+                "Category",
+                "Sub Category",
+                "Metal Type",
+                "Metal Purity",
+                Plain,
+                Studded,
+                "Price",
+                "Metal Color"
+              ''').ilike('"Metal Type"', 'AKD%');
+
+          if (productType != null && productType.isNotEmpty) {
+            query = query.eq('"Product Type"', productType);
+          }
+
+          if (category != null && category.isNotEmpty) {
+            // "Category" is text[] post-Phase-3: match by array overlap with
+            // the single requested category.
+            query = query.overlaps('Category', [category.trim()]);
+          }
+
+          final currentIntId = int.tryParse(currentItemId);
+          if (currentIntId != null) {
+            query = query.neq('id', currentIntId);
+          } else {
+            query = query.neq('id', currentItemId);
+          }
+
+          return await query.limit(limit) as List<dynamic>;
+        }
+
+        final responses = await Future.wait<List<dynamic>>([
+          fetchInstantFrom('designerproducts'),
+          fetchInstantFrom('manufacturerproducts'),
+        ]);
+
+        final combined = <JewelryItem>[
+          ...responses[0].map((json) {
+            final map = json as Map<String, dynamic>;
+            map['is_designer_product'] = true;
+            map['is_manufacturer_product'] = false;
+            return JewelryItem.fromJson(map);
+          }),
+          ...responses[1].map((json) {
+            final map = json as Map<String, dynamic>;
+            map['is_designer_product'] = false;
+            map['is_manufacturer_product'] = true;
+            return JewelryItem.fromJson(map);
+          }),
+        ];
+
+        combined.shuffle();
+        return combined.take(limit).toList();
+      }
+
+      // Manufacturer products are not covered by the existing RPC, so query
+      // manufacturerproducts directly with the same filter intent.
+      if (isManufacturer) {
+        final int? currentIntId = int.tryParse(currentItemId);
+        dynamic manufacturerQuery =
+            _supabaseClient.from('manufacturerproducts').select('''
+              id,
+              "Product Title",
+              "Images",
+              "Description",
+              "Product Type",
+              "Category",
+              "Sub Category",
+              "Metal Type",
+              "Metal Purity",
+              Plain,
+              Studded,
+              "Price",
+              "Metal Color"
+            ''');
+
+        if (currentIntId != null) {
+          manufacturerQuery = manufacturerQuery.neq('id', currentIntId);
+        } else {
+          manufacturerQuery = manufacturerQuery.neq('id', currentItemId);
+        }
+
+        if (productType != null && productType.isNotEmpty) {
+          manufacturerQuery =
+              manufacturerQuery.eq('"Product Type"', productType);
+        }
+        if (subCategory != null && subCategory.isNotEmpty) {
+          manufacturerQuery =
+              manufacturerQuery.eq('"Sub Category"', subCategory);
+        }
+        if (categories.isNotEmpty) {
+          // Array-overlap match: any shared category counts. "Category" is a
+          // text[] (post-Phase-3 rename of category_arr), so use && overlap.
+          manufacturerQuery =
+              manufacturerQuery.overlaps('Category', categories);
+        } else if (category != null && category.isNotEmpty) {
+          // Single category → still an array column, so match by overlap
+          // with a one-element list rather than scalar equality.
+          manufacturerQuery = manufacturerQuery.overlaps('Category', [category]);
+        }
+
+        final response = await manufacturerQuery.limit(limit) as List<dynamic>;
+        debugPrint(
+            'Similar items loaded from manufacturerproducts: ${response.length} items found');
+
+        return response.map((json) {
+          final map = json as Map<String, dynamic>;
+          map['is_manufacturer_product'] = true;
+          return JewelryItem.fromJson(map);
+        }).toList();
+      }
+
+      final response = await _supabaseClient.rpc(
+        'get_similar_products',
+        params: {
+          'p_product_type': productType,
+          'p_category': category,
+          'p_sub_category': subCategory,
+          // Full category set for array-overlap matching (replaces the old
+          // p_category1/p_category2/p_category3 scalar-AND params, which were
+          // ineffective since Category1/2/3 are usually null on real rows).
+          'p_categories': categories,
+          'p_limit': limit,
+          'p_exclude_id': currentItemId,
+          'p_is_designer': isDesigner,
+        },
+      ) as List<dynamic>;
+
+      debugPrint('Similar items loaded: ${response.length} items found');
+
+      return response.map((json) {
+        final map = json as Map<String, dynamic>;
+        if (!map.containsKey('is_designer_product')) {
+          map['is_designer_product'] = isDesigner;
+        }
+        if (!map.containsKey('is_manufacturer_product')) {
+          map['is_manufacturer_product'] = false;
+        }
+        return JewelryItem.fromJson(map);
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching similar products via RPC: $e');
+      return [];
+    }
+  }
+
+  Future<JewelryItem?> getJewelryItem(String id,
+      {bool? isDesignerProduct, bool? isManufacturerProduct}) async {
+    try {
+      final intId = int.tryParse(id);
+
+      // If we know it's a designer product, query designerproducts table directly
+      if (isDesignerProduct == true) {
+        final designerResponse = await _supabaseClient
+            .from('designerproducts')
+            .select()
+            .eq('id', intId ?? id)
+            .maybeSingle();
+
+        if (designerResponse != null) {
+          designerResponse['is_designer_product'] = true;
+          return JewelryItem.fromJson(designerResponse);
+        }
+        debugPrint('Designer product with ID $id not found.');
+        return null;
+      }
+      if (isManufacturerProduct == true) {
+        final manufacturerResponse = await _supabaseClient
+            .from('manufacturerproducts')
+            .select()
+            .eq('id', intId ?? id)
+            .maybeSingle();
+
+        if (manufacturerResponse != null) {
+          manufacturerResponse['is_manufacturer_product'] = true;
+          return JewelryItem.fromJson(manufacturerResponse);
+        }
+        debugPrint('Manufacturer product with ID $id not found.');
+        return null;
+      }
+      // If we know it's NOT a designer product, query products table directly
+      if (isDesignerProduct == false &&
+          intId != null &&
+          isManufacturerProduct == false) {
+        final productResponse = await _supabaseClient
+            .from('products')
+            .select()
+            .eq('id', intId)
+            .maybeSingle();
+
+        if (productResponse != null) {
+          return JewelryItem.fromJson(productResponse);
+        }
+        debugPrint('Product with ID $id not found.');
+        return null;
+      }
+
+      // If product type is unknown, check both tables (for backward compatibility)
+      // Since both tables use integer IDs, we need to check both
+      if (intId != null) {
+        // Check products table first
+        final productResponse = await _supabaseClient
+            .from('products')
+            .select()
+            .eq('id', intId)
+            .maybeSingle();
+
+        if (productResponse != null) {
+          return JewelryItem.fromJson(productResponse);
+        }
+
+        // If not found in products, check designerproducts
+        final designerResponse = await _supabaseClient
+            .from('designerproducts')
+            .select()
+            .eq('id', intId)
+            .maybeSingle();
+
+        if (designerResponse != null) {
+          designerResponse['is_designer_product'] = true;
+          return JewelryItem.fromJson(designerResponse);
+        }
+
+        final manufacturerResponse = await _supabaseClient
+            .from('manufacturerproducts')
+            .select()
+            .eq('id', intId)
+            .maybeSingle();
+
+        if (manufacturerResponse != null) {
+          manufacturerResponse['is_manufacturer_product'] = true;
+          return JewelryItem.fromJson(manufacturerResponse);
+        }
+      } else {
+        // Non-integer ID, try designerproducts
+        final designerResponse = await _supabaseClient
+            .from('designerproducts')
+            .select()
+            .eq('id', id)
+            .maybeSingle();
+
+        if (designerResponse != null) {
+          designerResponse['is_designer_product'] = true;
+          return JewelryItem.fromJson(designerResponse);
+        }
+      }
+
+      debugPrint('JewelryItem with ID $id not found in either table.');
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching single product (ID: $id): $e');
+      return null;
+    }
+  }
+
+  // --- NEW METHOD ---
+
+  Future<List<String>> getInitialSearchIdeas({int limit = 15}) async {
+    try {
+      // The RPC 'get_initial_search_ideas' references a 'Theme' column that
+      // doesn't exist. Instead, fetch distinct Product Types as search ideas.
+      final futures = await Future.wait([
+        _supabaseClient
+            .from('products')
+            .select('"Product Type"')
+            .not('"Product Type"', 'is', null)
+            .limit(1000),
+        _supabaseClient
+            .from('designerproducts')
+            .select('"Product Type"')
+            .not('"Product Type"', 'is', null)
+            .limit(1000),
+        _supabaseClient
+            .from('manufacturerproducts')
+            .select('"Product Type"')
+            .not('"Product Type"', 'is', null)
+            .limit(1000),
+      ]);
+
+      final ideas = <String>{};
+      for (var res in futures) {
+        for (var row in res) {
+          final val = row['Product Type'] as String?;
+          if (val != null && val.trim().isNotEmpty) {
+            ideas.add(val.trim());
+          }
+        }
+      }
+      final sorted = ideas.toList()..sort();
+      return sorted.take(limit).toList();
+    } catch (e) {
+      debugPrint('Error fetching search ideas: $e');
+      // Return a fallback list on error
+      return ['Rings', 'Necklaces', 'Earrings', 'Gold', 'Diamond'];
+    }
+  }
+  // --- END NEW METHOD ---
+
+  Future<List<JewelryItem>> getMyDesignerProducts() async {
+    final user = _supabaseClient.auth.currentUser;
+
+    // Return empty list if no user is authenticated
+    if (user == null) return [];
+
+    try {
+      List<Map<String, dynamic>> items = [];
+      int offset = 0;
+      const int limit = 1000;
+      while (true) {
+        final response = await _supabaseClient
+            .from('designerproducts')
+            .select('''
+            *,
+            users (
+              business_name,
+              address,
+              country
+            )
+          ''')
+            .eq('user_id', user.id)
+            .order('created_at', ascending: false)
+            .range(offset, offset + limit - 1);
+            
+        final batch = response as List<dynamic>;
+        items.addAll(batch.cast<Map<String, dynamic>>());
+        if (batch.length < limit) break;
+        offset += limit;
+      }
+
+      final itemIds = items.map((item) => item['id'].toString()).toList();
+
+      // 3. Fetch engagement counts in parallel
+      final results = await Future.wait([
+        _fetchEventCounts('likes', 'designerproducts', itemIds),
+        // Saves live in `saves` (the old `saved_items` table doesn't exist).
+        _fetchEventCounts('saves', 'designerproducts', itemIds),
+        _fetchEventCounts('views', 'designerproducts', itemIds),
+        _fetchEventCounts('shares', 'designerproducts', itemIds),
+      ]);
+
+      final likesMap = results[0];
+      final savesMap = results[1];
+      final creditsMap = results[2];
+      final shareMap = results[3];
+      final geoMap = await getGeoAnalytics(itemIds);
+
+      // 4. Merge engagement data with item
+      final approvedItems = items.map((item) {
+        final itemId = item['id'].toString();
+
+
+        final enriched = {
+          ...item,
+          'is_designer_product': true,
+          'likes': likesMap[itemId] ?? 0,
+          'saves': savesMap[itemId] ?? 0,
+          'credits': creditsMap[itemId] ?? 0,
+          'share': shareMap[itemId] ?? 0,
+          'geoAnalytics':
+              geoMap[itemId] ?? [], // Now correctly passing the list of maps
+        };
+
+        return JewelryItem.fromJson(enriched);
+      }).toList();
+
+      final pendingItems =
+          await _fetchPendingAssets(user.id, 'designerproducts');
+      return [...pendingItems, ...approvedItems];
+    } catch (e) {
+      debugPrint("Error fetching user designer products: $e");
+      return [];
+    }
+  }
+
+  Future<List<JewelryItem>> getMyManufacturerProducts() async {
+    final user = _supabaseClient.auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      // 1. Fetch base products
+      List<Map<String, dynamic>> items = [];
+      int offset = 0;
+      const int limit = 1000;
+      while (true) {
+        final response = await _supabaseClient
+            .from('manufacturerproducts')
+            .select('''
+            *,
+            users (
+              business_name,
+              address,
+              country
+            )
+          ''')
+            .eq('user_id', user.id)
+            .order('created_at', ascending: false)
+            .range(offset, offset + limit - 1);
+            
+        final batch = response as List<dynamic>;
+        items.addAll(batch.cast<Map<String, dynamic>>());
+        if (batch.length < limit) break;
+        offset += limit;
+      }
+      final pendingItems =
+          await _fetchPendingAssets(user.id, 'manufacturerproducts');
+
+      if (items.isEmpty) return pendingItems;
+
+      final itemIds = items.map((item) => item['id'].toString()).toList();
+
+      // 2. Fetch engagement counts and geo-analytics in parallel
+      // We add getGeoAnalytics(itemIds) to the Future.wait list
+      final results = await Future.wait([
+        _fetchEventCounts('likes', 'manufacturerproducts', itemIds),
+        // Saves live in `saves` (the old `saved_items` table doesn't exist).
+        _fetchEventCounts('saves', 'manufacturerproducts', itemIds),
+        _fetchEventCounts('views', 'manufacturerproducts', itemIds),
+        _fetchEventCounts('shares', 'manufacturerproducts', itemIds),
+      ]);
+
+      final likesMap = results[0];
+      final savesMap = results[1];
+      final viewsMap = results[2];
+      final shareMap = results[3];
+      final geoMap = await getGeoAnalytics(itemIds);
+
+      // 3. Merge EVERYTHING into the enriched map
+      final approvedItems = items.map((item) {
+        final itemId = item['id'].toString();
+
+        final enriched = {
+          ...item,
+          'is_manufacturer_product': true,
+          'likes': likesMap[itemId] ?? 0,
+          'saves': savesMap[itemId] ?? 0,
+          'credits': viewsMap[itemId] ?? 0,
+          'share': shareMap[itemId] ?? 0,
+          'geoAnalytics':
+              geoMap[itemId] ?? [], // Now correctly passing the list of maps
+        };
+
+        return JewelryItem.fromJson(enriched);
+      }).toList();
+
+      return [...pendingItems, ...approvedItems];
+    } catch (e) {
+      debugPrint("Error fetching user manufacturer products: $e");
+      return [];
+    }
+  }
+
+  /// Per-product counts of [eventTable] rows (views / likes / saves /
+  /// shares) for [itemIds] in [productTable]. Events record the numeric id as
+  /// text plus the owning table, so both are matched - an id alone could
+  /// collide with a product of the same number in another table.
+  Future<Map<String, int>> _fetchEventCounts(
+      String eventTable, String productTable, List<String> itemIds) async {
+    try {
+      final Map<String, int> counts = {};
+      const int chunkSize = 200;
+      for (int i = 0; i < itemIds.length; i += chunkSize) {
+        final end =
+            (i + chunkSize < itemIds.length) ? i + chunkSize : itemIds.length;
+        final response = await _supabaseClient
+            .from(eventTable)
+            .select('item_id')
+            .eq('item_table', productTable)
+            .inFilter('item_id', itemIds.sublist(i, end));
+        for (final row in response as List) {
+          final itemId = '${row['item_id']}';
+          counts[itemId] = (counts[itemId] ?? 0) + 1;
+        }
+      }
+      return counts;
+    } catch (e) {
+      debugPrint("Error fetching $eventTable counts: $e");
+      return {};
+    }
+  }
+
+  /// Call this only when you need the deep-dive analytics for specific items.
+  Future<Map<String, List<Map<String, dynamic>>>> getGeoAnalytics(
+      List<String> itemIds) async {
+    if (itemIds.isEmpty) return {};
+
+    try {
+      final response = await _supabaseClient
+          .rpc('get_geo_analytics_batch', params: {'item_ids': itemIds});
+      final Map<String, List<Map<String, dynamic>>> resultMap = {};
+
+      for (var row in (response as List)) {
+        final String itemId = row['result_item_id'].toString();
+        final List<dynamic> geoData = row['location_json'] as List<dynamic>;
+
+        resultMap[itemId] =
+            geoData.map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+      return resultMap;
+    } catch (e) {
+      debugPrint('Geo Analytics Service Error: $e');
+      return {};
+    }
+  }
+
+  Future<void> logView({
+    String? pinId,
+    int? productId,
+    String? itemId,
+    String? itemTable,
+    String? countryCode,
+  }) async {
+    try {
+      final userId = _supabaseClient.auth.currentUser?.id;
+      if (userId == null) return; // Don't log views for guests
+
+      await _supabaseClient.from('views').insert({
+        'user_id': userId,
+        'pin_id': pinId,
+        'product_id': productId,
+        'item_id': itemId ?? (productId?.toString() ?? pinId),
+        'item_table': itemTable ?? (pinId != null ? 'pins' : 'products'),
+        'country': countryCode,
+      });
+    } catch (e) {
+      debugPrint('Error logging view: $e');
+    }
+  }
+
+  /// Adds a like for a pin or a product
+  Future<void> addLike({
+    String? pinId,
+    int? productId,
+    String? itemId,
+    String? itemTable,
+  }) async {
+    try {
+      final userId = _supabaseClient.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('User must be logged in to like an item');
+      }
+
+      await _supabaseClient.from('likes').insert({
+        'user_id': userId,
+        'pin_id': pinId,
+        'product_id': productId,
+        'item_id': itemId ?? (productId?.toString() ?? pinId),
+        'item_table': itemTable ?? (pinId != null ? 'pins' : 'products'),
+      });
+
+      try {
+        if (productId != null) {
+          String? ownerId;
+          String itemTitle = 'A product';
+
+          final tables = [
+            'designerproducts',
+            'manufacturerproducts',
+            'products'
+          ];
+          for (final table in tables) {
+            try {
+              final response = await _supabaseClient
+                  .from(table)
+                  .select('user_id, "Product Title"')
+                  .eq('id', productId)
+                  .maybeSingle();
+              if (response != null) {
+                ownerId = response['user_id'];
+                itemTitle = response['Product Title'] ?? itemTitle;
+                break;
+              }
+            } catch (_) {}
+          }
+          if (ownerId == null) {
+            for (final table in tables) {
+              try {
+                final response = await _supabaseClient
+                    .from(table)
+                    .select('user_id, title')
+                    .eq('id', productId)
+                    .maybeSingle();
+                if (response != null) {
+                  ownerId = response['user_id'];
+                  itemTitle = response['title'] ?? itemTitle;
+                  break;
+                }
+              } catch (_) {}
+            }
+          }
+
+          if (ownerId != null && ownerId != userId) {
+            await _supabaseClient.from('notifications').insert({
+              'user_id': ownerId,
+              'type': 'engagement',
+              'title': 'New Like',
+              'body': 'Someone liked your product "$itemTitle".',
+              'related_item_id': productId.toString(),
+            });
+          }
+        } else if (pinId != null) {
+          final response = await _supabaseClient
+              .from('pins')
+              .select('owner_id, title')
+              .eq('id', pinId)
+              .maybeSingle();
+          if (response != null) {
+            final ownerId = response['owner_id'];
+            final itemTitle = response['title'] ?? 'A pin';
+            if (ownerId != null && ownerId != userId) {
+              await _supabaseClient.from('notifications').insert({
+                'user_id': ownerId,
+                'type': 'engagement',
+                'title': 'New Like',
+                'body': 'Someone liked your pin "$itemTitle".',
+                'related_item_id': pinId,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error inserting like notification: $e');
+      }
+    } catch (e) {
+      debugPrint('Error adding like: $e');
+      rethrow; // Re-throw to let the UI handle the error
+    }
+  }
+
+  /// Removes a like based on the pin or product ID
+  Future<void> removeLike({
+    String? pinId,
+    int? productId,
+    String? itemId,
+    String? itemTable,
+  }) async {
+    try {
+      final userId = _supabaseClient.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('User must be logged in to unlike an item');
+      }
+
+      final query =
+          _supabaseClient.from('likes').delete().eq('user_id', userId);
+
+      if (itemId != null && itemTable != null) {
+        query.match({'item_id': itemId, 'item_table': itemTable});
+      } else if (pinId != null) {
+        query.eq('pin_id', pinId);
+      } else if (productId != null) {
+        query.eq('product_id', productId);
+      } else {
+        throw Exception('Must provide a pinId, productId, or itemId/itemTable');
+      }
+
+      await query;
+    } catch (e) {
+      debugPrint('Error removing like: $e');
+      rethrow;
+    }
+  }
+
+  Future<int> getProductLikeCount(int productId) async {
+    try {
+      final response = await _supabaseClient.rpc(
+        'get_product_like_count',
+        params: {'p_product_id': productId},
+      );
+
+      return response as int;
+    } catch (e) {
+      debugPrint('Error getting like count: $e');
+      return 0;
+    }
+  }
+
+  Future<bool> checkIfLiked({String? pinId, int? productId}) async {
+    try {
+      final userId = _supabaseClient.auth.currentUser?.id;
+      if (userId == null) return false;
+
+      // Start the query builder
+      var queryBuilder =
+          _supabaseClient.from('likes').select('id').eq('user_id', userId);
+      if (pinId != null) {
+        queryBuilder = queryBuilder.eq('pin_id', pinId);
+      } else if (productId != null) {
+        queryBuilder = queryBuilder.eq('product_id', productId);
+      } else {
+        return false;
+      }
+
+      final response = await queryBuilder.limit(1);
+      return (response as List).isNotEmpty;
+    } catch (e) {
+      debugPrint('Error checking if liked: $e');
+      return false;
+    }
+  }
+
+  // Future<List<JewelryItem>> findSimilarProductsByImage(
+  //     Uint8List imageBytes) async {
+  //   try {
+  //     final response = await _supabaseClient.functions.invoke(
+  //       'find-similar-products', // The name of your edge function
+  //       body: imageBytes,
+  //     );
+
+  //     if (response.data is List) {
+  //       final dataList = response.data as List;
+  //       return dataList.map((json) {
+  //         // This works because your SQL returns a boolean
+  //         final bool isDesigner = json['is_designer_product'] ?? false;
+
+  //         // This works because your SQL returns "Product Title", "Image", etc.
+  //         return JewelryItem.fromJson(
+  //           json as Map<String, dynamic>,
+  //         );
+  //       }).toList();
+  //     }
+  //     return [];
+  //   } catch (e) {
+  //     debugPrint('Error calling findSimilarProductsByImage: $e');
+  //     // throw Exception('Could not find similar items: $e');
+  //     return [];
+  //   }
+  // }
+
+  // --- FILTER OPTIONS METHODS ---
+
+
+  /// Distinct filter options for the B2B screens, scoped to ONE table and to
+  /// the currently-signed-in user's own products (`user_id = current user`),
+  /// so a manufacturer/designer only ever filters within their own catalog.
+  ///
+  /// [table] is 'manufacturerproducts' or 'designerproducts'. "Category" is a
+  /// text[] (the Phase-3-renamed unified category array).
+  Future<Map<String, List<String>>> getB2BFilterOptions(String table) async {
+    final empty = {
+      'productTypes': <String>[],
+      'categories': <String>[],
+      'metalTypes': <String>[],
+    };
+    try {
+      final user = _supabaseClient.auth.currentUser;
+      if (user == null) return empty;
+
+      final rows = await _supabaseClient
+          .from(table)
+          .select('"Product Type","Metal Type","Category"')
+          .eq('user_id', user.id);
+
+      final productTypes = <String>{};
+      final categories = <String>{};
+      final metalTypes = <String>{};
+
+      void addArray(Set<String> into, dynamic arr) {
+        if (arr is List) {
+          for (final v in arr) {
+            final s = v?.toString().trim();
+            if (s != null && s.isNotEmpty) into.add(s);
+          }
+        }
+      }
+
+      for (final item in (rows as List)) {
+        final pt = item['Product Type']?.toString().trim();
+        if (pt != null && pt.isNotEmpty) productTypes.add(pt);
+        final mt = item['Metal Type']?.toString().trim();
+        if (mt != null && mt.isNotEmpty) metalTypes.add(mt);
+        addArray(categories, item['Category']);
+      }
+
+      return {
+        'productTypes': productTypes.toList()..sort(),
+        'categories': categories.toList()..sort(),
+        'metalTypes': metalTypes.toList()..sort(),
+      };
+    } catch (e) {
+      debugPrint('Error fetching B2B filter options for $table: $e');
+      return empty;
+    }
+  }
+
+  /// Deletes a product, its images from storage, and all related analytics/engagement rows
+  Future<bool> deleteProduct(JewelryItem item) async {
+    try {
+      final user = _supabaseClient.auth.currentUser;
+      if (user == null) return false;
+
+      // Determine table
+      String table = item.isDesignerProduct
+          ? 'designerproducts'
+          : (item.isManufacturerProduct ? 'manufacturerproducts' : 'products');
+
+      // Double check ownership before deleting
+      final response = await _supabaseClient
+          .from(table)
+          .select('user_id')
+          .eq('id', item.id)
+          .maybeSingle();
+
+      if (response == null || response['user_id'] != user.id) {
+        debugPrint("Not authorized to delete or product not found");
+        return false;
+      }
+
+      // 1. Delete images from storage if they exist in 'designer-files' bucket
+      List<String> storagePaths = [];
+      final List<String> urlsToDelete =
+          (item.images != null && item.images!.isNotEmpty)
+              ? item.images!
+              : (item.image.isNotEmpty ? [item.image] : []);
+
+      for (var url in urlsToDelete) {
+        if (url.contains('/storage/v1/object/public/designer-files/')) {
+          final uri = Uri.parse(url);
+          final pathSegments = uri.pathSegments;
+          final bucketIndex = pathSegments.indexOf('designer-files');
+          if (bucketIndex != -1 && bucketIndex + 1 < pathSegments.length) {
+            final path = pathSegments.sublist(bucketIndex + 1).join('/');
+            storagePaths.add(Uri.decodeComponent(path));
+          }
+        }
+      }
+
+      if (storagePaths.isNotEmpty) {
+        try {
+          await _supabaseClient.storage
+              .from('designer-files')
+              .remove(storagePaths);
+        } catch (e) {
+          debugPrint("Failed to delete images: $e");
+        }
+      }
+
+      // 2. Delete child records to satisfy constraints (likes, views, shares, quotes, quote_requests, notifications)
+      try {
+        await _supabaseClient
+            .from('likes')
+            .delete()
+            .eq('item_id', item.id.toString())
+            .eq('item_table', table);
+        await _supabaseClient
+            .from('views')
+            .delete()
+            .eq('item_id', item.id.toString())
+            .eq('item_table', table);
+        await _supabaseClient
+            .from('shares')
+            .delete()
+            .eq('item_id', item.id.toString())
+            .eq('item_table', table);
+
+        // It's possible product_id is an integer in quote_requests and quotes
+        await _supabaseClient
+            .from('quote_requests')
+            .delete()
+            .eq('product_id', item.id);
+        await _supabaseClient
+            .from('quotes')
+            .delete()
+            .eq('product_id', item.id.toString());
+        await _supabaseClient
+            .from('notifications')
+            .delete()
+            .eq('related_item_id', item.id.toString());
+      } catch (e) {
+        debugPrint('Error deleting dependent records: $e');
+      }
+
+      // 3. Delete the actual product
+      await _supabaseClient.from(table).delete().eq('id', item.id);
+      return true;
+    } catch (e) {
+      debugPrint('Error deleting product: $e');
+      return false;
+    }
+  }
+
+  // --- HELPER METHOD TO FETCH PENDING ASSETS ---
+  Future<List<JewelryItem>> _fetchPendingAssets(
+      String userId, String source) async {
+    try {
+      final response = await _supabaseClient
+          .from('assets')
+          .select(
+              'id, title, media_url, description, category, status, attributes, created_at')
+          .eq('owner_id', userId)
+          .eq('source', source)
+          .neq('status', 'approved')
+          .order('created_at', ascending: false);
+
+      final assets = response;
+      return assets.map((asset) {
+        final attrs = asset['attributes'] as Map<String, dynamic>? ?? {};
+
+        final enriched = {
+          'id': asset['id'],
+          'Product Title': asset['title'] ?? attrs['Product Title'],
+          'Image': asset['media_url'] ?? attrs['Image'],
+          'description': asset['description'] ??
+              attrs['Description'] ??
+              attrs['description'],
+          'Category':
+              asset['category'] ?? attrs['Category'] ?? attrs['category'],
+          'status': asset['status'],
+          'created_at': asset['created_at'],
+          'is_designer_product': source == 'designerproducts',
+          'is_manufacturer_product': source == 'manufacturerproducts',
+          ...attrs,
+        };
+
+        return JewelryItem.fromJson(enriched);
+      }).toList();
+    } catch (e) {
+      debugPrint("Error fetching pending assets: $e");
+      return [];
+    }
+  }
+}

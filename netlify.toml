@@ -1,4 +1,7 @@
   [build]
+  # The Flutter app lives in frontend/; the command and publish dir below are
+  # relative to it.
+  base = "frontend"
   command = """
     rm -rf flutter &&
     git clone --depth 1 -b stable https://github.com/flutter/flutter.git &&

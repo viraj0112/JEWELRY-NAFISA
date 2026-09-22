@@ -1,0 +1,1337 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:universal_html/html.dart' as html;
+import 'package:csv/csv.dart';
+import '../../utils/product_image_matcher.dart';
+
+class ProductEntry {
+  final int id;
+  List<XFile> imageFiles = [];
+  final TextEditingController productTitleController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
+  final TextEditingController priceController = TextEditingController();
+  final TextEditingController productTagsController = TextEditingController();
+  final TextEditingController goldWeightController = TextEditingController();
+  final TextEditingController metalPurityController = TextEditingController();
+  final TextEditingController metalFinishController = TextEditingController();
+  final TextEditingController stoneWeightController = TextEditingController();
+  final TextEditingController stoneTypeController = TextEditingController();
+  String? stoneUsed;
+  final TextEditingController stoneSettingController = TextEditingController();
+  final TextEditingController stoneCountController = TextEditingController();
+  final TextEditingController collectionNameController =
+      TextEditingController();
+  final TextEditingController productTypeController = TextEditingController();
+  String? gender;
+  final TextEditingController metalTypeController = TextEditingController();
+  final TextEditingController metalColorController = TextEditingController();
+  final TextEditingController netWeightController = TextEditingController();
+  final TextEditingController stoneColorController = TextEditingController();
+  final TextEditingController stoneCutController = TextEditingController();
+  final TextEditingController dimensionController = TextEditingController();
+  String? designType;
+  String? jewelryType;
+  final TextEditingController artFormController = TextEditingController();
+  final TextEditingController platingController = TextEditingController();
+  final TextEditingController enamelWorkController = TextEditingController();
+  String? customizable;
+
+  ProductEntry({required this.id});
+
+  void dispose() {
+    productTitleController.dispose();
+    descriptionController.dispose();
+    priceController.dispose();
+    productTagsController.dispose();
+    goldWeightController.dispose();
+    metalPurityController.dispose();
+    metalFinishController.dispose();
+    stoneWeightController.dispose();
+    stoneTypeController.dispose();
+    stoneSettingController.dispose();
+    stoneCountController.dispose();
+    collectionNameController.dispose();
+    productTypeController.dispose();
+    metalTypeController.dispose();
+    metalColorController.dispose();
+    netWeightController.dispose();
+    stoneColorController.dispose();
+    stoneCutController.dispose();
+    dimensionController.dispose();
+    artFormController.dispose();
+    platingController.dispose();
+    enamelWorkController.dispose();
+  }
+}
+
+class B2BProductUploadScreen extends StatefulWidget {
+  const B2BProductUploadScreen({super.key});
+
+  @override
+  State<B2BProductUploadScreen> createState() => _B2BProductUploadScreenState();
+}
+
+class _B2BProductUploadScreenState extends State<B2BProductUploadScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        appBar: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: "Manual Upload"),
+            Tab(text: "Bulk Upload"),
+          ],
+        ),
+        body: TabBarView(
+          controller: _tabController,
+          children: const [
+            ManualUploadTab(),
+            BulkUploadTab(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ManualUploadTab extends StatefulWidget {
+  const ManualUploadTab({super.key});
+
+  @override
+  State<ManualUploadTab> createState() => _ManualUploadTabState();
+}
+
+class _ManualUploadTabState extends State<ManualUploadTab> {
+  final _formKey = GlobalKey<FormState>();
+  List<ProductEntry> _productEntries = [ProductEntry(id: 1)];
+  bool _isLoading = false;
+
+  void _addProductEntry() {
+    setState(() {
+      _productEntries
+          .add(ProductEntry(id: DateTime.now().millisecondsSinceEpoch));
+    });
+  }
+
+  void _removeProductEntry(int id) {
+    setState(() {
+      final entry = _productEntries.firstWhere((e) => e.id == id);
+      entry.dispose();
+      _productEntries.removeWhere((e) => e.id == id);
+    });
+  }
+
+  @override
+  void dispose() {
+    for (var entry in _productEntries) {
+      entry.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _pickImage(ProductEntry entry) async {
+    final picker = ImagePicker();
+    final List<XFile> pickedFiles = await picker.pickMultiImage();
+
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        entry.imageFiles.addAll(pickedFiles);
+      });
+    }
+  }
+
+  String? _normalizeMetalType(String? value) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty) return null;
+    return text.replaceFirst(RegExp(r'^AKD-'), '');
+  }
+
+  void _removeImage(ProductEntry entry) {
+    setState(() {
+      entry.imageFiles.clear();
+    });
+  }
+
+  Future<void> _submitAllForApproval() async {
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text("Please fill all required fields before submitting.")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    final supabase = Supabase.instance.client;
+
+    try {
+      int successCount = 0;
+
+      for (final entry in _productEntries) {
+        if (entry.imageFiles.isEmpty) continue;
+
+        List<String> uploadedImageUrls = [];
+
+        // Upload ALL images to designer-files bucket
+        for (final imageFile in entry.imageFiles) {
+          final fileBytes = await imageFile.readAsBytes();
+          final fileName =
+              '${DateTime.now().millisecondsSinceEpoch}-${imageFile.name}';
+          await supabase.storage
+              .from('designer-files')
+              .uploadBinary(fileName, fileBytes);
+          final imageUrl =
+              supabase.storage.from('designer-files').getPublicUrl(fileName);
+          uploadedImageUrls.add(imageUrl);
+        }
+
+        // assets.media_url is NOT NULL: skip any entry whose images all failed
+        // to upload, rather than hitting the DB constraint.
+        if (uploadedImageUrls.isEmpty) continue;
+
+        // Helper functions for array fields
+        List<String>? textToList(TextEditingController controller) {
+          final text = controller.text.trim();
+          return text.isEmpty ? null : [text];
+        }
+
+        List<String>? tagsToList(TextEditingController controller) {
+          final text = controller.text.trim();
+          return text.isEmpty
+              ? null
+              : text
+                  .split(',')
+                  .map((t) => t.trim())
+                  .where((t) => t.isNotEmpty)
+                  .toList();
+        }
+
+        String? getTextValue(TextEditingController controller) {
+          final text = controller.text.trim();
+          return text.isEmpty ? null : text;
+        }
+
+        // Dropped in Phase 3 (confirmed unused): Gold Weight, Collection Name,
+        // Net Weight, Design Type, Art Form - no longer captured.
+        final Map<String, dynamic> attributes = {
+          'Price': getTextValue(entry.priceController),
+          'Metal Purity': getTextValue(entry.metalPurityController),
+          'Metal Finish': getTextValue(entry.metalFinishController),
+          'Metal Weight': getTextValue(entry.goldWeightController),
+          'Stone Weight': textToList(entry.stoneWeightController),
+          'Stone Type': textToList(entry.stoneTypeController),
+          'Stone Used': entry.stoneUsed == null ? null : [entry.stoneUsed],
+          'Stone Setting': textToList(entry.stoneSettingController),
+          'Stone Count': textToList(entry.stoneCountController),
+          'Gender': entry.gender,
+          'Metal Type':
+              _normalizeMetalType(getTextValue(entry.metalTypeController)),
+          'Metal Color': getTextValue(entry.metalColorController),
+          'Stone Color': textToList(entry.stoneColorController),
+          'Stone Cut': textToList(entry.stoneCutController),
+          'Dimension': getTextValue(entry.dimensionController),
+          'Jewelry Type': entry.jewelryType,
+          'Plating': getTextValue(entry.platingController),
+          'Enamel Work': textToList(entry.enamelWorkController),
+          'Customizable':
+              entry.customizable == null ? null : [entry.customizable],
+        };
+
+        // Remove nulls to keep JSON clean
+        attributes.removeWhere((key, value) => value == null);
+
+        // Insert directly into designerproducts table with proper column names
+        // Products go to designerproducts but with an initial status to require moderation
+        // Note: For full moderation flow as intended by the new admin panel,
+        // this should ideally go to 'assets' table first, but keeping the current schema
+        // with an added 'status' field for moderation if it exists, or just adding to
+        // assets for moderation queue
+        final userId = supabase.auth.currentUser?.id;
+        final insertResult = await supabase.from('assets').insert({
+          'title': entry.productTitleController.text.trim(),
+          'description': getTextValue(entry.descriptionController),
+          'media_url': uploadedImageUrls.first,
+          'thumb_url': uploadedImageUrls.first,
+          'category': getTextValue(entry.productTypeController),
+          'owner_id': userId,
+          'status': 'pending', // This ensures it shows up in moderation
+          'source':
+              'designerproducts', // Track where it should ultimately end up
+          'tags': tagsToList(entry.productTagsController),
+          'attributes': attributes,
+        }).select();
+
+        if (insertResult.isEmpty) {
+          throw Exception(
+              'Insert was rejected for "${entry.productTitleController.text}". Please check your permissions.');
+        }
+
+        try {
+          final userId = supabase.auth.currentUser?.id;
+          if (userId != null) {
+            await supabase.from('notifications').insert({
+              'user_id': userId,
+              'type': 'milestone',
+              'title': 'Product Uploaded',
+              'body':
+                  'Your product "${entry.productTitleController.text}" was successfully uploaded.',
+              'related_item_id': insertResult.first['id'].toString(),
+            });
+          }
+        } catch (e) {
+          debugPrint('Notification error: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text('Failed to create notification: $e'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 8)));
+          }
+        }
+
+        successCount++;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text("$successCount product(s) uploaded successfully!"),
+              backgroundColor: Colors.green),
+        );
+        setState(() {
+          for (var entry in _productEntries) {
+            entry.dispose();
+          }
+          _productEntries = [ProductEntry(id: 1)];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(24.0),
+              itemCount: _productEntries.length,
+              itemBuilder: (context, index) {
+                final entry = _productEntries[index];
+                return ProductFormCard(
+                  key: ValueKey(entry.id),
+                  entry: entry,
+                  onRemove: () => _removeProductEntry(entry.id),
+                  onPickImage: () => _pickImage(entry),
+                  onRemoveImage: () => _removeImage(entry),
+                  isFirst: index == 0,
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _addProductEntry,
+                  icon: const Icon(Icons.add),
+                  label: const Text("Add Another Product"),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _submitAllForApproval,
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : const Text("Submit All for Review"),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class BulkUploadTab extends StatefulWidget {
+  const BulkUploadTab({super.key});
+
+  @override
+  State<BulkUploadTab> createState() => _BulkUploadTabState();
+}
+
+class _BulkUploadTabState extends State<BulkUploadTab> {
+  List<PlatformFile>? _csvFiles;
+  List<PlatformFile>? _imageFiles;
+  bool _isLoading = false;
+
+  void _downloadSampleCsv() {
+    // Headers matching the designerproducts table schema
+    // Note: 'Image' column is not needed in CSV - images are matched by file name
+    // Unified schema (Phase 3): dropped Gold Weight, Collection Name,
+    // Net Weight, Design Type, Art Form, Category1/2/3.
+    final List<String> headers = [
+      'Product Title',
+      'Description',
+      'Price',
+      'Product Tags',
+      'Metal Weight',
+      'Metal Purity',
+      'Metal Finish',
+      'Stone Weight',
+      'Stone Type',
+      'Stone Used',
+      'Stone Setting',
+      'Stone Count',
+      'Stone Color',
+      'Stone Cut',
+      'Stone Purity',
+      'Stone Quality',
+      'Product Type',
+      'Gender',
+      'Metal Type',
+      'Metal Color',
+      'Dimension',
+      'Plating',
+      'Enamel Work',
+      'Customizable',
+      'Category',
+      'Sub Category',
+      'Plain',
+      'Studded',
+    ];
+
+    final String csvContent = const ListToCsvConverter().convert([headers]);
+
+    final blob = html.Blob([csvContent], 'text/csv');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+
+    html.AnchorElement(href: url)
+      ..setAttribute("download", "sample_products.csv")
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
+
+  Future<void> _pickCsv() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+    );
+    if (result != null) {
+      setState(() {
+        _csvFiles = result.files;
+      });
+    }
+  }
+
+  Future<void> _pickImages() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: true,
+    );
+    if (result != null) {
+      setState(() {
+        _imageFiles = result.files;
+      });
+    }
+  }
+
+  Future<void> _submitBulkUpload() async {
+    if (_csvFiles == null || _imageFiles == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select a CSV file and images.")),
+      );
+      return;
+    }
+
+    // Headers that should be stored as arrays in designerproducts table
+    const arrayHeaders = {
+      'Product Tags',
+      'Stone Weight',
+      'Stone Type',
+      'Stone Used',
+      'Stone Setting',
+      'Stone Count',
+      'Stone Color',
+      'Stone Cut',
+      'Stone Purity',
+      'Stone Quality',
+      'Enamel Work',
+      'Customizable',
+      'Studded',
+    };
+
+    setState(() => _isLoading = true);
+    final supabase = Supabase.instance.client;
+
+    try {
+      final input = utf8.decode(_csvFiles!.first.bytes!);
+      final fields = const CsvToListConverter().convert(input);
+      final headers = fields[0].map((e) => e.toString().trim()).toList();
+
+      int successCount = 0;
+      int failCount = 0;
+
+      for (int i = 1; i < fields.length; i++) {
+        final row = fields[i];
+        final titleIndex = headers.indexOf('Product Title');
+        if (titleIndex == -1 || titleIndex >= row.length) {
+          debugPrint("Row $i: Missing Product Title");
+          failCount++;
+          continue;
+        }
+
+        final title = row[titleIndex].toString().trim();
+        if (title.isEmpty) {
+          debugPrint("Row $i: Empty Product Title");
+          failCount++;
+          continue;
+        }
+
+        // Find ALL matching image files using pattern: {Product Title}-Image*
+        // This matches files like "Gold Ring-Image1.jpg", "Gold Ring-Image2.png",
+        // in natural order (Image2 before Image10).
+        final matchingImageFiles =
+            matchingImagesForTitle(_imageFiles!, title, (file) => file.name);
+
+        List<String> uploadedImageUrls = [];
+
+        // Upload all matching images to designer-files bucket
+        for (final imageFile in matchingImageFiles) {
+          try {
+            final fileName =
+                '${DateTime.now().millisecondsSinceEpoch}-${imageFile.name}';
+            await supabase.storage
+                .from('designer-files')
+                .uploadBinary(fileName, imageFile.bytes!);
+            final imageUrl =
+                supabase.storage.from('designer-files').getPublicUrl(fileName);
+            uploadedImageUrls.add(imageUrl);
+          } catch (e) {
+            debugPrint("Failed to upload image ${imageFile.name}: $e");
+          }
+        }
+
+        if (uploadedImageUrls.isEmpty) {
+          debugPrint("No images uploaded for product: $title");
+          // Continue without images - some products might not have images
+        }
+
+        // Helper function to convert comma-separated values to array
+        List<String>? parseArrayValue(dynamic value) {
+          if (value == null) return null;
+          if (value is String) {
+            if (value.isEmpty) return null;
+            return value
+                .split(',')
+                .map((t) => t.trim())
+                .where((t) => t.isNotEmpty)
+                .toList();
+          }
+          return [value.toString()];
+        }
+
+        // Helper function to get string value
+        String? getStringValue(dynamic value) {
+          if (value == null) return null;
+          final str = value.toString().trim();
+          return str.isEmpty ? null : str;
+        }
+
+        // Build the product data matching designerproducts table schema
+        final Map<String, dynamic> attributes = {};
+
+        // Map CSV columns to designerproducts columns
+        for (int j = 0; j < headers.length; j++) {
+          if (j >= row.length) continue;
+
+          final header = headers[j];
+          final value = row[j];
+
+          // Skip Product Title and Image - already handled
+          if (header == 'Product Title' || header == 'Image') continue;
+
+          if (arrayHeaders.contains(header)) {
+            attributes[header] = parseArrayValue(value);
+          } else {
+            attributes[header] = getStringValue(value);
+          }
+        }
+
+        attributes.removeWhere((key, value) => value == null);
+
+        try {
+          // Add standard required fields for bulk
+          final Map<String, dynamic> assetData = {
+            'title': title,
+            'owner_id': supabase.auth.currentUser?.id,
+            'status': 'pending',
+            'source': 'designerproducts',
+            'attributes': attributes,
+          };
+
+          if (attributes.containsKey('Description')) {
+            assetData['description'] = attributes['Description'];
+          }
+          // Support alternate namings for Product Type
+          final prodType = attributes['Product Type'] ??
+              attributes['Jewelry Type'] ??
+              attributes['Jewellery Type'] ??
+              attributes['category'];
+          if (prodType != null) {
+            assetData['category'] = prodType;
+            attributes['Product Type'] = prodType; // Normalize
+          }
+          if (attributes.containsKey('Product Tags')) {
+            assetData['tags'] = attributes['Product Tags'];
+          }
+
+          // assets.media_url is NOT NULL - skip rows with no image.
+          if (uploadedImageUrls.isEmpty) continue;
+          assetData['media_url'] = uploadedImageUrls.first;
+          assetData['thumb_url'] = uploadedImageUrls.first;
+          attributes['Images'] = uploadedImageUrls;
+
+          // Insert directly into assets table for moderation
+          final insertResult =
+              await supabase.from('assets').insert(assetData).select();
+
+          if (insertResult.isNotEmpty) {
+            successCount++;
+            debugPrint("Successfully inserted product: $title");
+
+            try {
+              final userId = supabase.auth.currentUser?.id;
+              if (userId != null) {
+                await supabase.from('notifications').insert({
+                  'user_id': userId,
+                  'type': 'milestone',
+                  'title': 'Product Uploaded',
+                  'body': 'Your product "$title" was successfully uploaded.',
+                  'related_item_id': insertResult.first['id'].toString(),
+                });
+              }
+            } catch (e) {
+              debugPrint('Notification error: $e');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Failed to create notification: $e'),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 8)));
+              }
+            }
+          } else {
+            failCount++;
+            debugPrint(
+                "Failed to insert product: $title - Insert returned empty");
+          }
+        } catch (e) {
+          failCount++;
+          debugPrint("Error inserting product $title: $e");
+        }
+      }
+
+      if (mounted) {
+        final message = failCount == 0
+            ? "Bulk upload successful! $successCount products uploaded."
+            : "Upload completed. $successCount succeeded, $failCount failed.";
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: failCount == 0 ? Colors.green : Colors.orange,
+          ),
+        );
+        setState(() {
+          _csvFiles = null;
+          _imageFiles = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error during bulk upload: $e")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.info_outline, color: Colors.blue),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Image Naming Convention:",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        "For single image: {Product Title}.jpg\n"
+                        "For multiple images: {Product Title}-Image1.jpg, {Product Title}-Image2.jpg, etc.\n\n"
+                        "Example: If your product title is 'Gold Ring', name your images:\n"
+                        "• Gold Ring.jpg (or Gold Ring-Image1.jpg)\n"
+                        "• Gold Ring-Image2.jpg\n"
+                        "• Gold Ring-Image3.jpg",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13),
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: _downloadSampleCsv,
+                        child: const Text("Download Sample CSV"),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _pickCsv,
+                icon: const Icon(Icons.upload_file),
+                label: const Text("Upload CSV"),
+              ),
+              if (_csvFiles != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text("Selected CSV: ${_csvFiles!.first.name}"),
+                ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _pickImages,
+                icon: const Icon(Icons.image),
+                label: const Text("Upload Image Folder"),
+              ),
+              if (_imageFiles != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text("${_imageFiles!.length} images selected"),
+                ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _submitBulkUpload,
+                child: _isLoading
+                    ? const CircularProgressIndicator()
+                    : const Text("Submit Bulk Upload"),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ProductFormCard extends StatefulWidget {
+  final ProductEntry entry;
+  final VoidCallback onRemove;
+  final VoidCallback onPickImage;
+  final VoidCallback onRemoveImage;
+  final bool isFirst;
+
+  const ProductFormCard({
+    super.key,
+    required this.entry,
+    required this.onRemove,
+    required this.onPickImage,
+    required this.onRemoveImage,
+    required this.isFirst,
+  });
+
+  @override
+  State<ProductFormCard> createState() => _ProductFormCardState();
+}
+
+class _ProductFormCardState extends State<ProductFormCard> {
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 24.0),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("Product #${widget.key}",
+                    style: Theme.of(context).textTheme.headlineSmall),
+                if (!widget.isFirst)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: widget.onRemove,
+                  ),
+              ],
+            ),
+            const Divider(height: 32),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: _buildImagePicker(),
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  flex: 3,
+                  child: _buildFormFields(),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePicker() {
+    return Column(
+      children: [
+        AspectRatio(
+          aspectRatio: 1.0,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: widget.entry.imageFiles.isEmpty
+                ? InkWell(
+                    onTap: widget.onPickImage,
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_photo_alternate_outlined, size: 48),
+                          SizedBox(height: 8),
+                          Text("Select Images"),
+                        ],
+                      ),
+                    ),
+                  )
+                : Stack(
+                    children: [
+                      // Show the first image as preview
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: kIsWeb
+                              ? Image.network(
+                                  widget.entry.imageFiles.first.path,
+                                  fit: BoxFit.cover)
+                              : Image.file(
+                                  File(widget.entry.imageFiles.first.path),
+                                  fit: BoxFit.cover),
+                        ),
+                      ),
+                      // Badge showing count
+                      if (widget.entry.imageFiles.length > 1)
+                        Positioned(
+                          bottom: 8,
+                          left: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '+${widget.entry.imageFiles.length - 1} more',
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 12),
+                            ),
+                          ),
+                        ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: CircleAvatar(
+                          backgroundColor: Colors.black54,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: widget.onRemoveImage,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- Metal Purity options based on Metal Type ---
+  List<String> _getMetalPurityOptions() {
+    final metalType = widget.entry.metalTypeController.text.trim();
+    switch (metalType) {
+      case 'Gold':
+        return ['22KT', '18KT', '14KT', '9KT'];
+      case 'Silver':
+        return ['958', '925', '800', '700'];
+      case 'Platinum':
+        return ['950', '900', '850'];
+      default:
+        return [];
+    }
+  }
+
+  static const List<String> _metalFinishOptions = [
+    'High Polish',
+    'Glossy',
+    'Matte',
+    'Satin',
+    'Antique Finish',
+    'Textured',
+    'Brushed',
+    'Sandblasted',
+    'Hammered',
+    'Dual Tone / Triple Tone',
+  ];
+
+  static const List<String> _stoneTypeOptions = [
+    'Diamond',
+    'Gemstone',
+    'Labgrown Diamond',
+    'Labgrown Gemstone',
+    'CZ/American Diamond',
+    'Moissanite',
+  ];
+
+  static const List<String> _stoneUsedOptions = [
+    'VVS',
+    'VS',
+    'SI',
+    'I',
+    'IGS',
+    'Synthetic',
+    'Natural',
+    'Lab-created',
+  ];
+
+  static const List<String> _stoneSettingOptions = [
+    'Prong',
+    'Bezel',
+    'Pave',
+    'Micro-Pave',
+    'Channel',
+    'Bar',
+    'Flush (Gypsy)',
+    'Tension',
+    'Tension-Style',
+    'Halo',
+    'Cluster',
+    'Invisible',
+    'Illusion',
+    'Basket',
+    'Cathedral',
+    'Pressure',
+    'Floating',
+    'Shared-Prong',
+    'Grain/Bead',
+  ];
+
+  static const List<String> _stoneCutOptions = [
+    'Round',
+    'Princess',
+    'Emerald',
+    'Asscher',
+    'Cushion',
+    'Oval',
+    'Pear',
+    'Marquise',
+    'Radiant',
+    'Heart',
+    'Trillion',
+    'Baguette',
+    'Tapered Baguette',
+    'Square',
+    'Rose Cut',
+    'Old Mine Cut',
+    'Old European Cut',
+    'Cabochon',
+  ];
+
+  Widget _buildFormFields() {
+    final metalPurityOptions = _getMetalPurityOptions();
+    final isStudded = widget.entry.jewelryType == 'Studded';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // --- Product Title ---
+        TextFormField(
+          controller: widget.entry.productTitleController,
+          decoration: const InputDecoration(labelText: "Product Title *"),
+          validator: (v) => v!.isEmpty ? "Product Title is required" : null,
+        ),
+        const SizedBox(height: 16),
+
+        // --- Description ---
+        TextFormField(
+          controller: widget.entry.descriptionController,
+          decoration: const InputDecoration(labelText: "Description"),
+          maxLines: 3,
+        ),
+        const SizedBox(height: 16),
+
+        // --- Metal Type (Dropdown) ---
+        DropdownButtonFormField<String>(
+          initialValue: widget.entry.metalTypeController.text.isEmpty
+              ? null
+              : widget.entry.metalTypeController.text,
+          decoration: const InputDecoration(labelText: "Metal Type *"),
+          items: ['Gold', 'Silver', 'Platinum']
+              .map(
+                  (label) => DropdownMenuItem(value: label, child: Text(label)))
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              widget.entry.metalTypeController.text = value ?? '';
+              // Reset metal purity when metal type changes
+              widget.entry.metalPurityController.clear();
+            });
+          },
+          validator: (v) => v == null ? "Metal Type is required" : null,
+        ),
+        const SizedBox(height: 16),
+
+        // --- Metal Purity (Conditional Dropdown) ---
+        if (metalPurityOptions.isNotEmpty)
+          DropdownButtonFormField<String>(
+            initialValue: widget.entry.metalPurityController.text.isEmpty
+                ? null
+                : (metalPurityOptions
+                        .contains(widget.entry.metalPurityController.text)
+                    ? widget.entry.metalPurityController.text
+                    : null),
+            decoration: const InputDecoration(labelText: "Metal Purity *"),
+            items: metalPurityOptions
+                .map((label) =>
+                    DropdownMenuItem(value: label, child: Text(label)))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                widget.entry.metalPurityController.text = value ?? '';
+              });
+            },
+            validator: (v) => v == null ? "Metal Purity is required" : null,
+          ),
+        if (metalPurityOptions.isNotEmpty) const SizedBox(height: 16),
+
+        // --- Product Type ---
+        TextFormField(
+          controller: widget.entry.productTypeController,
+          decoration: const InputDecoration(labelText: "Product Type *"),
+          validator: (v) => v!.isEmpty ? "Product Type is required" : null,
+        ),
+        const SizedBox(height: 16),
+
+        // --- Metal Weight (Gold Weight) ---
+        TextFormField(
+          controller: widget.entry.goldWeightController,
+          decoration:
+              const InputDecoration(labelText: "Metal Weight (in grams) *"),
+          keyboardType: TextInputType.number,
+          validator: (v) => v!.isEmpty ? "Metal Weight is required" : null,
+        ),
+        const SizedBox(height: 16),
+
+        // --- Metal Color ---
+        TextFormField(
+          controller: widget.entry.metalColorController,
+          decoration: const InputDecoration(labelText: "Metal Color"),
+        ),
+        const SizedBox(height: 16),
+
+        // --- Metal Finish (Dropdown) ---
+        DropdownButtonFormField<String>(
+          initialValue: widget.entry.metalFinishController.text.isEmpty
+              ? null
+              : (_metalFinishOptions
+                      .contains(widget.entry.metalFinishController.text)
+                  ? widget.entry.metalFinishController.text
+                  : null),
+          decoration: const InputDecoration(labelText: "Metal Finish"),
+          items: _metalFinishOptions
+              .map(
+                  (label) => DropdownMenuItem(value: label, child: Text(label)))
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              widget.entry.metalFinishController.text = value ?? '';
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+
+        // --- Gender ---
+        DropdownButtonFormField<String>(
+          initialValue: widget.entry.gender,
+          decoration: const InputDecoration(labelText: "Gender *"),
+          items: ['Women', 'Men', 'Unisex', 'Kids']
+              .map(
+                  (label) => DropdownMenuItem(value: label, child: Text(label)))
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              widget.entry.gender = value;
+            });
+          },
+          validator: (v) => v == null ? "Gender is required" : null,
+        ),
+        const SizedBox(height: 16),
+
+        // --- Jewelry Type (Studded / Plain) ---
+        DropdownButtonFormField<String>(
+          initialValue: widget.entry.jewelryType,
+          decoration: const InputDecoration(labelText: "Jewelry Type *"),
+          items: ['Studded', 'Plain']
+              .map(
+                  (label) => DropdownMenuItem(value: label, child: Text(label)))
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              widget.entry.jewelryType = value;
+              // If Plain, clear stone fields
+              if (value == 'Plain') {
+                widget.entry.stoneTypeController.clear();
+                widget.entry.stoneUsed = null;
+                widget.entry.stoneSettingController.clear();
+                widget.entry.stoneCountController.clear();
+                widget.entry.stoneColorController.clear();
+                widget.entry.stoneCutController.clear();
+                widget.entry.stoneWeightController.clear();
+              }
+            });
+          },
+          validator: (v) => v == null ? "Jewelry Type is required" : null,
+        ),
+        const SizedBox(height: 16),
+
+        // --- Stone fields (only when Studded) ---
+        if (isStudded) ...[
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text('Stone Details',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.teal)),
+          ),
+
+          // Stone Type (Dropdown)
+          DropdownButtonFormField<String>(
+            initialValue: widget.entry.stoneTypeController.text.isEmpty
+                ? null
+                : (_stoneTypeOptions
+                        .contains(widget.entry.stoneTypeController.text)
+                    ? widget.entry.stoneTypeController.text
+                    : null),
+            decoration: const InputDecoration(labelText: "Stone Type"),
+            items: _stoneTypeOptions
+                .map((label) =>
+                    DropdownMenuItem(value: label, child: Text(label)))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                widget.entry.stoneTypeController.text = value ?? '';
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Stone Used (Dropdown)
+          DropdownButtonFormField<String>(
+            initialValue: widget.entry.stoneUsed,
+            decoration: const InputDecoration(labelText: "Stone Used"),
+            items: _stoneUsedOptions
+                .map((label) =>
+                    DropdownMenuItem(value: label, child: Text(label)))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                widget.entry.stoneUsed = value;
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Stone Setting (Dropdown)
+          DropdownButtonFormField<String>(
+            initialValue: widget.entry.stoneSettingController.text.isEmpty
+                ? null
+                : (_stoneSettingOptions
+                        .contains(widget.entry.stoneSettingController.text)
+                    ? widget.entry.stoneSettingController.text
+                    : null),
+            decoration: const InputDecoration(labelText: "Stone Setting"),
+            items: _stoneSettingOptions
+                .map((label) =>
+                    DropdownMenuItem(value: label, child: Text(label)))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                widget.entry.stoneSettingController.text = value ?? '';
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Stone Count
+          TextFormField(
+            controller: widget.entry.stoneCountController,
+            decoration: const InputDecoration(
+                labelText: "Stone Count", hintText: "e.g., 3 Ruby, 4 Diamond"),
+          ),
+          const SizedBox(height: 16),
+
+          // Stone Color
+          TextFormField(
+            controller: widget.entry.stoneColorController,
+            decoration: const InputDecoration(
+                labelText: "Stone Color", hintText: "e.g., Red, Blue, Green"),
+          ),
+          const SizedBox(height: 16),
+
+          // Stone Cut (Dropdown)
+          DropdownButtonFormField<String>(
+            initialValue: widget.entry.stoneCutController.text.isEmpty
+                ? null
+                : (_stoneCutOptions
+                        .contains(widget.entry.stoneCutController.text)
+                    ? widget.entry.stoneCutController.text
+                    : null),
+            decoration: const InputDecoration(labelText: "Stone Cut"),
+            items: _stoneCutOptions
+                .map((label) =>
+                    DropdownMenuItem(value: label, child: Text(label)))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                widget.entry.stoneCutController.text = value ?? '';
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Stone Weight
+          TextFormField(
+            controller: widget.entry.stoneWeightController,
+            decoration: const InputDecoration(labelText: "Stone Weight"),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // --- Dimension ---
+        TextFormField(
+          controller: widget.entry.dimensionController,
+          decoration: const InputDecoration(labelText: "Dimension"),
+        ),
+        const SizedBox(height: 16),
+
+        // --- Enamel Work + Weight ---
+        TextFormField(
+          controller: widget.entry.enamelWorkController,
+          decoration: const InputDecoration(
+              labelText: "Enamel Work + Weight",
+              hintText: "e.g., Pink 0.6g, Blue 4g"),
+        ),
+        const SizedBox(height: 16),
+
+        // --- Price ---
+        TextFormField(
+          controller: widget.entry.priceController,
+          decoration: const InputDecoration(labelText: "Price"),
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 16),
+
+        // --- Product Tags ---
+        TextFormField(
+          controller: widget.entry.productTagsController,
+          decoration: const InputDecoration(
+              labelText: "Product Tags (comma-separated)"),
+        ),
+        const SizedBox(height: 16),
+
+        // --- Plating ---
+        TextFormField(
+          controller: widget.entry.platingController,
+          decoration: const InputDecoration(labelText: "Plating"),
+        ),
+        const SizedBox(height: 16),
+
+        // --- Customizable ---
+        DropdownButtonFormField<String>(
+          initialValue: widget.entry.customizable,
+          decoration: const InputDecoration(labelText: "Customizable"),
+          items: ['Yes', 'No']
+              .map(
+                  (label) => DropdownMenuItem(value: label, child: Text(label)))
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              widget.entry.customizable = value;
+            });
+          },
+        ),
+      ],
+    );
+  }
+}

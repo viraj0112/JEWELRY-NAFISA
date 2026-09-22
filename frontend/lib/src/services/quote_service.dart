@@ -1,0 +1,94 @@
+// lib/src/services/quote_service.dart
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:jewelry_nafisa/src/models/user_profile.dart';
+import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
+
+class QuoteService {
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  /// Which catalog table this product came from.
+  ///
+  /// This used to guess from `product.tags != null`, which mis-filed any
+  /// scraped product that had tags, mis-filed any designer product that had
+  /// none, and could never produce 'manufacturerproducts' at all - corrupting
+  /// every downstream join on quote_requests.product_table. JewelryItem.fromJson
+  /// already sets these flags from the query that loaded the row.
+  String _getProductTable(JewelryItem product) {
+    if (product.isManufacturerProduct) return 'manufacturerproducts';
+    if (product.isDesignerProduct) return 'designerproducts';
+    return 'products';
+  }
+
+  Future<void> submitQuoteRequest({
+    required UserProfile user,
+    required JewelryItem product,
+    required String? phoneNumber,
+    String? additionalNotes,
+    String? goldWeight,
+    String? metalPurity,
+    String? metalFinish,
+    List<String>? stoneWeight,
+    List<String>? stoneType,
+    List<String>? stoneUsed,
+    List<String>? stoneSetting,
+    List<String>? stoneCount,
+    String? metalType,
+    String? metalColor,
+    List<String>? stoneColor,
+    List<String>? stoneCut,
+    List<String>? stonePurity,
+  }) async {
+    try {
+      final productTable = _getProductTable(product);
+      const String productBaseUrl = 'https://www.dagina.design/product';
+      final String slug = product.productTitle
+          .toLowerCase()
+          .replaceAll(RegExp(r'\s+'), '-')
+          .replaceAll(RegExp(r'[^a-z0-9-]'), '');
+      final String productUrl = '$productBaseUrl/$slug';
+
+      final productIdBigInt = int.tryParse(product.id);
+      if (productIdBigInt == null) {
+        throw Exception('Invalid product ID format: ${product.id}');
+      }
+
+      await _supabase.from('quote_requests').insert({
+        // User Details
+        'user_id': user.id,
+        'user_name': user.username ?? user.fullName ?? user.email,
+        'user_email': user.email,
+        'user_phone': user.phone ?? phoneNumber,
+
+        'product_id': productIdBigInt,
+        'product_table': productTable,
+        'product_title': product.productTitle,
+
+        'metal_purity': metalPurity ?? product.metalPurity,
+        'gold_weight': goldWeight ?? product.goldWeight,
+        'metal_color': metalColor ?? product.metalColor,
+        'metal_finish': metalFinish ?? product.metalFinish,
+        'metal_type': metalType ?? product.metalType,
+        'stone_type': stoneType ?? product.stoneType,
+        'stone_color': stoneColor ?? product.stoneColor,
+        'stone_count': stoneCount ?? product.stoneCount,
+        'stone_purity': stonePurity ?? product.stonePurity,
+        'stone_cut': stoneCut ?? product.stoneCut,
+        'stone_used': stoneUsed ?? product.stoneUsed,
+        'stone_weight': stoneWeight ?? product.stoneWeight,
+        'stone_setting': stoneSetting ?? product.stoneSetting,
+        'product_url': productUrl,
+        'additional_notes': additionalNotes?.trim().isEmpty ?? true
+            ? null
+            : additionalNotes!.trim(),
+      });
+    } on PostgrestException catch (e) {
+      debugPrint('Supabase error submitting quote: ${e.message}');
+      throw Exception(
+          'Failed to submit quote request. ${e.details ?? e.message}');
+    } catch (e) {
+      debugPrint('Unexpected error submitting quote: $e');
+      throw Exception('An unexpected error occurred while submitting.');
+    }
+  }
+}
