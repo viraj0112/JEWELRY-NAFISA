@@ -1,4 +1,6 @@
-import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
+// Newer Flutter moved CupertinoPageTransitionsBuilder from material to cupertino.
+// ignore: unused_import, unnecessary_import
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 

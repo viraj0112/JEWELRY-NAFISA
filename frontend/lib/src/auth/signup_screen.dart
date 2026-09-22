@@ -223,6 +223,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                 _PrimaryButton(
                   label: 'Continue With Phone Number',
                   icon: Icons.phone_outlined,
+                  comingSoon: !_phoneAuthEnabled,
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -394,15 +395,22 @@ class _SignUpScreenState extends State<SignUpScreen>
 // ─────────────────────────────────────────────────────────────────────────────
 // Reusable Primary Button (dark green gradient)
 // ─────────────────────────────────────────────────────────────────────────────
+/// Phone sign-up is still under development. Set to true to re-enable it.
+const bool _phoneAuthEnabled = false;
+
 class _PrimaryButton extends StatefulWidget {
   final String label;
   final IconData icon;
   final VoidCallback onPressed;
 
+  /// Renders the button greyed out and inert, with a "Coming Soon" tag.
+  final bool comingSoon;
+
   const _PrimaryButton({
     required this.label,
     required this.icon,
     required this.onPressed,
+    this.comingSoon = false,
   });
 
   @override
@@ -414,6 +422,9 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.comingSoon) {
+      return _ComingSoonButton(label: widget.label, icon: widget.icon);
+    }
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -433,8 +444,8 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color:
-                    const Color(0xFF2D5A27).withValues(alpha: _isHovered ? 0.4 : 0.2),
+                color: const Color(0xFF2D5A27)
+                    .withValues(alpha: _isHovered ? 0.4 : 0.2),
                 blurRadius: _isHovered ? 16 : 8,
                 offset: const Offset(0, 4),
               ),
@@ -456,6 +467,85 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Disabled button for features that haven't shipped yet
+// ─────────────────────────────────────────────────────────────────────────────
+class _ComingSoonButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+
+  const _ComingSoonButton({required this.label, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: false,
+      label: '$label. Coming Soon, under development',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.forbidden,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: Colors.grey.shade500, size: 20),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: Colors.grey.shade500,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Positioned(top: -10, right: 18, child: _ComingSoonTag()),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ComingSoonTag extends StatelessWidget {
+  const _ComingSoonTag();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4D6),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE9C46A)),
+      ),
+      child: Text(
+        'Coming Soon, under development',
+        style: GoogleFonts.inter(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF7A5A00),
         ),
       ),
     );
