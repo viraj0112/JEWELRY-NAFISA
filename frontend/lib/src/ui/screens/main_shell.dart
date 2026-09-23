@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
+import 'package:jewelry_nafisa/src/auth/widgets/password_setup_banner.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/widgets/account_management_dialog.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
@@ -200,11 +201,19 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
   }
 
   Widget _buildContent() {
+    final Widget child;
     if (_isSearchMode && widget.navigationShell.currentIndex == 2) {
-      return _buildSearchResults();
+      child = _buildSearchResults();
+    } else {
+      // Return the child from StatefulShellRoute
+      child = widget.navigationShell;
     }
-    // Return the child from StatefulShellRoute
-    return widget.navigationShell;
+    return Column(
+      children: [
+        const PasswordSetupBanner(),
+        Expanded(child: child),
+      ],
+    );
   }
 
   Widget _buildSearchResults() {

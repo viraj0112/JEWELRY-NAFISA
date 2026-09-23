@@ -7,11 +7,11 @@ import 'password_service.dart';
 import 'supabase_auth_service.dart';
 import 'widgets/password_form.dart';
 
-/// Shown (by the router's redirect) when a signed-in user must choose a
-/// password:
-///  - they signed up with "Continue with Google" and have no password for
-///    this site yet (required - the only way out is signing out), or
-///  - they opened a "reset password" email link.
+/// New-password screen:
+///  - required when the user opened a "reset password" email link (the
+///    router sends them here; the only way out is signing out), or
+///  - optional for accounts created with "Continue with Google" that have no
+///    password for this site yet ("Maybe later" returns home).
 class SetPasswordScreen extends StatelessWidget {
   const SetPasswordScreen({super.key});
 
@@ -55,7 +55,7 @@ class SetPasswordScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 18),
                       Text(
-                        recovery ? 'RESET PASSWORD' : 'ONE LAST STEP',
+                        recovery ? 'RESET PASSWORD' : 'OPTIONAL',
                         textAlign: TextAlign.center,
                         style: B2BText.eyebrow(),
                       ),
@@ -93,11 +93,15 @@ class SetPasswordScreen extends StatelessWidget {
                       Center(
                         child: TextButton(
                           onPressed: () async {
+                            if (!recovery) {
+                              context.go('/home');
+                              return;
+                            }
                             PasswordService.recoveryPending = false;
                             await SupabaseAuthService().signOut();
                           },
                           child: Text(
-                            'Sign out',
+                            recovery ? 'Sign out' : 'Maybe later',
                             style: B2BText.sans(
                                 size: 13, color: B2BColors.muted,
                                 weight: FontWeight.w500),

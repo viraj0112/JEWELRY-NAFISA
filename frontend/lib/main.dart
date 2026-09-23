@@ -71,15 +71,17 @@ final _router = GoRouter(
 
     if (isGoingToAuthCallback) return null;
 
-    // Accounts created with "Continue with Google" must choose a password
-    // for this site, and reset-email links must end on the new-password
-    // form. Enforced here so no route can be reached around it.
-    final mustSetPassword = isLoggedIn &&
-        (PasswordService.recoveryPending ||
-            PasswordService.needsPasswordSetup(supabaseClient.auth.currentUser));
+    // Reset-email links must end on the new-password form. Google-created
+    // accounts without a password may visit it voluntarily (the home banner
+    // offers this), but are never forced there.
+    final mustSetPassword = isLoggedIn && PasswordService.recoveryPending;
+    final maySetPassword = mustSetPassword ||
+        (isLoggedIn &&
+            PasswordService.needsPasswordSetup(
+                supabaseClient.auth.currentUser));
     final isGoingToSetPassword = state.matchedLocation == '/set-password';
     if (mustSetPassword && !isGoingToSetPassword) return '/set-password';
-    if (!mustSetPassword && isGoingToSetPassword) {
+    if (!maySetPassword && isGoingToSetPassword) {
       return isLoggedIn ? '/' : '/welcome';
     }
 
