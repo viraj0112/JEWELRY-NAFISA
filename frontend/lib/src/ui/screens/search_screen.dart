@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/product_browse.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
@@ -10,7 +11,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 import 'package:image/image.dart' as img;
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Debouncer {
@@ -215,18 +215,23 @@ class _SearchScreenState extends State<SearchScreen> {
       // 3. Read bytes
       Uint8List imageBytes = await image.readAsBytes();
 
-      // 4. CRITICAL OPTIMIZATION: Resize to exactly 224x224 (CLIP Native Size)
-      // This makes the payload tiny and the API response much faster.
+      // 4. Shrink so the SHORTEST side is 224px (CLIP's input size), keeping
+      // the aspect ratio. CLIP itself resizes the short side to 224 and
+      // center-crops, so this loses nothing - whereas squashing to a fixed
+      // 224x224 distorts the jewellery and hurts matching.
       try {
         final img.Image? decodedImage = img.decodeImage(imageBytes);
         if (decodedImage != null) {
-          // Resize using cubic interpolation for quality at small size
-          final img.Image resized = img.copyResize(
-            decodedImage,
-            width: 224,
-            height: 224,
-            interpolation: img.Interpolation.cubic,
-          );
+          final bool portrait = decodedImage.height > decodedImage.width;
+          final img.Image resized =
+              (portrait ? decodedImage.width : decodedImage.height) > 224
+                  ? img.copyResize(
+                      decodedImage,
+                      width: portrait ? 224 : null,
+                      height: portrait ? null : 224,
+                      interpolation: img.Interpolation.cubic,
+                    )
+                  : decodedImage;
           imageBytes = Uint8List.fromList(img.encodeJpg(resized, quality: 85));
         }
       } catch (e) {
@@ -414,7 +419,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           itemBuilder: (context, index) {
             return _buildImageCard(context, displayItems[index],
-                isGrouped: true);
+                isGrouped: true, from: displayItems);
           },
         ),
       ],
@@ -441,7 +446,8 @@ class _SearchScreenState extends State<SearchScreen> {
       itemCount: items.length,
       itemBuilder: (context, index) {
         // Call the updated card builder
-        return _buildImageCard(context, items[index], isGrouped: false);
+        return _buildImageCard(context, items[index],
+            isGrouped: false, from: items);
       },
       mainAxisSpacing: 8.0,
       crossAxisSpacing: 8.0,
@@ -451,14 +457,11 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildImageCard(BuildContext context, JewelryItem item,
-      {bool isGrouped = false}) {
+      {bool isGrouped = false, List<JewelryItem>? from}) {
     // ... (This function remains the same as before)
     return GestureDetector(
       onTap: () {
-        final isDesigner = item.isDesignerProduct;
-        final isManufacturer = item.isManufacturerProduct;
-        context.push(
-            '/product/${item.uid ?? item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
+        openProduct(context, item, from: from);
       },
       child: Card(
         clipBehavior: Clip.antiAlias,

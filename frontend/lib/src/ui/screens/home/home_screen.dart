@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/product_browse.dart';
+import 'package:jewelry_nafisa/src/utils/onboarding_route.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
@@ -66,6 +69,12 @@ class HomeScreenState extends State<HomeScreen> {
   String _selectedMetalType = 'Gold';
   String _selectedAkdMetalType = 'All';
   String _selectedProductType = 'All';
+
+  /// Designs matching the current filters, shown once a product type is
+  /// picked; null while loading or when no type is picked.
+  int? _designCount;
+  bool _isCountingDesigns = false;
+  int _designCountRequest = 0;
   List<String> _selectedCategories = [];
   String _selectedSubCategory = 'All';
   String _selectedMetalPurity = 'All';
@@ -94,6 +103,10 @@ class HomeScreenState extends State<HomeScreen> {
   List<String> _availableMetalPurities = [];
   List<String> _availableStoneShapes = [];
   List<String> _availableStoneTypes = [];
+  List<String> _availableEnamelColors = [];
+  // Enamel colour label -> the stored values it covers (see
+  // FilterService.getEnamelColours).
+  Map<String, List<String>> _enamelColourVariants = {};
   List<String> _availableStoneQualities = [];
   List<String> _availableStoneSettings = [];
   List<String> _availableFeaturedTags = [];
@@ -108,6 +121,7 @@ class HomeScreenState extends State<HomeScreen> {
   List<String> _selectedMetalColors = [];
   List<String> _selectedMetalPurities = [];
   bool _isEnamelWorkChecked = false;
+  List<String> _selectedEnamelColors = [];
   List<String> _selectedStoneShapes = [];
   List<String> _selectedStoneTypes = [];
   List<String> _selectedStoneQualities = [];
@@ -186,14 +200,7 @@ class HomeScreenState extends State<HomeScreen> {
       if (profile == null || profile.isSetupComplete == true) return;
 
       final stage = profile.onboardingStage;
-      final String route;
-      if (stage == 0) {
-        route = '/onboarding/location';
-      } else if (stage == 1) {
-        route = '/onboarding/gender';
-      } else {
-        route = '/onboarding/categories';
-      }
+      final route = onboardingRouteFor(profile);
       debugPrint(
           '⏰ 45s elapsed — showing welcome offer dialog for route: $route (stage $stage)');
       showDialog(
@@ -265,6 +272,7 @@ class HomeScreenState extends State<HomeScreen> {
         _filterService.getWeightRange('Metal Weight', filters: filters),
         _filterService.getWeightRange('Stone Weight',
             isArray: true, filters: filters),
+        _filterService.getEnamelColours(filters),
       ]);
 
       if (mounted) {
@@ -278,6 +286,13 @@ class HomeScreenState extends State<HomeScreen> {
           _availableFeaturedTags = futures[6] as List<String>;
           _metalWeightBounds = futures[7] as List<double>;
           _stoneWeightBounds = futures[8] as List<double>;
+          _enamelColourVariants =
+              futures[9] as Map<String, List<String>>;
+          _availableEnamelColors = _enamelColourVariants.keys.toList();
+          // Drop picks no longer on offer for the new filters.
+          _selectedEnamelColors = _selectedEnamelColors
+              .where(_enamelColourVariants.containsKey)
+              .toList();
           _isLoadingAdvancedOptions = false;
         });
       }
@@ -307,6 +322,18 @@ class HomeScreenState extends State<HomeScreen> {
   void _onEnamelWorkChanged(bool val) {
     setState(() => _isEnamelWorkChecked = val);
   }
+
+  void _onEnamelColorsChanged(List<String> val) {
+    setState(() => _selectedEnamelColors = val);
+  }
+
+  /// The "Enamel" filters, applied to one table's product query.
+  dynamic _withEnamelFilters(dynamic q) => FilterService.withEnamelFilters(
+        q,
+        hasEnamel: _isEnamelWorkChecked,
+        colourValues: FilterService.enamelValuesFor(
+            _selectedEnamelColors, _enamelColourVariants),
+      );
 
   void _onStoneWeightChanged(List<double> val) {
     setState(() => _currentStoneWeightRange = val);
@@ -572,135 +599,9 @@ class HomeScreenState extends State<HomeScreen> {
           _supabase.from('designerproducts').select(designerSelectColumns);
       dynamic manufacturerQuery =
           _supabase.from('manufacturerproducts').select(designerSelectColumns);
-      // Apply filters to both queries
-      // Metal Type filter (first in hierarchy)
-      if (_selectedMetalType != 'All') {
-        final metal = _selectedMetalType.trim();
-        // Use ilike() for case-insensitive pattern matching
-        productsQuery = productsQuery.ilike('"Metal Type"', '%$metal%');
-        designerQuery = designerQuery.ilike('"Metal Type"', '%$metal%');
-        manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', '%$metal%');
-      }
-      if (_selectedProductType != 'All') {
-        productsQuery =
-            productsQuery.eq('"Product Type"', _selectedProductType);
-        designerQuery =
-            designerQuery.eq('"Product Type"', _selectedProductType);
-        manufacturerQuery =
-            manufacturerQuery.eq('"Product Type"', _selectedProductType);
-      }
-      if (_selectedCategories.isNotEmpty) {
-        // "Category" is text[]: match by array overlap with the selection.
-        productsQuery = productsQuery.overlaps('Category', _selectedCategories);
-        designerQuery = designerQuery.overlaps('Category', _selectedCategories);
-        manufacturerQuery =
-            manufacturerQuery.overlaps('Category', _selectedCategories);
-      }
-      if (_selectedSubCategory != 'All') {
-        // "products" has no "Sub Category" column; filter designer/manufacturer only.
-        designerQuery =
-            designerQuery.eq('"Sub Category"', _selectedSubCategory);
-        manufacturerQuery =
-            manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
-      }
-      if (_selectedMetalPurity != 'All') {
-        productsQuery =
-            productsQuery.eq('"Metal Purity"', _selectedMetalPurity);
-        designerQuery =
-            designerQuery.eq('"Metal Purity"', _selectedMetalPurity);
-        manufacturerQuery =
-            manufacturerQuery.eq('"Metal Purity"', _selectedMetalPurity);
-      }
-      if (_selectedPlain != null) {
-        productsQuery = productsQuery.eq('Plain', _selectedPlain!);
-        designerQuery = designerQuery.eq('Plain', _selectedPlain!);
-        manufacturerQuery = manufacturerQuery.eq('Plain', _selectedPlain!);
-      }
-      if (_selectedStudded != null) {
-        productsQuery =
-            productsQuery.overlaps('Studded', ['$_selectedStudded']);
-        designerQuery =
-            designerQuery.overlaps('Studded', ['$_selectedStudded']);
-        manufacturerQuery =
-            manufacturerQuery.overlaps('Studded', ['$_selectedStudded']);
-      }
-
-      // Advanced Filters
-      if (_selectedJewelleryType == 'Plain') {
-        productsQuery = productsQuery.not('Plain', 'is', 'null');
-        designerQuery = designerQuery.not('Plain', 'is', 'null');
-        manufacturerQuery = manufacturerQuery.not('Plain', 'is', 'null');
-      } else if (_selectedJewelleryType == 'Studded') {
-        productsQuery = productsQuery.not('Studded', 'is', 'null');
-        designerQuery = designerQuery.not('Studded', 'is', 'null');
-        manufacturerQuery = manufacturerQuery.not('Studded', 'is', 'null');
-      }
-
-      if (_selectedMetalColors.isNotEmpty) {
-        // Match against the unified metal_color_arr (text[]) with OR/overlap
-        // semantics, so 2-tone products (e.g. {Yellow Gold, Rose Gold}) match
-        // if ANY selected color is present - same operator used for Product Tags.
-        productsQuery =
-            productsQuery.overlaps('Metal Color', _selectedMetalColors);
-        designerQuery =
-            designerQuery.overlaps('Metal Color', _selectedMetalColors);
-        manufacturerQuery =
-            manufacturerQuery.overlaps('Metal Color', _selectedMetalColors);
-      }
-      if (_selectedMetalPurities.isNotEmpty) {
-        productsQuery =
-            productsQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
-        designerQuery =
-            designerQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
-        manufacturerQuery = manufacturerQuery.inFilter(
-            '"Metal Purity"', _selectedMetalPurities);
-      }
-      if (_isEnamelWorkChecked) {
-        productsQuery = productsQuery.not('"Enamel Work"', 'is', 'null');
-        designerQuery = designerQuery.not('"Enamel Work"', 'is', 'null');
-        manufacturerQuery =
-            manufacturerQuery.not('"Enamel Work"', 'is', 'null');
-      }
-      if (_selectedStoneShapes.isNotEmpty) {
-        productsQuery =
-            productsQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
-        designerQuery =
-            designerQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
-        manufacturerQuery =
-            manufacturerQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
-      }
-      if (_selectedStoneTypes.isNotEmpty) {
-        productsQuery =
-            productsQuery.overlaps('"Stone Type"', _selectedStoneTypes);
-        designerQuery =
-            designerQuery.overlaps('"Stone Type"', _selectedStoneTypes);
-        manufacturerQuery =
-            manufacturerQuery.overlaps('"Stone Type"', _selectedStoneTypes);
-      }
-      if (_selectedStoneQualities.isNotEmpty) {
-        productsQuery =
-            productsQuery.overlaps('"Stone Purity"', _selectedStoneQualities);
-        designerQuery =
-            designerQuery.overlaps('"Stone Purity"', _selectedStoneQualities);
-        manufacturerQuery = manufacturerQuery.overlaps(
-            '"Stone Purity"', _selectedStoneQualities);
-      }
-      if (_selectedStoneSettings.isNotEmpty) {
-        productsQuery =
-            productsQuery.overlaps('"Stone Setting"', _selectedStoneSettings);
-        designerQuery =
-            designerQuery.overlaps('"Stone Setting"', _selectedStoneSettings);
-        manufacturerQuery = manufacturerQuery.overlaps(
-            '"Stone Setting"', _selectedStoneSettings);
-      }
-      if (_selectedFeaturedTags.isNotEmpty) {
-        productsQuery =
-            productsQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
-        designerQuery =
-            designerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
-        manufacturerQuery =
-            manufacturerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
-      }
+      productsQuery = _withMainFilters(productsQuery, hasSubCategory: false);
+      designerQuery = _withMainFilters(designerQuery);
+      manufacturerQuery = _withMainFilters(manufacturerQuery);
 
       // OPTIMIZED: Use pagination instead of loading all products
       // Note: 'products' table doesn't have 'created_at', so order by id instead
@@ -788,79 +689,10 @@ class HomeScreenState extends State<HomeScreen> {
       List<dynamic> manufacturerData = [];
 
       try {
-        var designerQuery =
+        dynamic designerQuery =
             _supabase.from('designerproducts').select(selectColumns);
 
-        if (_selectedAkdMetalType != 'All') {
-          designerQuery =
-              designerQuery.eq('"Metal Type"', _selectedAkdMetalType);
-        } else {
-          designerQuery = designerQuery.ilike('"Metal Type"', 'AKD%');
-        }
-
-        if (_selectedProductType != 'All') {
-          designerQuery =
-              designerQuery.eq('"Product Type"', _selectedProductType);
-        }
-        if (_selectedCategories.isNotEmpty) {
-          designerQuery =
-              designerQuery.overlaps('Category', _selectedCategories);
-        }
-        if (_selectedSubCategory != 'All') {
-          designerQuery =
-              designerQuery.eq('"Sub Category"', _selectedSubCategory);
-        }
-        if (_selectedMetalPurity != 'All') {
-          designerQuery =
-              designerQuery.eq('"Metal Purity"', _selectedMetalPurity);
-        }
-        if (_selectedPlain != null) {
-          designerQuery = designerQuery.eq('Plain', _selectedPlain!);
-        }
-        if (_selectedStudded != null) {
-          designerQuery =
-              designerQuery.contains('Studded', ['$_selectedStudded']);
-        }
-
-        // Advanced Filters
-        if (_selectedJewelleryType == 'Plain') {
-          designerQuery = designerQuery.not('Plain', 'is', 'null');
-        } else if (_selectedJewelleryType == 'Studded') {
-          designerQuery = designerQuery.not('Studded', 'is', 'null');
-        }
-
-        if (_selectedMetalColors.isNotEmpty) {
-          designerQuery =
-              designerQuery.overlaps('Metal Color', _selectedMetalColors);
-        }
-        if (_selectedMetalPurities.isNotEmpty) {
-          designerQuery =
-              designerQuery.inFilter('"Metal Purity"', _selectedMetalPurities);
-        }
-        if (_isEnamelWorkChecked) {
-          designerQuery = designerQuery.not('"Enamel Work"', 'is', 'null');
-        }
-        if (_selectedStoneShapes.isNotEmpty) {
-          designerQuery =
-              designerQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
-        }
-        if (_selectedStoneTypes.isNotEmpty) {
-          designerQuery =
-              designerQuery.overlaps('"Stone Type"', _selectedStoneTypes);
-        }
-        if (_selectedStoneQualities.isNotEmpty) {
-          designerQuery =
-              designerQuery.overlaps('"Stone Purity"', _selectedStoneQualities);
-        }
-        if (_selectedStoneSettings.isNotEmpty) {
-          designerQuery =
-              designerQuery.overlaps('"Stone Setting"', _selectedStoneSettings);
-        }
-        if (_selectedFeaturedTags.isNotEmpty) {
-          designerQuery =
-              designerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
-        }
-        // Sliders (approximate matching could be added later, for now we skip strict SQL weight filtering due to string parsing limits in postgrest)
+        designerQuery = _withInstantFilters(designerQuery);
 
         final designerQueryPaged = designerQuery
             .order('created_at', ascending: false)
@@ -872,80 +704,10 @@ class HomeScreenState extends State<HomeScreen> {
       }
 
       try {
-        var manufacturerQuery =
+        dynamic manufacturerQuery =
             _supabase.from('manufacturerproducts').select(selectColumns);
 
-        if (_selectedAkdMetalType != 'All') {
-          manufacturerQuery =
-              manufacturerQuery.eq('"Metal Type"', _selectedAkdMetalType);
-        } else {
-          manufacturerQuery = manufacturerQuery.ilike('"Metal Type"', 'AKD%');
-        }
-
-        if (_selectedProductType != 'All') {
-          manufacturerQuery =
-              manufacturerQuery.eq('"Product Type"', _selectedProductType);
-        }
-        if (_selectedCategories.isNotEmpty) {
-          manufacturerQuery =
-              manufacturerQuery.overlaps('Category', _selectedCategories);
-        }
-        if (_selectedSubCategory != 'All') {
-          manufacturerQuery =
-              manufacturerQuery.eq('"Sub Category"', _selectedSubCategory);
-        }
-        if (_selectedMetalPurity != 'All') {
-          manufacturerQuery =
-              manufacturerQuery.eq('"Metal Purity"', _selectedMetalPurity);
-        }
-        if (_selectedPlain != null) {
-          manufacturerQuery = manufacturerQuery.eq('Plain', _selectedPlain!);
-        }
-        if (_selectedStudded != null) {
-          manufacturerQuery =
-              manufacturerQuery.contains('Studded', ['$_selectedStudded']);
-        }
-
-        // Advanced Filters
-        if (_selectedJewelleryType == 'Plain') {
-          manufacturerQuery = manufacturerQuery.not('Plain', 'is', 'null');
-        } else if (_selectedJewelleryType == 'Studded') {
-          manufacturerQuery = manufacturerQuery.not('Studded', 'is', 'null');
-        }
-
-        if (_selectedMetalColors.isNotEmpty) {
-          manufacturerQuery =
-              manufacturerQuery.overlaps('Metal Color', _selectedMetalColors);
-        }
-        if (_selectedMetalPurities.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.inFilter(
-              '"Metal Purity"', _selectedMetalPurities);
-        }
-        if (_isEnamelWorkChecked) {
-          manufacturerQuery =
-              manufacturerQuery.not('"Enamel Work"', 'is', 'null');
-        }
-        if (_selectedStoneShapes.isNotEmpty) {
-          manufacturerQuery =
-              manufacturerQuery.overlaps('"Stone Cut"', _selectedStoneShapes);
-        }
-        if (_selectedStoneTypes.isNotEmpty) {
-          manufacturerQuery =
-              manufacturerQuery.overlaps('"Stone Type"', _selectedStoneTypes);
-        }
-        if (_selectedStoneQualities.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.overlaps(
-              '"Stone Purity"', _selectedStoneQualities);
-        }
-        if (_selectedStoneSettings.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.overlaps(
-              '"Stone Setting"', _selectedStoneSettings);
-        }
-        if (_selectedFeaturedTags.isNotEmpty) {
-          manufacturerQuery = manufacturerQuery.overlaps(
-              '"Product Tags"', _selectedFeaturedTags);
-        }
-        // Sliders (approximate matching could be added later, for now we skip strict SQL weight filtering due to string parsing limits in postgrest)
+        manufacturerQuery = _withInstantFilters(manufacturerQuery);
 
         final manufacturerQueryPaged = manufacturerQuery
             .order('created_at', ascending: false)
@@ -983,6 +745,119 @@ class HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       debugPrint('Error loading Instant: $e');
       return [];
+    }
+  }
+
+  /// The home grid's filters for the main (non-Instant) catalogue, applied to
+  /// one table's query. Shared by the grid and the design count so the two
+  /// always agree. "products" has no "Sub Category" column.
+  dynamic _withMainFilters(dynamic q, {bool hasSubCategory = true}) {
+    if (_selectedMetalType != 'All') {
+      q = q.ilike('"Metal Type"', '%${_selectedMetalType.trim()}%');
+    }
+    if (_selectedProductType != 'All') {
+      q = q.eq('"Product Type"', _selectedProductType);
+    }
+    if (_selectedCategories.isNotEmpty) {
+      // "Category" is text[]: match by array overlap with the selection.
+      q = q.overlaps('Category', _selectedCategories);
+    }
+    if (hasSubCategory && _selectedSubCategory != 'All') {
+      q = q.eq('"Sub Category"', _selectedSubCategory);
+    }
+    if (_selectedMetalPurity != 'All') {
+      q = q.eq('"Metal Purity"', _selectedMetalPurity);
+    }
+    if (_selectedPlain != null) q = q.eq('Plain', _selectedPlain!);
+    if (_selectedStudded != null) {
+      q = q.overlaps('Studded', ['$_selectedStudded']);
+    }
+    return _withAdvancedFilters(q);
+  }
+
+  /// The home grid's filters for the Instant (AKD) catalogue.
+  dynamic _withInstantFilters(dynamic q) {
+    q = _selectedAkdMetalType != 'All'
+        ? q.eq('"Metal Type"', _selectedAkdMetalType)
+        : q.ilike('"Metal Type"', 'AKD%');
+    if (_selectedProductType != 'All') {
+      q = q.eq('"Product Type"', _selectedProductType);
+    }
+    if (_selectedCategories.isNotEmpty) {
+      q = q.overlaps('Category', _selectedCategories);
+    }
+    if (_selectedSubCategory != 'All') {
+      q = q.eq('"Sub Category"', _selectedSubCategory);
+    }
+    if (_selectedMetalPurity != 'All') {
+      q = q.eq('"Metal Purity"', _selectedMetalPurity);
+    }
+    if (_selectedPlain != null) q = q.eq('Plain', _selectedPlain!);
+    if (_selectedStudded != null) {
+      q = q.contains('Studded', ['$_selectedStudded']);
+    }
+    return _withAdvancedFilters(q);
+  }
+
+  /// The advanced filter sheet's options, common to both catalogues.
+  dynamic _withAdvancedFilters(dynamic q) {
+    if (_selectedJewelleryType == 'Plain') {
+      q = q.not('Plain', 'is', 'null');
+    } else if (_selectedJewelleryType == 'Studded') {
+      q = q.not('Studded', 'is', 'null');
+    }
+    if (_selectedMetalColors.isNotEmpty) {
+      // Unified metal_color_arr (text[]) with OR/overlap semantics, so 2-tone
+      // products match if ANY selected color is present.
+      q = q.overlaps('Metal Color', _selectedMetalColors);
+    }
+    if (_selectedMetalPurities.isNotEmpty) {
+      q = q.inFilter('"Metal Purity"', _selectedMetalPurities);
+    }
+    q = _withEnamelFilters(q);
+    if (_selectedStoneShapes.isNotEmpty) {
+      q = q.overlaps('"Stone Cut"', _selectedStoneShapes);
+    }
+    if (_selectedStoneTypes.isNotEmpty) {
+      q = q.overlaps('"Stone Type"', _selectedStoneTypes);
+    }
+    if (_selectedStoneQualities.isNotEmpty) {
+      q = q.overlaps('"Stone Purity"', _selectedStoneQualities);
+    }
+    if (_selectedStoneSettings.isNotEmpty) {
+      q = q.overlaps('"Stone Setting"', _selectedStoneSettings);
+    }
+    if (_selectedFeaturedTags.isNotEmpty) {
+      q = q.overlaps('"Product Tags"', _selectedFeaturedTags);
+    }
+    return q;
+  }
+
+  /// How many designs match the current filters, across every table the grid
+  /// reads. Null when it could not be counted.
+  Future<int?> _fetchDesignCount() async {
+    Future<int> countIn(String table, dynamic Function(dynamic) filters) async {
+      final int n =
+          await filters(_supabase.from(table).count(CountOption.exact));
+      return n;
+    }
+
+    try {
+      final counts = _selectedMetalType == 'Instant'
+          ? await Future.wait([
+              countIn('designerproducts', _withInstantFilters),
+              countIn('manufacturerproducts', _withInstantFilters),
+            ])
+          : await Future.wait([
+              countIn('products',
+                  (q) => _withMainFilters(q, hasSubCategory: false)),
+              countIn('designerproducts', _withMainFilters),
+              countIn('manufacturerproducts', _withMainFilters),
+            ]);
+      return counts.fold<int>(0, (sum, n) => sum + n);
+    } catch (e) {
+      debugPrint('Error counting designs: $e');
+      return null;
     }
   }
 
@@ -1025,6 +900,24 @@ class HomeScreenState extends State<HomeScreen> {
     // Reset pagination when filters change
     _currentOffset = 0;
     _hasMoreProducts = true;
+
+    // The count is only shown once a product type is picked.
+    final countRequest = ++_designCountRequest;
+    if (_selectedProductType == 'All') {
+      _designCount = null;
+      _isCountingDesigns = false;
+    } else {
+      setState(() => _isCountingDesigns = true);
+      _fetchDesignCount().then((count) {
+        // Ignore a slow answer for filters that have since changed.
+        if (mounted && countRequest == _designCountRequest) {
+          setState(() {
+            _designCount = count;
+            _isCountingDesigns = false;
+          });
+        }
+      });
+    }
 
     final productList =
         await _fetchFilteredProducts(offset: 0, limit: _pageSize);
@@ -1349,6 +1242,7 @@ class HomeScreenState extends State<HomeScreen> {
       _selectedMetalColors = [];
       _selectedMetalPurities = [];
       _isEnamelWorkChecked = false;
+      _selectedEnamelColors = [];
       _selectedStoneShapes = [];
       _selectedStoneTypes = [];
       _selectedStoneQualities = [];
@@ -1490,6 +1384,7 @@ class HomeScreenState extends State<HomeScreen> {
           availableMetalColors: _availableMetalColors,
           availableMetalPurities: _availableMetalPurities,
           availableStoneShapes: _availableStoneShapes,
+          availableEnamelColors: _availableEnamelColors,
           availableStoneTypes: _availableStoneTypes,
           availableStoneQualities: _availableStoneQualities,
           availableStoneSettings: _availableStoneSettings,
@@ -1500,6 +1395,7 @@ class HomeScreenState extends State<HomeScreen> {
           selectedMetalColors: _selectedMetalColors,
           selectedMetalPurities: _selectedMetalPurities,
           isEnamelWorkChecked: _isEnamelWorkChecked,
+          selectedEnamelColors: _selectedEnamelColors,
           selectedStoneShapes: _selectedStoneShapes,
           selectedStoneTypes: _selectedStoneTypes,
           selectedStoneQualities: _selectedStoneQualities,
@@ -1513,6 +1409,7 @@ class HomeScreenState extends State<HomeScreen> {
           onMetalColorsChanged: _onMetalColorsChanged,
           onMetalPuritiesChanged: _onMetalPuritiesChanged,
           onEnamelWorkChanged: _onEnamelWorkChanged,
+          onEnamelColorsChanged: _onEnamelColorsChanged,
           onStoneWeightChanged: _onStoneWeightChanged,
           onStoneShapesChanged: _onStoneShapesChanged,
           onStoneTypesChanged: _onStoneTypesChanged,
@@ -1560,7 +1457,8 @@ class HomeScreenState extends State<HomeScreen> {
                           child: Center(child: GlowingLogo(size: 40)),
                         );
                       }
-                      return _buildImageCard(context, _products[index]);
+                      return _buildImageCard(context, _products[index],
+                          from: _products);
                     },
                   ),
                 ),
@@ -1783,6 +1681,24 @@ class HomeScreenState extends State<HomeScreen> {
                 selectedValue: _selectedSubCategory,
                 onChanged: _onSubCategoryChanged,
                 isLoading: _isLoadingSubCategories,
+              ),
+            ),
+
+          if (_selectedProductType != 'All' &&
+              (_isCountingDesigns || _designCount != null))
+            Padding(
+              padding: const EdgeInsets.only(top: 2.0, bottom: 4.0),
+              child: Text(
+                _isCountingDesigns
+                    ? 'Counting designs...'
+                    : _designCount == 1
+                        ? '1 design'
+                        : '${NumberFormat.decimalPattern().format(_designCount)} designs',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: B2BColors.inkSoft,
+                ),
               ),
             ),
 
@@ -2299,7 +2215,8 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildImageCard(BuildContext context, JewelryItem item) {
+  Widget _buildImageCard(BuildContext context, JewelryItem item,
+      {List<JewelryItem>? from}) {
     final bool isTapped = _tappedItemId == item.id;
     final userProfile = context.watch<UserProfileProvider>();
     final isMember = userProfile.isMember;
@@ -2335,10 +2252,7 @@ class HomeScreenState extends State<HomeScreen> {
         if (isTapped) {
           setState(() => _tappedItemId = null);
         } else {
-          final isDesigner = item.isDesignerProduct;
-          final isManufacturer = item.isManufacturerProduct;
-          context.push(
-              '/product/${item.uid ?? item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
+          openProduct(context, item, from: from);
         }
       },
       child: HoverLift(

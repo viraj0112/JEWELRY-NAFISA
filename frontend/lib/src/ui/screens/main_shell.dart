@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/product_browse.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:jewelry_nafisa/src/auth/supabase_auth_service.dart';
@@ -6,6 +7,7 @@ import 'package:jewelry_nafisa/src/auth/widgets/password_setup_banner.dart';
 import 'package:jewelry_nafisa/src/providers/theme_provider.dart';
 import 'package:jewelry_nafisa/src/widgets/account_management_dialog.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
 import 'package:jewelry_nafisa/src/ui/screens/profile/profile_screen.dart';
 import 'package:jewelry_nafisa/src/widgets/edit_profile_dialog.dart';
@@ -16,6 +18,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/utils/app_update_checker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:jewelry_nafisa/src/utils/handbook.dart';
+import 'package:jewelry_nafisa/src/utils/onboarding_route.dart';
 
 class MainShell extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -276,7 +279,8 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
                 (MediaQuery.of(context).size.width / 200).floor().clamp(2, 6),
             itemCount: _searchResults.length,
             itemBuilder: (context, index) {
-              return _buildImageCard(context, _searchResults[index]);
+              return _buildImageCard(context, _searchResults[index],
+                  from: _searchResults);
             },
             mainAxisSpacing: 8.0,
             crossAxisSpacing: 8.0,
@@ -286,11 +290,11 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
     );
   }
 
-  Widget _buildImageCard(BuildContext context, JewelryItem item) {
+  Widget _buildImageCard(BuildContext context, JewelryItem item,
+      {List<JewelryItem>? from}) {
     return GestureDetector(
       onTap: () {
-        // Use GoRouter to push the product page
-        context.push('/product/${item.id}');
+        openProduct(context, item, from: from);
       },
       child: Card(
         clipBehavior: Clip.antiAlias,
@@ -376,21 +380,30 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
     );
   }
 
+  /// The user's picture, or null when they have not set one.
+  String? _avatarUrlOf(UserProfileProvider user) {
+    final url = user.userProfile?.avatarUrl;
+    return (url == null || url.isEmpty) ? null : url;
+  }
+
   Widget _buildLogo(UserProfileProvider user) {
+    final avatarUrl = _avatarUrlOf(user);
     return Padding(
       padding: const EdgeInsets.only(top: 8.0, bottom: 52.0),
       child: CircleAvatar(
         radius: 18,
+        backgroundImage:
+            avatarUrl != null ? CachedNetworkImageProvider(avatarUrl) : null,
         backgroundColor: const Color(0xFF006435),
-        // --- FIX: Removed user.isLoading check ---
-        child: Text(
-          user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        // --- END FIX ---
+        child: avatarUrl == null
+            ? Text(
+                initialFor(user.userProfile),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              )
+            : null,
       ),
     );
   }
@@ -403,7 +416,7 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
   }
 
   Widget _buildClickableProfileAvatar(UserProfileProvider user) {
-    final avatarUrl = user.userProfile?.avatarUrl;
+    final avatarUrl = _avatarUrlOf(user);
     return GestureDetector(
       onTap: () {
         _onItemTapped(4);
@@ -412,23 +425,25 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
         backgroundImage:
             avatarUrl != null ? CachedNetworkImageProvider(avatarUrl) : null,
         backgroundColor: Theme.of(context).colorScheme.primary,
-        // --- FIX: Removed user.isLoading check ---
         child: (avatarUrl == null)
             ? Text(
-                user.username.isNotEmpty ? user.username[0].toUpperCase() : 'U',
+                initialFor(user.userProfile),
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
               )
             : null,
-        // --- END FIX ---
       ),
     );
   }
 
   Widget _buildProfileDropdown(UserProfileProvider user) {
-    final avatarUrl = user.userProfile?.avatarUrl;
+    final avatarUrl = _avatarUrlOf(user);
+    final profile = user.userProfile;
+    // "Claim Now" finishes onboarding to unlock the welcome offer, so it is
+    // only offered until setup is complete.
+    final showClaimNow = profile != null && !profile.isSetupComplete;
 
     return PopupMenuButton<String>(
       tooltip: 'Profile Menu',
@@ -461,6 +476,9 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
               context: context,
               builder: (context) => const AccountManagementDialog(),
             );
+            break;
+          case 'claim_now':
+            if (profile != null) context.go(onboardingRouteFor(profile));
             break;
           case 'my_profile':
             Navigator.of(context).push(
@@ -495,9 +513,7 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
                     backgroundColor: const Color(0xFF006435),
                     child: (avatarUrl == null)
                         ? Text(
-                            user.username.isNotEmpty
-                                ? user.username[0].toUpperCase()
-                                : 'U',
+                            initialFor(user.userProfile),
                             style: GoogleFonts.ptSerif(
                               color: Colors.white,
                               fontSize: 18,
@@ -513,7 +529,7 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          user.username,
+                          user.displayName,
                           style: GoogleFonts.ptSerif(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
@@ -553,124 +569,43 @@ class _MainShellState extends State<MainShell> with AppUpdateChecker {
             ),
           ),
           const PopupMenuDivider(height: 1),
-          PopupMenuItem<String>(
-            value: 'edit_profile',
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.edit_outlined,
-                  size: 20,
-                  color: Color(0xFF006435),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Edit Profile',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF111111),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          PopupMenuItem<String>(
-            value: 'change_password',
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.lock_outline,
-                  size: 20,
-                  color: Color(0xFF006435),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Change Password',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF111111),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          PopupMenuItem<String>(
-            value: 'my_profile',
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.person_outline,
-                  size: 20,
-                  color: Color(0xFF006435),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'My Profile',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF111111),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          PopupMenuItem<String>(
-            value: 'handbook',
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.menu_book_outlined,
-                  size: 20,
-                  color: Color(0xFF006435),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Help & Handbook',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF111111),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _menuItem('my_profile', Icons.person_outline, 'My Profile'),
+          if (showClaimNow)
+            _menuItem('claim_now', Icons.card_giftcard_outlined, 'Claim Now'),
+          _menuItem('edit_profile', Icons.edit_outlined, 'Edit Profile'),
+          _menuItem('change_password', Icons.lock_outline, 'Change Password'),
+          _menuItem('handbook', Icons.menu_book_outlined, 'Help & Handbook'),
           const PopupMenuDivider(height: 1),
-          PopupMenuItem<String>(
-            value: 'logout',
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.logout_outlined,
-                  size: 20,
-                  color: Colors.redAccent,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Log out',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.redAccent,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _menuItem('logout', Icons.logout_outlined, 'Log out',
+              color: Colors.redAccent),
         ];
       },
+    );
+  }
+
+  PopupMenuItem<String> _menuItem(String value, IconData icon, String label,
+      {Color? color}) {
+    return PopupMenuItem<String>(
+      value: value,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: color ?? const Color(0xFF006435),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: color ?? const Color(0xFF111111),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

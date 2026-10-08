@@ -8,6 +8,7 @@ import 'package:jewelry_nafisa/src/auth/email_signup_screen.dart';
 import 'package:jewelry_nafisa/src/auth/phone_auth_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:jewelry_nafisa/src/auth/google_brand.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -601,27 +602,12 @@ class _GoogleButtonState extends State<_GoogleButton> {
                     ),
                   ),
                 )
-              : Row(
+              : const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Google 'G' logo using colored text
-                    Text(
-                      'G',
-                      style: GoogleFonts.roboto(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF4285F4),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Continue with Google',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF333333),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    GoogleGLogo(size: 20),
+                    SizedBox(width: 12),
+                    ContinueWithGoogleLabel(),
                   ],
                 ),
         ),

@@ -236,3 +236,15 @@ UserRole userRoleFromString(String? role) {
       return UserRole.member;
   }
 }
+
+/// The letter shown in a profile avatar when there is no picture: the first
+/// letter of the full name, else the username, else the email, else 'U'.
+String initialFor(UserProfile? profile) {
+  for (final value in [profile?.fullName, profile?.username, profile?.email]) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isNotEmpty) {
+      return String.fromCharCode(trimmed.runes.first).toUpperCase();
+    }
+  }
+  return 'U';
+}

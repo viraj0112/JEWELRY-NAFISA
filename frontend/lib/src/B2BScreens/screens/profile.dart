@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/auth/widgets/password_form.dart';
 import 'package:jewelry_nafisa/src/auth/password_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -168,7 +171,8 @@ class _ProfilePageState extends State<ProfilePage> {
     var total = 0;
     const chunk = 200; // keeps the IN (...) list well under URL limits
     for (var i = 0; i < ids.length; i += chunk) {
-      final part = ids.sublist(i, i + chunk > ids.length ? ids.length : i + chunk);
+      final part =
+          ids.sublist(i, i + chunk > ids.length ? ids.length : i + chunk);
       total += await _supabase
           .from(eventTable)
           .count(CountOption.exact)
@@ -217,8 +221,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final businessName = _profile?.businessName ??
         (_isManufacturer ? 'Manufacturer Account' : 'Designer Account');
-    final initial =
-        businessName.isNotEmpty ? businessName[0].toUpperCase() : 'M';
+    // The business name is what this header shows, so its letter comes
+    // first; without one, fall back to the account's name/email initial.
+    final userProfile = Provider.of<UserProfileProvider>(context).userProfile;
+    final String ownName = _profile?.businessName?.trim() ?? '';
+    final initial = ownName.isNotEmpty
+        ? String.fromCharCode(ownName.runes.first).toUpperCase()
+        : initialFor(userProfile);
+    final url = userProfile?.avatarUrl;
+    final avatarUrl = (url == null || url.isEmpty) ? null : url;
 
     return PageTemplate(
       eyebrow: 'Your account',
@@ -234,7 +245,7 @@ class _ProfilePageState extends State<ProfilePage> {
               padding: const EdgeInsets.fromLTRB(2, 4, 2, 80),
               children: [
                 // ── Header Card ─────────────────────────────────────────────
-                _buildHeaderCard(initial, businessName),
+                _buildHeaderCard(initial, businessName, avatarUrl),
 
                 const SizedBox(height: 24),
 
@@ -282,7 +293,8 @@ class _ProfilePageState extends State<ProfilePage> {
   // Header Card
   // -------------------------------------------------------------------------
 
-  Widget _buildHeaderCard(String initial, String businessName) {
+  Widget _buildHeaderCard(
+      String initial, String businessName, String? avatarUrl) {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: b2bCardDecoration(),
@@ -305,13 +317,21 @@ class _ProfilePageState extends State<ProfilePage> {
                   borderRadius: BorderRadius.circular(40),
                   border: Border.all(color: B2BColors.gold, width: 2),
                   boxShadow: B2BShadows.soft,
+                  image: avatarUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(avatarUrl),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                 ),
-                child: Center(
-                  child: Text(
-                    initial,
-                    style: B2BText.serif(size: 32, color: Colors.white),
-                  ),
-                ),
+                child: avatarUrl != null
+                    ? null
+                    : Center(
+                        child: Text(
+                          initial,
+                          style: B2BText.serif(size: 32, color: Colors.white),
+                        ),
+                      ),
               ),
               const SizedBox(width: 16),
 
@@ -361,7 +381,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       PopupMenuItem(
                         value: value,
                         child: Row(children: [
-                          Icon(icon, size: 18, color: color ?? B2BColors.primary),
+                          Icon(icon,
+                              size: 18, color: color ?? B2BColors.primary),
                           const SizedBox(width: 12),
                           Text(label,
                               style: B2BText.sans(
@@ -630,8 +651,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       color: B2BColors.ink)),
               const SizedBox(height: 2),
               Text(subtitle,
-                  style:
-                      const TextStyle(fontSize: 12, color: B2BColors.muted)),
+                  style: const TextStyle(fontSize: 12, color: B2BColors.muted)),
             ],
           ),
         ),
@@ -732,8 +752,8 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
             decoration: const BoxDecoration(
-              border: Border(
-                  bottom: BorderSide(color: B2BColors.border, width: 1)),
+              border:
+                  Border(bottom: BorderSide(color: B2BColors.border, width: 1)),
             ),
             child: Align(
               alignment: Alignment.centerLeft,
@@ -830,8 +850,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title,
-                      style: B2BText.sans(
-                          size: 15, weight: FontWeight.w500)),
+                      style: B2BText.sans(size: 15, weight: FontWeight.w500)),
                   const SizedBox(height: 3),
                   Text(subtitle,
                       style: B2BText.sans(size: 13, color: B2BColors.muted)),

@@ -28,6 +28,8 @@ import 'package:jewelry_nafisa/src/services/jewelry_service.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/auth/signup_screen.dart';
 import 'package:jewelry_nafisa/src/ui/screens/detail/product_page_loader.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/product_browse.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/product_swipe_pager.dart';
 import 'package:jewelry_nafisa/src/auth/login_screen.dart';
 import 'package:jewelry_nafisa/src/services/quote_service.dart';
 import 'package:jewelry_nafisa/src/services/search_history_service.dart';
@@ -236,6 +238,14 @@ final _router = GoRouter(
           return const AuthGate();
         }
 
+        // Opened from a list (home grid, search, board, "More like this"):
+        // swipe through that list. Deep links and refreshes carry no list and
+        // fall through to the single-product loaders below.
+        final browse = state.extra;
+        if (browse is ProductBrowseList && browse.isFor(identifier)) {
+          return ProductSwipePager(browse: browse);
+        }
+
         // Check if identifier is a UUID (8-4-4-4-12 hex groups)
         final uuidRegex = RegExp(
             r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
@@ -291,8 +301,27 @@ class GoRouterRefreshStream extends ChangeNotifier {
   }
 }
 
+/// App logs (the ~300 debugPrint calls) flooded the terminal and the browser
+/// console and slowed loading, so they are off unless the app is started with
+/// `--dart-define=APP_LOGS=true`.
+const bool _appLogs = bool.fromEnvironment('APP_LOGS');
+
+void _silenceAppLogs() {
+  final printLog = debugPrint;
+  void silent(String? message, {int? wrapWidth}) {}
+  debugPrint = silent;
+  // Framework errors (red-screen / overflow reports) are printed through
+  // debugPrint too; keep those visible.
+  FlutterError.onError = (details) {
+    debugPrint = printLog;
+    FlutterError.presentError(details);
+    debugPrint = silent;
+  };
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (!_appLogs) _silenceAppLogs();
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -310,7 +339,11 @@ Future<void> main() async {
     throw Exception('Supabase URL and Anon Key are required.');
   }
 
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+  await Supabase.initialize(
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+    debug: _appLogs, // its auth/realtime logs otherwise print in debug builds
+  );
 
   // A "reset password" email link signs the user in with a recovery event;
   // send them to the new-password form. The auth stream replays its latest

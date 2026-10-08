@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jewelry_nafisa/src/auth/google_brand.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -816,26 +817,12 @@ class _GoogleButtonState extends State<_GoogleButton> {
                     ),
                   ),
                 )
-              : Row(
+              : const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      'G',
-                      style: GoogleFonts.roboto(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF4285F4),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Continue with Google',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF333333),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    GoogleGLogo(size: 20),
+                    SizedBox(width: 12),
+                    ContinueWithGoogleLabel(),
                   ],
                 ),
         ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/product_browse.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:jewelry_nafisa/src/ui/screens/detail/jewelry_detail_screen.dart'; // Corrected path
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
 import 'package:jewelry_nafisa/src/providers/boards_provider.dart';
@@ -149,14 +149,7 @@ class _BoardDetailScreenState extends State<BoardDetailScreen> {
                       final pin = _pins[index];
                       return GestureDetector(
                         onTap: () {
-                          // --- This is the navigation logic you wanted ---
-                          // It was already correct.
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => JewelryDetailScreen(
-                                  jewelryItem: pin), // Pass the entire item
-                            ),
-                          );
+                          openProduct(context, pin, from: _pins);
                         },
                         child: Card(
                           clipBehavior: Clip.antiAlias,

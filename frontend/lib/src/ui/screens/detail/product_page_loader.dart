@@ -31,46 +31,8 @@ class _ProductPageLoaderState extends State<ProductPageLoader> {
   void initState() {
     super.initState();
     _productFuture = widget.lookupByUid
-        ? _fetchProductByUid(widget.productSlug)
+        ? fetchProductByUid(widget.productSlug)
         : _fetchProductBySlug(widget.productSlug);
-  }
-
-  // ── NEW: Fetch by UUID ──────────────────────────────────────────────────────
-  // Queries all three product tables in parallel and returns the first hit.
-  // Because uuid is globally unique across tables, we never get a collision.
-  Future<JewelryItem?> _fetchProductByUid(String uid) async {
-    final client = Supabase.instance.client;
-    try {
-      final results = await Future.wait([
-        client.from('products').select().eq('uid', uid).maybeSingle(),
-        client.from('designerproducts').select().eq('uid', uid).maybeSingle(),
-        client
-            .from('manufacturerproducts')
-            .select()
-            .eq('uid', uid)
-            .maybeSingle(),
-      ]);
-
-      if (results[0] != null) {
-        return JewelryItem.fromJson(results[0] as Map<String, dynamic>);
-      }
-      if (results[1] != null) {
-        final map = results[1] as Map<String, dynamic>;
-        map['is_designer_product'] = true;
-        return JewelryItem.fromJson(map);
-      }
-      if (results[2] != null) {
-        final map = results[2] as Map<String, dynamic>;
-        map['is_manufacturer_product'] = true;
-        return JewelryItem.fromJson(map);
-      }
-
-      debugPrint('Product not found for uid: $uid');
-      return null;
-    } catch (e) {
-      debugPrint("Error fetching product by uid '$uid': $e");
-      return null;
-    }
   }
 
   // ── LEGACY: Fetch by fuzzy title slug ──────────────────────────────────────
@@ -163,5 +125,38 @@ class _ProductPageLoaderState extends State<ProductPageLoader> {
         return JewelryDetailScreen(jewelryItem: snapshot.data!);
       },
     );
+  }
+}
+
+/// Loads a product by its `uid`. Queries all three product tables in parallel
+/// and returns the first hit; the uid is unique across tables.
+Future<JewelryItem?> fetchProductByUid(String uid) async {
+  final client = Supabase.instance.client;
+  try {
+    final results = await Future.wait([
+      client.from('products').select().eq('uid', uid).maybeSingle(),
+      client.from('designerproducts').select().eq('uid', uid).maybeSingle(),
+      client.from('manufacturerproducts').select().eq('uid', uid).maybeSingle(),
+    ]);
+
+    if (results[0] != null) {
+      return JewelryItem.fromJson(results[0] as Map<String, dynamic>);
+    }
+    if (results[1] != null) {
+      final map = results[1] as Map<String, dynamic>;
+      map['is_designer_product'] = true;
+      return JewelryItem.fromJson(map);
+    }
+    if (results[2] != null) {
+      final map = results[2] as Map<String, dynamic>;
+      map['is_manufacturer_product'] = true;
+      return JewelryItem.fromJson(map);
+    }
+
+    debugPrint('Product not found for uid: $uid');
+    return null;
+  } catch (e) {
+    debugPrint("Error fetching product by uid '$uid': $e");
+    return null;
   }
 }

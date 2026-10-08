@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Everything each of the four account types on Dagina.Design can do, and the exact route to doing it — members, designers, manufacturers and admins, plus a support playbook.">
+<meta name="description" content="Everything each of the five account types on Dagina.Design can do, and the exact route to doing it — members, designers, manufacturers, retailers and admins, plus a support playbook.">
 <meta name="theme-color" content="#F6F8F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0D1512" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="favicon.png">
+<link rel="icon" type="image/png" href="icons/DDlogo.png">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Dagina Role Handbook">
 <meta property="og:description" content="Role-by-role feature and support guide for Dagina.Design.">
@@ -55,6 +55,8 @@
     --maker-soft:#E5EBF1;
     --admin:#8E6B1F;
     --admin-soft:#F4EDDD;
+    --retailer:#7A4A8C;
+    --retailer-soft:#F1E8F4;
 
     --ok:#1E7A55;
     --warn:#B3761B;
@@ -89,6 +91,8 @@
       --maker-soft:#16212B;
       --admin:#D2AC5C;
       --admin-soft:#272012;
+      --retailer:#C39AD3;
+      --retailer-soft:#231A28;
 
       --ok:#54B98C;
       --warn:#DBA755;
@@ -118,6 +122,8 @@
     --maker-soft:#16212B;
     --admin:#D2AC5C;
     --admin-soft:#272012;
+    --retailer:#C39AD3;
+    --retailer-soft:#231A28;
 
     --ok:#54B98C;
     --warn:#DBA755;
@@ -323,12 +329,30 @@
   body[data-filter="member"] .plate:not([data-role="member"]),
   body[data-filter="designer"] .plate:not([data-role="designer"]),
   body[data-filter="manufacturer"] .plate:not([data-role="manufacturer"]),
-  body[data-filter="admin"] .plate:not([data-role="admin"]){display:none}
+  body[data-filter="admin"] .plate:not([data-role="admin"]),
+  body[data-filter="retailer"] .plate:not([data-role="retailer"]){display:none}
+
+  /* Opened from the app for one role (?role=...): only that role's guide.
+     The cross-role map, matrix, support playbook and glossary stay hidden. */
+  body[data-locked] .switcher,
+  body[data-locked] #lifecycle,
+  body[data-locked] #matrix,
+  body[data-locked] #playbook,
+  body[data-locked] #glossary,
+  body[data-locked] .all-roles,
+  body[data-locked] .unlocked-only{display:none}
+  .locked-only{display:none}
+  body[data-locked] .locked-only{display:block}
+  /* A manufacturer's guide builds on the designer tasks, so they get those
+     tasks too, without the designer's own role card. */
+  body[data-locked][data-filter="manufacturer"] #designer{display:block}
+  body[data-locked][data-filter="manufacturer"] #designer .hallmark{display:none}
 
   .plate[data-role="member"]{--c:var(--member);--c-soft:var(--member-soft)}
   .plate[data-role="designer"]{--c:var(--designer);--c-soft:var(--designer-soft)}
   .plate[data-role="manufacturer"]{--c:var(--maker);--c-soft:var(--maker-soft)}
   .plate[data-role="admin"]{--c:var(--admin);--c-soft:var(--admin-soft)}
+  .plate[data-role="retailer"]{--c:var(--retailer);--c-soft:var(--retailer-soft)}
 
   .hallmark{
     border-top:3px solid var(--c);
@@ -576,11 +600,12 @@
       --designer:#00695C; --designer-soft:#E2EFEC;
       --maker:#41607C; --maker-soft:#E5EBF1;
       --admin:#8E6B1F; --admin-soft:#F4EDDD;
+      --retailer:#7A4A8C; --retailer-soft:#F1E8F4;
       --ok:#1E7A55; --warn:#B3761B; --crit:#A33A32;
       --shadow:none;
     }
     .switcher{display:none}
-    .plate{display:block !important}
+    body:not([data-locked]) .plate{display:block !important}
     details.ticket .ticket-body{display:grid !important}
     details.ticket:not([open]) > *:not(summary){display:block}
     summary::before{content:"" !important}
@@ -598,9 +623,10 @@
   <header class="masthead">
     <p class="eyebrow">Dagina.Design · Working handbook · Rev. September 2026</p>
     <h1>Dagina Role Handbook</h1>
-    <p class="standfirst">Everything each of the four account types on Dagina can do, and the exact route to doing it. Your role is set on your account record and decides which app you land in after sign-in — <strong>members</strong> browse and request quotes, <strong>designers</strong> and <strong>manufacturers</strong> run their own catalogue, and <strong>admins</strong> operate the platform behind all three.</p>
+    <p class="standfirst locked-only" id="locked-intro"></p>
+    <p class="standfirst unlocked-only">Everything each of the five account types on Dagina can do, and the exact route to doing it. Your role is set on your account record and decides which app you land in after sign-in — <strong>members</strong> browse and request quotes, <strong>designers</strong> and <strong>manufacturers</strong> run their own catalogue, and <strong>retailers</strong> source stock from the manufacturers assigned to them, and <strong>admins</strong> operate the platform behind all of them.</p>
     <div class="meta-row">
-      <span>4 roles</span>
+      <span class="all-roles">5 roles</span>
       <span>Web · iOS · Android</span>
       <span>Support playbook incl.</span>
     </div>
@@ -613,6 +639,7 @@
       <button class="chip" type="button" data-set="member" aria-pressed="false" style="--c:var(--member)"><span class="dot"></span>Member</button>
       <button class="chip" type="button" data-set="designer" aria-pressed="false" style="--c:var(--designer)"><span class="dot"></span>Designer</button>
       <button class="chip" type="button" data-set="manufacturer" aria-pressed="false" style="--c:var(--maker)"><span class="dot"></span>Manufacturer</button>
+      <button class="chip" type="button" data-set="retailer" aria-pressed="false" style="--c:var(--retailer)"><span class="dot"></span>Retailer</button>
       <button class="chip" type="button" data-set="admin" aria-pressed="false" style="--c:var(--admin)"><span class="dot"></span>Admin</button>
       <button class="theme-toggle" type="button" id="theme-toggle">Dark</button>
     </div>
@@ -1108,7 +1135,8 @@
     <div class="tasks">
       <div class="task">
         <h3>Everything in the Designer section applies</h3>
-        <p class="where">Switch the handbook to <strong>Designer</strong> for the full task-by-task detail</p>
+        <p class="where unlocked-only">Switch the handbook to <strong>Designer</strong> for the full task-by-task detail</p>
+        <p class="where locked-only">The full task-by-task detail follows below this section</p>
         <p>Applying, uploading singly or in bulk, Edit in Sheets, AI Fill, search and filters, deletion, insights, approvals and profile all work identically. The three differences below are the whole of it.</p>
       </div>
       <div class="task">
@@ -1126,6 +1154,75 @@
         <h3>Quotes reach you as demand, not as a desk</h3>
         <p class="where">Insights &amp; Notifications</p>
         <p>Member quote requests are worked by the admin quote desk. What comes back to you is the signal: engagement counts, demand levels and the regions asking. Use them to decide what to list next.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ============ RETAILER ============ -->
+  <article class="plate" data-role="retailer" id="retailer">
+    <div class="hallmark">
+      <div class="hallmark-top">
+        <h2>Retailer</h2>
+        <span class="stamp">Plum · Consumer app + Business</span>
+      </div>
+      <p>A jewellery store buying from the manufacturers on Dagina. You browse the catalogue like a member, with your own credit allowance, and work with the manufacturers an admin has assigned to you: sharing boards and messaging them directly.</p>
+      <dl class="facts">
+        <div class="fact"><dt>How you get this role</dt><dd>Business sign-up with type <em>Retailer</em>, plus the <em>Design Retailers</em> membership bought with the same email address.</dd></div>
+        <div class="fact"><dt>Approval needed</dt><dd>Yes. Your business documents are verified by an admin before the account opens.</dd></div>
+        <div class="fact"><dt>Where you land</dt><dd>The home feed, plus a Business area for your profile, messages and notifications.</dd></div>
+        <div class="fact"><dt>Your currency</dt><dd>Retailer credits, on their own allowance and refreshed monthly.</dd></div>
+      </dl>
+    </div>
+
+    <h3 class="group-title">Joining and approval</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Apply for a retailer account</h3>
+        <p class="where">Sign-up → business account → type <em>Retailer</em></p>
+        <ol>
+          <li>Enter your business details and upload your registration documents.</li>
+          <li>Buy the <em>Design Retailers</em> membership using the same email address you signed up with.</li>
+          <li>Wait for an admin to verify the business. You will be notified when the account is approved.</li>
+        </ol>
+        <p class="snag"><b>If it goes wrong</b>If the membership was bought with a different email address, it cannot be matched to your account. Contact support with both addresses.</p>
+      </div>
+      <div class="task">
+        <h3>While you wait</h3>
+        <p class="where">Pending approval screen, shown at sign-in</p>
+        <p>Review normally takes 2–3 business days. Nothing needs doing on your side unless support asks for a missing document.</p>
+      </div>
+    </div>
+
+    <h3 class="group-title">Sourcing</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Browse, like and save</h3>
+        <p class="where">Home feed, Search and Boards</p>
+        <p>You find pieces exactly as members do. Likes and saves on a manufacturer's pieces are visible to that manufacturer, but only if an admin has assigned you to them.</p>
+      </div>
+      <div class="task">
+        <h3>Unlock full specifications</h3>
+        <p class="where">Any piece → unlock</p>
+        <p>Unlocking a piece spends your retailer credits and reveals its full metal and stone specification. The balance refreshes monthly.</p>
+      </div>
+    </div>
+
+    <h3 class="group-title">Working with manufacturers</h3>
+    <div class="tasks">
+      <div class="task">
+        <h3>Your assigned manufacturers</h3>
+        <p class="where">Business → Profile</p>
+        <p>An admin decides which manufacturers you work with. You can collaborate only with the manufacturers assigned to you. Ask support to add one.</p>
+      </div>
+      <div class="task">
+        <h3>Share a board</h3>
+        <p class="where">Boards → a board → Share</p>
+        <p>Share a board with an assigned manufacturer to show them the pieces you are interested in.</p>
+      </div>
+      <div class="task">
+        <h3>Message a manufacturer</h3>
+        <p class="where">Business → Messages</p>
+        <p>Start a conversation with any manufacturer assigned to you. You will be notified when they reply.</p>
       </div>
     </div>
   </article>
@@ -1412,7 +1509,7 @@
 
   <footer>
     <span>Dagina.Design working handbook</span>
-    <span>Four roles · Member · Designer · Manufacturer · Admin</span>
+    <span class="all-roles">Five roles · Member · Designer · Manufacturer · Retailer · Admin</span>
     <span>Rev. September 2026</span>
   </footer>
 
@@ -1437,7 +1534,26 @@
         }
       });
     });
-    document.body.setAttribute('data-filter', 'all');
+    // Opened from the app as ?role=<role>: show only that role's guide.
+    // Admins get the full handbook, since they support every role.
+    var intros = {
+      member: 'Everything you can do as a member on Dagina, and the exact route to doing it.',
+      designer: 'Everything you can do as a designer on Dagina, and the exact route to doing it.',
+      manufacturer: 'Everything you can do as a manufacturer on Dagina, and the exact route to doing it.',
+      retailer: 'Everything you can do as a retailer on Dagina, and the exact route to doing it.'
+    };
+    var role = null;
+    try { role = new URLSearchParams(window.location.search).get('role'); } catch (e) {}
+    if (role && Object.prototype.hasOwnProperty.call(intros, role)) {
+      document.body.setAttribute('data-filter', role);
+      document.body.setAttribute('data-locked', '');
+      document.getElementById('locked-intro').textContent = intros[role];
+      var title = 'Dagina ' + role.charAt(0).toUpperCase() + role.slice(1) + ' Handbook';
+      document.querySelector('.masthead h1').textContent = title;
+      document.title = title;
+    } else {
+      document.body.setAttribute('data-filter', 'all');
+    }
   })();
 </script>
 <script>

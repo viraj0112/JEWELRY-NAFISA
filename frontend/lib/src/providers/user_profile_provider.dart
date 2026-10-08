@@ -41,6 +41,13 @@ class UserProfileProvider with ChangeNotifier {
   Set<String> _unlockedItemIds = {};
   bool isItemUnlocked(String itemId) => _unlockedItemIds.contains(itemId);
   String get username => _userProfile?.username ?? '';
+
+  /// The name to show for the user: their full name, else their username.
+  String get displayName {
+    final fullName = _userProfile?.fullName?.trim() ?? '';
+    return fullName.isNotEmpty ? fullName : username;
+  }
+
   bool get isMember => _userProfile?.isMember ?? false;
   int get creditsRemaining => _userProfile?.credits ?? 0;
   String? get referralCode => _userProfile?.referralCode;
@@ -308,36 +315,95 @@ class UserProfileProvider with ChangeNotifier {
     }
   }
 
+  /// Saves the Edit Profile form.
+  ///
+  /// Only fields that changed are written, and a cleared field is stored as
+  /// null (Postgres rejects '' for the `date` birthdate column). The name goes
+  /// to `full_name`: `username` is a unique handle, so two people choosing the
+  /// same display name made the whole save fail.
+  ///
+  /// The picture is uploaded on its own. If that fails the other changes are
+  /// still saved, and an [AvatarUploadException] says what went wrong.
   Future<void> updateUserProfile({
     required String name,
     required String phone,
-    required String birthdate,
+    DateTime? birthdate,
     String? bio,
     String? gender,
     XFile? avatarFile,
   }) async {
     final userId = _supabase.auth.currentUser!.id;
-    String? avatarUrl;
+    final current = _userProfile;
 
-    if (avatarFile != null) {
-      final bytes = await avatarFile.readAsBytes();
-      final fileName = '$userId/avatar.${avatarFile.path.split('.').last}';
-      await _supabase.storage.from('avatars').uploadBinary(fileName, bytes,
-          fileOptions: const FileOptions(upsert: true));
-      avatarUrl = _supabase.storage.from('avatars').getPublicUrl(fileName);
+    String? orNull(String? value) {
+      final trimmed = value?.trim() ?? '';
+      return trimmed.isEmpty ? null : trimmed;
     }
 
-    final updates = {
-      'username': name,
-      'phone': phone,
-      'birthdate': birthdate,
-      'gender': gender,
-      'bio': bio,
-      if (avatarUrl != null) 'avatar_url': avatarUrl,
-    };
+    String? isoDate(DateTime? date) =>
+        date?.toIso8601String().substring(0, 10); // yyyy-MM-dd
 
-    await _supabase.from('users').update(updates).eq('id', userId);
+    final updates = <String, dynamic>{};
+    void changed(String column, Object? value, Object? previous) {
+      if (value != previous) updates[column] = value;
+    }
+
+    changed('full_name', orNull(name), current?.fullName);
+    changed('phone', orNull(phone), current?.phone);
+    changed('birthdate', isoDate(birthdate), isoDate(current?.birthdate));
+    changed('gender', orNull(gender), current?.gender);
+    changed('bio', orNull(bio), current?.bio);
+
+    Object? avatarError;
+    if (avatarFile != null) {
+      try {
+        updates['avatar_url'] = await _uploadAvatar(userId, avatarFile);
+      } catch (e) {
+        debugPrint('Avatar upload failed: $e');
+        avatarError = e;
+      }
+    }
+
+    if (updates.isNotEmpty) {
+      // RLS turns a refused update into "0 rows changed" rather than an
+      // error, so ask for the row back to tell the two apart.
+      final saved = await _supabase
+          .from('users')
+          .update(updates)
+          .eq('id', userId)
+          .select('id');
+      if (saved.isEmpty) {
+        throw Exception('You do not have permission to update this profile.');
+      }
+    }
     await loadUserProfile();
+
+    if (avatarError != null) throw AvatarUploadException(avatarError);
+  }
+
+  /// Uploads [file] as the user's picture and returns its public URL.
+  Future<String> _uploadAvatar(String userId, XFile file) async {
+    // Use the file name, not the path: on web the path is a blob: URL with
+    // no extension.
+    final name = file.name.toLowerCase();
+    final dot = name.lastIndexOf('.');
+    var ext = dot == -1 ? '' : name.substring(dot + 1);
+    if (!const ['jpg', 'jpeg', 'png', 'webp', 'gif'].contains(ext)) {
+      ext = 'jpg';
+    }
+    final path = '$userId/avatar.$ext';
+    final storage = _supabase.storage.from('avatars');
+    await storage.uploadBinary(
+      path,
+      await file.readAsBytes(),
+      fileOptions: FileOptions(
+        upsert: true,
+        contentType: file.mimeType ?? 'image/${ext == 'jpg' ? 'jpeg' : ext}',
+      ),
+    );
+    // The path never changes, so version the URL or the old picture stays in
+    // the image cache.
+    return '${storage.getPublicUrl(path)}?v=${DateTime.now().millisecondsSinceEpoch}';
   }
 
   Future<List<Map<String, dynamic>>> getQuoteHistory() async {
@@ -377,4 +443,15 @@ class UserProfileProvider with ChangeNotifier {
     clearOnboardingLocalData();
     notifyListeners();
   }
+}
+
+/// The profile was saved, but the new picture could not be uploaded.
+class AvatarUploadException implements Exception {
+  AvatarUploadException(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() => 'Your profile was saved, but the photo could not be '
+      'uploaded: $cause';
 }

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:ui'; // For ImageFilter
 import 'package:flutter/material.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/product_browse.dart';
 import 'package:jewelry_nafisa/src/services/location_service.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/models/jewelry_item.dart';
@@ -1600,13 +1601,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
             final item = items[index];
             return GestureDetector(
               onTap: () {
-                // --- FIX: Use GoRouter push for deep linking support ---
-                // Pass isDesigner query param to avoid ID collisions
-                final isDesigner = item.isDesignerProduct;
-                final isManufacturer = item.isManufacturerProduct;
-                context.push(
-                    '/product/${item.uid ?? item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
-                // --- END FIX ---
+                openProduct(context, item, from: items);
               },
               child: Card(
                 clipBehavior: Clip.antiAlias,

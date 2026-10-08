@@ -22,6 +22,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   late final TextEditingController _bioController;
 
   String? _gender;
+  DateTime? _birthdate;
   XFile? _avatarFile;
   bool _isLoading = false;
 
@@ -29,19 +30,22 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   void initState() {
     super.initState();
     final user = context.read<UserProfileProvider>().userProfile;
-    _nameController = TextEditingController(text: user?.username ?? '');
+    _nameController =
+        TextEditingController(text: user?.fullName ?? user?.username ?? '');
     _phoneController = TextEditingController(text: user?.phone ?? '');
     _bioController = TextEditingController(text: user?.bio ?? '');
+    _birthdate = user?.birthdate;
     _birthdateController = TextEditingController(
-        text: user?.birthdate != null
-            ? DateFormat('yyyy-MM-dd').format(user!.birthdate!)
+        text: _birthdate != null
+            ? DateFormat('yyyy-MM-dd').format(_birthdate!)
             : '');
     _gender = user?.gender;
   }
 
   Future<void> _selectDate(BuildContext context) async {
     final userProfile = context.read<UserProfileProvider>().userProfile;
-    final initialDate = userProfile?.birthdate ??
+    final initialDate = _birthdate ??
+        userProfile?.birthdate ??
         DateTime.now().subtract(const Duration(days: 365 * 18));
 
     final DateTime? picked = await showDatePicker(
@@ -52,6 +56,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     );
     if (picked != null) {
       setState(() {
+        _birthdate = picked;
         _birthdateController.text = DateFormat('yyyy-MM-dd').format(picked);
       });
     }
@@ -82,7 +87,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
       await provider.updateUserProfile(
         name: _nameController.text,
         phone: _phoneController.text,
-        birthdate: _birthdateController.text,
+        birthdate: _birthdate,
         gender: _gender,
         bio: _bioController.text,
         avatarFile: _avatarFile,
@@ -93,6 +98,17 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
           const SnackBar(
             content: Text('Profile updated successfully!'),
             backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on AvatarUploadException catch (e) {
+      // Everything but the photo was saved, so close and say so.
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$e'),
+            backgroundColor: Colors.orange,
           ),
         );
       }
@@ -130,7 +146,8 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Name'),
-                validator: (v) => v!.isEmpty ? 'Name is required' : null,
+                validator: (v) =>
+                    (v ?? '').trim().isEmpty ? 'Name is required' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -198,7 +215,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
       } else {
         backgroundImage = FileImage(File(_avatarFile!.path));
       }
-    } else if (user?.avatarUrl != null) {
+    } else if (user?.avatarUrl?.isNotEmpty ?? false) {
       backgroundImage = NetworkImage(user!.avatarUrl!);
     }
 
@@ -210,7 +227,13 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
             backgroundImage: backgroundImage,
             backgroundColor: theme.colorScheme.surface,
             child: backgroundImage == null
-                ? const Icon(Icons.person, size: 50)
+                ? Text(
+                    initialFor(user),
+                    style: TextStyle(
+                      fontSize: 48,
+                      color: theme.colorScheme.primary,
+                    ),
+                  )
                 : null,
           ),
           Positioned(

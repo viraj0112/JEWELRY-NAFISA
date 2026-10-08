@@ -101,7 +101,7 @@ class WelcomeOfferDialog extends StatelessWidget {
                             decoration: const BoxDecoration(
                               image: DecorationImage(
                                 image: NetworkImage(
-                                    'https://images.unsplash.com/photo-1599643477874-c5a892b11568?q=80&w=300&auto=format&fit=crop'),
+                                    'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=300&auto=format&fit=crop'),
                                 fit: BoxFit.cover,
                               ),
                             ),

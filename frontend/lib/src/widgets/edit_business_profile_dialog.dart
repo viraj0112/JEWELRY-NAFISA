@@ -75,7 +75,16 @@ class _EditBusinessProfileDialogState extends State<EditBusinessProfileDialog> {
         'gst_number': _gstController.text.trim(),
       };
 
-      await supabase.from(table).update(updates).eq('user_id', user.id);
+      // RLS turns a refused update into "0 rows changed" rather than an
+      // error, which used to show "updated successfully" for nothing saved.
+      final saved = await supabase
+          .from(table)
+          .update(updates)
+          .eq('user_id', user.id)
+          .select('user_id');
+      if (saved.isEmpty) {
+        throw Exception('You do not have permission to update this profile.');
+      }
 
       if (mounted) {
         Navigator.of(context).pop();

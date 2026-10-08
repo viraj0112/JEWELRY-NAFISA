@@ -33,6 +33,7 @@ const Map<String, String> _icons = {
   'toe ring': 'Toe Ring.png',
   'waist band': 'Waist Band.png',
   'watch': 'Watch.png',
+  'watche': 'Watch.png', // handles "Watches" after 's' strip
 };
 
 String _normalize(String label) {

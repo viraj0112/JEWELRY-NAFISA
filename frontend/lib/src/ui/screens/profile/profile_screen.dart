@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jewelry_nafisa/src/providers/user_profile_provider.dart';
+import 'package:jewelry_nafisa/src/models/user_profile.dart';
 import 'package:jewelry_nafisa/src/ui/screens/membership/buy_membership_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:jewelry_nafisa/src/ui/screens/referral_screen.dart';
@@ -130,7 +131,8 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildProfileHeader(BuildContext context, UserProfileProvider user) {
     final theme = Theme.of(context);
-    final avatarUrl = user.userProfile?.avatarUrl;
+    final url = user.userProfile?.avatarUrl;
+    final avatarUrl = (url == null || url.isEmpty) ? null : url;
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -146,9 +148,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 backgroundColor: theme.colorScheme.surface,
                 child: avatarUrl == null
                     ? Text(
-                        user.username.isNotEmpty
-                            ? user.username[0].toUpperCase()
-                            : 'U',
+                        initialFor(user.userProfile),
                         style: TextStyle(
                           fontSize: 48,
                           color: theme.colorScheme.primary,
@@ -194,7 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             ],
           ),
           const SizedBox(height: 24),
-          Text(user.username, style: theme.textTheme.headlineMedium),
+          Text(user.displayName, style: theme.textTheme.headlineMedium),
           Text(
             user.userProfile?.email ?? '',
             style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),

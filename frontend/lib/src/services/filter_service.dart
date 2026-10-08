@@ -272,33 +272,114 @@ class FilterService {
     return rows;
   }
 
-  Future<List<String>> _getDependentDistinctPagedValues(
-      String columnName, Map<String, dynamic> filters) async {
-    dynamic applyFilters(dynamic query) {
-      for (final filter in filters.entries) {
-        if (filter.value == null ||
-            filter.value == 'All' ||
-            (filter.value is List && (filter.value as List).isEmpty)) {
-          continue;
-        }
-        if (filter.key == 'Jewellery Type') {
-          query = query.not(
-              filter.value == 'Plain' ? 'Plain' : 'Studded', 'is', 'null');
-          continue;
-        }
-        final filterKey =
-            filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
-        if (filter.value is List) {
-          query = query.overlaps(filterKey, filter.value as List);
-        } else if (filter.key == 'Metal Type') {
-          final metal = filter.value.toString().trim();
-          query = query.ilike(filterKey, metal == 'AKD' ? 'AKD%' : '%$metal%');
-        } else {
-          query = query.eq(filterKey, filter.value);
+  /// Applies the other selected filters ([filters]: column label -> value)
+  /// to one table's query, for option lists that depend on them.
+  dynamic _applyDependentFilters(dynamic query, Map<String, dynamic> filters) {
+    for (final filter in filters.entries) {
+      if (filter.value == null ||
+          filter.value == 'All' ||
+          (filter.value is List && (filter.value as List).isEmpty)) {
+        continue;
+      }
+      if (filter.key == 'Jewellery Type') {
+        query = query.not(
+            filter.value == 'Plain' ? 'Plain' : 'Studded', 'is', 'null');
+        continue;
+      }
+      final filterKey =
+          filter.key.contains(' ') ? '"${filter.key}"' : filter.key;
+      if (filter.value is List) {
+        query = query.overlaps(filterKey, filter.value as List);
+      } else if (filter.key == 'Metal Type') {
+        final metal = filter.value.toString().trim();
+        query = query.ilike(filterKey, metal == 'AKD' ? 'AKD%' : '%$metal%');
+      } else {
+        query = query.eq(filterKey, filter.value);
+      }
+    }
+    return query;
+  }
+
+  /// Enamel colours of the products matching [filters], for the "Enamel"
+  /// filter. Colours live in the "Enamel Work" text[] column; products without
+  /// enamel hold the placeholder 'None', which is skipped.
+  ///
+  /// Returns display label -> the stored values it covers. Values differing
+  /// only in case or spacing ("pink", "Pink ") share one label, and the query
+  /// must match all of them: see [withEnamelFilters].
+  Future<Map<String, List<String>>> getEnamelColours(
+      Map<String, dynamic> filters) async {
+    dynamic applyFilters(dynamic query) => _applyDependentFilters(
+        query.not('"Enamel Work"', 'is', 'null'), filters);
+
+    try {
+      final responses = await Future.wait([
+        _fetchPaged('products', '"Enamel Work"', applyFilters),
+        _fetchPaged('designerproducts', '"Enamel Work"', applyFilters),
+        _fetchPaged('manufacturerproducts', '"Enamel Work"', applyFilters),
+      ]);
+      final byLabel = <String, Set<String>>{};
+      for (final response in responses) {
+        for (final row in response) {
+          for (final raw
+              in ArrayValueUtils.parse(row['Enamel Work']) ?? const <String>[]) {
+            final label = enamelLabel(raw);
+            if (label == null) continue;
+            byLabel.putIfAbsent(label, () => <String>{}).add(raw);
+          }
         }
       }
-      return query;
+      final labels = byLabel.keys.toList()..sort();
+      return {for (final l in labels) l: byLabel[l]!.toList()};
+    } catch (e) {
+      debugPrint('Error fetching enamel colours: $e');
+      return {};
     }
+  }
+
+  /// "  light   pink" -> "Light Pink"; null for blanks and placeholders.
+  @visibleForTesting
+  static String? enamelLabel(String raw) {
+    final cleaned = raw.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (_placeholderValues.contains(cleaned.toLowerCase())) return null;
+    return cleaned
+        .split(' ')
+        .map((w) => w.isEmpty
+            ? w
+            : w[0].toUpperCase() + w.substring(1).toLowerCase())
+        .join(' ');
+  }
+
+  /// Applies the "Enamel" filters to one table's product query.
+  ///
+  /// [hasEnamel] keeps products with any enamel colour ('None' means no
+  /// enamel, so a non-null column alone is not enough). [colourValues] are
+  /// the stored values behind the selected labels, from [getEnamelColours].
+  static dynamic withEnamelFilters(
+    dynamic query, {
+    required bool hasEnamel,
+    required List<String> colourValues,
+  }) {
+    if (hasEnamel) {
+      query = query
+          .not('"Enamel Work"', 'is', 'null')
+          .not('"Enamel Work"', 'cs', '{None}');
+    }
+    if (colourValues.isNotEmpty) {
+      query = query.overlaps('"Enamel Work"', colourValues);
+    }
+    return query;
+  }
+
+  /// The stored values behind the selected enamel colour [labels].
+  static List<String> enamelValuesFor(
+          List<String> labels, Map<String, List<String>> variants) =>
+      [for (final l in labels) ...?variants[l]];
+
+  Future<List<String>> _getDependentDistinctPagedValues(
+      String columnName, Map<String, dynamic> filters) async {
+    dynamic applyFilters(dynamic query) =>
+        _applyDependentFilters(query, filters);
 
     final responses = await Future.wait([
       _fetchPaged('products', '"$columnName"', applyFilters),

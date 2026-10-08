@@ -27,6 +27,7 @@ class FloatingFilterConfig {
   final List<String> availableMetalColors;
   final List<String> availableMetalPurities;
   final List<String> availableStoneShapes;
+  final List<String> availableEnamelColors;
   final List<String> availableStoneTypes;
   final List<String> availableStoneQualities;
   final List<String> availableStoneSettings;
@@ -41,6 +42,7 @@ class FloatingFilterConfig {
   final List<String> selectedMetalColors;
   final List<String> selectedMetalPurities;
   final bool isEnamelWorkChecked;
+  final List<String> selectedEnamelColors;
   final List<String> selectedStoneShapes;
   final List<String> selectedStoneTypes;
   final List<String> selectedStoneQualities;
@@ -73,6 +75,7 @@ class FloatingFilterConfig {
   final void Function(List<String>) onMetalColorsChanged;
   final void Function(List<String>) onMetalPuritiesChanged;
   final void Function(bool) onEnamelWorkChanged;
+  final void Function(List<String>) onEnamelColorsChanged;
   final void Function(List<double>) onStoneWeightChanged;
   final void Function(List<String>) onStoneShapesChanged;
   final void Function(List<String>) onStoneTypesChanged;
@@ -105,6 +108,7 @@ class FloatingFilterConfig {
     this.availableMetalColors = const [],
     this.availableMetalPurities = const [],
     this.availableStoneShapes = const [],
+    this.availableEnamelColors = const [],
     this.availableStoneTypes = const [],
     this.availableStoneQualities = const [],
     this.availableStoneSettings = const [],
@@ -117,6 +121,7 @@ class FloatingFilterConfig {
     this.selectedMetalColors = const [],
     this.selectedMetalPurities = const [],
     this.isEnamelWorkChecked = false,
+    this.selectedEnamelColors = const [],
     this.selectedStoneShapes = const [],
     this.selectedStoneTypes = const [],
     this.selectedStoneQualities = const [],
@@ -141,6 +146,7 @@ class FloatingFilterConfig {
     required this.onMetalColorsChanged,
     required this.onMetalPuritiesChanged,
     required this.onEnamelWorkChanged,
+    required this.onEnamelColorsChanged,
     required this.onStoneWeightChanged,
     required this.onStoneShapesChanged,
     required this.onStoneTypesChanged,
@@ -160,6 +166,7 @@ class FloatingFilterConfig {
       selectedMetalColors.isNotEmpty ||
       selectedMetalPurities.isNotEmpty ||
       isEnamelWorkChecked ||
+      selectedEnamelColors.isNotEmpty ||
       selectedStoneShapes.isNotEmpty ||
       selectedStoneTypes.isNotEmpty ||
       selectedStoneQualities.isNotEmpty ||
@@ -178,6 +185,7 @@ class FloatingFilterConfig {
     if (selectedMetalColors.isNotEmpty) n++;
     if (selectedMetalPurities.isNotEmpty) n++;
     if (isEnamelWorkChecked) n++;
+    if (selectedEnamelColors.isNotEmpty) n++;
     if (selectedStoneShapes.isNotEmpty) n++;
     if (selectedStoneTypes.isNotEmpty) n++;
     if (selectedStoneQualities.isNotEmpty) n++;
@@ -852,10 +860,11 @@ class _FloatingFilterPanel extends StatelessWidget {
           ],
         ),
 
-        // 5. Enamel Work
+        // 5. Enamel: any enamel, or specific enamel colours
         _buildAccordion(
-          title: 'Enamel Work',
-          activeCount: config.isEnamelWorkChecked ? 1 : 0,
+          title: 'Enamel',
+          activeCount: (config.isEnamelWorkChecked ? 1 : 0) +
+              config.selectedEnamelColors.length,
           children: [
             CheckboxListTile(
               title:
@@ -865,6 +874,16 @@ class _FloatingFilterPanel extends StatelessWidget {
               activeColor: _green,
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 4, bottom: 8),
+              child: Text('Enamel Colour',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            _buildMultiSelectWrap(
+              options: config.availableEnamelColors,
+              selections: config.selectedEnamelColors,
+              onChanged: config.onEnamelColorsChanged,
             ),
           ],
         ),

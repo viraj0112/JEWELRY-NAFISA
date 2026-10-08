@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:jewelry_nafisa/src/ui/screens/detail/product_browse.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:jewelry_nafisa/src/widgets/blur_up_placeholder.dart';
@@ -20,6 +21,7 @@ import 'package:jewelry_nafisa/src/services/filter_service.dart';
 import 'package:jewelry_nafisa/src/B2BScreens/b2b_theme.dart';
 import 'package:jewelry_nafisa/src/widgets/hover_lift.dart';
 import 'package:jewelry_nafisa/src/widgets/brand_empty_state.dart';
+import 'package:intl/intl.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -65,6 +67,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   List<String> _availableMetalPurities = [];
   List<String> _availableStoneShapes = [];
   List<String> _availableStoneTypes = [];
+  List<String> _availableEnamelColors = [];
+  // Enamel colour label -> the stored values it covers (see
+  // FilterService.getEnamelColours).
+  Map<String, List<String>> _enamelColourVariants = {};
   List<String> _availableStoneQualities = [];
   List<String> _availableStoneSettings = [];
   List<String> _availableFeaturedTags = [];
@@ -79,6 +85,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   List<String> _selectedMetalColors = [];
   List<String> _selectedMetalPurities = [];
   bool _isEnamelWorkChecked = false;
+  List<String> _selectedEnamelColors = [];
   List<String> _selectedStoneShapes = [];
   List<String> _selectedStoneTypes = [];
   List<String> _selectedStoneQualities = [];
@@ -107,6 +114,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   void _onEnamelWorkChanged(bool val) {
     setState(() => _isEnamelWorkChecked = val);
   }
+
+  void _onEnamelColorsChanged(List<String> val) {
+    setState(() => _selectedEnamelColors = val);
+  }
+
+  /// The "Enamel" filters, applied to one table's product query.
+  dynamic _withEnamelFilters(dynamic q) => FilterService.withEnamelFilters(
+        q,
+        hasEnamel: _isEnamelWorkChecked,
+        colourValues: FilterService.enamelValuesFor(
+            _selectedEnamelColors, _enamelColourVariants),
+      );
 
   void _onStoneWeightChanged(List<double> val) {
     setState(() => _currentStoneWeightRange = val);
@@ -165,6 +184,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         _filterService.getWeightRange('Metal Weight', filters: filters),
         _filterService.getWeightRange('Stone Weight',
             isArray: true, filters: filters),
+        _filterService.getEnamelColours(filters),
       ]);
 
       if (mounted) {
@@ -178,6 +198,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           _availableFeaturedTags = futures[6] as List<String>;
           _metalWeightBounds = futures[7] as List<double>;
           _stoneWeightBounds = futures[8] as List<double>;
+          _enamelColourVariants =
+              futures[9] as Map<String, List<String>>;
+          _availableEnamelColors = _enamelColourVariants.keys.toList();
+          // Drop picks no longer on offer for the new filters.
+          _selectedEnamelColors = _selectedEnamelColors
+              .where(_enamelColourVariants.containsKey)
+              .toList();
           _isLoadingAdvancedOptions = false;
         });
       }
@@ -362,6 +389,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             manufacturerQuery.overlaps('"Product Tags"', _selectedFeaturedTags);
       }
 
+      productsQuery = _withEnamelFilters(productsQuery);
+      designerQuery = _withEnamelFilters(designerQuery);
+      manufacturerQuery = _withEnamelFilters(manufacturerQuery);
+
       productsQuery = productsQuery.order('id', ascending: false).range(0, 199);
       designerQuery =
           designerQuery.order('created_at', ascending: false).range(0, 199);
@@ -487,7 +518,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               designerQuery.overlaps('Category', _selectedCategories);
         }
 
-        designerData = await designerQuery
+        designerData = await _withEnamelFilters(designerQuery)
             .order('created_at', ascending: false)
             .range(0, 199);
       } catch (e) {
@@ -514,7 +545,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               manufacturerQuery.overlaps('Category', _selectedCategories);
         }
 
-        manufacturerData = await manufacturerQuery
+        manufacturerData = await _withEnamelFilters(manufacturerQuery)
             .order('created_at', ascending: false)
             .range(0, 199);
       } catch (e) {
@@ -878,6 +909,45 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     await _loadProducts();
   }
 
+  void _onCategoryDropdownChanged(String? value) async {
+    if (value == null) return;
+    setState(() {
+      if (value == 'All') {
+        _selectedCategories.clear();
+      } else {
+        _selectedCategories = [value];
+      }
+      _selectedSubCategory = 'All';
+      _availableSubCategories = ['All'];
+      _isLoadingSubCategories = true;
+    });
+    _displayedCount = _initialItems;
+
+    // Fetch new options for 'Sub Category'
+    final filters = <String, dynamic>{};
+    final effectiveMetal = _effectiveMetalTypeForFilters(_selectedMetalType);
+    if (effectiveMetal != null) filters['Metal Type'] = effectiveMetal;
+    if (_selectedProductType != 'All') {
+      filters['Product Type'] = _selectedProductType;
+    }
+    if (_selectedCategories.isNotEmpty) {
+      filters['Category'] = _selectedCategories;
+    }
+
+    final newSubCategories = await _filterService.getDependentDistinctValues(
+        'Sub Category', filters);
+
+    if (mounted) {
+      setState(() {
+        _availableSubCategories = ['All', ...newSubCategories];
+        _isLoadingSubCategories = false;
+      });
+    }
+
+    _loadAdvancedFilters();
+    await _loadProducts();
+  }
+
   void _onSubCategoryChanged(String? value,
       {bool applyImmediately = true}) async {
     if (value == null) return;
@@ -959,16 +1029,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 children: [
                   _buildAppBar(),
                   _buildMaintenanceBanner(),
-                  _buildFilterBar(),
                   Expanded(
                     child: FloatingFilterOverlay(
                       config: filterConfig,
-                      child: _products.isEmpty
-                          ? const BrandEmptyState(
-                              title: 'New designs coming soon',
-                              message: 'Our designers are adding pieces - check back shortly.',
-                            )
-                          : _buildImageGrid(),
+                      child: _buildScrollableBody(),
                     ),
                   ),
                 ],
@@ -988,16 +1052,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       body: Column(
         children: [
           _buildMaintenanceBanner(),
-          _buildFilterBar(),
           Expanded(
             child: FloatingFilterOverlay(
               config: filterConfig,
-              child: _products.isEmpty
-                  ? const BrandEmptyState(
-                              title: 'New designs coming soon',
-                              message: 'Our designers are adding pieces - check back shortly.',
-                            )
-                  : _buildImageGrid(),
+              child: _buildScrollableBody(),
             ),
           ),
         ],
@@ -1030,6 +1088,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       availableMetalColors: _availableMetalColors,
       availableMetalPurities: _availableMetalPurities,
       availableStoneShapes: _availableStoneShapes,
+          availableEnamelColors: _availableEnamelColors,
       availableStoneTypes: _availableStoneTypes,
       availableStoneQualities: _availableStoneQualities,
       availableStoneSettings: _availableStoneSettings,
@@ -1040,6 +1099,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       selectedMetalColors: _selectedMetalColors,
       selectedMetalPurities: _selectedMetalPurities,
       isEnamelWorkChecked: _isEnamelWorkChecked,
+          selectedEnamelColors: _selectedEnamelColors,
       selectedStoneShapes: _selectedStoneShapes,
       selectedStoneTypes: _selectedStoneTypes,
       selectedStoneQualities: _selectedStoneQualities,
@@ -1053,6 +1113,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       onMetalColorsChanged: _onMetalColorsChanged,
       onMetalPuritiesChanged: _onMetalPuritiesChanged,
       onEnamelWorkChanged: _onEnamelWorkChanged,
+          onEnamelColorsChanged: _onEnamelColorsChanged,
       onStoneWeightChanged: _onStoneWeightChanged,
       onStoneShapesChanged: _onStoneShapesChanged,
       onStoneTypesChanged: _onStoneTypesChanged,
@@ -1319,12 +1380,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         ),
                       ),
                     ),
-                    _buildBubbleFilter(
+                    _buildDropdownFilter(
+                      hint: 'Metal Type',
                       options: _akdMetalTypeOptions,
                       selectedValue: _selectedAkdMetalType,
                       onChanged: _onAkdMetalTypeChanged,
                       isLoading: _isLoadingAkdMetalTypes,
-                      labelBuilder: _displayMetalType,
                     ),
                   ],
                 ),
@@ -1348,14 +1409,33 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     ? Padding(
                         key: const ValueKey('productTypeBubbles'),
                         padding: const EdgeInsets.only(top: 8.0),
-                        child: _buildBubbleFilter(
-                          options: _availableProductTypes,
-                          selectedValue: _selectedProductType,
-                          onChanged: (value) {
-                            if (value != null) {
-                              _onProductTypeChanged(value);
-                            }
-                          },
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                                const Padding(
+                                  padding: EdgeInsets.only(bottom: 8.0),
+                                  child: Text(
+                                    'Product Type',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                      color: B2BColors.inkSoft,
+                                    ),
+                                  ),
+                                ),
+                                _buildDropdownFilter(
+                                  hint: 'Product Type',
+                                  options: _availableProductTypes,
+                                  selectedValue: _selectedProductType,
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      _onProductTypeChanged(value);
+                                    }
+                                  },
+                                ),
+                            ],
+                          ),
                         ),
                       )
                     : const SizedBox.shrink(
@@ -1380,10 +1460,29 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ? Padding(
                     key: const ValueKey('categoryBubbles'),
                     padding: const EdgeInsets.only(top: 8.0),
-                    child: _buildMultiSelectBubbleFilter(
-                      options: _availableCategories,
-                      selectedValues: _selectedCategories,
-                      onToggle: _onCategoryChanged,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 8.0),
+                              child: Text(
+                                'Category',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  color: B2BColors.inkSoft,
+                                ),
+                              ),
+                            ),
+                            _buildDropdownFilter(
+                              hint: 'Category',
+                              options: _availableCategories,
+                              selectedValue: _selectedCategories.isEmpty ? 'All' : _selectedCategories.first,
+                              onChanged: _onCategoryDropdownChanged,
+                            ),
+                        ],
+                      ),
                     ),
                   )
                 : const SizedBox.shrink(key: ValueKey('categoryBubblesEmpty')),
@@ -1408,19 +1507,55 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ? Padding(
                     key: const ValueKey('subCategoryBubbles'),
                     padding: const EdgeInsets.only(top: 8.0),
-                    child: _buildBubbleFilter(
-                      options: _availableSubCategories,
-                      selectedValue: _selectedSubCategory,
-                      onChanged: (value) {
-                        if (value != null) {
-                          _onSubCategoryChanged(value);
-                        }
-                      },
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 8.0),
+                              child: Text(
+                                'Sub Category',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  color: B2BColors.inkSoft,
+                                ),
+                              ),
+                            ),
+                            _buildDropdownFilter(
+                              hint: 'Sub Category',
+                              options: _availableSubCategories,
+                              selectedValue: _selectedSubCategory,
+                              onChanged: (value) {
+                                if (value != null) {
+                                  _onSubCategoryChanged(value);
+                                }
+                              },
+                            ),
+                        ],
+                      ),
                     ),
                   )
                 : const SizedBox.shrink(
                     key: ValueKey('subCategoryBubblesEmpty')),
           ),
+          if (_selectedProductType != 'All' &&
+              (_isLoading || _allProducts.isNotEmpty || _products.isEmpty))
+            Padding(
+              padding: const EdgeInsets.only(top: 6.0, bottom: 4.0),
+              child: Text(
+                _isLoading
+                    ? 'Counting designs...'
+                    : _allProducts.length == 1
+                        ? '1 design'
+                        : '${NumberFormat.decimalPattern().format(_allProducts.length)} designs',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: B2BColors.inkSoft,
+                ),
+              ),
+            ),
           if (_selectedMetalType != 'Gold' ||
               _selectedProductType != 'All' ||
               _selectedCategories.isNotEmpty ||
@@ -1457,208 +1592,143 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  Widget _buildAnimatedOvalDropdown({
-    required String value,
-    required List<String> items,
+  Widget _buildDropdownFilter({
+    required String hint,
+    required List<String> options,
+    required String? selectedValue,
     required ValueChanged<String?> onChanged,
+    bool isLoading = false,
   }) {
-    return Center(
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.96, end: 1.0),
-        duration: const Duration(milliseconds: 260),
+    if (isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    if (options.length <= 1 && hint != 'Product Type') {
+      return const SizedBox.shrink();
+    }
+
+    final displayOptions =
+        (options.contains('All') ? options : ['All', ...options])
+            .toSet()
+            .toList();
+
+    final currentSelection =
+        (selectedValue == null || !displayOptions.contains(selectedValue))
+            ? 'All'
+            : selectedValue;
+
+    // Check if desktop view
+    final isDesktop = MediaQuery.of(context).size.width > 700;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.96, end: 1.0),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      builder: (context, scale, child) {
+        return Transform.scale(scale: scale, child: child);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
-        builder: (context, scale, child) {
-          return Transform.scale(scale: scale, child: child);
-        },
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            height: 50,
-            padding: const EdgeInsets.symmetric(horizontal: 18.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: B2BColors.border, width: 1.2),
-              borderRadius: BorderRadius.circular(28.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                isExpanded: true,
-                value: value,
-                icon: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: B2BColors.inkSoft,
-                  size: 20,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: B2BColors.ink,
-                  fontWeight: FontWeight.w500,
-                ),
-                selectedItemBuilder: (BuildContext context) {
-                  return items.map<Widget>((String item) {
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _displayMetalType(item),
-                        style: const TextStyle(
-                          color: B2BColors.ink,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    );
-                  }).toList();
-                },
-                items: items
-                    .map(
-                      (item) => DropdownMenuItem(
-                        value: item,
-                        child: Text(
-                          _displayMetalType(item),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: onChanged,
-              ),
-            ),
+        width: isDesktop ? 320 : double.infinity,
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 18.0),
+        margin: isDesktop
+            ? const EdgeInsets.symmetric(horizontal: 0)
+            : EdgeInsets.zero,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28.0),
+          border: Border.all(
+            color: B2BColors.border,
+            width: 1.2,
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMultiSelectBubbleFilter({
-    required List<String> options,
-    required List<String> selectedValues,
-    required ValueChanged<String> onToggle,
-    bool isLoading = false,
-  }) {
-    if (isLoading) {
-      return const SizedBox(
-        height: 32,
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      );
-    }
-
-    final displayOptions = options.where((opt) => opt != 'All').toList();
-    if (displayOptions.isEmpty) return const SizedBox.shrink();
-
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 6.0,
-      runSpacing: 6.0,
-      children: displayOptions
-          .map((option) => _buildBubbleChip(
-                option,
-                selectedValues.contains(option),
-                () => onToggle(option),
-              ))
-          .toList(),
-    );
-  }
-
-  Widget _buildBubbleFilter({
-    required List<String> options,
-    required String selectedValue,
-    required ValueChanged<String?> onChanged,
-    bool isLoading = false,
-    String Function(String value)? labelBuilder,
-  }) {
-    if (isLoading) {
-      return const SizedBox(
-        height: 32,
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      );
-    }
-
-    // Filter out 'All' from display
-    final displayOptions = options.where((opt) => opt != 'All').toList();
-
-    if (displayOptions.isEmpty) return const SizedBox.shrink();
-
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 6.0,
-      runSpacing: 6.0,
-      children: displayOptions
-          .map((option) => _buildBubbleChip(
-                labelBuilder?.call(option) ?? option,
-                selectedValue == option,
-                () => onChanged(option),
-              ))
-          .toList(),
-    );
-  }
-
-  Widget _buildBubbleChip(String label, bool isSelected, VoidCallback onTap) {
-    // Shared lookup (see utils/product_type_icons.dart); null means the chip
-    // renders without an icon.
-    final iconPath = productTypeIconAsset(label);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16.0),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 6.0),
-          decoration: BoxDecoration(
-            color: isSelected ? B2BColors.primary : Colors.white,
-            borderRadius: BorderRadius.circular(16.0),
-            border: Border.all(
-              color: isSelected
-                  ? B2BColors.primary
-                  : B2BColors.border,
-              width: 1,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: B2BColors.primary.withValues(alpha: 0.18),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
+          ],
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: currentSelection,
+            onChanged: onChanged,
+            isExpanded: true,
+            borderRadius: BorderRadius.circular(20),
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: B2BColors.inkSoft,
+              size: 20,
+            ),
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+            dropdownColor: Colors.white,
+            selectedItemBuilder: (BuildContext context) {
+              return displayOptions.map<Widget>((String item) {
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: _dropdownOptionLabel(
+                    item,
+                    const TextStyle(
+                      color: B2BColors.ink,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
                     ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (iconPath != null) ...[
-                // Small optimized PNG icons (extracted + downscaled from the
-                // original heavy SVGs; gold strokes on a transparent
-                // background, ~1-2KB each).
-                Image.asset(
-                  iconPath,
-                  width: 18,
-                  height: 18,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                );
+              }).toList();
+            },
+            items: displayOptions.map<DropdownMenuItem<String>>((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: _dropdownOptionLabel(
+                  value,
+                  const TextStyle(
+                    color: B2BColors.ink,
+                    fontSize: 15,
+                  ),
                 ),
-                const SizedBox(width: 6),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : B2BColors.inkSoft,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  fontSize: 12,
-                ),
-              ),
-            ],
+              );
+            }).toList(),
           ),
         ),
       ),
+    );
+  }
+
+  // Dropdown option label with the golden product-type icon when one exists
+  // (see utils/product_type_icons.dart); non-product options (e.g. metal
+  // types, "All") simply have no match and render as plain text.
+  Widget _dropdownOptionLabel(String value, TextStyle style) {
+    final label = value.replaceAll('AKD-', '');
+    final iconPath = productTypeIconAsset(label);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (iconPath != null) ...[
+          Image.asset(
+            iconPath,
+            width: 18,
+            height: 18,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
+          const SizedBox(width: 8),
+        ],
+        Flexible(
+          child: Text(label, overflow: TextOverflow.ellipsis, style: style),
+        ),
+      ],
     );
   }
 
@@ -1804,24 +1874,36 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  Widget _buildImageGrid() {
+  Widget _buildScrollableBody() {
     return CustomScrollView(
       controller: _scrollController,
       slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
-          sliver: SliverMasonryGrid.count(
-            crossAxisCount:
-                (MediaQuery.of(context).size.width / 200).floor().clamp(2, 8),
-            childCount: _products.length,
-            itemBuilder: (context, index) {
-              final item = _products[index];
-              return _buildImageCard(context, item);
-            },
-            mainAxisSpacing: 14.0,
-            crossAxisSpacing: 14.0,
-          ),
+        SliverToBoxAdapter(
+          child: _buildFilterBar(),
         ),
+        if (_products.isEmpty)
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: BrandEmptyState(
+              title: 'New designs coming soon',
+              message: 'Our designers are adding pieces - check back shortly.',
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
+            sliver: SliverMasonryGrid.count(
+              crossAxisCount:
+                  (MediaQuery.of(context).size.width / 200).floor().clamp(2, 8),
+              childCount: _products.length,
+              itemBuilder: (context, index) {
+                final item = _products[index];
+                return _buildImageCard(context, item, from: _products);
+              },
+              mainAxisSpacing: 14.0,
+              crossAxisSpacing: 14.0,
+            ),
+          ),
         if (_isLoadingMore)
           const SliverToBoxAdapter(
             child: Padding(
@@ -1835,7 +1917,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  Widget _buildImageCard(BuildContext context, JewelryItem item) {
+  Widget _buildImageCard(BuildContext context, JewelryItem item,
+      {List<JewelryItem>? from}) {
     final imageUrl = resolveImageUrl(item.image);
 
     // Skip rendering cards with missing image URLs
@@ -1866,10 +1949,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
     return GestureDetector(
       onTap: () {
-        final isDesigner = item.isDesignerProduct;
-        final isManufacturer = item.isManufacturerProduct;
-        context.push(
-            '/product/${item.uid ?? item.id}?isDesigner=$isDesigner&isManufacturer=$isManufacturer');
+        openProduct(context, item, from: from);
       },
       child: HoverLift(
         radius: 18,
