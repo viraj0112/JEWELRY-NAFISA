@@ -26,7 +26,7 @@ function b64encode(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
-function b64decode(text: string): Uint8Array {
+function b64decode(text: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 }
 

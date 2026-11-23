@@ -2,8 +2,8 @@ import { serve } from 'std/http/server';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import { corsHeadersFor } from '../_shared/cors.ts';
 
-// OPTIMIZATION: Use the most popular CLIP model (High chance of being cached/warm)
-const HF_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/clip-ViT-B-32";
+// 768-dim CLIP model to match vector(768) embedding columns and search_all_products / match_products
+const HF_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/clip-ViT-L-14";
 const HF_TOKEN = Deno.env.get("HUGGING_FACE_TOKEN");
 
 serve(async (req) => {

@@ -1639,6 +1639,7 @@ class _JewelryDetailScreenState extends State<JewelryDetailScreen> {
     return CachedNetworkImage(
       imageUrl: url,
       fit: BoxFit.cover,
+      memCacheWidth: 400,
       errorWidget: (_, __, ___) => Container(
           color: Colors.grey[200], child: const Icon(Icons.broken_image)),
       placeholder: (context, url) => createBlurUpPlaceholder(),
