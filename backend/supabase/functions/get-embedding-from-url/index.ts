@@ -2,8 +2,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Config
-const HF_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/clip-ViT-B-32";
+// Config (768-dim to match vector(768) embedding columns and match_products / search_all_products)
+const HF_API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/clip-ViT-L-14";
 
 serve(async (req) => {
   try {
@@ -24,13 +24,12 @@ serve(async (req) => {
     const supabase = createClient(sbUrl, sbKey);
 
     // 4. Fetch Items (Batch of 5)
-    // FIX: We map "Product Title" to 'title' and "Image" to 'image' using aliasing.
-    // Both "Image" and images_arr are text[]; prefer images_arr (Phase 1 unified column).
+    // Phase 3 unified image columns into "Images" (text[]).
     const { data: items, error: fetchError } = await supabase
       .from(table)
-      .select('id, title:"Product Title", image:Image, images_arr')
+      .select('id, title:"Product Title", Images')
       .is('embedding', null)
-      .not('Image', 'is', null) // Ensure we don't pick items without images
+      .not('Images', 'is', null) // Ensure we don't pick items without images
       .limit(5);
 
     if (fetchError) throw new Error(`Supabase Fetch Error: ${fetchError.message}`);
@@ -45,10 +44,7 @@ serve(async (req) => {
     const results = [];
     for (const item of items) {
       try {
-        // Prefer images_arr (Phase 1); fall back to legacy Image (also an
-        // array). Both are text[], so always take the first element.
-        const imageUrl = item.images_arr?.[0]
-          ?? (Array.isArray(item.image) ? item.image[0] : item.image);
+        const imageUrl = Array.isArray(item.Images) ? item.Images[0] : item.Images;
 
         if (!imageUrl) {
            console.log(`Skipping ${item.id} (No Image)`);

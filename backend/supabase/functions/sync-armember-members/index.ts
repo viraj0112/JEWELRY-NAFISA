@@ -31,10 +31,16 @@ async function runARMemberSync() {
     const membersResult = await allMembersResponse.json();
 
     const armMembers = new Map<string, ARMember>(
-      membersResult.data.map((m: any) => [
-        m.user_email,
-        { plan_name: m.arm_subscription_plan_name, status: m.arm_user_status },
-      ])
+      membersResult.data.map(
+        (m: {
+          user_email: string;
+          arm_subscription_plan_name: string;
+          arm_user_status: string;
+        }) => [
+          m.user_email,
+          { plan_name: m.arm_subscription_plan_name, status: m.arm_user_status },
+        ],
+      ),
     );
     console.log(`Found ${armMembers.size} total members in ARMember.`);
 
@@ -93,7 +99,7 @@ async function runARMemberSync() {
   }
 }
 
-serve(async (req) => {
+serve((req) => {
   // Allowlisted per-request CORS; unknown origins get no
   // Access-Control-Allow-Origin and are blocked by the browser.
   const corsHeaders = corsHeadersFor(req);

@@ -29,6 +29,7 @@ import 'package:jewelry_nafisa/src/B2BScreens/b2b_theme.dart';
 import 'package:jewelry_nafisa/src/widgets/hover_lift.dart';
 import 'package:jewelry_nafisa/src/widgets/brand_empty_state.dart';
 
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -1538,19 +1539,17 @@ class HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Metal Type Filter - Compact buttons
+          // Metal Type Filter - Compact buttons (Gold, Silver, Get it)
           Padding(
             padding: const EdgeInsets.only(bottom: 10.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (_selectedMetalType != 'Instant') ...[
-                  _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
-                  const SizedBox(width: 6.0),
-                  _buildMetalTypeButton(
-                      'Silver', _selectedMetalType == 'Silver'),
-                  const SizedBox(width: 6.0),
-                ],
+                _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
+                const SizedBox(width: 6.0),
+                _buildMetalTypeButton(
+                    'Silver', _selectedMetalType == 'Silver'),
+                const SizedBox(width: 6.0),
                 _buildMetalTypeButton(
                     'Instant', _selectedMetalType == 'Instant'),
               ],
@@ -1588,6 +1587,7 @@ class HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
+          /* Filter hierarchy commented out - use floating filter bar instead
           // Product Type Filter - Show for all metal types (Gold, Silver, In-house)
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 260),
@@ -1714,6 +1714,7 @@ class HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.only(top: 6.0),
               child: _buildResetButton(),
             ),
+          */
         ],
       ),
     );
@@ -2281,6 +2282,8 @@ class HomeScreenState extends State<HomeScreen> {
                   child: CachedNetworkImage(
                   imageUrl: imageUrl,
                   fit: BoxFit.cover,
+                  memCacheWidth: 600,
+                  fadeInDuration: const Duration(milliseconds: 250),
                   placeholder: (context, url) => createBlurUpPlaceholder(),
                   errorWidget: (context, url, error) => Container(
                     color:

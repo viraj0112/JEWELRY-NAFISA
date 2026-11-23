@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:ui' as ui;
 
-/// Creates a blur-up (LQIP) placeholder widget for image loading
+/// Creates a smooth placeholder widget for image loading
 ///
-/// This provides a smooth loading experience by showing an animated
-/// blurred background that simulates progressive image loading
+/// This provides a smooth loading experience by showing a gentle pulse animation
+/// without expensive offscreen blur render passes that can exhaust GPU texture memory.
 class BlurUpPlaceholder extends StatefulWidget {
   final Color backgroundColor;
   final Duration animationDuration;
@@ -12,8 +11,8 @@ class BlurUpPlaceholder extends StatefulWidget {
   const BlurUpPlaceholder({
     super.key,
     Color? backgroundColor,
-    this.animationDuration = const Duration(milliseconds: 400),
-  })  : backgroundColor = backgroundColor ?? const Color(0xFFE8E8E8);
+    this.animationDuration = const Duration(milliseconds: 1200),
+  }) : backgroundColor = backgroundColor ?? const Color(0xFFE8E8E8);
 
   @override
   State<BlurUpPlaceholder> createState() => _BlurUpPlaceholderState();
@@ -22,7 +21,7 @@ class BlurUpPlaceholder extends StatefulWidget {
 class _BlurUpPlaceholderState extends State<BlurUpPlaceholder>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  late Animation<double> _blurAnimation;
+  late Animation<double> _opacityAnimation;
 
   @override
   void initState() {
@@ -30,15 +29,14 @@ class _BlurUpPlaceholderState extends State<BlurUpPlaceholder>
     _animationController = AnimationController(
       duration: widget.animationDuration,
       vsync: this,
-    );
+    )..repeat(reverse: true);
 
-    // Blur animation: gradually reduce blur from 15 to 0
-    _blurAnimation = Tween<double>(begin: 15.0, end: 0.0).animate(
+    _opacityAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(
-          parent: _animationController, curve: Curves.easeInOutCubic),
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
     );
-
-    _animationController.forward();
   }
 
   @override
@@ -50,23 +48,18 @@ class _BlurUpPlaceholderState extends State<BlurUpPlaceholder>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _blurAnimation,
+      animation: _opacityAnimation,
       builder: (context, child) {
-        return ImageFiltered(
-          imageFilter: ui.ImageFilter.blur(
-            sigmaX: _blurAnimation.value,
-            sigmaY: _blurAnimation.value,
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  widget.backgroundColor,
-                  widget.backgroundColor.withValues(alpha: 0.6),
-                ],
-              ),
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                widget.backgroundColor,
+                widget.backgroundColor
+                    .withValues(alpha: _opacityAnimation.value),
+              ],
             ),
           ),
         );

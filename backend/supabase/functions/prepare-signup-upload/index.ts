@@ -59,7 +59,7 @@ serve(async (req) => {
       const path = `pending/${signupId}/${fileType}.${ext}`;
       const { data, error } = await supabase.storage
         .from("designer-files")
-        .createSignedUploadUrl(path, 600);
+        .createSignedUploadUrl(path);
 
       if (error || !data?.signedUrl) {
         throw error ?? new Error("Failed to create signed upload URL.");

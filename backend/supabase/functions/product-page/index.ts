@@ -100,33 +100,29 @@ serve(async (req) => {
   let productData: Record<string, unknown> | null = null;
   let error: unknown = null;
 
-  // --- Look the product up by title in both tables (case-insensitive) ---
+  // --- Look the product up by title across all three product tables (case-insensitive) ---
   // .limit(1) rather than .maybeSingle(): the search term is a wildcard
   // pattern, so matching two or more products is ordinary, and maybeSingle()
   // throws in exactly that case.
-  const { data: prodRows, error: prodError } = await supabase
-    .from("products")
-    .select('"Product Title", "Description", "Image", images_arr')
-    .ilike('"Product Title"', productSearchTerm)
-    .limit(1);
-
-  if (prodRows && prodRows.length > 0) {
-    productData = prodRows[0];
-  } else {
-    // NOTE: real columns are PascalCase ("Description", "Image"); an earlier
-    // lowercase select never matched, so designerproducts OG tags always fell
-    // through to the fallback below.
-    const { data: designerRows, error: designerError } = await supabase
-      .from("designerproducts")
-      .select('"Product Title", "Description", "Image", images_arr')
+  // Phase 3 unified image columns into "Images" (text[]).
+  for (const table of ["products", "designerproducts", "manufacturerproducts"]) {
+    const { data: rows, error: queryError } = await supabase
+      .from(table)
+      .select('"Product Title", "Description", "Images"')
       .ilike('"Product Title"', productSearchTerm)
       .limit(1);
 
-    if (designerRows && designerRows.length > 0) {
-      productData = designerRows[0];
-    } else {
-      error = designerError || prodError || new Error("Product not found");
+    if (rows && rows.length > 0) {
+      productData = rows[0];
+      error = null;
+      break;
     }
+    if (queryError) {
+      error = queryError;
+    }
+  }
+  if (!productData && !error) {
+    error = new Error("Product not found");
   }
 
   if (error || !productData) {
@@ -157,9 +153,10 @@ serve(async (req) => {
     productData["Description"] ?? "Beautiful jewelry from Dagina Designs.",
   );
 
-  // "Image" is a text[] column, not a scalar; take the first element. Prefer
-  // the unified images_arr (Phase 1) when present.
-  const images = (productData["images_arr"] ?? productData["Image"]) as
+  // "Images" is the Phase-3 unified text[] column; take the first element.
+  const images = (productData["Images"] ??
+    productData["images_arr"] ??
+    productData["Image"]) as
     | string[]
     | null
     | undefined;

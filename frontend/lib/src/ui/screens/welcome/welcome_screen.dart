@@ -1350,13 +1350,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (_selectedMetalType != 'Instant') ...[
-                  _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
-                  const SizedBox(width: 6.0),
-                  _buildMetalTypeButton(
-                      'Silver', _selectedMetalType == 'Silver'),
-                  const SizedBox(width: 6.0),
-                ],
+                _buildMetalTypeButton('Gold', _selectedMetalType == 'Gold'),
+                const SizedBox(width: 6.0),
+                _buildMetalTypeButton(
+                    'Silver', _selectedMetalType == 'Silver'),
+                const SizedBox(width: 6.0),
                 _buildMetalTypeButton(
                     'Instant', _selectedMetalType == 'Instant'),
               ],
@@ -1391,6 +1389,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
               ),
             ),
+          /* Filter hierarchy commented out - use floating filter bar instead
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 260),
             transitionBuilder: (child, animation) {
@@ -1564,6 +1563,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               padding: const EdgeInsets.only(top: 6.0),
               child: _buildResetButton(),
             ),
+          */
         ],
       ),
     );
@@ -1998,10 +1998,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   ),
                   fadeInDuration: const Duration(milliseconds: 300),
                   fadeOutDuration: const Duration(milliseconds: 300),
-                  memCacheHeight: 400,
-                  memCacheWidth: 400,
-                  maxHeightDiskCache: 400,
-                  maxWidthDiskCache: 400,
+                  memCacheWidth: 600,
                   cacheKey: imageUrl,
                 )),
               ),
